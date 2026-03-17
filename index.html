@@ -9,8 +9,20 @@
 		<style>
 			body {
 				background: linear-gradient(90deg, #000055 0%, #000055 20%, #000033 40%, #000000 100%);
-				margin: 0;
-				padding: 0;
+			}
+			@keyframes breathingGlow {
+				0% {
+					box-shadow: 0 0 10px cyan;
+				}
+				50% {
+					box-shadow: 0 0 30px cyan;
+				}
+				100% {
+					box-shadow: 0 0 10px cyan;
+				}
+			}
+			img {
+				animation: breathingGlow 2s ease-in-out infinite;
 			}
 		</style>
 	</head>
