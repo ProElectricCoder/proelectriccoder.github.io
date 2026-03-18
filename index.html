@@ -78,6 +78,25 @@
 				max-width: 512px;
 				padding-right: 80px;
 			}
+			.button-container {
+				display: flex;
+				gap: 15px;
+				margin-top: 20px;
+			}
+			.cyan-button {
+				background-color: transparent;
+				border: 2px solid cyan;
+				color: cyan;
+				padding: 10px 20px;
+				font-family: monospace;
+				font-size: 14px;
+				cursor: pointer;
+				transition: all 0.3s ease;
+			}
+			.cyan-button:hover {
+				background-color: rgba(0, 255, 255, 0.1);
+				box-shadow: 0 0 15px cyan;
+			}
 		</style>
 	</head>
 	<body>
@@ -94,6 +113,11 @@
 				<span class="normal">
 					A Scratcher, Scratch Wikian and a Programmer
 				</span>
+				<div class="button-container">
+					<button class="cyan-button">Button 1</button>
+					<button class="cyan-button">Button 2</button>
+					<button class="cyan-button">Button 3</button>
+				</div>
 			</div>
 			<img class="right" id="logo" src="Favicon.svg" />
 		</div>
