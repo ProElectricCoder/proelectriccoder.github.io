@@ -29,28 +29,43 @@
 			.normal {
 				font-family: monospace;
 				color: #0ff
+				font-size: 15px;
 			}
 			#name {
 				font-family: fantasy;
 				color: #fff;
 				font-size: 50px;
 			}
+			.container {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				height: 100vh;
+				gap: 40px;
+			}
+
+			.text {
+				display: flex;
+				flex-direction: column;
+			}
 		</style>
 	</head>
 	<body>
-		<img id="logo" src="Favicon.svg" width="512" height="512" />
-		<div>
-			<span class="normal">
-				Welcome to - 
-			</span>
-			<br />
-			<span id="name">
-				ProElectricCoder
-			</span>
-			<br />
-			<span class="normal">
-				A Scratcher, Scratch Wikian and a Git user
-			</span>
+		<div class="container">
+			<img id="logo" src="Favicon.svg" width="512" height="512" />
+			<div class="text">
+				<span class="normal">
+					Welcome to - 
+				</span>
+				<br />
+				<span id="name">
+					ProElectricCoder
+				</span>
+				<br />
+				<span class="normal">
+					A Scratcher, Scratch Wikian and a Git user
+				</span>
+			</div>
 		</div>
 	</body>
 </html>
