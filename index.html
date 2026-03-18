@@ -46,8 +46,18 @@
 			}
 
 			.text {
+				flex: 1;
 				display: flex;
 				flex-direction: column;
+				justify-content: center;  
+				align-items: flex-start;  
+				padding-left: 80px;
+			}
+			.right {
+				flex: 1;
+				display: flex;
+				justify-content: center;  /* horizontal center */
+				align-items: center; 
 			}
 		</style>
 	</head>
@@ -63,10 +73,10 @@
 				</span>
 				<br />
 				<span class="normal">
-					A Scratcher, Scratch Wikian and a Git user
+					A Scratcher, Scratch Wikian and a Programmer
 				</span>
 			</div>
-			<img id="logo" src="Favicon.svg" width="512" height="512" />
+			<img class="right" id="logo" src="Favicon.svg" width="512" height="512" />
 		</div>
 	</body>
 </html>
