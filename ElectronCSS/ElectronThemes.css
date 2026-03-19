@@ -19,9 +19,10 @@
 	color: #FFFFFF88;
 	text-decoration: none;
 	position: relative;
+	transition: 0.2s
 }
 
 /* hover effect */
 .theme-electron a:hover {
-	background: #FFFFFFFF;
+	color: #FFFFFFFF;
 }
