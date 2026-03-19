@@ -189,6 +189,7 @@
 				color: cyan;
 				font-weight: bold;
 				transition: 0.2s;
+				position: relative;
 			}
 			.nav-links a:hover { color: #fff; }
 			.nav-links a::after {
@@ -200,8 +201,9 @@
 				left: 50%;
 				width: 0;
 				transform: translateX(-50%);
+				bottom: -3px;
 			}
-			.nav-link a:hover::after {
+			.nav-links a:hover::after {
 				width: 100%;
 				background: #fff;
 			}
