@@ -65,8 +65,8 @@
 				flex: 1;
 				display: flex;
 				flex-direction: column;
-				justify-content: center;  
-				align-items: flex-start;  
+				justify-content: center;
+				align-items: flex-start;
 				padding-left: 80px;
 			}
 			.right {
@@ -106,6 +106,44 @@
 				height: 16px;
 				width: auto;
 			}
+			.projects-container {
+				margin-top: 40px;
+				text-align: center;
+			}
+			.projects-container h2 {
+				margin-bottom: 20px;
+				color: cyan;
+			}
+			.projects-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+				gap: 20px;
+			}
+			.project-card {
+				background: #111;
+				padding: 20px;
+				border-radius: 12px;
+				border: 1px solid cyan;
+				transition: 0.3s;
+			}
+			.project-card:hover {
+				transform: translateY(-5px);
+				box-shadow: 0 0 15px cyan;
+			}
+			.project-card h3 {
+				margin-bottom: 10px;
+			}
+			.project-card p {
+				font-size: 14px;
+				margin-bottom: 15px;
+			}
+			.project-card a {
+				text-decoration: none;
+				color: black;
+				background: cyan;
+				padding: 8px 12px;
+				border-radius: 6px;
+			}
 		</style>
 	</head>
 	<body>
@@ -135,6 +173,26 @@
 						<img src="https://github.githubassets.com/favicons/favicon-dark.svg" class="web-image">
 						GitHub Profile
 					</a>
+				</div>
+				<div class="projects-container">
+					<h2>Featured Projects</h2>
+					<div class="projects-grid">
+						<div class="project-card">
+							<h3>My Chat App</h3>
+							<p>A realtime chat app using Firebase.</p>
+							<a href="#" target="_blank">View Project</a>
+						</div>
+						<div class="project-card">
+							<h3>Custom New Tab Page</h3>
+							<p>Custom browser start page with shortcuts.</p>
+							<a href="#" target="_blank">View Project</a>
+						</div>
+						<div class="project-card">
+							<h3>Theme Library</h3>
+							<p>Reusable color themes and cubic gradients</p>
+							<a href="#" target="_blank">View Project</a>
+						</div>
+					</div>
 				</div>
 			</div>
 			<img class="right" id="logo" src="Favicon.svg" />
