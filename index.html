@@ -156,9 +156,52 @@
 				transition: 0.2s;
 			}
 			.card-content a:hover { color: #FFFFFFFF; }
+			.main-header {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				padding: 10px 20px;
+				background: #00111155;
+				color: white;
+			}
+			.logo-section {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+			}
+			.logo {
+				width: 32px;
+				height: 32px;
+			}
+			.site-name {
+				font-family: fantasy;
+				font-size: 20px;
+			}
+			.nav-links a {
+				margin-left: 20px;
+				text-decoration: none;
+				color: cyan;
+				font-weight: bold;
+				transition: 0.2s;
+			}
+			.nav-links a:hover {
+				color: #00eaff; /* electric vibe */
+			}
 		</style>
 	</head>
 	<body>
+		<header class="main-header">
+			<div class="logo-section">
+				<img src="Favicon.svg" alt="Logo" class="logo">
+				<span class="site-name">ProElectricCoder</span>
+			</div>
+
+			<nav class="nav-links">
+				<a href="https://proelectriccoder.github.io/">Home</a>
+				<a href="./Projects/">Projects</a>
+				<a href="./Chat/">Chat</a>
+			</nav>
+		</header>
 		<div class="container">
 			<div class="left">
 				<span class="normal">
