@@ -32,17 +32,17 @@ export function cubicGradient({
 }
 
 
-/*
-USAGE:
 
-import { cubicGradient } from './cubic-gradient.js';
-
-const bg = cubicGradient({
-  direction: 'to left',
-  start: '#000055',
-  end: '#000000',
-  steps: 8,
-  power: 3
-});
-
-document.body.style.background = bg;
+// USAGE:
+//
+// import { cubicGradient } from './cubic-gradient.js';
+//
+// const bg = cubicGradient({
+//   direction: 'to left',
+//   start: '#000055',
+//   end: '#000000',
+//   steps: 8,
+//   power: 3
+// });
+//
+// document.body.style.background = bg;
