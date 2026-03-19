@@ -21,19 +21,7 @@
 	position: relative;
 }
 
-/* underline effect using ::after */
-.theme-electron a::after {
-	content: '';
-	position: absolute;
-	left: 0;
-	bottom: -2px;
-	width: 100%;
-	height: 2px;
-	background: #FFFFFF88;
-	transition: background 0.2s;
-}
-
 /* hover effect */
-.theme-electron a:hover::after {
+.theme-electron a:hover {
 	background: #FFFFFFFF;
 }
