@@ -18,11 +18,19 @@
 		<meta property="og:type" content="website">
 		<meta property="og:url" content="https://proelectriccoder.github.io/">
 		<meta property="og:image" content="https://proelectriccoder.github.io/Preview.png">
+
+		<script type="module">
+			import { cubicGradient } from 'https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js';
+			document.body.style.background = cubicGradient({
+				direction: 'to right',
+				start: '#000000',
+				end: '#000055'
+			});
+		</script>
 		
 		<style>
 			body {
 				margin: 0;
-				background: linear-gradient(90deg, #000055 0%, #000055 20%, #000033 40%, #000000 100%);
 			}
 			@keyframes breathingGlow {
 				0% { box-shadow: 0 0 30px cyan; }
