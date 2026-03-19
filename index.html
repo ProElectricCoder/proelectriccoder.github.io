@@ -125,7 +125,12 @@
 				transform: translateY(-5px);
 				box-shadow: 0 0 15px cyan;
 			}
-			.card-content{ padding: 16px; }
+			.card-content{
+				min-height: 150px;
+				padding: 16px;
+				display: flex;
+				flex-direction: column;
+			}
 			.card-content h3 {
 				margin-top: 0px;
 				margin-bottom: 10px;
@@ -135,6 +140,7 @@
 				margin-bottom: 15px;
 			}
 			.card-content a {
+				margin-top: auto;
 				text-decoration: none;
 				color: #FFFFFF88;
 				padding: 8px 0px;
