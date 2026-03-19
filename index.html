@@ -25,15 +25,9 @@
 				background: linear-gradient(90deg, #000055 0%, #000055 20%, #000033 40%, #000000 100%);
 			}
 			@keyframes breathingGlow {
-				0% {
-					box-shadow: 0 0 30px cyan;
-				}
-				50% {
-					box-shadow: 0 0 50px cyan;
-				}
-				100% {
-					box-shadow: 0 0 30px cyan;
-				}
+				0% { box-shadow: 0 0 30px cyan; }
+				50% { box-shadow: 0 0 50px cyan; }
+				100% { box-shadow: 0 0 30px cyan; }
 			}
 			#logo {
 				animation: breathingGlow 5s ease-in-out infinite;
@@ -131,22 +125,21 @@
 				transform: translateY(-5px);
 				box-shadow: 0 0 15px cyan;
 			}
-			.project-card h3 {
+			.card-content{ padding: 16px; }
+			.card-content h3 {
 				margin-top: 0px;
 				margin-bottom: 10px;
 			}
-			.project-card p {
+			.card-content p {
 				font-size: 14px;
 				margin-bottom: 15px;
 			}
-			.project-card a {
+			.card-content a {
 				text-decoration: none;
-				color: black;
-				background: cyan;
+				color: #11111155;
 				padding: 8px 12px;
-				margin-bottom: 16px;
-				border-radius: 6px;
 			}
+			.card-content a:hover { color: #11111133; }
 		</style>
 	</head>
 	<body>
@@ -181,19 +174,25 @@
 					<h2>Featured Projects</h2>
 					<div class="projects-grid">
 						<div class="project-card">
-							<h3>My Chat App</h3>
-							<p>A realtime chat app using Firebase.</p>
-							<a href="#" target="_blank">View Project</a>
+							<div class="card-content">
+								<h3>My Chat App</h3>
+								<p>A realtime chat app using Firebase.</p>
+								<a href="#" target="_blank">View Project</a>
+							</div>
 						</div>
 						<div class="project-card">
-							<h3>Custom New Tab Page</h3>
-							<p>Custom browser start page with shortcuts.</p>
-							<a href="#" target="_blank">View Project</a>
+							<div class="card-content">
+								<h3>Custom New Tab Page</h3>
+								<p>Custom browser start page with shortcuts.</p>
+								<a href="#" target="_blank">View Project</a>
+							</div>
 						</div>
 						<div class="project-card">
-							<h3>Theme Library</h3>
-							<p>Reusable color themes and cubic gradients</p>
-							<a href="#" target="_blank">View Project</a>
+							<div class="card-content">
+								<h3>Theme Library</h3>
+								<p>Reusable color themes and cubic gradients</p>
+								<a href="#" target="_blank">View Project</a>
+							</div>
 						</div>
 					</div>
 				</div>
