@@ -1,0 +1,39 @@
+/* ElectronThemes.css */
+
+/* Base theme */
+.theme-electron {
+	font-family: monospace;
+	color: cyan;
+	background: #00111155;
+}
+
+/* General borders */
+.theme-electron .electron-card {
+	border-radius: 8px;
+	border: 1px solid cyan;
+	box-sizing: border-box;
+}
+
+/* Links */
+.theme-electron a {
+	color: #FFFFFF88;
+	text-decoration: none;
+	position: relative;
+}
+
+/* underline effect using ::after */
+.theme-electron a::after {
+	content: '';
+	position: absolute;
+	left: 0;
+	bottom: -2px;
+	width: 100%;
+	height: 2px;
+	background: #FFFFFF88;
+	transition: background 0.2s;
+}
+
+/* hover effect */
+.theme-electron a:hover::after {
+	background: #FFFFFFFF;
+}
