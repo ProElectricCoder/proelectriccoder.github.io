@@ -190,8 +190,20 @@
 				font-weight: bold;
 				transition: 0.2s;
 			}
-			.nav-links a:hover {
-				color: #00eaff; /* electric vibe */
+			.nav-links a:hover { color: #fff; }
+			.nav-links a::after {
+				content: "";
+				position: absolute;
+				height: 2px;
+				transition: 0.3s ease;
+				background: cyan;
+				left: 50%;
+				width: 0;
+				transform: translateX(-50%);
+			}
+			.nav-link a:hover::after {
+				width: 100%;
+				background: #fff;
 			}
 		</style>
 	</head>
