@@ -91,12 +91,17 @@
 				padding: 10px 20px;
 				font-family: monospace;
 				font-size: 14px;
+				text-decoration: none;
 				cursor: pointer;
 				transition: all 0.3s ease;
 			}
 			.cyan-button:hover {
 				background-color: rgba(0, 255, 255, 0.1);
 				box-shadow: 0 0 15px cyan;
+			}
+			.web-image {
+				height: 16px;
+				width: auto;
 			}
 		</style>
 	</head>
@@ -115,18 +120,18 @@
 					A Scratcher, Scratch Wikian and a Programmer
 				</span>
 				<div class="button-container">
-					<button href="https://scratch.mit.edu/users/Unknown9856" class="cyan-button">
-						<img src="https://scratch.mit.edu/favicon.ico">
+					<a href="https://scratch.mit.edu/users/Unknown9856" target="_blank" class="cyan-button">
+						<img src="https://scratch.mit.edu/favicon.ico" class="web-image">
 						Scratch Profile
-					</button>
-					<button href="https://en.scratch-wiki.info/User:Unknown9856" class="cyan-button">
-						<img src="https://en.scratch-wiki.info/favicon.ico">
+					</a>
+					<a href="https://en.scratch-wiki.info/User:Unknown9856" target="_blank" class="cyan-button">
+						<img src="https://en.scratch-wiki.info/favicon.ico" class="web-image">
 						Scratch Wiki Profile
-					</button>
-					<button href="https://github.com/ProElectricCoder" class="cyan-button">
-						<img src="https://github.githubassets.com/favicons/favicon-dark.svg">
+					</a>
+					<a href="https://github.com/ProElectricCoder" target="_blank" class="cyan-button">
+						<img src="https://github.githubassets.com/favicons/favicon-dark.svg" class="web-image">
 						GitHub Profile
-					</button>
+					</a>
 				</div>
 			</div>
 			<img class="right" id="logo" src="Favicon.svg" />
