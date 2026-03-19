@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>
+			Home - ProElectricCoder
+		</title>
+		<link rel="icon" href="Favicon.svg">
+
+		<!-- meta preperties -->
+		<meta name="title" content="ProElectricCoder">
+		<meta name="description" content="Homepage">
+		<meta name="keywords" content="ProElectricCannon, ProElectricCoder, Unknown9856, Electron, CSS, ElectronCSS">
+		<meta name="author" content="ProElectricCoder"> <!-- Also known as Unknown9856 -->
+		<meta name="robots" content="index, follow">
+
+		<meta property="og:title" content="ProElectricCoder - ElectronCSS">
+		<meta property="og:description" content="A styles library made by ProElectricCoder">
+		<meta property="og:type" content="website">
+		<meta property="og:url" content="https://proelectriccoder.github.io/ElectronCSS/">
+		<meta property="og:image" content="https://proelectriccoder.github.io/Preview.png">
+
+		<!-- Load my own library styles -->
+		<link rel="stylesheet" href="ElectronThemes.css" />
+
+		<style>
+			body {
+				padding: 40px;
+			}
+			#warning {
+				display: inline-block;
+				padding: 10px 16px;
+				border-radius: 8px;
+				color: yellow;
+				background: #111100;
+				font-weight: bold;
+			}
+		</style>
+
+		<link href="https://cdn.jsdelivr.net/npm/prismjs/themes/prism.css" rel="stylesheet" />
+		<script src="https://cdn.jsdelivr.net/npm/prismjs/prism.js"></script>
+		
+		<script type="module">
+			import { cubicGradient } from 'https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js';
+			document.body.style.background = cubicGradient({
+				direction: 'to left',
+				start: '#000000',
+				end: '#000055',
+				steps: '20'
+			});
+		</script>
+	</head>
+	<body class="theme-electron">
+		<!--
+		<header></header>
+		-->
+		<h2>ElectronCSS - A theme library</h2>
+		<p>
+			ElectronCSS is a theme library made by me, it currently contains different types of gradients which are not present in noremal CSS, such as Quadratic and cubic gradients. The background can be set like this:
+		</p>
+		<pre>
+			<code class="language-js">
+				import { cubicGradient } from 'https://proelectriccoder.github.io/ElectrocCSS/CubicGradient.js';
+				document.body.style.background = cubicGradient({
+					direction: 'to left',  // direction, all CSS linear-gradient direction are supported
+					start: '#000055',      // start colour
+					end: '#000000',        // end colour
+					steps: 20,             // the more, the smoother
+					power: 3               // 3 for cubic, 2 for quadratic, etc
+				});
+			</code>
+		</pre>
+		ElectronThemes.css currently contains the class <code>theme-electron</code> that gives the styles that are visible on this very page.
+		<br />
+		The raw file can be accessed here: <br />
+		<a href="CubicGradient.js">CubicGradient.js</a><br />
+		<a href="ElectronThemes.css">ElectronThemes.css</a><br />
+		<br />
+		<span id="warning">⚠ WARNING: ElectronThemes.css will becomes very huge after some time, so it's better not to open it.</span>
+	</body>
+</html>
