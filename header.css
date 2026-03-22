@@ -1,0 +1,53 @@
+.main-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 20px;
+	background: #00111155;
+	color: white;
+	border-bottom: 2px solid cyan;
+	position: fixed;
+	top: 0;
+	right: 0;
+	left: 0;
+	z-index: 100;
+	backdrop-filter: blur(10px);
+}
+.logo-section {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+.logo {
+	width: 32px;
+	height: 32px;
+}
+.site-name {
+	font-family: fantasy;
+	font-size: 20px;
+}
+.nav-links a {
+	font-family: monospace;
+	margin-left: 20px;
+	text-decoration: none;
+	color: cyan;
+	font-weight: bold;
+	transition: color 0.3s ease;
+	position: relative;
+}
+.nav-links a:hover { color: #fff; }
+.nav-links a::after {
+	content: "";
+	position: absolute;
+	height: 2px;
+	transition: width 0.3s ease, background 0.3s ease;
+	background: cyan;
+	left: 50%;
+	width: 0;
+	transform: translateX(-50%);
+	bottom: -3px;
+}
+.nav-links a:hover::after {
+	width: 100%;
+	background: #fff;
+}
