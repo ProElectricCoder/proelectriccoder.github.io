@@ -1,28 +1,37 @@
 /* ElectronThemes.css */
 
+.theme-electron-cyan {
+	--color: cyan;
+	--card-background: #00111155;
+	--card-border-color: cyan;
+	--card-glow: cyan;
+	--anchor-color: #FFFFFF88;
+	--anchor-hover: #EFFFFFFF;
+}
+
 /* Base theme */
-.theme-electron {
+.electron-base {
 	font-family: monospace;
-	color: cyan;
-	background: #00111155;
+	color: var(--color);
 }
 
 /* General borders */
-.theme-electron .electron-card {
+.electron-card {
 	border-radius: 8px;
-	border: 1px solid cyan;
+	border: 1px solid var(--card-boder-color);
 	box-sizing: border-box;
+	background: var(--card-background);
 }
 
 /* Links */
-.theme-electron a {
-	color: #FFFFFF88;
+.electron-a {
+	color: var(--anchor-color);
 	text-decoration: none;
 	position: relative;
 	transition: 0.2s
 }
 
 /* hover effect */
-.theme-electron a:hover {
-	color: #FFFFFFFF;
+.electron-a:hover {
+	color: var(--anchor-hover);
 }
