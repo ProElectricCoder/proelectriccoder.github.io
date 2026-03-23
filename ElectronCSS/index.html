@@ -44,10 +44,10 @@
 				background: transparent;
 			}
 		</style>
+		<link rel="stylesheet" href="/header.css" />
 
 		<link href="https://cdn.jsdelivr.net/npm/prismjs/themes/prism.css" rel="stylesheet" />
 		<script src="https://cdn.jsdelivr.net/npm/prismjs/prism.js"></script>
-		
 		<script type="module">
 			import { cubicGradient } from 'https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js';
 			document.body.style.background = cubicGradient({
@@ -59,9 +59,8 @@
 		</script>
 	</head>
 	<body class="theme-electron">
-		<!--
-		<header></header>
-		-->
+		<div id="header"></div>
+		<script src"/header.js"></script>
 		<h2>ElectronCSS - A theme library</h2>
 		<p>
 			ElectronCSS is a theme library made by me, it currently contains different types of gradients which are not present in noremal CSS, such as Quadratic and cubic gradients. The background can be set like this:
