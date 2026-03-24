@@ -41,6 +41,9 @@
 	padding: 12px 16px;
 	color: var(--anchor-color);
 }
+.electron-list-item img {
+	border-radius: 5px;
+}
 .electron-list-item:hover {
 	color: var(--anchor-hover);
 }
