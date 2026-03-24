@@ -50,16 +50,16 @@
 	display: flex;
 	align-items: center;
 	gap: 10px;
+	color: var(--anchor-color);
 }
 .electron-list-item .right svg {
 	flex-shrink: 0;
 	width: 16px;
 	height: 16px;
 	object-fit: contain;
-	color: var(--anchor-color);
 	transition: 0.1s;
 }
-.electron-list-item .right svg:hover {
+.electron-list-item .right:hover {
 	color: var(--anchor-hover);
 }
 .electron-list-item:hover {
