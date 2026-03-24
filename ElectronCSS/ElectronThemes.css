@@ -45,11 +45,15 @@
 	gap: 10px;
 	justify-content: space-between;
 }
-.electron-list-item img {
+.electron-list-item .right {
+	display: flex;
+	align-items: center;
+}
+.electron-list-item .right img {
 	border-radius: 5px;
 	flex-shrink: 0;
-	width: 32px;
-	height: 32px;
+	width: 16px;
+	height: 16px;
 	object-fit: contain;
 }
 .electron-list-item:hover {
