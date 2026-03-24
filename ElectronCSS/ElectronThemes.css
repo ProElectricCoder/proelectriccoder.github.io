@@ -51,12 +51,16 @@
 	align-items: center;
 	gap: 10px;
 }
-.electron-list-item .right img {
-	border-radius: 5px;
+.electron-list-item .right svg {
 	flex-shrink: 0;
 	width: 16px;
 	height: 16px;
 	object-fit: contain;
+	color: var(--anchor-color);
+	transition: 0.1s;
+}
+.electron-list-item .right svg:hover {
+	color: var(--anchor-hover);
 }
 .electron-list-item:hover {
 	color: var(--anchor-hover);
