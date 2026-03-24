@@ -44,6 +44,7 @@
 	align-items: center;
 	gap: 10px;
 	justify-content: space-between;
+	transition: 0.2s ease;
 }
 .electron-list-item .right {
 	display: flex;
@@ -96,7 +97,7 @@
 .electron-scrollbar::-webkit-scrollbar-thumb {
     background: var(--anchor-color);
     border-radius: 8px;
-    transition: background 0.25s ease;
+    transition: background 0.2s ease;
 }
 .electron-scrollbar::-webkit-scrollbar-thumb:hover {
     background: var-(anchor-hover);
