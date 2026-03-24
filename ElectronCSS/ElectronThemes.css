@@ -63,9 +63,26 @@
 .electron-list-item::after {
 	bottom: 0;
 }
-
-/* Hover effect */
 .electron-list-item:hover::before,
 .electron-list-item:hover::after {
 	background: var(--anchor-hover);
+}
+
+.electron-scrollbar {
+    overflow: auto;
+}
+.electron-scrollbar::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+.electron-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.electron-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--anchor-color);
+    border-radius: 8px;
+    transition: background 0.25s ease;
+}
+.electron-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var-(anchor-hover);
 }
