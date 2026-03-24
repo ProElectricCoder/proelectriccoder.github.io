@@ -44,7 +44,7 @@
 	align-items: center;
 	gap: 10px;
 	justify-content: space-between;
-	transition: 0.2s ease;
+	transition: 0.1s;
 }
 .electron-list-item .right {
 	display: flex;
