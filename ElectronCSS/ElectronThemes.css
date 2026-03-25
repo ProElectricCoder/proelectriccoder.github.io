@@ -56,9 +56,6 @@
 	width: 16px;
 	height: 16px;
 }
-.electron-list-item .right:hover {
-	color: inherit;
-}
 .electron-list-item:hover {
 	color: var(--anchor-hover);
 }
