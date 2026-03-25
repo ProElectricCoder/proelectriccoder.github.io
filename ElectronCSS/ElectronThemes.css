@@ -18,8 +18,7 @@
 /* General borders */
 .electron-card {
 	border-radius: 8px;
-	border: 1px solid var(--card-boder-color);
-	box-sizing: border-box;
+	border: 1px solid var(--card-border-color);
 	background: var(--card-background);
 }
 
@@ -50,17 +49,15 @@
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	color: var(--anchor-color);
+	color: inherit;
 }
 .electron-list-item .right svg {
 	flex-shrink: 0;
 	width: 16px;
 	height: 16px;
-	object-fit: contain;
-	transition: 0.1s;
 }
 .electron-list-item .right:hover {
-	color: var(--anchor-hover);
+	color: inherit;
 }
 .electron-list-item:hover {
 	color: var(--anchor-hover);
@@ -105,5 +102,5 @@
     transition: background 0.2s ease;
 }
 .electron-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: var-(anchor-hover);
+    background: var(--anchor-hover);
 }
