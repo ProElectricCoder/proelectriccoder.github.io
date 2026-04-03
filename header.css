@@ -26,6 +26,11 @@
 	font-family: fantasy;
 	font-size: 20px;
 }
+@media (max-width: 768px) {
+	.site-name {
+		display: none;
+	}
+}
 .nav-links a {
 	font-family: monospace;
 	margin-left: 20px;
