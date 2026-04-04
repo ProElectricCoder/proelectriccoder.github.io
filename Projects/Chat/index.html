@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>P2P Multi-Chat Messenger</title>
+
+	<!-- Meta Properties -->
+	<meta name="title" content="PeerLink – Secure P2P Chat">
+	<meta name="description" content="A fast peer-to-peer chat app using WebRTC. Send messages, files, and images directly between devices with no central server.">
+	<meta name="keywords" content="P2P chat, WebRTC chat, peer messaging, secure chat, direct messaging, WebRTC file transfer">
+	<meta name="author" content="ProElectricCannon"> <!-- Also known as Unknown9856 -->
+	<meta name="robots" content="index, follow">
+
+	<meta property="og:title" content="PeerLink – Secure P2P Chat">
+	<meta property="og:description" content="Instant peer-to-peer messaging and file sharing powered by WebRTC.">
+	<meta property="og:type" content="website">
+	<meta property="og:url" content="https://domain-name.type">
+	<meta property="og:image" content="https://domain-name.type/ChatLogo.svg">
+
+	<link rel="icon" type="image/svg+xml" href="ChatLogo.svg">
+	<link rel="stylesheet" href="https://proelectriccoder.github.io/ElectronCSS/ElectronThemes.css">
+
+	<script src="https://cdn.tailwindcss.com"></script>
+	<style>
+		.chat-scroll::-webkit-scrollbar { width: 6px; }
+		.chat-scroll::-webkit-scrollbar-track { background: transparent; }
+		.chat-scroll::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+		.chat-scroll::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+		
+		/* Bouncy Message Animations */
+		@keyframes popInRight {
+			0% { opacity: 0; transform: scale(0.8) translateY(10px); transform-origin: bottom right; }
+			100% { opacity: 1; transform: scale(1) translateY(0); transform-origin: bottom right; }
+		}
+		@keyframes popInLeft {
+			0% { opacity: 0; transform: scale(0.8) translateY(10px); transform-origin: bottom left; }
+			100% { opacity: 1; transform: scale(1) translateY(0); transform-origin: bottom left; }
+		}
+		@keyframes popInCenter {
+			0% { opacity: 0; transform: scale(0.9) translateY(10px); transform-origin: bottom center; }
+			100% { opacity: 1; transform: scale(1) translateY(0); transform-origin: bottom center; }
+		}
+		.msg-pop-right { animation: popInRight 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+		.msg-pop-left { animation: popInLeft 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+		.msg-pop-center { animation: popInCenter 0.3s ease-out forwards; }
+		
+		.selected-chat { background-color: #1f2937; border-left: 4px solid #3b82f6; }
+		
+		/* Typing Indicator */
+		.typing-dot { animation: typing 1.4s infinite ease-in-out both; }
+		.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+		.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+		@keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+
+		/* Popout Mode Styles */
+		.popout-mode #sidebar { display: none !important; }
+		.popout-mode #main-chat-area { display: flex !important; width: 100% !important; max-width: 100% !important; }
+		.popout-mode .popout-hide { display: none !important; }
+		
+		/* Text input scrollbar */
+		#chat-input {
+		resize: none;
+		overflow-y: auto;
+		max-height: 240px; 
+		}
+		
+		#chat-input::-webkit-scrollbar {
+			width: 6px;
+		}
+
+		#chat-input::-webkit-scrollbar-track {
+			background: transparent;
+		}
+
+		#chat-input::-webkit-scrollbar-thumb {
+			background: #4b5563;
+			border-radius: 10px;
+		}
+
+		#chat-input::-webkit-scrollbar-thumb:hover {
+			background: #6b7280;
+		}
+		
+	</style>
+</head>
+<body class="theme-electron text-gray-100 h-screen overflow-hidden font-sans antialiased flex">
+
+	<!-- Left Sidebar: Contacts & Chats -->
+	<div id="sidebar" class="w-full md:w-80 flex flex-col border-r border-gray-700/50 bg-gray-900/60 backdrop-blur-xl h-full flex-shrink-0 shadow-2xl">
+		<!-- Header -->
+		<div class="p-4 border-b border-gray-700/50 flex justify-between items-center bg-transparent">
+			<h1 class="font-bold text-lg text-blue-400 flex items-center gap-2">
+				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"></path></svg>
+				P2P Chats
+			</h1>
+			<button onclick="openModal()" class="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-full transition shadow-lg" title="New Chat">
+				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+			</button>
+		</div>
+		
+		<!-- Profile -->
+		<div class="p-3 border-b border-gray-700/50 bg-gray-800/40 flex items-center gap-3">
+			<div class="relative group cursor-pointer flex-shrink-0" onclick="document.getElementById('avatar-upload').click()" title="Change Profile Picture">
+				<div id="my-avatar-preview-container" class="w-12 h-12 rounded-full bg-gray-700/50 border-2 border-gray-600 flex items-center justify-center overflow-hidden group-hover:border-blue-500 transition shadow">
+					<svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+				</div>
+				<div class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+					<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+				</div>
+			</div>
+			<div class="flex-1">
+				<label class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1 block">My Display Name</label>
+				<input type="text" id="my-username" class="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none transition" value="Anonymous" oninput="saveMyProfile()">
+			</div>
+			<input type="file" id="avatar-upload" accept="image/*" class="hidden" onchange="handleAvatarUpload(event)">
+		</div>
+
+		<!-- Chat List -->
+		<div id="sidebar-chats" class="flex-1 overflow-y-auto chat-scroll p-2 space-y-1">
+			<!-- Populated by JS -->
+		</div>
+	</div>
+
+	<!-- Main Chat Area -->
+	<div id="main-chat-area" class="hidden md:flex flex-1 w-full md:w-auto flex-col bg-gray-800/40 backdrop-blur-md relative h-full">
+		
+		<!-- Empty State -->
+		<div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center z-10 bg-transparent">
+			<div class="w-20 h-20 bg-gray-700/60 backdrop-blur-md rounded-full flex items-center justify-center mb-4 shadow-inner">
+				<svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+			</div>
+			<h2 class="text-xl font-bold text-gray-300">No Chat Selected</h2>
+			<p class="text-gray-500 mt-2">Select a chat from the sidebar or start a new one.</p>
+		</div>
+
+		<!-- Active Chat Header -->
+		<div id="active-chat-header" class="h-16 border-b border-gray-700/50 flex items-center justify-between px-4 md:px-6 bg-gray-850/50 backdrop-blur-sm hidden z-20 shadow-md">
+			<div class="flex items-center gap-2 md:gap-4 min-w-0">
+				<button class="md:hidden text-gray-400 hover:text-white p-1 -ml-1 flex-shrink-0 popout-hide" onclick="closeMobileChat()">
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+				</button>
+				<div class="relative flex-shrink-0">
+					<div id="header-avatar" class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center font-bold text-white uppercase shadow-md">G</div>
+					<div id="header-status-dot" class="absolute bottom-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-gray-850"></div>
+				</div>
+				<div class="min-w-0">
+					<h2 id="header-title" class="font-bold text-gray-100 leading-tight truncate">Room Name</h2>
+					<div class="flex items-center gap-2">
+						<span id="header-status-text" class="text-xs text-red-400 font-medium whitespace-nowrap">Disconnected</span>
+						<span id="header-code" class="text-[10px] bg-gray-700 text-gray-300 px-2 py-0.5 rounded font-mono cursor-pointer hover:bg-gray-600 flex-shrink-0" onclick="copyCurrentRoomCode()" title="Copy Room Code">CODE</span>
+					</div>
+				</div>
+			</div>
+			<div class="flex gap-2 flex-shrink-0 pl-2">
+				<button class="popout-hide bg-gray-700 hover:bg-gray-600 text-gray-200 px-2 md:px-3 py-1.5 rounded-lg text-sm transition hidden md:flex items-center justify-center shadow-sm" onclick="popOutChat()" title="Pop Out in New Window">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+				</button>
+				<button id="btn-connect" class="bg-green-600 hover:bg-green-500 text-white px-3 md:px-4 py-1.5 rounded-lg text-sm font-medium transition shadow-sm flex items-center gap-1" onclick="connectCurrentRoom()">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> <span class="hidden sm:inline">Connect</span>
+				</button>
+				<button id="btn-disconnect" class="bg-yellow-600 hover:bg-yellow-500 text-white px-3 md:px-4 py-1.5 rounded-lg text-sm font-medium transition shadow-sm hidden flex items-center gap-1" onclick="disconnectCurrentRoom()">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414"></path></svg> <span class="hidden sm:inline">Disconnect</span>
+				</button>
+				<button class="bg-red-900 hover:bg-red-800 text-red-200 px-2 md:px-3 py-1.5 rounded-lg text-sm transition" onclick="deleteCurrentRoom()" title="Delete Chat History">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+				</button>
+			</div>
+		</div>
+
+		<!-- Messages Area -->
+		<div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-4 chat-scroll flex flex-col z-20 bg-transparent hidden">
+			<!-- Messages injected here -->
+		</div>
+
+		<!-- Typing Indicator -->
+		<div id="typing-indicator" class="px-6 py-2 text-xs text-gray-400 italic hidden z-20 bg-transparent border-t border-gray-750/50">
+			<span id="typing-users"></span> is typing<span class="inline-flex ml-1"><span class="typing-dot w-1 h-1 bg-gray-400 rounded-full mx-0.5"></span><span class="typing-dot w-1 h-1 bg-gray-400 rounded-full mx-0.5"></span><span class="typing-dot w-1 h-1 bg-gray-400 rounded-full mx-0.5"></span></span>
+		</div>
+
+		<!-- Input Area -->
+		<div id="chat-input-area" class="p-4 bg-gray-850/60 backdrop-blur-md border-t border-gray-700/50 z-20 hidden">
+			<div id="attachment-preview-area" class="flex gap-2 mb-2 overflow-x-auto hidden"></div>
+			<form id="chat-form" class="flex gap-2" onsubmit="sendMessage(event)">
+				<button type="button" onclick="document.getElementById('media-upload').click()" class="bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl px-4 py-3 transition disabled:opacity-50 flex items-center justify-center shadow" disabled id="btn-attach" title="Attach File">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+				</button>
+				<input type="file" id="media-upload" class="hidden" onchange="handleMediaUpload(event)" multiple>
+				<textarea id="chat-input" rows="1" class="flex-1 bg-gray-900 border border-gray-600 text-gray-100 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition disabled:opacity-50" placeholder="Type a message..." autocomplete="off" disabled oninput="handleTyping()"></textarea>				<button type="submit" id="btn-send" class="bg-blue-600 hover:bg-blue-500 text-white rounded-xl px-6 py-3 font-medium transition disabled:opacity-50 flex items-center justify-center shadow-lg" disabled>
+					<svg class="w-5 h-5 transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+				</button>
+			</form>
+		</div>
+	</div>
+
+	<!-- Modals (Create/Join) -->
+	<div id="setup-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm transition-opacity">
+		<div class="bg-gray-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-gray-700 transform scale-95 transition-transform" id="modal-content">
+			<div class="flex border-b border-gray-700 bg-gray-900">
+				<button class="flex-1 py-3 text-sm font-semibold text-blue-400 border-b-2 border-blue-500" id="tab-join" onclick="switchModalTab('join')">Join Room</button>
+				<button class="flex-1 py-3 text-sm font-semibold text-gray-400 hover:text-gray-200 transition" id="tab-create" onclick="switchModalTab('create')">Create Room</button>
+			</div>
+			
+			<div class="p-6">
+				<!-- Join View -->
+				<div id="view-join" class="space-y-4">
+					<div>
+						<label class="block text-xs text-gray-400 mb-1">Room Code</label>
+						<input type="text" id="join-input-code" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 text-xl font-mono text-center uppercase tracking-widest text-white focus:border-blue-500 focus:outline-none" placeholder="Enter code" maxlength="16">
+					</div>
+					<button class="w-full bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg font-bold shadow-lg transition" onclick="processJoin()">Join & Save Contact</button>
+				</div>
+
+				<!-- Create View -->
+				<div id="view-create" class="hidden space-y-4">
+					<div>
+						<label class="block text-xs text-gray-400 mb-2">Room Type</label>
+						<div class="flex gap-2">
+							<label class="flex-1 cursor-pointer">
+								<input type="radio" name="roomType" value="group" class="peer hidden" checked>
+								<div class="text-center py-2 rounded-lg bg-gray-900 border border-gray-700 peer-checked:border-blue-500 peer-checked:bg-blue-600/20 text-gray-300 peer-checked:text-blue-400 text-sm font-medium transition">Group Chat</div>
+							</label>
+							<label class="flex-1 cursor-pointer">
+								<input type="radio" name="roomType" value="direct" class="peer hidden">
+								<div class="text-center py-2 rounded-lg bg-gray-900 border border-gray-700 peer-checked:border-indigo-500 peer-checked:bg-indigo-600/20 text-gray-300 peer-checked:text-indigo-400 text-sm font-medium transition">Direct (1-on-1)</div>
+							</label>
+						</div>
+					</div>
+					<div>
+						<label class="block text-xs text-gray-400 mb-1">Chat Name (for your sidebar)</label>
+						<input type="text" id="create-input-name" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-blue-500 focus:outline-none" placeholder="e.g. Project Team">
+					</div>
+					<div>
+						<label class="block text-xs text-gray-400 mb-1">Custom Room Code (Optional)</label>
+						<input type="text" id="create-input-code" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white font-mono uppercase tracking-widest focus:border-blue-500 focus:outline-none" placeholder="Leave blank for random" maxlength="16">
+					</div>
+					<button class="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-lg font-bold shadow-lg transition mt-2" onclick="processCreate()">Create Room</button>
+				</div>
+				
+				<button class="w-full mt-4 text-gray-500 hover:text-gray-300 text-sm py-2" onclick="closeModal()">Cancel</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Image Preview Overlay -->
+	<div id="image-overlay" class="fixed inset-0 bg-black/95 hidden items-center justify-center z-[100] cursor-zoom-out transition-opacity duration-300 opacity-0" onclick="closeImageOverlay()">
+		<button class="absolute top-4 right-4 text-white hover:text-gray-300 bg-gray-800/50 hover:bg-gray-700 p-2 rounded-full transition shadow-lg" onclick="closeImageOverlay(event)">
+			<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+		</button>
+		<img id="overlay-image" class="max-w-[95vw] max-h-[95vh] object-contain rounded-lg shadow-2xl transform scale-95 transition-transform duration-300" src="" alt="Preview">
+	</div>
+
+	<!-- Startup Modal (Auth & Storage) -->
+	<div id="startup-modal" class="fixed inset-0 bg-black/90 flex flex-col items-center justify-center z-[200] backdrop-blur-md">
+		<div class="bg-gray-800 w-full max-w-md rounded-2xl shadow-2xl p-6 border border-gray-700 text-center">
+			<h2 class="text-2xl font-bold text-white mb-4">Welcome to PeerLink</h2>
+			<p class="text-gray-300 text-sm mb-4">
+				Sign-in is required to connect to the P2P network. Your chats are stored <b class="text-white">locally</b> on your device.
+			</p>
+			<p class="text-gray-400 text-xs mb-6">
+				For best privacy and persistence, we will try to save chats and files directly to a folder on your hard disk. If permission is denied or skipped, we will fallback to standard browser storage (localStorage).
+			</p>
+			
+			<div class="space-y-4">
+				<button id="btn-choose-storage" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-lg font-bold shadow-lg transition flex items-center justify-center gap-2" onclick="chooseStorageFolder()">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+					Choose Storage Folder
+				</button>
+				<div id="storage-status" class="text-xs text-green-400 hidden font-semibold">✓ Storage folder selected</div>
+				
+				<button id="btn-google-signin" class="w-full bg-white hover:bg-gray-100 text-gray-900 py-3 rounded-lg font-bold shadow-lg transition flex items-center justify-center gap-2" onclick="signInWithGoogle()">
+					<svg class="w-5 h-5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+					Sign in with Google
+				</button>
+				<button id="btn-github-signin" class="w-full bg-gray-900 hover:bg-black text-white py-3 rounded-lg font-bold shadow-lg transition flex items-center justify-center gap-2 border border-gray-700" onclick="signInWithGitHub()">
+					<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.416 22 12c0-5.523-4.477-10-10-10z"></path></svg>
+					Sign in with GitHub
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<script type="module">
+		import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+		import { getAuth, GoogleAuthProvider, GithubAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+		import { getFirestore, doc, setDoc, updateDoc, onSnapshot, collection, arrayUnion, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+		import { cubicGradient } from "https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js";
+
+		// --- 0. APPLY ELECTRON THEME ---
+		document.body.style.background = cubicGradient({
+			direction: 'to bottom right',
+			start: '#0f172a', // Deep slate to match the aesthetic 
+			end: '#000000',
+			steps: 25,
+			power: 3
+		});
+
+		// --- 1. FIREBASE SETUP ---
+		const firebaseConfig = {
+            apiKey: "AIzaSyC_v49m7e5xt-FCWs0DSq7aGU7gD1aiTh4",
+            authDomain: "proelectriccoder.firebaseapp.com",
+            projectId: "proelectriccoder",
+            storageBucket: "proelectriccoder.firebasestorage.app",
+            messagingSenderId: "629115974151",
+            appId: "1:629115974151:web:636737d123e4e8685c70a2"
+        };
+		
+		let app, auth, db;
+		try {
+			app = initializeApp(firebaseConfig);
+			auth = getAuth(app);
+			db = getFirestore(app);
+		} catch(e) { console.warn("Firebase config error.", e); }
+
+		const appId = 'my-local-p2p-chat';
+		let currentUser = null;
+
+		onAuthStateChanged(auth, user => { 
+			currentUser = user; 
+			if (user) {
+				document.getElementById('startup-modal').classList.add('hidden');
+			} else {
+				document.getElementById('startup-modal').classList.remove('hidden');
+			}
+		});
+
+		window.signInWithGoogle = async function() {
+			try {
+				const provider = new GoogleAuthProvider();
+				await signInWithPopup(auth, provider);
+			} catch (error) {
+				console.error("Google Sign-In Error:", error);
+				alert("Failed to sign in: " + error.message);
+			}
+		};
+
+		window.signInWithGitHub = async function() {
+			try {
+				const provider = new GithubAuthProvider();
+				await signInWithPopup(auth, provider);
+			} catch (error) {
+				console.error("GitHub Sign-In Error:", error);
+				alert("Failed to sign in: " + error.message);
+			}
+		};
+
+		// --- File System Access API Variables ---
+		let storageDirHandle = null;
+
+		async function verifyStoragePermission() {
+			if (!storageDirHandle) return false;
+			try {
+				if (await storageDirHandle.queryPermission({ mode: 'readwrite' }) === 'granted') return true;
+				if (await storageDirHandle.requestPermission({ mode: 'readwrite' }) === 'granted') return true;
+			} catch (e) { console.warn("Storage permission check failed.", e); }
+			return false;
+		}
+
+		window.chooseStorageFolder = async function() {
+			if (!window.showDirectoryPicker) {
+				alert("Local folder storage is not supported in this browser (e.g., Safari or Mobile). Falling back to standard browser storage.");
+				return;
+			}
+			try {
+				storageDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+				document.getElementById('storage-status').classList.remove('hidden');
+				document.getElementById('btn-choose-storage').classList.add('opacity-50');
+				await loadChatsFromDisk();
+			} catch (error) {
+				console.warn("Storage folder selection cancelled or failed.", error);
+			}
+		};
+
+		async function saveChatsToDisk() {
+			if (!(await verifyStoragePermission())) return;
+			try {
+				const fileHandle = await storageDirHandle.getFileHandle('p2p_saved_chats.json', { create: true });
+				const writable = await fileHandle.createWritable();
+				await writable.write(JSON.stringify(savedChats));
+				await writable.close();
+			} catch (error) {
+				console.warn("Failed to save to disk, relying entirely on localStorage fallback:", error);
+			}
+		}
+
+		async function loadChatsFromDisk() {
+			if (!(await verifyStoragePermission())) return;
+			try {
+				const fileHandle = await storageDirHandle.getFileHandle('p2p_saved_chats.json');
+				const file = await fileHandle.getFile();
+				const text = await file.text();
+				const diskChats = JSON.parse(text);
+				if (diskChats) {
+					savedChats = { ...savedChats, ...diskChats };
+					saveToStorage(); // Sync disk data to localStorage
+					renderSidebar();
+				}
+			} catch (error) {
+				console.log("No existing disk chats found or could not read.", error);
+			}
+		}
+
+		// --- 2. GLOBAL STATE (Multi-Chat) ---
+		// savedChats stores History, UI Metadata, Roles. Saved to LocalStorage.
+		// Format: { [roomId]: { name, type, role: 'host'|'guest', messages: [], unread: 0, lastConnected: timestamp } }
+		let savedChats = JSON.parse(localStorage.getItem('p2p_saved_chats')) || {};
+		
+		// activeRooms stores actual WebRTC objects for ongoing connections. Memory only.
+		// Format: { [roomId]: { state: 'connecting'|'connected', unsub: fn, peers: { [peerId]: { pc, dc } } } }
+		let activeRooms = {}; 
+		
+		let currentRoomId = null; // Which chat is actively visible in the UI
+		const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
+
+		// Multi-feature additions
+		let chunkBuffers = {};
+		let typingTimeouts = {}; 
+		let activeTypers = new Set();
+		const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8MB
+		let pendingAttachments = [];
+		
+		// Ask for notifications on load
+		if ("Notification" in window && Notification.permission === "default") {
+			Notification.requestPermission();
+		}
+
+		function playNotificationSound() {
+			try {
+				const ctx = new (window.AudioContext || window.webkitAudioContext)();
+				const osc = ctx.createOscillator();
+				const gain = ctx.createGain();
+				osc.connect(gain);
+				gain.connect(ctx.destination);
+				osc.type = 'sine';
+				osc.frequency.setValueAtTime(880, ctx.currentTime); // High pitch beep
+				gain.gain.setValueAtTime(0.05, ctx.currentTime); // Soft volume
+				osc.start();
+				gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.15);
+				osc.stop(ctx.currentTime + 0.15);
+			} catch(e) {}
+		}
+
+		function showNotification(title, body) {
+			if (document.hasFocus() && currentRoomId) return; // Don't notify if actively looking
+			playNotificationSound();
+			if ("Notification" in window && Notification.permission === "granted") {
+				new Notification(title, { body, icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="%233b82f6"/></svg>' });
+			}
+		}
+
+		// Robust chunking for WebRTC (Allows sending large images)
+		function sendDataChunked(roomId, dataObj, targetDc = null) {
+			const str = JSON.stringify(dataObj);
+			const chunkSize = 16384; // 16KB per chunk to safely bypass WebRTC limits
+			const msgId = Math.random().toString(36).substring(2, 10);
+			
+			const chunks = [];
+			let i = 0;
+			while (i < str.length) {
+				let end = i + chunkSize;
+				// Prevent splitting a UTF-16 surrogate pair (e.g., emojis) in half
+				if (end < str.length && str.charCodeAt(end - 1) >= 0xD800 && str.charCodeAt(end - 1) <= 0xDBFF) {
+					end--; 
+				}
+				chunks.push(str.substring(i, end));
+				i = end;
+			}
+
+			const total = chunks.length;
+
+			for (let idx = 0; idx < total; idx++) {
+				const chunkData = {
+					type: 'chunk', id: msgId, index: idx, total: total,
+					data: chunks[idx]
+				};
+				const payload = JSON.stringify(chunkData);
+				
+				if (targetDc) {
+					if (targetDc.readyState === 'open') targetDc.send(payload);
+				} else {
+					// In a mesh, we just broadcast to everyone we are connected to
+					broadcastInRoom(roomId, chunkData);
+				}
+			}
+		}
+
+		// --- 3. UI RENDER FUNCTIONS ---
+		
+		function getFileIconSVG(type) {
+			if (!type) return `<svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>`;
+			if (type.startsWith('image/')) return `<svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>`;
+			if (type.startsWith('video/')) return `<svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>`;
+			if (type.startsWith('audio/')) return `<svg class="w-6 h-6 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>`;
+			if (type === 'text/html') return `<svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>`;
+			if (type === 'application/pdf') return `<svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>`;
+			if (type.includes('zip') || type.includes('compressed')) return `<svg class="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>`;
+			return `<svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>`;
+		}
+
+		window.openImageOverlay = function(src) {
+			const overlay = document.getElementById('image-overlay');
+			const img = document.getElementById('overlay-image');
+			img.src = src;
+			overlay.classList.remove('hidden');
+			overlay.classList.add('flex');
+			void overlay.offsetWidth; // Trigger reflow for animation
+			overlay.classList.remove('opacity-0');
+			img.classList.remove('scale-95');
+			img.classList.add('scale-100');
+		};
+
+		window.closeImageOverlay = function(e) {
+			if (e) e.stopPropagation();
+			const overlay = document.getElementById('image-overlay');
+			const img = document.getElementById('overlay-image');
+			overlay.classList.add('opacity-0');
+			img.classList.remove('scale-100');
+			img.classList.add('scale-95');
+			setTimeout(() => {
+				overlay.classList.add('hidden');
+				overlay.classList.remove('flex');
+				img.src = '';
+			}, 300);
+		};
+
+		function saveToStorage() {
+			localStorage.setItem('p2p_saved_chats', JSON.stringify(savedChats));
+			saveChatsToDisk(); // Attempt to save to disk if permitted
+		}
+
+		function renderSidebar() {
+			const container = document.getElementById('sidebar-chats');
+			container.innerHTML = '';
+			
+			const sortedRooms = Object.keys(savedChats).sort((a, b) => {
+				const timeA = savedChats[a].messages.length ? savedChats[a].messages[savedChats[a].messages.length-1].timestamp : 0;
+				const timeB = savedChats[b].messages.length ? savedChats[b].messages[savedChats[b].messages.length-1].timestamp : 0;
+				return timeB - timeA;
+			});
+
+			if(sortedRooms.length === 0) {
+				container.innerHTML = `<div class="text-xs text-gray-500 text-center mt-10 px-4">No chats yet. Click the + icon to start.</div>`;
+				return;
+			}
+
+			sortedRooms.forEach(roomId => {
+				const chat = savedChats[roomId];
+				const isActive = activeRooms[roomId] && activeRooms[roomId].state === 'connected';
+				const isSelected = currentRoomId === roomId;
+				const lastMsg = chat.messages.length > 0 ? chat.messages[chat.messages.length - 1].text : 'No messages yet';
+				
+				const div = document.createElement('div');
+				div.className = `p-3 rounded-lg cursor-pointer transition flex items-center gap-3 ${isSelected ? 'selected-chat' : 'hover:bg-gray-800'}`;
+				div.onclick = () => selectChat(roomId);
+				
+				const avatarLetter = chat.name ? chat.name.charAt(0).toUpperCase() : 'R';
+				const avatarColor = chat.type === 'direct' ? 'bg-indigo-600' : 'bg-blue-600';
+				
+				let avatarContent = `<div class="w-10 h-10 ${avatarColor} rounded-full flex items-center justify-center font-bold text-white shadow">${avatarLetter}</div>`;
+				if (chat.avatar) {
+					avatarContent = `<img src="${chat.avatar}" class="w-10 h-10 rounded-full object-cover shadow border border-gray-700">`;
+				}
+				
+				div.innerHTML = `
+					<div class="relative flex-shrink-0">
+						${avatarContent}
+						<div class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-850 ${isActive ? 'bg-green-500' : 'bg-gray-500'}"></div>
+						${chat.unread > 0 ? `<div class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">${chat.unread}</div>` : ''}
+					</div>
+					<div class="flex-1 min-w-0">
+						<div class="flex justify-between items-baseline mb-0.5">
+							<h3 class="text-sm font-bold text-gray-200 truncate">${chat.name || 'Unknown Room'}</h3>
+							<span class="text-[10px] text-gray-500">${chat.type === 'direct' ? 'Direct' : 'Group'}</span>
+						</div>
+						<p class="text-xs text-gray-400 truncate ${chat.unread > 0 ? 'font-bold text-gray-200' : ''}">${lastMsg}</p>
+					</div>
+				`;
+				container.appendChild(div);
+			});
+		}
+
+		window.selectChat = function(roomId) {
+			currentRoomId = roomId;
+			if(savedChats[roomId]) savedChats[roomId].unread = 0;
+			saveToStorage();
+			
+			activeTypers.clear();
+			document.getElementById('typing-indicator').classList.add('hidden');
+			if (document.hasFocus()) markRoomAsRead(roomId);
+			
+			// Mobile navigation toggles
+			document.getElementById('sidebar').classList.add('hidden', 'md:flex');
+			document.getElementById('sidebar').classList.remove('flex');
+			document.getElementById('main-chat-area').classList.remove('hidden', 'md:flex');
+			document.getElementById('main-chat-area').classList.add('flex');
+
+			document.getElementById('empty-state').classList.add('hidden');
+			document.getElementById('active-chat-header').classList.remove('hidden');
+			document.getElementById('chat-messages').classList.remove('hidden');
+			document.getElementById('chat-input-area').classList.remove('hidden');
+			
+			renderSidebar();
+			renderActiveChatHeader();
+			renderMessages();
+			
+			setTimeout(() => {
+				const box = document.getElementById('chat-messages');
+				box.scrollTop = box.scrollHeight;
+			}, 50);
+		};
+
+		window.closeMobileChat = function() {
+			document.getElementById('sidebar').classList.remove('hidden', 'md:flex');
+			document.getElementById('sidebar').classList.add('flex');
+			
+			document.getElementById('main-chat-area').classList.add('hidden', 'md:flex');
+			document.getElementById('main-chat-area').classList.remove('flex');
+		};
+
+		window.popOutChat = function() {
+			if(!currentRoomId) return;
+			const url = window.location.href.split('#')[0] + '#popout=' + currentRoomId;
+			
+			try {
+				const newWin = window.open(url, 'P2P_Chat_' + currentRoomId, 'width=420,height=700,menubar=no,toolbar=no,location=no,status=no');
+				if (!newWin || newWin.closed || typeof newWin.closed == 'undefined') {
+					throw new Error("Popup blocked");
+				}
+				disconnectCurrentRoom(); // Free up WebRTC in the main window
+			} catch (e) {
+				alert("Popups are blocked by your browser/environment. Please allow popups to use this feature.");
+			}
+		};
+
+		function renderActiveChatHeader() {
+			if(!currentRoomId || !savedChats[currentRoomId]) return;
+			const chat = savedChats[currentRoomId];
+			const state = activeRooms[currentRoomId] ? activeRooms[currentRoomId].state : 'disconnected';
+			
+			document.getElementById('header-title').textContent = chat.name;
+			document.getElementById('header-code').textContent = currentRoomId;
+			
+			const headerAvatar = document.getElementById('header-avatar');
+			if (chat.avatar) {
+				headerAvatar.innerHTML = `<img src="${chat.avatar}" class="w-full h-full object-cover rounded-full">`;
+				headerAvatar.className = `w-10 h-10 rounded-full shadow-md border border-gray-700`;
+			} else {
+				headerAvatar.textContent = chat.name.charAt(0).toUpperCase();
+				headerAvatar.className = `w-10 h-10 rounded-full flex items-center justify-center font-bold text-white uppercase shadow-md ${chat.type === 'direct' ? 'bg-indigo-600' : 'bg-blue-600'}`;
+			}
+			
+			const dot = document.getElementById('header-status-dot');
+			const txt = document.getElementById('header-status-text');
+			const btnConn = document.getElementById('btn-connect');
+			const btnDisc = document.getElementById('btn-disconnect');
+			const input = document.getElementById('chat-input');
+			const btnSend = document.getElementById('btn-send');
+			const btnAttach = document.getElementById('btn-attach');
+
+			if(state === 'connected') {
+				dot.className = 'absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-850 shadow-[0_0_8px_rgba(34,197,94,0.6)]';
+				txt.textContent = 'Connected & Secured';
+				txt.className = 'text-xs text-green-400 font-medium';
+				btnConn.classList.add('hidden');
+				btnDisc.classList.remove('hidden');
+				input.disabled = false;
+				btnSend.disabled = false;
+				btnAttach.disabled = false;
+				input.focus();
+				markRoomAsRead(currentRoomId);
+			} else if (state === 'connecting') {
+				dot.className = 'absolute bottom-0 right-0 w-3 h-3 bg-yellow-500 rounded-full border-2 border-gray-850 animate-pulse';
+				txt.textContent = 'Connecting...';
+				txt.className = 'text-xs text-yellow-400 font-medium';
+				btnConn.classList.add('hidden');
+				btnDisc.classList.remove('hidden');
+				input.disabled = true;
+				btnSend.disabled = true;
+				btnAttach.disabled = true;
+			} else {
+				dot.className = 'absolute bottom-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-gray-850';
+				txt.textContent = 'Disconnected';
+				txt.className = 'text-xs text-red-400 font-medium';
+				btnConn.classList.remove('hidden');
+				btnDisc.classList.add('hidden');
+				input.disabled = true;
+				btnSend.disabled = true;
+				btnAttach.disabled = true;
+			}
+		}
+
+		function createMessageElement(msg, isAnimated) {
+			const msgDiv = document.createElement('div');
+			
+			if (msg.isSystem) {
+				msgDiv.className = `flex justify-center my-1 ${isAnimated ? 'msg-pop-center' : ''}`;
+				msgDiv.innerHTML = `<span class="bg-gray-700 text-gray-400 text-[10px] py-1 px-3 rounded-full border border-gray-600">${msg.text}</span>`;
+				return msgDiv;
+			}
+
+			msgDiv.className = `flex w-full gap-2 items-start ${msg.isSelf ? 'justify-end' : 'justify-start'}`;
+			
+			// Avatar for incoming messages
+			if (!msg.isSelf) {
+				let contacts = JSON.parse(localStorage.getItem('p2p_contact_avatars')) || {};
+				let avatarSrc = contacts[msg.senderName] || '';
+				if (savedChats[currentRoomId].type === 'direct' && savedChats[currentRoomId].avatar) {
+					avatarSrc = savedChats[currentRoomId].avatar;
+				}
+				
+				const avDiv = document.createElement('div');
+				avDiv.className = "w-6 h-6 rounded-full bg-gray-700 flex-shrink-0 flex items-center justify-center overflow-hidden border border-gray-600 mb-1";
+				if (avatarSrc) {
+					avDiv.innerHTML = `<img src="${avatarSrc}" class="w-full h-full object-cover">`;
+				} else {
+					avDiv.innerHTML = `<span class="text-[10px] font-bold text-gray-300">${msg.senderName ? msg.senderName.charAt(0).toUpperCase() : '?'}</span>`;
+				}
+				msgDiv.appendChild(avDiv);
+			}
+
+			const bubble = document.createElement('div');
+			bubble.className = `min-w-[80px] max-w-[75%] rounded-2xl px-4 py-2 shadow-lg flex flex-col ${
+				msg.isSelf 
+				? 'bg-blue-600 text-white rounded-tr-none' 
+				: 'bg-gray-700 text-gray-100 rounded-tl-none border border-gray-600'
+			} ${isAnimated ? (msg.isSelf ? 'msg-pop-right' : 'msg-pop-left') : ''}`;
+			
+			if (!msg.isSelf && msg.senderName && savedChats[currentRoomId].type !== 'direct') {
+				const nameDiv = document.createElement('div');
+				nameDiv.className = 'text-[10px] font-bold text-blue-300 mb-0.5';
+				nameDiv.textContent = msg.senderName;
+				bubble.appendChild(nameDiv);
+			}
+
+			// Render Media Image or Attachment
+			if (msg.image) {
+				const isObj = typeof msg.image === 'object';
+				const type = isObj ? msg.image.type : 'image/jpeg';
+				const data = isObj ? msg.image.data : msg.image;
+				const name = isObj ? msg.image.name : 'attachment';
+
+				if (type.startsWith('image/')) {
+					const imgEl = document.createElement('img');
+					imgEl.src = data;
+					imgEl.className = 'max-w-full rounded-lg mb-2 max-h-60 object-contain shadow-sm cursor-zoom-in hover:opacity-90 transition';
+					imgEl.onclick = () => openImageOverlay(data);
+					bubble.appendChild(imgEl);
+				} else if (type.startsWith('video/')) {
+					const vidEl = document.createElement('video');
+					vidEl.src = data;
+					vidEl.controls = true;
+					vidEl.className = 'max-w-full rounded-lg mb-2 max-h-60 object-contain shadow-sm bg-black';
+					bubble.appendChild(vidEl);
+				} else if (type.startsWith('audio/')) {
+					const audEl = document.createElement('audio');
+					audEl.src = data;
+					audEl.controls = true;
+					audEl.className = 'max-w-full mb-2';
+					bubble.appendChild(audEl);
+				} else if (type === 'text/html') {
+					const fileLink = document.createElement('a');
+					fileLink.href = data;
+					fileLink.download = name;
+					fileLink.className = 'flex items-center gap-2 bg-gray-900/60 p-3 rounded-t-lg hover:bg-gray-800 transition text-orange-300 font-medium border border-gray-600 border-b-0 w-full group shadow-sm';
+					fileLink.innerHTML = `${getFileIconSVG(type)} <span class="truncate flex-1">Download ${name}</span> <svg class="w-5 h-5 ml-auto text-gray-400 group-hover:text-white transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>`;
+					bubble.appendChild(fileLink);
+
+					const iframeEl = document.createElement('iframe');
+					iframeEl.src = data;
+					iframeEl.sandbox = 'allow-scripts'; // strict sandbox for security
+					iframeEl.className = 'w-full h-60 rounded-b-lg mb-2 bg-white border border-gray-600 shadow-sm';
+					bubble.appendChild(iframeEl);
+				} else {
+					const fileLink = document.createElement('a');
+					fileLink.href = data;
+					fileLink.download = name;
+					fileLink.className = 'flex items-center gap-3 bg-gray-900 p-3 rounded-lg mb-2 hover:bg-gray-800 transition text-gray-200 shadow-sm border border-gray-600 w-full min-w-[200px] max-w-sm group';
+					fileLink.innerHTML = `${getFileIconSVG(type)} <div class="flex-1 min-w-0"><div class="truncate font-medium text-sm text-blue-400">${name}</div><div class="text-[10px] text-gray-500 uppercase tracking-wider mt-0.5">Click to Download</div></div> <svg class="w-5 h-5 flex-shrink-0 text-gray-400 group-hover:text-white transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>`;
+					bubble.appendChild(fileLink);
+				}
+			}
+
+			if (msg.text) {
+				const textDiv = document.createElement('div');
+				textDiv.textContent = msg.text;
+				bubble.appendChild(textDiv);
+			}
+			
+			const timeSpan = document.createElement('div');
+			timeSpan.className = `text-[9px] mt-1 opacity-60 flex items-center justify-end gap-1 ${msg.isSelf ? 'text-right' : 'text-left'}`;
+			
+			let timeHTML = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+			// Read receipts
+			if (msg.isSelf) {
+				const readColor = msg.read ? 'text-cyan-200' : 'text-gray-400';
+				const readIcon = msg.read ? '✓✓' : '✓';
+				timeHTML += `<span class="${readColor} font-bold text-[10px] ml-1 tracking-tighter" id="receipt-${msg.id}">${readIcon}</span>`;
+			}
+			timeSpan.innerHTML = timeHTML;
+			
+			bubble.appendChild(timeSpan);
+			
+			msgDiv.appendChild(bubble);
+			return msgDiv;
+		}
+
+		function renderMessages() {
+			if(!currentRoomId || !savedChats[currentRoomId]) return;
+			const container = document.getElementById('chat-messages');
+			container.innerHTML = '';
+			
+			savedChats[currentRoomId].messages.forEach(msg => {
+				container.appendChild(createMessageElement(msg, false));
+			});
+		}
+
+		// Add single message dynamically to avoid full re-render
+		function appendMessageDOM(msg) {
+			if (currentRoomId !== msg.roomId) return; // Only append if looking at this chat
+			const container = document.getElementById('chat-messages');
+			container.appendChild(createMessageElement(msg, true));
+			container.scrollTop = container.scrollHeight;
+			
+			if (!msg.isSelf && !msg.isSystem && document.hasFocus()) {
+				sendReadReceipt(msg.roomId, msg.id);
+			}
+		}
+
+		function pushMessageToHistory(roomId, text, senderName, isSelf, isSystem, image = null, forceId = null) {
+			const msgObj = { 
+				id: forceId || Math.random().toString(36).substring(2, 11), 
+				roomId, text, image, senderName, isSelf, isSystem, 
+				timestamp: Date.now(), read: false 
+			};
+			if (!savedChats[roomId]) return;
+			
+			savedChats[roomId].messages.push(msgObj);
+			
+			// Handle background unread
+			if (currentRoomId !== roomId && !isSelf && !isSystem) {
+				savedChats[roomId].unread = (savedChats[roomId].unread || 0) + 1;
+				showNotification(savedChats[roomId].name || senderName, image ? "🖼️ Image attached" : text);
+			}
+			
+			saveToStorage();
+			if (currentRoomId === roomId) appendMessageDOM(msgObj);
+			renderSidebar();
+		}
+
+		// Logic for read receipts
+		function sendReadReceipt(roomId, messageId) {
+			sendDataChunked(roomId, { type: 'read_receipt', messageId: messageId, roomId: roomId });
+		}
+
+		window.addEventListener('focus', () => {
+			if (currentRoomId) markRoomAsRead(currentRoomId);
+		});
+
+		function markRoomAsRead(roomId) {
+			if (!savedChats[roomId] || !document.hasFocus()) return;
+			let changed = false;
+			savedChats[roomId].messages.forEach(m => {
+				if (!m.isSelf && !m.read && !m.isSystem) {
+					sendReadReceipt(roomId, m.id);
+					m.read = true; 
+					changed = true;
+				}
+			});
+			if (changed) saveToStorage();
+		}
+
+		function updateReadReceiptUI(messageId) {
+			const el = document.getElementById(`receipt-${messageId}`);
+			if (el) {
+				el.textContent = '✓✓';
+				el.classList.remove('text-gray-400');
+				el.classList.add('text-blue-400');
+			}
+		}
+
+		// --- 4. MODAL & ACTIONS ---
+		window.openModal = function() {
+			document.getElementById('setup-modal').classList.remove('hidden');
+			document.getElementById('setup-modal').classList.add('flex');
+			setTimeout(() => document.getElementById('modal-content').classList.remove('scale-95'), 10);
+		};
+		window.closeModal = function() {
+			document.getElementById('modal-content').classList.add('scale-95');
+			setTimeout(() => {
+				document.getElementById('setup-modal').classList.add('hidden');
+				document.getElementById('setup-modal').classList.remove('flex');
+			}, 150);
+		};
+		window.switchModalTab = function(tab) {
+			const btnJoin = document.getElementById('tab-join');
+			const btnCreate = document.getElementById('tab-create');
+			const viewJoin = document.getElementById('view-join');
+			const viewCreate = document.getElementById('view-create');
+
+			if (tab === 'join') {
+				btnJoin.className = "flex-1 py-3 text-sm font-semibold text-blue-400 border-b-2 border-blue-500";
+				btnCreate.className = "flex-1 py-3 text-sm font-semibold text-gray-400 hover:text-gray-200 transition";
+				viewJoin.classList.remove('hidden');
+				viewCreate.classList.add('hidden');
+			} else {
+				btnCreate.className = "flex-1 py-3 text-sm font-semibold text-blue-400 border-b-2 border-blue-500";
+				btnJoin.className = "flex-1 py-3 text-sm font-semibold text-gray-400 hover:text-gray-200 transition";
+				viewCreate.classList.remove('hidden');
+				viewJoin.classList.add('hidden');
+			}
+		};
+
+		window.copyCurrentRoomCode = function() {
+			if(!currentRoomId) return;
+			navigator.clipboard.writeText(currentRoomId).then(() => {
+				const el = document.getElementById('header-code');
+				const orig = el.textContent;
+				el.textContent = "COPIED!";
+				el.classList.add('bg-green-600', 'text-white');
+				setTimeout(() => {
+					el.textContent = orig;
+					el.classList.remove('bg-green-600', 'text-white');
+				}, 1500);
+			}).catch(err => {
+				// Fallback for iframe restrictions
+				const tempInput = document.createElement("input");
+				tempInput.value = currentRoomId;
+				document.body.appendChild(tempInput);
+				tempInput.select();
+				document.execCommand('copy');
+				document.body.removeChild(tempInput);
+				alert("Copied code: " + currentRoomId);
+			});
+		};
+
+		window.deleteCurrentRoom = function() {
+			if(!currentRoomId) return;
+			if(!confirm("Are you sure you want to delete this chat history entirely?")) return;
+			
+			disconnectRoomLogic(currentRoomId);
+			delete savedChats[currentRoomId];
+			saveToStorage();
+			
+			currentRoomId = null;
+			document.getElementById('empty-state').classList.remove('hidden');
+			document.getElementById('active-chat-header').classList.add('hidden');
+			document.getElementById('chat-messages').classList.add('hidden');
+			document.getElementById('chat-input-area').classList.add('hidden');
+			renderSidebar();
+			
+			// Go back to sidebar on mobile
+			if (window.innerWidth < 768) {
+				closeMobileChat();
+			}
+		};
+
+		// --- 5. WEBRTC MULTI-ROOM LOGIC ---
+		function updateRoomConnectionState(roomId, state) {
+			if (!activeRooms[roomId]) activeRooms[roomId] = { peers: {} };
+			activeRooms[roomId].state = state;
+			if (currentRoomId === roomId) renderActiveChatHeader();
+			renderSidebar();
+		}
+
+		window.connectCurrentRoom = function() {
+			if(!currentRoomId || !savedChats[currentRoomId]) return;
+			const chat = savedChats[currentRoomId];
+			if (chat.role === 'host') startHostingLogic(currentRoomId, chat.type);
+			else startJoiningLogic(currentRoomId);
+		};
+
+		window.disconnectCurrentRoom = function() {
+			if(!currentRoomId) return;
+			disconnectRoomLogic(currentRoomId);
+		};
+
+		async function disconnectRoomLogic(roomId) {
+			if(!activeRooms[roomId]) return;
+			const state = activeRooms[roomId];
+			
+			Object.values(state.peers).forEach(p => {
+				if (p.dc) { p.dc.onclose = null; p.dc.close(); }
+				if (p.pc) { p.pc.oniceconnectionstatechange = null; p.pc.close(); }
+			});
+			
+			// Clean up all mesh listeners
+			if (state.unsubs) {
+				state.unsubs.forEach(unsub => unsub());
+			} else if (state.unsub) {
+				state.unsub(); // legacy fallback
+			}
+			
+			// Clean up our presence in the room so others know we left cleanly
+			if (currentUser) {
+				const myParticipantRef = doc(db, 'artifacts', appId, 'public', 'data', `room_participants_${roomId}`, currentUser.uid);
+				deleteDoc(myParticipantRef).catch(e => e);
+			}
+			
+			delete activeRooms[roomId];
+			pushMessageToHistory(roomId, "Disconnected locally.", "System", false, true);
+			updateRoomConnectionState(roomId, 'disconnected');
+		}
+
+		function setupDataChannelEvents(roomId, peerId, dc) {
+			dc.onopen = () => {
+				updateRoomConnectionState(roomId, 'connected');
+				const myName = document.getElementById('my-username').value.trim() || 'Anonymous';
+				const myAvatar = localStorage.getItem('p2p_my_avatar') || '';
+				dc.send(JSON.stringify({ type: 'system', action: 'set_username', username: myName, avatar: myAvatar }));
+			};
+			
+			dc.onclose = () => {
+				const name = activeRooms[roomId].peers[peerId] ? activeRooms[roomId].peers[peerId].username : 'A user';
+				pushMessageToHistory(roomId, `${name} left.`, "System", false, true);
+				delete activeRooms[roomId].peers[peerId];
+				
+				// In mesh, room is only dead if EVERYONE left
+				if (Object.keys(activeRooms[roomId].peers).length === 0) {
+					updateRoomConnectionState(roomId, 'connecting'); // Back to waiting
+				}
+			};
+			
+			dc.onmessage = (event) => {
+				try {
+					const rawData = JSON.parse(event.data);
+					
+					// Assemble Chunked Data first
+					if (rawData.type === 'chunk') {
+						if (!chunkBuffers[rawData.id]) {
+							chunkBuffers[rawData.id] = [];
+							// Prevent memory leak on abandoned transfers (timeout after 60s)
+							setTimeout(() => { delete chunkBuffers[rawData.id]; }, 60000);
+						}
+						chunkBuffers[rawData.id][rawData.index] = rawData.data;
+						
+						if (Object.keys(chunkBuffers[rawData.id]).length === rawData.total) {
+							const fullPayload = JSON.parse(chunkBuffers[rawData.id].join(''));
+							delete chunkBuffers[rawData.id];
+							processDataChannelMessage(roomId, peerId, fullPayload);
+						}
+						return;
+					}
+					
+					// Non-chunked legacy fallback
+					processDataChannelMessage(roomId, peerId, rawData);
+				} catch (e) { console.error("Message parse error:", e); }
+			};
+		}
+
+		function processDataChannelMessage(roomId, peerId, data) {
+			if (data.type === 'system' && data.action === 'set_username') {
+				activeRooms[roomId].peers[peerId].username = data.username;
+				if(data.avatar) activeRooms[roomId].peers[peerId].avatar = data.avatar;
+				
+				if (data.avatar) {
+					let contacts = JSON.parse(localStorage.getItem('p2p_contact_avatars')) || {};
+					contacts[data.username] = data.avatar;
+					localStorage.setItem('p2p_contact_avatars', JSON.stringify(contacts));
+				}
+
+				if (savedChats[roomId].type === 'direct') {
+					savedChats[roomId].name = savedChats[roomId].name + " • " + data.username;
+					if (data.avatar) savedChats[roomId].avatar = data.avatar;
+					saveToStorage();
+					renderSidebar();
+					if(currentRoomId === roomId) renderActiveChatHeader();
+				} else if (savedChats[roomId].name.includes("Room") && savedChats[roomId].role === 'guest') {
+					savedChats[roomId].name = `${data.username}'s Group`;
+					saveToStorage();
+					renderSidebar();
+					if(currentRoomId === roomId) renderActiveChatHeader();
+				}
+				
+				pushMessageToHistory(roomId, `${data.username} connected.`, "System", false, true);
+			} else if (data.type === 'chat') {
+				pushMessageToHistory(roomId, data.text, data.username, false, false, data.attachment || data.image, data.id);
+				// Relay removed - Mesh topology connects directly
+			} else if (data.type === 'typing') {
+				handleRemoteTyping(roomId, data.username, data.isTyping);
+				// Relay removed - Mesh topology connects directly
+			} else if (data.type === 'read_receipt') {
+				const msg = savedChats[roomId].messages.find(m => m.id === data.messageId);
+				if (msg) {
+					msg.read = true;
+					saveToStorage();
+					if (currentRoomId === roomId) updateReadReceiptUI(data.messageId);
+				}
+				// Relay removed - Mesh topology connects directly
+			}
+		}
+
+		function broadcastInRoom(roomId, dataObj, excludePeerId = null) {
+			if (!activeRooms[roomId]) return;
+			const payload = JSON.stringify(dataObj);
+			Object.keys(activeRooms[roomId].peers).forEach(id => {
+				const p = activeRooms[roomId].peers[id];
+				if (id !== excludePeerId && p.dc && p.dc.readyState === 'open') {
+					p.dc.send(payload);
+				}
+			});
+		}
+
+		window.connectCurrentRoom = function() {
+			if(!currentRoomId || !savedChats[currentRoomId]) return;
+			const chat = savedChats[currentRoomId];
+			startMeshConnection(currentRoomId, chat.type);
+		};
+
+		async function startMeshConnection(roomId, roomType) {
+			if (!currentUser) return alert("Firebase connecting. Try again in a second.");
+			updateRoomConnectionState(roomId, 'connecting');
+			
+			// Host initializes room metadata, but mesh routing doesn't care who host is
+			if (savedChats[roomId].role === 'host') {
+				const roomMetaRef = doc(db, 'artifacts', appId, 'public', 'data', 'webrtc_rooms', roomId);
+				await setDoc(roomMetaRef, { hostId: currentUser.uid, roomType: roomType, createdAt: new Date().toISOString() });
+			}
+
+			const participantsColl = collection(db, 'artifacts', appId, 'public', 'data', `room_participants_${roomId}`);
+			const signalsColl = collection(db, 'artifacts', appId, 'public', 'data', `room_signals_${roomId}`);
+			
+			activeRooms[roomId].unsubs = [];
+
+			// 1. Announce presence to the room
+			const myParticipantRef = doc(participantsColl, currentUser.uid);
+			await setDoc(myParticipantRef, { joinedAt: Date.now() });
+
+			// 2. Listen to Participants to initiate calls (Caller Logic)
+			const unsubParticipants = onSnapshot(participantsColl, snapshot => {
+				snapshot.docChanges().forEach(async change => {
+					if (change.type === 'added') {
+						const peerId = change.doc.id;
+						if (peerId === currentUser.uid) return; // Skip ourselves
+
+						// Lexicographical role assignment to prevent glare/race conditions
+						if (currentUser.uid < peerId) {
+							initiateCall(roomId, peerId, signalsColl);
+						}
+					}
+				});
+			});
+			activeRooms[roomId].unsubs.push(unsubParticipants);
+
+			// 3. Listen to Signals for incoming calls and answers
+			const unsubSignals = onSnapshot(signalsColl, snapshot => {
+				snapshot.docChanges().forEach(async change => {
+					const docId = change.doc.id;
+					const data = change.doc.data();
+					if (!data) return;
+
+					const [callerId, targetId] = docId.split('_');
+					if (callerId !== currentUser.uid && targetId !== currentUser.uid) return;
+
+					if (targetId === currentUser.uid) {
+						handleIncomingSignal(roomId, callerId, data, change.doc.ref);
+					} else if (callerId === currentUser.uid) {
+						handleOutgoingSignal(roomId, targetId, data);
+					}
+				});
+			});
+			activeRooms[roomId].unsubs.push(unsubSignals);
+			
+			pushMessageToHistory(roomId, "Mesh initialized. Waiting for peers.", "System", false, true);
+		}
+
+		async function initiateCall(roomId, peerId, signalsColl) {
+			if (activeRooms[roomId].peers[peerId]) return;
+
+			const pc = new RTCPeerConnection(rtcConfig);
+			const dc = pc.createDataChannel('p2p-chat');
+			
+			activeRooms[roomId].peers[peerId] = { pc, dc, username: "Peer", processedCandidates: new Set() };
+			setupDataChannelEvents(roomId, peerId, dc);
+
+			pc.oniceconnectionstatechange = () => handleIceState(roomId, peerId, pc);
+
+			const signalRef = doc(signalsColl, `${currentUser.uid}_${peerId}`);
+			
+			pc.onicecandidate = async event => {
+				if (event.candidate) await updateDoc(signalRef, { callerCandidates: arrayUnion(event.candidate.toJSON()) }).catch(e=>e);
+			};
+
+			const offer = await pc.createOffer();
+			await pc.setLocalDescription(offer);
+			await setDoc(signalRef, { offer: { type: offer.type, sdp: offer.sdp }, callerCandidates: [], calleeCandidates: [] });
+		}
+
+		async function handleIncomingSignal(roomId, callerId, data, signalRef) {
+			if (data.offer && !activeRooms[roomId].peers[callerId]) {
+				const pc = new RTCPeerConnection(rtcConfig);
+				activeRooms[roomId].peers[callerId] = { pc, dc: null, username: "Peer", processedCandidates: new Set() };
+				
+				pc.ondatachannel = event => {
+					activeRooms[roomId].peers[callerId].dc = event.channel;
+					setupDataChannelEvents(roomId, callerId, event.channel);
+				};
+
+				pc.oniceconnectionstatechange = () => handleIceState(roomId, callerId, pc);
+				pc.onicecandidate = async event => {
+					if (event.candidate) await updateDoc(signalRef, { calleeCandidates: arrayUnion(event.candidate.toJSON()) }).catch(e=>e);
+				};
+
+				await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+				const answer = await pc.createAnswer();
+				await pc.setLocalDescription(answer);
+				await updateDoc(signalRef, { answer: { type: answer.type, sdp: answer.sdp } });
+			}
+
+			if (activeRooms[roomId].peers[callerId] && data.callerCandidates) {
+				data.callerCandidates.forEach(c => {
+					const key = c.candidate;
+					if (!activeRooms[roomId].peers[callerId].processedCandidates.has(key)) {
+						activeRooms[roomId].peers[callerId].pc.addIceCandidate(new RTCIceCandidate(c)).catch(e=>e);
+						activeRooms[roomId].peers[callerId].processedCandidates.add(key);
+					}
+				});
+			}
+		}
+
+		async function handleOutgoingSignal(roomId, targetId, data) {
+			const peer = activeRooms[roomId].peers[targetId];
+			if (!peer) return;
+
+			if (data.answer && !peer.pc.currentRemoteDescription) {
+				await peer.pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+			}
+
+			if (data.calleeCandidates) {
+				data.calleeCandidates.forEach(c => {
+					const key = c.candidate;
+					if (!peer.processedCandidates.has(key)) {
+						peer.pc.addIceCandidate(new RTCIceCandidate(c)).catch(e=>e);
+						peer.processedCandidates.add(key);
+					}
+				});
+			}
+		}
+
+		function handleIceState(roomId, peerId, pc) {
+			if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+				if(activeRooms[roomId]?.peers[peerId]?.dc) activeRooms[roomId].peers[peerId].dc.close();
+			}
+		}
+
+		// --- 6. SETUP UI BINDINGS ---
+		window.processCreate = function() {
+			if (!currentUser) return alert("Sign in required to create a room.");
+			const selectedType = document.querySelector('input[name="roomType"]:checked').value;
+			let name = document.getElementById('create-input-name').value.trim();
+			if (!name) name = "My " + (selectedType === 'direct' ? "Direct Chat" : "Group Chat");
+			
+			let customCode = document.getElementById('create-input-code').value.trim().toUpperCase();
+			customCode = customCode.replace(/[^A-Z0-9-]/g, ''); // Only allow letters, numbers, and dashes
+			const roomId = customCode || Math.random().toString(36).substring(2, 8).toUpperCase();
+			
+			savedChats[roomId] = { name, type: selectedType, role: 'host', messages: [], unread: 0 };
+			saveToStorage();
+			
+			closeModal();
+			selectChat(roomId);
+			startMeshConnection(roomId, selectedType);
+		};
+
+		window.processJoin = async function() {
+			if (!currentUser) return alert("Sign in required to join a room.");
+			const codeInput = document.getElementById('join-input-code');
+			const roomId = codeInput.value.trim().toUpperCase();
+			if(roomId.length < 3) return alert("Room code must be at least 3 characters.");
+
+			if(savedChats[roomId]) {
+				closeModal();
+				selectChat(roomId);
+				if (!activeRooms[roomId] || activeRooms[roomId].state === 'disconnected') connectCurrentRoom();
+				return;
+			}
+
+			try {
+				const roomMetaRef = doc(db, 'artifacts', appId, 'public', 'data', 'webrtc_rooms', roomId);
+				const metaSnap = await getDoc(roomMetaRef);
+				let rType = 'group';
+				if (metaSnap.exists()) rType = metaSnap.data().roomType || 'group';
+				
+				savedChats[roomId] = { name: "New Room " + roomId, type: rType, role: 'guest', messages: [], unread: 0 };
+				saveToStorage();
+				
+				closeModal();
+				codeInput.value = '';
+				selectChat(roomId);
+				startMeshConnection(roomId, rType);
+
+			} catch (err) { alert("Could not find room data."); }
+		};
+
+		window.sendMessage = function(e) {
+			e.preventDefault();
+			if (!currentUser) return alert("Sign in required to send messages.");
+			if(!currentRoomId || !activeRooms[currentRoomId] || activeRooms[currentRoomId].state !== 'connected') return;
+			
+			const input = document.getElementById('chat-input');
+			const text = input.value.trim();
+			if(!text && pendingAttachments.length === 0) return;
+
+			// Spam prevention cooldown
+			const now = Date.now();
+			if (window.lastSendTime && now - window.lastSendTime < 500) {
+				return console.warn("Sending too fast. Please wait.");
+			}
+			window.lastSendTime = now;
+
+			const myName = document.getElementById('my-username').value.trim() || 'Anonymous';
+			const msgId = Math.random().toString(36).substring(2, 11);
+			const attachment = pendingAttachments.length > 0 ? pendingAttachments[0] : null;
+			const payload = { type: 'chat', id: msgId, username: myName, text: text, attachment: attachment };
+			
+			pushMessageToHistory(currentRoomId, text, myName, true, false, attachment, msgId);
+			input.value = '';
+			pendingAttachments = [];
+			renderAttachmentPreviews();
+			sendTypingState(false);
+
+			sendDataChunked(currentRoomId, payload);
+		};
+
+		// Typing indicators setup
+		let typingTimer = null;
+		window.handleTyping = function() {
+			if (!currentRoomId || activeRooms[currentRoomId]?.state !== 'connected') return;
+			sendTypingState(true);
+			clearTimeout(typingTimer);
+			typingTimer = setTimeout(() => sendTypingState(false), 2000);
+		};
+
+		function sendTypingState(isTyping) {
+			const myName = document.getElementById('my-username').value.trim() || 'Anonymous';
+			sendDataChunked(currentRoomId, { type: 'typing', username: myName, isTyping });
+		}
+
+		function handleRemoteTyping(roomId, username, isTyping) {
+			if (currentRoomId !== roomId) return;
+			
+			const ind = document.getElementById('typing-indicator');
+			const usersSpan = document.getElementById('typing-users');
+			
+			if (isTyping) { activeTypers.add(username); } 
+			else { activeTypers.delete(username); }
+			
+			if (activeTypers.size > 0) {
+				usersSpan.textContent = Array.from(activeTypers).join(', ');
+				ind.classList.remove('hidden');
+			} else {
+				ind.classList.add('hidden');
+			}
+			
+			// Auto clear fallback
+			clearTimeout(typingTimeouts[username]);
+			if (isTyping) {
+				typingTimeouts[username] = setTimeout(() => handleRemoteTyping(roomId, username, false), 3500);
+			}
+			
+			// Scroll to bottom if already near
+			const box = document.getElementById('chat-messages');
+			if (box.scrollHeight - box.scrollTop < box.clientHeight + 60) {
+				setTimeout(() => box.scrollTop = box.scrollHeight, 50);
+			}
+		}
+
+		// Media sharing setup
+		window.handleMediaUpload = async function(e) {
+			const target = e.target;
+			const files = Array.from(target.files);
+			if (!files.length || !currentRoomId || activeRooms[currentRoomId]?.state !== 'connected') return;
+			
+			for (let file of files) {
+				if (file.size > MAX_FILE_SIZE) {
+					alert(`File ${file.name} is too large. Max size is 8MB.`);
+					continue;
+				}
+
+				if (file.type.startsWith('image/')) {
+					if (file.type === 'image/svg+xml' || file.type === 'image/gif') {
+						const base64 = await readFileAsBase64(file);
+						if (base64) pendingAttachments.push({ name: file.name, type: file.type, data: base64 });
+					} else {
+						const base64 = await processImage(file);
+						if (base64) pendingAttachments.push({ name: file.name, type: file.type, data: base64 });
+					}
+				} else {
+					const base64 = await readFileAsBase64(file);
+					if (base64) pendingAttachments.push({ name: file.name, type: file.type || 'application/octet-stream', data: base64 });
+				}
+			}
+			
+			target.value = ''; // Reset input to allow sending identical file consecutively
+			renderAttachmentPreviews();
+		};
+
+		function processImage(file) {
+			return new Promise(resolve => {
+				const reader = new FileReader();
+				reader.onload = event => {
+					const img = new Image();
+					img.onload = () => {
+						try {
+							const canvas = document.createElement('canvas');
+							let w = img.width, h = img.height;
+							const MAX = 1200;
+							if (w > MAX || h > MAX) {
+								const ratio = Math.min(MAX/w, MAX/h);
+								w *= ratio; h *= ratio;
+							}
+							canvas.width = w; canvas.height = h;
+							const ctx = canvas.getContext('2d');
+							ctx.drawImage(img, 0, 0, w, h);
+							resolve(canvas.toDataURL(file.type === 'image/png' ? 'image/png' : 'image/jpeg', 0.8));
+						} catch (err) {
+							resolve(event.target.result); // Fallback to raw on canvas compression error
+						}
+					};
+					img.onerror = () => resolve(event.target.result); // Fallback on unsupported image formats (HEIC, etc.)
+					img.src = event.target.result;
+				};
+				reader.onerror = () => resolve(''); // Prevent infinite hang on read failure
+				reader.readAsDataURL(file);
+			});
+		}
+
+		function readFileAsBase64(file) {
+			return new Promise(resolve => {
+				const reader = new FileReader();
+				reader.onload = e => resolve(e.target.result);
+				reader.onerror = () => resolve(''); // Prevent infinite hang
+				reader.readAsDataURL(file);
+			});
+		}
+
+		window.renderAttachmentPreviews = function() {
+			const container = document.getElementById('attachment-preview-area');
+			container.innerHTML = '';
+			if (pendingAttachments.length === 0) {
+				container.classList.add('hidden');
+				return;
+			}
+			container.classList.remove('hidden');
+
+			pendingAttachments.forEach((att, index) => {
+				const div = document.createElement('div');
+				div.className = 'bg-gray-800 rounded-lg p-2.5 flex items-center gap-3 min-w-[160px] max-w-[250px] border border-gray-600 shadow';
+
+				div.innerHTML = `
+					<div class="flex-shrink-0">${getFileIconSVG(att.type)}</div>
+					<div class="flex-1 min-w-0">
+						<span class="block text-xs text-gray-200 truncate font-medium">${att.name}</span>
+					</div>
+					<button type="button" class="text-red-400 hover:text-red-300 hover:bg-red-900/30 p-1 rounded transition flex-shrink-0" onclick="removeAttachment(${index})">
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+					</button>
+				`;
+				container.appendChild(div);
+			});
+		};
+
+		window.removeAttachment = function(index) {
+			pendingAttachments.splice(index, 1);
+			renderAttachmentPreviews();
+		};
+
+		window.handleInputAutoGrow = function() {
+			const el = document.getElementById('chat-input');
+			el.style.height = 'auto';
+			el.style.height = Math.min(el.scrollHeight, 240) + 'px';
+			handleTyping();
+		};
+
+		// --- 7. PROFILE AVATAR LOGIC ---
+		window.saveMyProfile = function() {
+			localStorage.setItem('p2p_my_username', document.getElementById('my-username').value.trim());
+		};
+		
+		window.handleAvatarUpload = function(e) {
+			const file = e.target.files[0];
+			if (!file) return;
+			const reader = new FileReader();
+			reader.onload = function(event) {
+				const img = new Image();
+				img.onload = function() {
+					const canvas = document.createElement('canvas');
+					canvas.width = 128;
+					canvas.height = 128;
+					const ctx = canvas.getContext('2d');
+					
+					// Cover formatting logic
+					const size = Math.min(img.width, img.height);
+					const sx = (img.width - size) / 2;
+					const sy = (img.height - size) / 2;
+					ctx.drawImage(img, sx, sy, size, size, 0, 0, 128, 128);
+
+					const base64 = canvas.toDataURL('image/jpeg', 0.8);
+					localStorage.setItem('p2p_my_avatar', base64);
+					setMyAvatarPreview(base64);
+				}
+				img.src = event.target.result;
+			}
+			reader.readAsDataURL(file);
+		};
+
+		function setMyAvatarPreview(base64) {
+			const container = document.getElementById('my-avatar-preview-container');
+			if(base64) {
+				container.innerHTML = `<img src="${base64}" class="w-full h-full object-cover">`;
+			}
+		}
+		
+		const chatInput = document.getElementById("chat-input");
+
+		chatInput.addEventListener("keydown", function(e) {
+			if (e.key === "Enter" && !e.shiftKey) {
+				e.preventDefault(); // prevent newline
+				sendMessage(e);		// send message
+			}
+		});
+
+		// Init on load
+		const savedUsername = localStorage.getItem('p2p_my_username');
+		if (savedUsername) document.getElementById('my-username').value = savedUsername;
+		const savedAvatar = localStorage.getItem('p2p_my_avatar');
+		if (savedAvatar) setMyAvatarPreview(savedAvatar);
+		
+		renderSidebar();
+
+		// Handle Popout Mode Setup
+		if (window.location.hash.startsWith('#popout=')) {
+			document.body.classList.add('popout-mode');
+			const popRoomId = window.location.hash.replace('#popout=', '');
+			
+			// Auto-select and wait for auth to connect
+			const authCheckInterval = setInterval(() => {
+				if (currentUser) {
+					clearInterval(authCheckInterval);
+					if (savedChats[popRoomId]) {
+						selectChat(popRoomId);
+						connectCurrentRoom();
+					}
+				}
+			}, 200);
+		}
+
+	</script>
+</body>
+</html>
