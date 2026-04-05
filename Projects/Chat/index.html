@@ -269,7 +269,7 @@
 
 			<div class="space-y-4 hidden" id="storage-buttons-container">
 				<button id="btn-google-drive" class="w-full bg-white hover:bg-gray-100 text-gray-900 py-3 rounded-lg font-bold shadow-lg transition flex items-center justify-center gap-2" onclick="chooseGoogleDrive()">
-					<svg class="w-5 h-5" viewBox="0 0 87.3 58.1"><path d="M19.1 58.1L0 25.1 13.1 2.4l19.1 33z" fill="#00832d"/><path d="M38.2 25.1H0l13.1-22.7h38.2z" fill="#0066da"/><path d="M51.3 2.4L38.2 25.1H76.4L63.3 2.4z" fill="#ffba00"/><path d="M76.4 25.1L57.3 58.1H19.1l19.1-33z" fill="#00832d"/></svg>
+					<svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M17 6l-6 10.5 15 26h12l6-10.5z"/><path fill="#1976D2" d="M32 42.5H8l-6-10.5h24z"/><path fill="#4CAF50" d="M31 6H17l15 26 6-10.5z"/></svg>
 					Save to Google Drive
 				</button>
 				<button id="btn-choose-storage" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-lg font-bold shadow-lg transition flex items-center justify-center gap-2" onclick="chooseStorageFolder()">
@@ -324,6 +324,16 @@
 			currentUser = user; 
 			if (user) {
 				document.getElementById('auth-buttons-container').classList.add('hidden');
+				
+				// Auto-populate profile from Google/GitHub if local profile is empty
+				if (!localStorage.getItem('p2p_my_username') && user.displayName) {
+					localStorage.setItem('p2p_my_username', user.displayName);
+					document.getElementById('my-username').value = user.displayName;
+				}
+				if (!localStorage.getItem('p2p_my_avatar') && user.photoURL) {
+					localStorage.setItem('p2p_my_avatar', user.photoURL);
+					setMyAvatarPreview(user.photoURL);
+				}
 				
 				// Only show storage options if not already setup in a previous session
 				const activeStorage = localStorage.getItem('p2p_storage_method');
