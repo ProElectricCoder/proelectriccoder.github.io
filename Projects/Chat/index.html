@@ -8,17 +8,15 @@
 	<!-- Meta Properties -->
 	<meta name="title" content="PeerLink – Secure P2P Chat">
 	<meta name="description" content="A fast peer-to-peer chat app using WebRTC. Send messages, files, and images directly between devices with no central server.">
-	<meta name="keywords" content="P2P chat, WebRTC chat, peer messaging, secure chat, direct messaging, WebRTC file transfer">
 	<meta name="author" content="ProElectricCannon"> <!-- Also known as Unknown9856 -->
-	<meta name="robots" content="index, follow">
 
 	<meta property="og:title" content="PeerLink – Secure P2P Chat">
 	<meta property="og:description" content="Instant peer-to-peer messaging and file sharing powered by WebRTC.">
 	<meta property="og:type" content="website">
-	<meta property="og:url" content="https://domain-name.type">
-	<meta property="og:image" content="https://domain-name.type/ChatLogo.svg">
+	<meta property="og:url" content="https://proelectriccoder.github.io/Projects/Chat/">
+	<meta property="og:image" content="https://proelectriccoder.github.io/Preview.png">
 
-	<link rel="icon" type="image/svg+xml" href="ChatLogo.svg">
+	<link rel="icon" type="image/svg+xml" href="/Favicon.svg">
 	<link rel="stylesheet" href="https://proelectriccoder.github.io/ElectronCSS/ElectronThemes.css">
 
 	<script src="https://cdn.tailwindcss.com"></script>
@@ -254,20 +252,11 @@
 	<div id="startup-modal" class="fixed inset-0 bg-black/90 flex flex-col items-center justify-center z-[200] backdrop-blur-md">
 		<div class="bg-gray-800 w-full max-w-md rounded-2xl shadow-2xl p-6 border border-gray-700 text-center">
 			<h2 class="text-2xl font-bold text-white mb-4">Welcome to PeerLink</h2>
-			<p class="text-gray-300 text-sm mb-4">
-				Sign-in is required to connect to the P2P network. Your chats are stored <b class="text-white">locally</b> on your device.
-			</p>
-			<p class="text-gray-400 text-xs mb-6">
-				For best privacy and persistence, we will try to save chats and files directly to a folder on your hard disk. If permission is denied or skipped, we will fallback to standard browser storage (localStorage).
+			<p class="text-gray-300 text-sm mb-4" id="startup-modal-desc">
+				Sign-in is required to connect to the P2P network. Choose how you want to save your chat history.
 			</p>
 			
-			<div class="space-y-4">
-				<button id="btn-choose-storage" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-lg font-bold shadow-lg transition flex items-center justify-center gap-2" onclick="chooseStorageFolder()">
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
-					Choose Storage Folder
-				</button>
-				<div id="storage-status" class="text-xs text-green-400 hidden font-semibold">✓ Storage folder selected</div>
-				
+			<div class="space-y-4" id="auth-buttons-container">
 				<button id="btn-google-signin" class="w-full bg-white hover:bg-gray-100 text-gray-900 py-3 rounded-lg font-bold shadow-lg transition flex items-center justify-center gap-2" onclick="signInWithGoogle()">
 					<svg class="w-5 h-5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
 					Sign in with Google
@@ -276,6 +265,21 @@
 					<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.416 22 12c0-5.523-4.477-10-10-10z"></path></svg>
 					Sign in with GitHub
 				</button>
+			</div>
+
+			<div class="space-y-4 hidden" id="storage-buttons-container">
+				<button id="btn-google-drive" class="w-full bg-white hover:bg-gray-100 text-gray-900 py-3 rounded-lg font-bold shadow-lg transition flex items-center justify-center gap-2" onclick="chooseGoogleDrive()">
+					<svg class="w-5 h-5" viewBox="0 0 87.3 58.1"><path d="M19.1 58.1L0 25.1 13.1 2.4l19.1 33z" fill="#00832d"/><path d="M38.2 25.1H0l13.1-22.7h38.2z" fill="#0066da"/><path d="M51.3 2.4L38.2 25.1H76.4L63.3 2.4z" fill="#ffba00"/><path d="M76.4 25.1L57.3 58.1H19.1l19.1-33z" fill="#00832d"/></svg>
+					Save to Google Drive
+				</button>
+				<button id="btn-choose-storage" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-lg font-bold shadow-lg transition flex items-center justify-center gap-2" onclick="chooseStorageFolder()">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+					Choose Local Folder
+				</button>
+				<button class="w-full text-gray-400 hover:text-gray-200 text-sm py-2 underline" onclick="skipStorageSelection()">
+					Skip & Use Browser Storage
+				</button>
+				<div id="storage-status" class="text-xs text-green-400 hidden font-semibold">✓ Storage initialized</div>
 			</div>
 		</div>
 	</div>
@@ -291,7 +295,7 @@
 			direction: 'to bottom right',
 			start: '#0f172a', // Deep slate to match the aesthetic 
 			end: '#000000',
-			steps: 100,
+			steps: 25,
 			power: 3
 		});
 
@@ -314,20 +318,44 @@
 
 		const appId = 'my-local-p2p-chat';
 		let currentUser = null;
+		let googleOAuthToken = null; // Store token for Drive API calls
 
 		onAuthStateChanged(auth, user => { 
 			currentUser = user; 
 			if (user) {
-				document.getElementById('startup-modal').classList.add('hidden');
+				document.getElementById('auth-buttons-container').classList.add('hidden');
+				
+				// Only show storage options if not already setup in a previous session
+				const activeStorage = localStorage.getItem('p2p_storage_method');
+				if (activeStorage === 'drive' || activeStorage === 'local') {
+					document.getElementById('startup-modal').classList.add('hidden');
+					// We can attempt to reload right away
+					if (activeStorage === 'drive') loadChatsFromDrive();
+					else loadChatsFromDisk(); // Needs re-permissioning
+				} else {
+					document.getElementById('storage-buttons-container').classList.remove('hidden');
+					document.getElementById('startup-modal-desc').textContent = "Select where to securely store your chat history.";
+				}
 			} else {
 				document.getElementById('startup-modal').classList.remove('hidden');
+				document.getElementById('auth-buttons-container').classList.remove('hidden');
+				document.getElementById('storage-buttons-container').classList.add('hidden');
 			}
 		});
 
-		window.signInWithGoogle = async function() {
+		window.signInWithGoogle = async function(requestDriveScope = false) {
 			try {
 				const provider = new GoogleAuthProvider();
-				await signInWithPopup(auth, provider);
+				if (requestDriveScope) {
+					provider.addScope('https://www.googleapis.com/auth/drive.appdata'); // appData folder
+				}
+				const result = await signInWithPopup(auth, provider);
+				
+				// Extract the OAuth token if Drive scope was requested
+				const credential = GoogleAuthProvider.credentialFromResult(result);
+				if (credential && credential.accessToken) {
+					googleOAuthToken = credential.accessToken;
+				}
 			} catch (error) {
 				console.error("Google Sign-In Error:", error);
 				alert("Failed to sign in: " + error.message);
@@ -347,6 +375,40 @@
 		// --- File System Access API Variables ---
 		let storageDirHandle = null;
 
+		window.skipStorageSelection = function() {
+			localStorage.setItem('p2p_storage_method', 'browser');
+			document.getElementById('startup-modal').classList.add('hidden');
+		}
+
+		window.chooseGoogleDrive = async function() {
+			try {
+				document.getElementById('btn-google-drive').classList.add('opacity-50');
+				document.getElementById('btn-google-drive').textContent = "Authorizing...";
+				
+				// We need to re-auth to ask for Drive permissions specifically
+				await window.signInWithGoogle(true);
+				
+				if (googleOAuthToken) {
+					localStorage.setItem('p2p_storage_method', 'drive');
+					document.getElementById('storage-status').textContent = '✓ Google Drive Connected';
+					document.getElementById('storage-status').classList.remove('hidden');
+					
+					await loadChatsFromDrive();
+					
+					setTimeout(() => {
+						document.getElementById('startup-modal').classList.add('hidden');
+					}, 1000);
+				} else {
+					throw new Error("Could not retrieve Drive access token.");
+				}
+			} catch (error) {
+				console.error("Drive Auth Error:", error);
+				alert("Failed to connect Drive: " + error.message);
+				document.getElementById('btn-google-drive').classList.remove('opacity-50');
+				document.getElementById('btn-google-drive').innerHTML = `Save to Google Drive`;
+			}
+		};
+
 		async function verifyStoragePermission() {
 			if (!storageDirHandle) return false;
 			try {
@@ -363,14 +425,98 @@
 			}
 			try {
 				storageDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+				localStorage.setItem('p2p_storage_method', 'local');
+				document.getElementById('storage-status').textContent = '✓ Local folder selected';
 				document.getElementById('storage-status').classList.remove('hidden');
 				document.getElementById('btn-choose-storage').classList.add('opacity-50');
 				await loadChatsFromDisk();
+				
+				setTimeout(() => {
+					document.getElementById('startup-modal').classList.add('hidden');
+				}, 1000);
 			} catch (error) {
 				console.warn("Storage folder selection cancelled or failed.", error);
 			}
 		};
 
+		// --- Drive API Logic ---
+		let driveFileId = null;
+
+		async function findDriveFileId() {
+			if (!googleOAuthToken) return null;
+			if (driveFileId) return driveFileId;
+
+			try {
+				const response = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name="p2p_saved_chats.json"', {
+					headers: { 'Authorization': `Bearer ${googleOAuthToken}` }
+				});
+				const data = await response.json();
+				if (data.files && data.files.length > 0) {
+					driveFileId = data.files[0].id;
+					return driveFileId;
+				}
+			} catch (e) { console.error("Error finding Drive file:", e); }
+			return null;
+		}
+
+		async function saveChatsToDrive() {
+			if (!googleOAuthToken) return;
+			
+			const fileContent = JSON.stringify(savedChats);
+			const metadata = {
+				name: 'p2p_saved_chats.json',
+				parents: ['appDataFolder'] // Use hidden app folder
+			};
+
+			const formData = new FormData();
+			formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+			formData.append('file', new Blob([fileContent], { type: 'application/json' }));
+
+			try {
+				await findDriveFileId();
+				let url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+				let method = 'POST';
+
+				if (driveFileId) {
+					// Update existing
+					url = `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=multipart`;
+					method = 'PATCH';
+				}
+
+				const response = await fetch(url, {
+					method: method,
+					headers: { 'Authorization': `Bearer ${googleOAuthToken}` },
+					body: formData
+				});
+				
+				const data = await response.json();
+				if (data.id) driveFileId = data.id; // cache the ID if we just created it
+
+			} catch (e) { console.error("Error saving to Drive:", e); }
+		}
+
+		async function loadChatsFromDrive() {
+			if (!googleOAuthToken) return;
+			try {
+				const fileId = await findDriveFileId();
+				if (!fileId) return; // Doesn't exist yet
+
+				const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+					headers: { 'Authorization': `Bearer ${googleOAuthToken}` }
+				});
+				
+				if (response.ok) {
+					const diskChats = await response.json();
+					if (diskChats) {
+						savedChats = { ...savedChats, ...diskChats };
+						localStorage.setItem('p2p_saved_chats', JSON.stringify(savedChats)); // Sync local
+						renderSidebar();
+					}
+				}
+			} catch (e) { console.error("Error loading from Drive:", e); }
+		}
+
+		// --- Local Disk Logic ---
 		async function saveChatsToDisk() {
 			if (!(await verifyStoragePermission())) return;
 			try {
@@ -523,9 +669,16 @@
 			}, 300);
 		};
 
+		// Wrapper to handle routing saves
 		function saveToStorage() {
 			localStorage.setItem('p2p_saved_chats', JSON.stringify(savedChats));
-			saveChatsToDisk(); // Attempt to save to disk if permitted
+			
+			const method = localStorage.getItem('p2p_storage_method');
+			if (method === 'drive') {
+				saveChatsToDrive();
+			} else if (method === 'local') {
+				saveChatsToDisk(); 
+			}
 		}
 
 		function renderSidebar() {
