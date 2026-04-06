@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+	<!-- “Created with Gemini 3.1 Pro” - ProElectricCoder -->
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>P2P Multi-Chat Messenger</title>
@@ -206,6 +207,10 @@
 						<label class="block text-xs text-gray-400 mb-1">Room Code</label>
 						<input type="text" id="join-input-code" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 text-xl font-mono text-center uppercase tracking-widest text-white focus:border-cyan-500 focus:outline-none" placeholder="Enter code" maxlength="16">
 					</div>
+					<div>
+						<label class="block text-xs text-gray-400 mb-1">Chat Name (Optional)</label>
+						<input type="text" id="join-input-name" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-cyan-500 focus:outline-none" placeholder="e.g. Work Team / John">
+					</div>
 					<button class="w-full bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg font-bold shadow-lg transition" onclick="processJoin()">Join & Save Contact</button>
 				</div>
 
@@ -233,34 +238,6 @@
 						<input type="text" id="create-input-code" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white font-mono uppercase tracking-widest focus:border-cyan-500 focus:outline-none" placeholder="Leave blank for random" maxlength="16">
 					</div>
 					<button class="w-full bg-cyan-600 hover:bg-cyan-500 text-white py-3 rounded-lg font-bold shadow-lg transition mt-2" onclick="processCreate()">Create Room</button>
-				</div>
-					<button class="w-full bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg font-bold shadow-lg transition" onclick="processJoin()">Join & Save Contact</button>
-				</div>
-
-				<!-- Create View -->
-				<div id="view-create" class="hidden space-y-4">
-					<div>
-						<label class="block text-xs text-gray-400 mb-2">Room Type</label>
-						<div class="flex gap-2">
-							<label class="flex-1 cursor-pointer">
-								<input type="radio" name="roomType" value="group" class="peer hidden" checked>
-								<div class="text-center py-2 rounded-lg bg-gray-900 border border-gray-700 peer-checked:border-blue-500 peer-checked:bg-blue-600/20 text-gray-300 peer-checked:text-blue-400 text-sm font-medium transition">Group Chat</div>
-							</label>
-							<label class="flex-1 cursor-pointer">
-								<input type="radio" name="roomType" value="direct" class="peer hidden">
-								<div class="text-center py-2 rounded-lg bg-gray-900 border border-gray-700 peer-checked:border-indigo-500 peer-checked:bg-indigo-600/20 text-gray-300 peer-checked:text-indigo-400 text-sm font-medium transition">Direct (1-on-1)</div>
-							</label>
-						</div>
-					</div>
-					<div>
-						<label class="block text-xs text-gray-400 mb-1">Chat Name (for your sidebar)</label>
-						<input type="text" id="create-input-name" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-blue-500 focus:outline-none" placeholder="e.g. Project Team">
-					</div>
-					<div>
-						<label class="block text-xs text-gray-400 mb-1">Custom Room Code (Optional)</label>
-						<input type="text" id="create-input-code" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white font-mono uppercase tracking-widest focus:border-blue-500 focus:outline-none" placeholder="Leave blank for random" maxlength="16">
-					</div>
-					<button class="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-lg font-bold shadow-lg transition mt-2" onclick="processCreate()">Create Room</button>
 				</div>
 				
 				<button class="w-full mt-4 text-gray-500 hover:text-gray-300 text-sm py-2" onclick="closeModal()">Cancel</button>
@@ -1455,10 +1432,18 @@
 		window.processJoin = async function() {
 			if (!currentUser) return alert("Sign in required to join a room.");
 			const codeInput = document.getElementById('join-input-code');
+			const nameInput = document.getElementById('join-input-name');
+			
 			const roomId = codeInput.value.trim().toUpperCase();
+			const customName = nameInput.value.trim();
+			
 			if(roomId.length < 3) return alert("Room code must be at least 3 characters.");
 
 			if(savedChats[roomId]) {
+				if (customName) {
+					savedChats[roomId].name = customName;
+					saveToStorage();
+				}
 				closeModal();
 				selectChat(roomId);
 				if (!activeRooms[roomId] || activeRooms[roomId].state === 'disconnected') connectCurrentRoom();
@@ -1471,11 +1456,13 @@
 				let rType = 'group';
 				if (metaSnap.exists()) rType = metaSnap.data().roomType || 'group';
 				
-				savedChats[roomId] = { name: "New Room " + roomId, type: rType, role: 'guest', messages: [], unread: 0 };
+				const chatName = customName || ("New Room " + roomId);
+				savedChats[roomId] = { name: chatName, type: rType, role: 'guest', messages: [], unread: 0 };
 				saveToStorage();
 				
 				closeModal();
 				codeInput.value = '';
+				nameInput.value = '';
 				selectChat(roomId);
 				startMeshConnection(roomId, rType);
 
