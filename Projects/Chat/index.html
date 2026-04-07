@@ -137,10 +137,14 @@
 				<button class="md:hidden text-gray-400 hover:text-white p-1 -ml-1 flex-shrink-0 popout-hide" onclick="closeMobileChat()">
 					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
 				</button>
-				<div class="relative flex-shrink-0">
-					<div id="header-avatar" class="w-10 h-10 bg-cyan-600 rounded-full flex items-center justify-center font-bold text-white uppercase shadow-md">G</div>
+				<div class="relative flex-shrink-0" id="header-avatar-wrapper" title="">
+					<div id="header-avatar" class="w-10 h-10 bg-cyan-600 rounded-full flex items-center justify-center font-bold text-white uppercase shadow-md overflow-hidden">G</div>
+					<div id="header-avatar-overlay" class="absolute inset-0 bg-black/60 rounded-full hidden items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm">
+						<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+					</div>
 					<div id="header-status-dot" class="absolute bottom-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-gray-850"></div>
 				</div>
+				<input type="file" id="group-avatar-upload" accept="image/*" class="hidden" onchange="handleGroupAvatarUpload(event)">
 				<div class="min-w-0">
 					<h2 id="header-title" class="font-bold text-gray-100 leading-tight truncate">Room Name</h2>
 					<div class="flex items-center gap-2">
@@ -905,6 +909,22 @@
 				headerAvatar.className = `w-10 h-10 rounded-full flex items-center justify-center font-bold text-white uppercase shadow-md ${chat.type === 'direct' ? 'bg-cyan-700' : 'bg-cyan-600'}`;
 			}
 			
+			const overlay = document.getElementById('header-avatar-overlay');
+			const wrapper = document.getElementById('header-avatar-wrapper');
+			if (chat.role === 'host' && chat.type === 'group') {
+				wrapper.classList.add('cursor-pointer', 'group');
+				wrapper.onclick = () => document.getElementById('group-avatar-upload').click();
+				wrapper.title = "Change Group Icon";
+				overlay.classList.remove('hidden');
+				overlay.classList.add('flex');
+			} else {
+				wrapper.classList.remove('cursor-pointer', 'group');
+				wrapper.onclick = null;
+				wrapper.title = "";
+				overlay.classList.remove('flex');
+				overlay.classList.add('hidden');
+			}
+
 			const dot = document.getElementById('header-status-dot');
 			const txt = document.getElementById('header-status-text');
 			const btnConn = document.getElementById('btn-connect');
@@ -1288,6 +1308,11 @@
 				const myName = document.getElementById('my-username').value.trim() || 'Anonymous';
 				const myAvatar = localStorage.getItem('p2p_my_avatar') || '';
 				dc.send(JSON.stringify({ type: 'system', action: 'set_username', username: myName, avatar: myAvatar }));
+				
+				// Host transmits group avatar to newly connected peers
+				if (savedChats[roomId] && savedChats[roomId].role === 'host' && savedChats[roomId].avatar) {
+					sendDataChunked(roomId, { type: 'system', action: 'update_group_avatar', avatar: savedChats[roomId].avatar }, dc);
+				}
 			};
 			
 			dc.onclose = () => {
@@ -1353,6 +1378,14 @@
 				}
 				
 				pushMessageToHistory(roomId, `${data.username} connected.`, "System", false, true);
+			} else if (data.type === 'system' && data.action === 'update_group_avatar') {
+				if (savedChats[roomId] && savedChats[roomId].type === 'group') {
+					savedChats[roomId].avatar = data.avatar;
+					saveToStorage();
+					renderSidebar();
+					if (currentRoomId === roomId) renderActiveChatHeader();
+					pushMessageToHistory(roomId, "Group icon was updated by the host.", "System", false, true);
+				}
 			} else if (data.type === 'chat') {
 				pushMessageToHistory(roomId, data.text, data.username, false, false, data.attachment || data.image, data.id);
 				// Relay removed - Mesh topology connects directly
@@ -1760,6 +1793,41 @@
 			el.style.height = 'auto';
 			el.style.height = Math.min(el.scrollHeight, 240) + 'px';
 			handleTyping();
+		};
+
+		window.handleGroupAvatarUpload = function(e) {
+			if (!currentRoomId || !savedChats[currentRoomId] || savedChats[currentRoomId].role !== 'host') return;
+			const file = e.target.files[0];
+			if (!file) return;
+			const reader = new FileReader();
+			reader.onload = function(event) {
+				const img = new Image();
+				img.onload = function() {
+					const canvas = document.createElement('canvas');
+					canvas.width = 128;
+					canvas.height = 128;
+					const ctx = canvas.getContext('2d');
+					
+					const size = Math.min(img.width, img.height);
+					const sx = (img.width - size) / 2;
+					const sy = (img.height - size) / 2;
+					ctx.drawImage(img, sx, sy, size, size, 0, 0, 128, 128);
+
+					const base64 = canvas.toDataURL('image/jpeg', 0.8);
+					savedChats[currentRoomId].avatar = base64;
+					saveToStorage();
+					renderActiveChatHeader();
+					renderSidebar();
+					
+					if (activeRooms[currentRoomId] && activeRooms[currentRoomId].state === 'connected') {
+						sendDataChunked(currentRoomId, { type: 'system', action: 'update_group_avatar', avatar: base64 });
+						pushMessageToHistory(currentRoomId, "You updated the group icon.", "System", true, true);
+					}
+				}
+				img.src = event.target.result;
+			}
+			reader.readAsDataURL(file);
+			e.target.value = ''; // Reset input
 		};
 
 		// --- 7. PROFILE AVATAR LOGIC ---
