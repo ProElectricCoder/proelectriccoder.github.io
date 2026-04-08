@@ -26,9 +26,19 @@
         main a {
             color: #06b6d4 !important; /* Tailwind cyan-500 */
         }
+        /* Cubic background with cyan-black gradient */
+        body {
+            background-color: #000000;
+            background-image: 
+                linear-gradient(to bottom right, #000000 40%, rgba(6, 182, 212, 0.25) 100%),
+                linear-gradient(rgba(34, 211, 238, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(34, 211, 238, 0.05) 1px, transparent 1px);
+            background-size: 100% 100%, 40px 40px, 40px 40px;
+            background-attachment: fixed;
+        }
     </style>
 </head>
-<body class="bg-slate-900 text-cyan-300 antialiased font-mono flex flex-col min-h-screen selection:bg-cyan-900 selection:text-cyan-100">
+<body class="text-cyan-300 antialiased font-mono flex flex-col min-h-screen selection:bg-cyan-900 selection:text-cyan-100">
     <div id="header"></div>
     <!-- Main Content -->
     <main class="flex-grow w-full max-w-4xl mx-auto px-6 pt-32 pb-12">
@@ -37,7 +47,7 @@
             <h1 class="text-4xl font-extrabold tracking-tight mb-2 text-white">Site Information & Legal</h1>
             <p class="text-slate-400 mb-8 font-medium">Last Updated: April 7, 2026</p>
 
-            <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-6 mb-12 not-prose">
+            <div class="bg-slate-800/30 backdrop-blur-md border border-slate-700 rounded-lg p-6 mb-12 not-prose">
                 <h2 class="text-lg font-bold text-white mb-4">Table of Contents</h2>
                 <div class="grid sm:grid-cols-2 gap-6 text-sm">
                     <div>
@@ -65,7 +75,7 @@
                 <h3 id="ai-projects" class="text-xl font-bold mt-8 mb-4 text-slate-200">AI-Generated Projects</h3>
                 <p>The primary content on this site is created manually. When Artificial Intelligence (AI) models are utilized, they are predominantly used to assist with generating the underlying code and structural layout of the websites. In instances where AI is used to generate actual text or project content, that content is carefully reviewed and edited before being published.</p>
                 <p>For transparency, projects that utilize AI for code generation will contain an HTML comment in their source code header, formatted similarly to:</p>
-                <code class="block bg-slate-950 p-4 rounded-md text-sm text-cyan-300 mb-4 border border-slate-800 overflow-x-auto">&lt;!-- &ldquo;Created with Gemini 3.1 Pro&rdquo; - ProElectricCoder --&gt;</code>
+                <code class="block bg-slate-950/40 backdrop-blur-md p-4 rounded-md text-sm text-cyan-300 mb-4 border border-slate-800 overflow-x-auto">&lt;!-- &ldquo;Created with Gemini 3.1 Pro&rdquo; - ProElectricCoder --&gt;</code>
                 <p>Please note that the inclusion of these comments and the mention of specific AI models are strictly for transparency and tracking purposes. I am not affiliated with, sponsored by, or advertising for any of the respective AI companies.</p>
             </section>
 
@@ -97,10 +107,7 @@
                     <li><strong>Connection Data (Signaling):</strong> To connect you with other users, our signaling server temporarily processes technical connection data (Session Description Protocol and ICE candidates). This data is deleted when it is no longer needed.</li>
                 </ul>
 
-                <h3 id="p-webrtc" class="text-xl font-bold mt-8 mb-4 text-amber-400 bg-amber-950/30 p-4 rounded-md border border-amber-900/50 inline-block w-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 inline mb-1 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                    4. WebRTC and IP Addresses (Important)
-                </h3>
+                <h3 id="p-webrtc" class="text-xl font-bold mt-8 mb-4 text-slate-200">4. WebRTC and IP Addresses (Important)</h3>
                 <p>Because PeerLink relies on direct peer-to-peer connections, your public IP address may be exposed to the users you are actively chatting with. This is a fundamental technical requirement of WebRTC. Do not share room codes with individuals you do not trust.</p>
 
                 <h3 id="p-third-party" class="text-xl font-bold mt-8 mb-4 text-slate-200">5. Third-Party Services</h3>
@@ -138,10 +145,7 @@
                 <h3 id="t-liability" class="text-xl font-bold mt-8 mb-4 text-slate-200">7. Limitation of Liability</h3>
                 <p>To the fullest extent permitted by law, PeerLink and its developer (ProElectricCoder) shall not be liable for any direct, indirect, incidental, or consequential damages resulting from your use or inability to use the service, including but not limited to data loss or security breaches on your local device.</p>
 
-                <h3 id="t-ai" class="text-xl font-bold mt-8 mb-4 text-purple-400 bg-purple-950/30 p-4 rounded-md border border-purple-900/50 inline-block w-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 inline mb-1 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                    8. AI-Generated Content
-                </h3>
+                <h3 id="t-ai" class="text-xl font-bold mt-8 mb-4 text-slate-200">8. AI-Generated Content</h3>
                 <p>PeerLink may interact with or incorporate artificial intelligence (AI) models and features. You acknowledge and agree that:</p>
                 <ul>
                     <li><strong>No Guarantee of Accuracy:</strong> AI-generated content (including but not limited to text, summaries, code, or media) is provided "as is" and may contain errors, inaccuracies, or biases.</li>
