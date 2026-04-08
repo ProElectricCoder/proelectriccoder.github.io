@@ -1,151 +1,162 @@
 <!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
 <head>
-	<!-- “Created with Gemini 3.1 Pro” - ProElectricCoder -->
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Info - ProElectricCoder</title>
-	<script src="https://cdn.tailwindcss.com"></script>
-	<script src="https://cdn.tailwindcss.com?plugins=typography"></script>
-	<link rel="stylesheet" href="/header.css">
-	<script src="/header.js" defer></script>
-	<style>
-		/* Ensures smooth scrolling offset for fixed header */
-		:target {
-			scroll-margin-top: 5rem;
-		}
-	</style>
+    <!-- “Created with Gemini 3.1 Pro” - ProElectricCoder -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Info - ProElectricCoder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <link rel="stylesheet" href="/header.css">
+    <script src="/header.js" defer></script>
+    <style>
+        /* Ensures smooth scrolling offset for fixed header */
+        :target {
+            scroll-margin-top: 5rem;
+        }
+        /* Force cyan monospace styling for all text elements inside main content */
+        main * {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+            color: #67e8f9 !important; /* Tailwind cyan-300 */
+        }
+        main h1, main h2, main h3, main strong {
+            color: #22d3ee !important; /* Tailwind cyan-400 */
+        }
+        main a {
+            color: #06b6d4 !important; /* Tailwind cyan-500 */
+        }
+    </style>
 </head>
-<body class="bg-slate-900 text-slate-300 antialiased font-sans flex flex-col min-h-screen selection:bg-cyan-900 selection:text-cyan-100">
-	<div id="header"></div>
-	<!-- Main Content -->
-	<main class="flex-grow w-full max-w-4xl mx-auto px-6 py-12">
-		<article class="prose prose-invert prose-cyan max-w-none prose-headings:scroll-mt-24 prose-a:no-underline hover:prose-a:underline">
-			
-			<h1 class="text-4xl font-extrabold tracking-tight mb-2 text-white">Site Information & Legal</h1>
-			<p class="text-slate-400 mb-8 font-medium">Last Updated: April 7, 2026</p>
+<body class="bg-slate-900 text-cyan-300 antialiased font-mono flex flex-col min-h-screen selection:bg-cyan-900 selection:text-cyan-100">
+    <div id="header"></div>
+    <!-- Main Content -->
+    <main class="flex-grow w-full max-w-4xl mx-auto px-6 pt-32 pb-12">
+        <article class="prose prose-invert prose-cyan max-w-none prose-headings:scroll-mt-24 prose-a:no-underline hover:prose-a:underline">
+            
+            <h1 class="text-4xl font-extrabold tracking-tight mb-2 text-white">Site Information & Legal</h1>
+            <p class="text-slate-400 mb-8 font-medium">Last Updated: April 7, 2026</p>
 
-			<div class="bg-slate-800/50 border border-slate-700 rounded-lg p-6 mb-12 not-prose">
-				<h2 class="text-lg font-bold text-white mb-4">Table of Contents</h2>
-				<div class="grid sm:grid-cols-2 gap-6 text-sm">
-					<div>
-						<h3 class="font-semibold text-cyan-400 mb-2">General</h3>
-						<ul class="space-y-2 text-slate-300">
-							<li><a href="#general-info" class="hover:text-cyan-300 transition-colors">About ProElectricCoder</a></li>
-							<li><a href="#ai-projects" class="hover:text-cyan-300 transition-colors">AI-Generated Projects</a></li>
-						</ul>
-					</div>
-					<div>
-						<h3 class="font-semibold text-cyan-400 mb-2">Project: PeerLink</h3>
-						<ul class="space-y-2 text-slate-300">
-							<li><a href="#peerlink-privacy" class="hover:text-cyan-300 transition-colors">Privacy Policy</a></li>
-							<li><a href="#peerlink-terms" class="hover:text-cyan-300 transition-colors">Terms of Service</a></li>
-						</ul>
-					</div>
-				</div>
-			</div>
+            <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-6 mb-12 not-prose">
+                <h2 class="text-lg font-bold text-white mb-4">Table of Contents</h2>
+                <div class="grid sm:grid-cols-2 gap-6 text-sm">
+                    <div>
+                        <h3 class="font-semibold text-cyan-400 mb-2">General</h3>
+                        <ul class="space-y-2 text-slate-300">
+                            <li><a href="#general-info" class="hover:text-cyan-300 transition-colors">About ProElectricCoder</a></li>
+                            <li><a href="#ai-projects" class="hover:text-cyan-300 transition-colors">AI-Generated Projects</a></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-cyan-400 mb-2">Project: PeerLink</h3>
+                        <ul class="space-y-2 text-slate-300">
+                            <li><a href="#peerlink-privacy" class="hover:text-cyan-300 transition-colors">Privacy Policy</a></li>
+                            <li><a href="#peerlink-terms" class="hover:text-cyan-300 transition-colors">Terms of Service</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
 
-			<section id="general-info" class="mb-16">
-				<h2 class="text-3xl font-bold border-b border-slate-700 pb-2 mb-6 text-white">General Information</h2>
-				<p>Welcome to <strong>ProElectricCoder.github.io</strong>. This site serves as a portfolio and hosting platform for various open-source and personal development projects, including web applications, games, and tools.</p>
-				<p>Unless otherwise specified in a project's specific terms below, all code and projects hosted here are provided for educational and demonstrative purposes. You are responsible for how you utilize any tools or software provided on this domain.</p>
-				
-				<h3 id="ai-projects" class="text-xl font-bold mt-8 mb-4 text-slate-200">AI-Generated Projects</h3>
-				<p>The primary content on this site is created manually. When Artificial Intelligence (AI) models are utilized, they are predominantly used to assist with generating the underlying code and structural layout of the websites. In instances where AI is used to generate actual text or project content, that content is carefully reviewed and edited before being published.</p>
-				<p>For transparency, projects that utilize AI for code generation will contain an HTML comment in their source code header, formatted similarly to:</p>
-				<code class="block bg-slate-950 p-4 rounded-md text-sm text-cyan-300 mb-4 border border-slate-800 overflow-x-auto">&lt;!-- &ldquo;Created with Gemini 3.1 Pro&rdquo; - ProElectricCoder --&gt;</code>
-				<p>Please note that the inclusion of these comments and the mention of specific AI models are strictly for transparency and tracking purposes. I am not affiliated with, sponsored by, or advertising for any of the respective AI companies.</p>
-			</section>
+            <section id="general-info" class="mb-16">
+                <h2 class="text-3xl font-bold border-b border-slate-700 pb-2 mb-6 text-white">General Information</h2>
+                <p>Welcome to <strong>ProElectricCoder.github.io</strong>. This site serves as a portfolio and hosting platform for various open-source and personal development projects, including web applications, games, and tools.</p>
+                <p>Unless otherwise specified in a project's specific terms below, all code and projects hosted here are provided for educational and demonstrative purposes. You are responsible for how you utilize any tools or software provided on this domain.</p>
+                
+                <h3 id="ai-projects" class="text-xl font-bold mt-8 mb-4 text-slate-200">AI-Generated Projects</h3>
+                <p>The primary content on this site is created manually. When Artificial Intelligence (AI) models are utilized, they are predominantly used to assist with generating the underlying code and structural layout of the websites. In instances where AI is used to generate actual text or project content, that content is carefully reviewed and edited before being published.</p>
+                <p>For transparency, projects that utilize AI for code generation will contain an HTML comment in their source code header, formatted similarly to:</p>
+                <code class="block bg-slate-950 p-4 rounded-md text-sm text-cyan-300 mb-4 border border-slate-800 overflow-x-auto">&lt;!-- &ldquo;Created with Gemini 3.1 Pro&rdquo; - ProElectricCoder --&gt;</code>
+                <p>Please note that the inclusion of these comments and the mention of specific AI models are strictly for transparency and tracking purposes. I am not affiliated with, sponsored by, or advertising for any of the respective AI companies.</p>
+            </section>
 
-			<hr class="my-12 border-slate-800" />
+            <hr class="my-12 border-slate-800" />
 
-			<!-- PRIVACY POLICY -->
-			<section id="peerlink-privacy" class="mb-16">
-				<h2 class="text-3xl font-bold border-b border-slate-700 pb-2 mb-6 text-white">PeerLink: Privacy Policy</h2>
-				<p>Welcome to PeerLink. This Privacy Policy explains how your information is handled when you use our peer-to-peer (P2P) messaging application.</p>
+            <!-- PRIVACY POLICY -->
+            <section id="peerlink-privacy" class="mb-16">
+                <h2 class="text-3xl font-bold border-b border-slate-700 pb-2 mb-6 text-white">PeerLink: Privacy Policy</h2>
+                <p>Welcome to PeerLink. This Privacy Policy explains how your information is handled when you use our peer-to-peer (P2P) messaging application.</p>
 
-				<h3 id="p-p2p" class="text-xl font-bold mt-8 mb-4 text-slate-200">1. How Your Messages & Files Are Handled (P2P Architecture)</h3>
-				<p>PeerLink is a decentralized, peer-to-peer chat application built using WebRTC.</p>
-				<ul>
-					<li><strong>No Central Server Storage:</strong> We do not read, intercept, or store your chat messages, images, or files on our servers.</li>
-					<li><strong>Direct Connections:</strong> When you send a message or file, it is transmitted directly from your device to the recipient's device. These transmissions are encrypted in transit via WebRTC's native DTLS protocols.</li>
-				</ul>
+                <h3 id="p-p2p" class="text-xl font-bold mt-8 mb-4 text-slate-200">1. How Your Messages & Files Are Handled (P2P Architecture)</h3>
+                <p>PeerLink is a decentralized, peer-to-peer chat application built using WebRTC.</p>
+                <ul>
+                    <li><strong>No Central Server Storage:</strong> We do not read, intercept, or store your chat messages, images, or files on our servers.</li>
+                    <li><strong>Direct Connections:</strong> When you send a message or file, it is transmitted directly from your device to the recipient's device. These transmissions are encrypted in transit via WebRTC's native DTLS protocols.</li>
+                </ul>
 
-				<h3 id="p-storage" class="text-xl font-bold mt-8 mb-4 text-slate-200">2. Data Storage Options</h3>
-				<p>Your chat history is stored exactly where you choose to store it:</p>
-				<ul>
-					<li><strong>Browser Storage / Local Folder:</strong> Data is saved locally on your own physical device. We have no access to this data.</li>
-					<li><strong>Google Drive:</strong> If you choose this option, your data is saved to a hidden application folder inside your personal Google Drive. We do not have access to your Google Drive account.</li>
-				</ul>
+                <h3 id="p-storage" class="text-xl font-bold mt-8 mb-4 text-slate-200">2. Data Storage Options</h3>
+                <p>Your chat history is stored exactly where you choose to store it:</p>
+                <ul>
+                    <li><strong>Browser Storage / Local Folder:</strong> Data is saved locally on your own physical device. We have no access to this data.</li>
+                    <li><strong>Google Drive:</strong> If you choose this option, your data is saved to a hidden application folder inside your personal Google Drive. We do not have access to your Google Drive account.</li>
+                </ul>
 
-				<h3 id="p-collection" class="text-xl font-bold mt-8 mb-4 text-slate-200">3. Information We Collect (Signaling & Authentication)</h3>
-				<p>To make the P2P connection possible, we use Google Firebase. The following data is processed:</p>
-				<ul>
-					<li><strong>Account Information:</strong> If you log in using Google, GitHub, or Email, Firebase securely stores your email address, display name, and profile picture URL to authenticate you.</li>
-					<li><strong>Connection Data (Signaling):</strong> To connect you with other users, our signaling server temporarily processes technical connection data (Session Description Protocol and ICE candidates). This data is deleted when it is no longer needed.</li>
-				</ul>
+                <h3 id="p-collection" class="text-xl font-bold mt-8 mb-4 text-slate-200">3. Information We Collect (Signaling & Authentication)</h3>
+                <p>To make the P2P connection possible, we use Google Firebase. The following data is processed:</p>
+                <ul>
+                    <li><strong>Account Information:</strong> If you log in using Google, GitHub, or Email, Firebase securely stores your email address, display name, and profile picture URL to authenticate you.</li>
+                    <li><strong>Connection Data (Signaling):</strong> To connect you with other users, our signaling server temporarily processes technical connection data (Session Description Protocol and ICE candidates). This data is deleted when it is no longer needed.</li>
+                </ul>
 
-				<h3 id="p-webrtc" class="text-xl font-bold mt-8 mb-4 text-amber-400 bg-amber-950/30 p-4 rounded-md border border-amber-900/50 inline-block w-full">
-					<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 inline mb-1 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-					4. WebRTC and IP Addresses (Important)
-				</h3>
-				<p>Because PeerLink relies on direct peer-to-peer connections, your public IP address may be exposed to the users you are actively chatting with. This is a fundamental technical requirement of WebRTC. Do not share room codes with individuals you do not trust.</p>
+                <h3 id="p-webrtc" class="text-xl font-bold mt-8 mb-4 text-amber-400 bg-amber-950/30 p-4 rounded-md border border-amber-900/50 inline-block w-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 inline mb-1 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    4. WebRTC and IP Addresses (Important)
+                </h3>
+                <p>Because PeerLink relies on direct peer-to-peer connections, your public IP address may be exposed to the users you are actively chatting with. This is a fundamental technical requirement of WebRTC. Do not share room codes with individuals you do not trust.</p>
 
-				<h3 id="p-third-party" class="text-xl font-bold mt-8 mb-4 text-slate-200">5. Third-Party Services</h3>
-				<p>We utilize Google Firebase for authentication, database infrastructure (for signaling), and Google Drive API for optional backups. Your use of PeerLink is also subject to Google's Privacy Policy.</p>
-			</section>
+                <h3 id="p-third-party" class="text-xl font-bold mt-8 mb-4 text-slate-200">5. Third-Party Services</h3>
+                <p>We utilize Google Firebase for authentication, database infrastructure (for signaling), and Google Drive API for optional backups. Your use of PeerLink is also subject to Google's Privacy Policy.</p>
+            </section>
 
-			<hr class="my-12 border-slate-800" />
+            <hr class="my-12 border-slate-800" />
 
-			<!-- TERMS OF SERVICE -->
-			<section id="peerlink-terms" class="mb-12">
-				<h2 class="text-3xl font-bold border-b border-slate-700 pb-2 mb-6 text-white">PeerLink: Terms of Service</h2>
-				
-				<h3 id="t-acceptance" class="text-xl font-bold mt-8 mb-4 text-slate-200">1. Acceptance of Terms</h3>
-				<p>By accessing or using PeerLink, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the application.</p>
+            <!-- TERMS OF SERVICE -->
+            <section id="peerlink-terms" class="mb-12">
+                <h2 class="text-3xl font-bold border-b border-slate-700 pb-2 mb-6 text-white">PeerLink: Terms of Service</h2>
+                
+                <h3 id="t-acceptance" class="text-xl font-bold mt-8 mb-4 text-slate-200">1. Acceptance of Terms</h3>
+                <p>By accessing or using PeerLink, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the application.</p>
 
-				<h3 id="t-description" class="text-xl font-bold mt-8 mb-4 text-slate-200">2. Description of Service</h3>
-				<p>PeerLink provides a browser-based, peer-to-peer communication tool. Because it operates on a decentralized P2P network, the speed, reliability, and availability of connections depend on your network and the network of the users you are communicating with.</p>
+                <h3 id="t-description" class="text-xl font-bold mt-8 mb-4 text-slate-200">2. Description of Service</h3>
+                <p>PeerLink provides a browser-based, peer-to-peer communication tool. Because it operates on a decentralized P2P network, the speed, reliability, and availability of connections depend on your network and the network of the users you are communicating with.</p>
 
-				<h3 id="t-responsibilities" class="text-xl font-bold mt-8 mb-4 text-slate-200">3. User Responsibilities & Acceptable Use</h3>
-				<ul>
-					<li><strong>Account Security:</strong> You are responsible for keeping your login credentials and Room Codes secure. Anyone with your Room Code can attempt to join your chat.</li>
-					<li><strong>Content:</strong> You are solely responsible for the messages, files, and media you transmit through PeerLink. You agree not to use the service to transmit illegal content, malware, or engage in harassment.</li>
-					<li><strong>Data Loss:</strong> Because your chat history is stored locally on your device or your personal Google Drive, we cannot recover deleted, corrupted, or lost chat histories. You are responsible for managing your own data backups.</li>
-				</ul>
+                <h3 id="t-responsibilities" class="text-xl font-bold mt-8 mb-4 text-slate-200">3. User Responsibilities & Acceptable Use</h3>
+                <ul>
+                    <li><strong>Account Security:</strong> You are responsible for keeping your login credentials and Room Codes secure. Anyone with your Room Code can attempt to join your chat.</li>
+                    <li><strong>Content:</strong> You are solely responsible for the messages, files, and media you transmit through PeerLink. You agree not to use the service to transmit illegal content, malware, or engage in harassment.</li>
+                    <li><strong>Data Loss:</strong> Because your chat history is stored locally on your device or your personal Google Drive, we cannot recover deleted, corrupted, or lost chat histories. You are responsible for managing your own data backups.</li>
+                </ul>
 
-				<h3 id="t-risks" class="text-xl font-bold mt-8 mb-4 text-slate-200">4. Privacy and P2P Risks</h3>
-				<p>You acknowledge that PeerLink establishes direct connections between devices. By joining a room, you understand that your IP address may become visible to other participants in that room.</p>
+                <h3 id="t-risks" class="text-xl font-bold mt-8 mb-4 text-slate-200">4. Privacy and P2P Risks</h3>
+                <p>You acknowledge that PeerLink establishes direct connections between devices. By joining a room, you understand that your IP address may become visible to other participants in that room.</p>
 
-				<h3 id="t-modification" class="text-xl font-bold mt-8 mb-4 text-slate-200">5. Modification and Termination of Service</h3>
-				<p>We reserve the right to modify, suspend, or discontinue the PeerLink service (or any part of it) at any time without notice.</p>
+                <h3 id="t-modification" class="text-xl font-bold mt-8 mb-4 text-slate-200">5. Modification and Termination of Service</h3>
+                <p>We reserve the right to modify, suspend, or discontinue the PeerLink service (or any part of it) at any time without notice.</p>
 
-				<h3 id="t-warranties" class="text-xl font-bold mt-8 mb-4 text-slate-200">6. Disclaimer of Warranties</h3>
-				<p>PeerLink is provided on an "AS IS" and "AS AVAILABLE" basis. We expressly disclaim all warranties of any kind, whether express or implied. We do not guarantee that the service will be uninterrupted, secure, or error-free.</p>
+                <h3 id="t-warranties" class="text-xl font-bold mt-8 mb-4 text-slate-200">6. Disclaimer of Warranties</h3>
+                <p>PeerLink is provided on an "AS IS" and "AS AVAILABLE" basis. We expressly disclaim all warranties of any kind, whether express or implied. We do not guarantee that the service will be uninterrupted, secure, or error-free.</p>
 
-				<h3 id="t-liability" class="text-xl font-bold mt-8 mb-4 text-slate-200">7. Limitation of Liability</h3>
-				<p>To the fullest extent permitted by law, PeerLink and its developer (ProElectricCoder) shall not be liable for any direct, indirect, incidental, or consequential damages resulting from your use or inability to use the service, including but not limited to data loss or security breaches on your local device.</p>
+                <h3 id="t-liability" class="text-xl font-bold mt-8 mb-4 text-slate-200">7. Limitation of Liability</h3>
+                <p>To the fullest extent permitted by law, PeerLink and its developer (ProElectricCoder) shall not be liable for any direct, indirect, incidental, or consequential damages resulting from your use or inability to use the service, including but not limited to data loss or security breaches on your local device.</p>
 
-				<h3 id="t-ai" class="text-xl font-bold mt-8 mb-4 text-purple-400 bg-purple-950/30 p-4 rounded-md border border-purple-900/50 inline-block w-full">
-					<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 inline mb-1 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-					8. AI-Generated Content
-				</h3>
-				<p>PeerLink may interact with or incorporate artificial intelligence (AI) models and features. You acknowledge and agree that:</p>
-				<ul>
-					<li><strong>No Guarantee of Accuracy:</strong> AI-generated content (including but not limited to text, summaries, code, or media) is provided "as is" and may contain errors, inaccuracies, or biases.</li>
-					<li><strong>Independent Verification:</strong> You are solely responsible for independently verifying any AI-generated outputs before relying on them or sharing them with other users.</li>
-					<li><strong>Liability Disclaimer:</strong> ProElectricCoder and PeerLink disclaim all liability regarding the accuracy, completeness, or appropriateness of any AI-generated content produced or transmitted through the service.</li>
-				</ul>
-			</section>
+                <h3 id="t-ai" class="text-xl font-bold mt-8 mb-4 text-purple-400 bg-purple-950/30 p-4 rounded-md border border-purple-900/50 inline-block w-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 inline mb-1 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    8. AI-Generated Content
+                </h3>
+                <p>PeerLink may interact with or incorporate artificial intelligence (AI) models and features. You acknowledge and agree that:</p>
+                <ul>
+                    <li><strong>No Guarantee of Accuracy:</strong> AI-generated content (including but not limited to text, summaries, code, or media) is provided "as is" and may contain errors, inaccuracies, or biases.</li>
+                    <li><strong>Independent Verification:</strong> You are solely responsible for independently verifying any AI-generated outputs before relying on them or sharing them with other users.</li>
+                    <li><strong>Liability Disclaimer:</strong> ProElectricCoder and PeerLink disclaim all liability regarding the accuracy, completeness, or appropriateness of any AI-generated content produced or transmitted through the service.</li>
+                </ul>
+            </section>
 
-		</article>
-	</main>
+        </article>
+    </main>
 
-	<!-- Footer -->
-	<footer class="bg-slate-950 text-slate-500 py-8 text-center text-sm border-t border-slate-900">
-		<p>&copy; 2026 ProElectricCoder. All rights reserved.</p>
-		<p class="mt-2"><a href="https://proelectriccoder.github.io/" class="hover:text-cyan-400 transition-colors">Return to Homepage</a></p>
-	</footer>
+    <!-- Footer -->
+    <footer class="bg-slate-950 text-slate-500 py-8 text-center text-sm border-t border-slate-900">
+        <p>&copy; 2026 ProElectricCoder. All rights reserved.</p>
+        <p class="mt-2"><a href="https://proelectriccoder.github.io/" class="hover:text-cyan-400 transition-colors">Return to Homepage</a></p>
+    </footer>
 
 </body>
 </html>
