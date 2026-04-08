@@ -402,11 +402,26 @@
 				
 				// Only show storage options if not already setup in a previous session
 				const activeStorage = localStorage.getItem('p2p_storage_method');
-				if (activeStorage === 'drive' || activeStorage === 'local') {
+				if (activeStorage === 'drive') {
+					// Check if we have a valid, unexpired Drive token cached
+					const token = localStorage.getItem('p2p_drive_token');
+					const expiry = localStorage.getItem('p2p_drive_token_expiry');
+					if (token && expiry && Date.now() < parseInt(expiry)) {
+						googleOAuthToken = token;
+						console.log("[Auth] Restored Google Drive token from storage.");
+						document.getElementById('startup-modal').classList.add('hidden');
+						loadChatsFromDrive();
+					} else {
+						console.warn("[Auth] Drive token missing or expired. Re-authentication required.");
+						document.getElementById('startup-modal').classList.remove('hidden');
+						document.getElementById('auth-buttons-container').classList.add('hidden');
+						document.getElementById('storage-buttons-container').classList.remove('hidden');
+						document.getElementById('startup-modal-desc').textContent = "Your Google Drive session has expired. Please click 'Reconnect Google Drive' to continue syncing.";
+						document.getElementById('btn-google-drive').innerHTML = `<svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M17 6l-6 10.5 15 26h12l6-10.5z"/><path fill="#1976D2" d="M32 42.5H8l-6-10.5h24z"/><path fill="#4CAF50" d="M31 6H17l15 26 6-10.5z"/></svg> Reconnect Google Drive`;
+					}
+				} else if (activeStorage === 'local') {
 					document.getElementById('startup-modal').classList.add('hidden');
-					// We can attempt to reload right away
-					if (activeStorage === 'drive') loadChatsFromDrive();
-					else loadChatsFromDisk(); // Needs re-permissioning
+					loadChatsFromDisk(); // Needs re-permissioning natively by browser
 				} else {
 					document.getElementById('storage-buttons-container').classList.remove('hidden');
 					document.getElementById('startup-modal-desc').textContent = "Select where to securely store your chat history.";
@@ -430,6 +445,9 @@
 				const credential = GoogleAuthProvider.credentialFromResult(result);
 				if (credential && credential.accessToken) {
 					googleOAuthToken = credential.accessToken;
+					localStorage.setItem('p2p_drive_token', googleOAuthToken);
+					localStorage.setItem('p2p_drive_token_expiry', Date.now() + 3500000); // Expires in ~58 mins
+					console.log("[Auth] Successfully acquired and cached new Google Drive token.");
 				}
 			} catch (error) {
 				console.error("Google Sign-In Error:", error);
@@ -550,64 +568,97 @@
 		let driveFileId = null;
 
 		async function findDriveFileId() {
-			if (!googleOAuthToken) return null;
+			if (!googleOAuthToken) {
+				console.warn("[Drive] Cannot search: No token available.");
+				return null;
+			}
 			if (driveFileId) return driveFileId;
 
 			try {
-				const response = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name="p2p_saved_chats.json"', {
+				console.log("[Drive] Searching appDataFolder for existing p2p_saved_chats.json...");
+				const query = encodeURIComponent('name="p2p_saved_chats.json"');
+				const response = await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${query}`, {
 					headers: { 'Authorization': `Bearer ${googleOAuthToken}` }
 				});
 				const data = await response.json();
 				if (data.files && data.files.length > 0) {
 					driveFileId = data.files[0].id;
+					console.log(`[Drive] Found existing file! ID: ${driveFileId}`);
 					return driveFileId;
 				}
-			} catch (e) { console.error("Error finding Drive file:", e); }
+				console.log("[Drive] No existing file found. A new one will be created.");
+			} catch (e) { console.error("[Drive] Error finding Drive file:", e); }
 			return null;
 		}
 
 		async function saveChatsToDrive() {
 			if (!googleOAuthToken) return;
+			console.log("[Drive] Starting save process...");
 			
-			const fileContent = JSON.stringify(savedChats);
-			const metadata = {
-				name: 'p2p_saved_chats.json',
-				parents: ['appDataFolder'] // Use hidden app folder
-			};
-
-			const formData = new FormData();
-			formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-			formData.append('file', new Blob([fileContent], { type: 'application/json' }));
-
 			try {
 				await findDriveFileId();
+				
+				const fileContent = JSON.stringify(savedChats);
+				const metadata = {
+					name: 'p2p_saved_chats.json',
+					parents: ['appDataFolder'],
+					mimeType: 'application/json'
+				};
+
+				// Manually construct multipart/related body for robust Google Drive API handling
+				const boundary = '-------314159265358979323846';
+				const delimiter = "\r\n--" + boundary + "\r\n";
+				const close_delim = "\r\n--" + boundary + "--";
+
+				const multipartRequestBody =
+					delimiter +
+					'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+					JSON.stringify(metadata) +
+					delimiter +
+					'Content-Type: application/json\r\n\r\n' +
+					fileContent +
+					close_delim;
+
 				let url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
 				let method = 'POST';
 
 				if (driveFileId) {
-					// Update existing
+					// Use PATCH to overwrite existing file without making duplicates
 					url = `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=multipart`;
 					method = 'PATCH';
 				}
 
+				console.log(`[Drive] Uploading to Drive (Method: ${method})...`);
 				const response = await fetch(url, {
 					method: method,
-					headers: { 'Authorization': `Bearer ${googleOAuthToken}` },
-					body: formData
+					headers: { 
+						'Authorization': `Bearer ${googleOAuthToken}`,
+						'Content-Type': `multipart/related; boundary=${boundary}`
+					},
+					body: multipartRequestBody
 				});
+				
+				if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
 				
 				const data = await response.json();
 				if (data.id) driveFileId = data.id; // cache the ID if we just created it
+				console.log("[Drive] Save complete! Data is securely synced to cloud.");
 
-			} catch (e) { console.error("Error saving to Drive:", e); }
+			} catch (e) { console.error("[Drive] Critical error saving to Drive:", e); }
 		}
 
 		async function loadChatsFromDrive() {
 			if (!googleOAuthToken) return;
+			console.log("[Drive] Checking for existing chat data to download...");
+			
 			try {
 				const fileId = await findDriveFileId();
-				if (!fileId) return; // Doesn't exist yet
+				if (!fileId) {
+					console.log("[Drive] Start fresh: No chat data found in Drive to download.");
+					return;
+				}
 
+				console.log(`[Drive] Downloading data from File ID: ${fileId}...`);
 				const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
 					headers: { 'Authorization': `Bearer ${googleOAuthToken}` }
 				});
@@ -615,41 +666,48 @@
 				if (response.ok) {
 					const diskChats = await response.json();
 					if (diskChats) {
+						console.log("[Drive] Download successful! Merging chats with local interface.");
 						savedChats = { ...savedChats, ...diskChats };
 						localStorage.setItem('p2p_saved_chats', JSON.stringify(savedChats)); // Sync local
 						renderSidebar();
 					}
+				} else {
+					console.error("[Drive] Failed to download media:", await response.text());
 				}
-			} catch (e) { console.error("Error loading from Drive:", e); }
+			} catch (e) { console.error("[Drive] Error loading from Drive:", e); }
 		}
 
 		// --- Local Disk Logic ---
 		async function saveChatsToDisk() {
 			if (!(await verifyStoragePermission())) return;
 			try {
+				console.log("[Local Disk] Saving chats to local folder...");
 				const fileHandle = await storageDirHandle.getFileHandle('p2p_saved_chats.json', { create: true });
 				const writable = await fileHandle.createWritable();
 				await writable.write(JSON.stringify(savedChats));
 				await writable.close();
+				console.log("[Local Disk] Save complete!");
 			} catch (error) {
-				console.warn("Failed to save to disk, relying entirely on localStorage fallback:", error);
+				console.warn("[Local Disk] Failed to save to disk, relying entirely on localStorage fallback:", error);
 			}
 		}
 
 		async function loadChatsFromDisk() {
 			if (!(await verifyStoragePermission())) return;
 			try {
+				console.log("[Local Disk] Loading chats from local folder...");
 				const fileHandle = await storageDirHandle.getFileHandle('p2p_saved_chats.json');
 				const file = await fileHandle.getFile();
 				const text = await file.text();
 				const diskChats = JSON.parse(text);
 				if (diskChats) {
+					console.log("[Local Disk] Data loaded successfully! Merging with state.");
 					savedChats = { ...savedChats, ...diskChats };
 					saveToStorage(); // Sync disk data to localStorage
 					renderSidebar();
 				}
 			} catch (error) {
-				console.log("No existing disk chats found or could not read.", error);
+				console.log("[Local Disk] No existing disk chats found or could not read.", error);
 			}
 		}
 
@@ -1203,6 +1261,8 @@
 		window.logoutUser = async function() {
 			try {
 				localStorage.removeItem('p2p_storage_method'); // Reset storage pref on logout
+				localStorage.removeItem('p2p_drive_token');
+				localStorage.removeItem('p2p_drive_token_expiry');
 				if (currentRoomId) disconnectCurrentRoom();
 				await signOut(auth);
 				closeSettingsModal();
