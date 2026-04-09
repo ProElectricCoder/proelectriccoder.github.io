@@ -4,7 +4,7 @@
 	<!-- “Created with Gemini 3.1 Pro” - ProElectricCoder -->
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>PeerLink - P2P Multi-Chat Messenger  - ProElectricCoder</title>
+	<title>PeerLink - P2P Multi-Chat Messenger - ProElectricCoder</title>
 
 	<!-- Meta Properties -->
 	<meta name="title" content="PeerLink – Secure P2P Chat">
@@ -280,7 +280,20 @@
 					<input type="text" id="my-username" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:border-cyan-500 focus:outline-none transition font-medium" value="Anonymous" oninput="saveMyProfile()">
 				</div>
 
-				<div class="pt-2">
+				<div>
+					<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1">About Me (Description)</label>
+					<input type="text" id="my-description" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-cyan-500 focus:outline-none transition text-sm" placeholder="Available" oninput="saveMyProfile()">
+				</div>
+
+				<div class="pt-2 border-t border-gray-700">
+					<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1 mt-2">Change Password (Email Auth Only)</label>
+					<div class="flex gap-2">
+						<input type="password" id="new-password" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-cyan-500 focus:outline-none transition text-sm" placeholder="New Password">
+						<button onclick="updateUserPassword()" class="bg-gray-700 hover:bg-cyan-600 text-white px-4 rounded-lg text-sm font-medium transition shadow">Update</button>
+					</div>
+				</div>
+
+				<div class="pt-4">
 					<button onclick="logoutUser()" class="w-full bg-red-900/40 hover:bg-red-800/80 text-red-300 py-3 rounded-lg font-bold shadow-lg transition flex items-center justify-center gap-2 border border-red-800/50 hover:border-red-500/50">
 						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
 						Log Out
@@ -347,12 +360,16 @@
 				</button>
 				<div id="storage-status" class="text-xs text-green-400 hidden font-semibold">✓ Storage initialized</div>
 			</div>
+
+			<div class="mt-6 pt-4 border-t border-gray-700 text-xs text-gray-500 text-center">
+				By continuing, you agree to the <a href="https://proelectriccoder.github.io/Info#peerlink-terms" target="_blank" class="text-cyan-400 hover:underline">Terms of Service</a> & <a href="https://proelectriccoder.github.io/Info#peerlink-privacy" target="_blank" class="text-cyan-400 hover:underline">Privacy Policy</a>.
+			</div>
 		</div>
 	</div>
 
 	<script type="module">
 		import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-		import { getAuth, GoogleAuthProvider, GithubAuthProvider, signInWithPopup, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+		import { getAuth, GoogleAuthProvider, GithubAuthProvider, signInWithPopup, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 		import { getFirestore, doc, setDoc, updateDoc, onSnapshot, collection, arrayUnion, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 		import { cubicGradient } from "https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js";
 
@@ -838,38 +855,41 @@
 			}, 300);
 		};
 
-		// Wrapper to handle routing saves
+		// Wrapper to handle routing saves (with debounce to prevent API spam)
+		let cloudSaveTimer = null;
 		function saveToStorage() {
 			localStorage.setItem('p2p_saved_chats', JSON.stringify(savedChats));
 			
-			const method = localStorage.getItem('p2p_storage_method');
-			if (method === 'drive') {
-				saveChatsToDrive();
-			} else if (method === 'local') {
-				saveChatsToDisk(); 
-			}
+			clearTimeout(cloudSaveTimer);
+			cloudSaveTimer = setTimeout(() => {
+				const method = localStorage.getItem('p2p_storage_method');
+				if (method === 'drive') {
+					saveChatsToDrive();
+				} else if (method === 'local') {
+					saveChatsToDisk(); 
+				}
+			}, 3000); // 3-second debounce before pushing to cloud
 		}
 
 		function renderSidebar() {
 			const container = document.getElementById('sidebar-chats');
+			if (!container) return;
 			container.innerHTML = '';
 			
-			const sortedRooms = Object.keys(savedChats).sort((a, b) => {
-				const timeA = savedChats[a].messages.length ? savedChats[a].messages[savedChats[a].messages.length-1].timestamp : 0;
-				const timeB = savedChats[b].messages.length ? savedChats[b].messages[savedChats[b].messages.length-1].timestamp : 0;
+			const sortedChats = Object.keys(savedChats).sort((a, b) => {
+				const timeA = savedChats[a].messages?.length ? savedChats[a].messages[savedChats[a].messages.length - 1].timestamp : 0;
+				const timeB = savedChats[b].messages?.length ? savedChats[b].messages[savedChats[b].messages.length - 1].timestamp : 0;
 				return timeB - timeA;
 			});
 
-			if(sortedRooms.length === 0) {
-				container.innerHTML = `<div class="text-xs text-gray-500 text-center mt-10 px-4">No chats yet. Click the + icon to start.</div>`;
-				return;
-			}
-
-			sortedRooms.forEach(roomId => {
+			sortedChats.forEach(roomId => {
 				const chat = savedChats[roomId];
-				const isActive = activeRooms[roomId] && activeRooms[roomId].state === 'connected';
-				const isSelected = currentRoomId === roomId;
-				const lastMsg = chat.messages.length > 0 ? chat.messages[chat.messages.length - 1].text : 'No messages yet';
+				const isSelected = roomId === currentRoomId;
+				let lastMsg = "No messages yet";
+				if (chat.messages && chat.messages.length > 0) {
+					const m = chat.messages[chat.messages.length - 1];
+					lastMsg = m.isSystem ? m.text : `${m.senderName || 'Unknown'}: ${m.text || (m.image ? '[Attachment]' : '')}`;
+				}
 				
 				const div = document.createElement('div');
 				div.className = `p-3 rounded-lg cursor-pointer transition flex items-center gap-3 ${isSelected ? 'selected-chat' : 'hover:bg-gray-800'}`;
@@ -878,24 +898,21 @@
 				const avatarLetter = chat.name ? chat.name.charAt(0).toUpperCase() : 'R';
 				const avatarColor = chat.type === 'direct' ? 'bg-cyan-700' : 'bg-cyan-600';
 				
-				let avatarContent = `<div class="w-10 h-10 ${avatarColor} rounded-full flex items-center justify-center font-bold text-white shadow">${avatarLetter}</div>`;
+				let avatarContent = `<div class="w-10 h-10 ${avatarColor} rounded-full flex items-center justify-center font-bold text-white shadow flex-shrink-0">${avatarLetter}</div>`;
 				if (chat.avatar) {
-					avatarContent = `<img src="${chat.avatar}" class="w-10 h-10 rounded-full object-cover shadow border border-gray-700">`;
+					avatarContent = `<div class="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden border border-gray-600 shadow flex-shrink-0"><img src="${chat.avatar}" class="w-full h-full object-cover"></div>`;
 				}
 				
 				div.innerHTML = `
-					<div class="relative flex-shrink-0">
-						${avatarContent}
-						<div class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-850 ${isActive ? 'bg-green-500' : 'bg-gray-500'}"></div>
-						${chat.unread > 0 ? `<div class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">${chat.unread}</div>` : ''}
-					</div>
+					${avatarContent}
 					<div class="flex-1 min-w-0">
 						<div class="flex justify-between items-baseline mb-0.5">
 							<h3 class="text-sm font-bold text-gray-200 truncate">${chat.name || 'Unknown Room'}</h3>
-							<span class="text-[10px] text-gray-500">${chat.type === 'direct' ? 'Direct' : 'Group'}</span>
+							<span class="text-[10px] text-gray-500 flex-shrink-0 ml-2">${chat.type === 'direct' ? 'Direct' : 'Group'}</span>
 						</div>
 						<p class="text-xs text-gray-400 truncate ${chat.unread > 0 ? 'font-bold text-gray-200' : ''}">${lastMsg}</p>
 					</div>
+					${chat.unread > 0 ? `<div class="w-5 h-5 bg-cyan-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow flex-shrink-0">${chat.unread}</div>` : ''}
 				`;
 				container.appendChild(div);
 			});
@@ -1371,7 +1388,8 @@
 				updateRoomConnectionState(roomId, 'connected');
 				const myName = document.getElementById('my-username').value.trim() || 'Anonymous';
 				const myAvatar = localStorage.getItem('p2p_my_avatar') || '';
-				dc.send(JSON.stringify({ type: 'system', action: 'set_username', username: myName, avatar: myAvatar }));
+				const myDesc = localStorage.getItem('p2p_my_description') || '';
+				dc.send(JSON.stringify({ type: 'system', action: 'set_username', username: myName, avatar: myAvatar, description: myDesc }));
 				
 				// Host transmits group avatar to newly connected peers
 				if (savedChats[roomId] && savedChats[roomId].role === 'host' && savedChats[roomId].avatar) {
@@ -1426,6 +1444,11 @@
 					let contacts = JSON.parse(localStorage.getItem('p2p_contact_avatars')) || {};
 					contacts[data.username] = data.avatar;
 					localStorage.setItem('p2p_contact_avatars', JSON.stringify(contacts));
+				}
+				if (data.description !== undefined) {
+					let contactsDesc = JSON.parse(localStorage.getItem('p2p_contact_desc')) || {};
+					contactsDesc[data.username] = data.description;
+					localStorage.setItem('p2p_contact_desc', JSON.stringify(contactsDesc));
 				}
 
 				if (savedChats[roomId].type === 'direct') {
@@ -1894,10 +1917,30 @@
 			e.target.value = ''; // Reset input
 		};
 
+		window.updateUserPassword = async function() {
+			const newPass = document.getElementById('new-password').value;
+			if (!newPass) return alert("Enter a new password first.");
+			if (!currentUser) return alert("You are not logged in.");
+
+			try {
+				await updatePassword(currentUser, newPass);
+				alert("Password updated successfully!");
+				document.getElementById('new-password').value = '';
+			} catch (error) {
+				if (error.code === 'auth/requires-recent-login') {
+					alert("For security reasons, please log out and log back in before changing your password.");
+				} else {
+					alert("Failed to update password: " + error.message);
+				}
+			}
+		};
+
 		// --- 7. PROFILE AVATAR LOGIC ---
 		window.saveMyProfile = function() {
 			const name = document.getElementById('my-username').value.trim();
+			const desc = document.getElementById('my-description').value.trim();
 			localStorage.setItem('p2p_my_username', name);
+			localStorage.setItem('p2p_my_description', desc);
 			const displayEl = document.getElementById('sidebar-my-name');
 			if (displayEl) displayEl.textContent = name || 'Anonymous';
 		};
@@ -1953,6 +1996,9 @@
 			document.getElementById('my-username').value = savedUsername;
 			document.getElementById('sidebar-my-name').textContent = savedUsername;
 		}
+		const savedDesc = localStorage.getItem('p2p_my_description');
+		if (savedDesc) document.getElementById('my-description').value = savedDesc;
+		
 		const savedAvatar = localStorage.getItem('p2p_my_avatar');
 		if (savedAvatar) setMyAvatarPreview(savedAvatar);
 		
