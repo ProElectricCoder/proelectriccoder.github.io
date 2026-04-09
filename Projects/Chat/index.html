@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+	<!-- “Created with Gemini 3.1 Pro” - ProElectricCoder -->
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>P2P Multi-Chat Messenger</title>
+	<title>PeerLink - P2P Multi-Chat Messenger  - ProElectricCoder</title>
 
 	<!-- Meta Properties -->
 	<meta name="title" content="PeerLink – Secure P2P Chat">
@@ -601,9 +602,21 @@
 				const fileContent = JSON.stringify(savedChats);
 				const metadata = {
 					name: 'p2p_saved_chats.json',
-					parents: ['appDataFolder'],
 					mimeType: 'application/json'
 				};
+
+				let url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+				let method = 'POST';
+
+				if (driveFileId) {
+					// Use PATCH to overwrite existing file without making duplicates
+					url = `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=multipart`;
+					method = 'PATCH';
+					// Do not include 'parents' when patching/updating, otherwise Drive API throws 403 Forbidden
+				} else {
+					// Only set the parent folder when creating the file for the first time
+					metadata.parents = ['appDataFolder'];
+				}
 
 				// Manually construct multipart/related body for robust Google Drive API handling
 				const boundary = '-------314159265358979323846';
@@ -618,15 +631,6 @@
 					'Content-Type: application/json\r\n\r\n' +
 					fileContent +
 					close_delim;
-
-				let url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-				let method = 'POST';
-
-				if (driveFileId) {
-					// Use PATCH to overwrite existing file without making duplicates
-					url = `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=multipart`;
-					method = 'PATCH';
-				}
 
 				console.log(`[Drive] Uploading to Drive (Method: ${method})...`);
 				const response = await fetch(url, {
