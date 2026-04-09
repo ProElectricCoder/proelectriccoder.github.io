@@ -1,76 +1,30 @@
 /**
- * sep-crypto.js
- * Universal ES module for SEP Encryptor logic.
- * Contains key generation, XOR processing, and SEP1 extension packing.
- * Can be imported and used in both Browser and Node.js environments.
+ * sep-crypto.js (v3 - Layered SEP + AES-GCM)
+ * Universal ES module for Double Encryptor logic.
+ * Layer 1: SEP1 Packing & XOR Cipher
+ * Layer 2: PBKDF2 Key Derivation & AES-GCM Encryption
  */
 
 export const REQUIRED_KEY_LENGTH = 1024;
 
-/**
- * Generates a random 1024-byte key using the Crypto API.
- * @returns {Uint8Array} The generated key bytes.
- */
-export function generateKeyBytes() {
+// ==========================================
+// LAYER 1: SEP LOGIC (XOR + Packing)
+// ==========================================
+
+export function createKeyFromPassword(passwordString) {
+    const encoder = new TextEncoder();
+    const passBytes = encoder.encode(passwordString);
     const keyBytes = new Uint8Array(REQUIRED_KEY_LENGTH);
-    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-        crypto.getRandomValues(keyBytes);
-    } else {
-        // Fallback for environments lacking Web Crypto API
-        for (let i = 0; i < REQUIRED_KEY_LENGTH; i++) {
-            keyBytes[i] = Math.floor(Math.random() * 256);
-        }
+    
+    if (passBytes.length === 0) throw new Error("Password cannot be empty.");
+
+    // Stretch the password to fill exactly 1024 bytes
+    for (let i = 0; i < REQUIRED_KEY_LENGTH; i++) {
+        keyBytes[i] = passBytes[i % passBytes.length];
     }
     return keyBytes;
 }
 
-/**
- * Packs 1024 bytes into a UTF-16LE formatted ArrayBuffer.
- * This can be written to a .sep file or converted to a Blob.
- * @param {Uint8Array} bytes - The key bytes.
- * @returns {ArrayBuffer} The UTF-16 encoded buffer.
- */
-export function generateUTF16KeyBuffer(bytes) {
-    if (bytes.length !== REQUIRED_KEY_LENGTH) {
-        throw new Error(`Key must be exactly ${REQUIRED_KEY_LENGTH} bytes.`);
-    }
-    const buffer = new ArrayBuffer(bytes.length + 2);
-    const view = new DataView(buffer);
-    view.setUint16(0, 0xFEFF, true); // BOM
-    for (let i = 0; i < bytes.length; i += 2) {
-        const charCode = (bytes[i] << 8) | (bytes[i + 1] || 0);
-        view.setUint16(2 + i, charCode, true);
-    }
-    return buffer;
-}
-
-/**
- * Parses a UTF-16LE ArrayBuffer back into 1024 raw key bytes.
- * @param {ArrayBuffer} buffer - The buffer read from a .sep file.
- * @returns {Uint8Array} The parsed key bytes.
- */
-export function parseUTF16KeyBuffer(buffer) {
-    const view = new DataView(buffer);
-    let startIndex = 0;
-    if (buffer.byteLength >= 2 && view.getUint16(0, true) === 0xFEFF) {
-        startIndex = 2; // Skip BOM
-    }
-    const bytes = new Uint8Array(REQUIRED_KEY_LENGTH);
-    let byteIdx = 0;
-    for (let i = startIndex; i < buffer.byteLength && byteIdx < REQUIRED_KEY_LENGTH; i += 2) {
-        const charCode = view.getUint16(i, true);
-        bytes[byteIdx++] = (charCode >> 8) & 0xFF;
-        bytes[byteIdx++] = charCode & 0xFF;
-    }
-    return bytes;
-}
-
-/**
- * Core XOR stream cipher.
- * @param {Uint8Array} dataBytes - The data to process.
- * @param {Uint8Array} keyBytes - The 1024-byte key.
- * @returns {Uint8Array} Processed data.
- */
 export function processXOR(dataBytes, keyBytes) {
     if (!keyBytes || keyBytes.length === 0) throw new Error("Key cannot be empty.");
     const output = new Uint8Array(dataBytes.length);
@@ -80,12 +34,6 @@ export function processXOR(dataBytes, keyBytes) {
     return output;
 }
 
-/**
- * SEP1 Smart Extension Packing: Prepends the file extension to the raw data.
- * @param {Uint8Array} dataBytes - Raw file data.
- * @param {string} ext - Original file extension (e.g., ".txt", ".zip").
- * @returns {Uint8Array} Data packed with SEP1 header.
- */
 export function packSEP1(dataBytes, ext) {
     const extBytes = new TextEncoder().encode(ext);
     const extLen = extBytes.length;
@@ -97,11 +45,6 @@ export function packSEP1(dataBytes, ext) {
     return payload;
 }
 
-/**
- * SEP1 Smart Extension Unpacking: Extracts original extension and data.
- * @param {Uint8Array} decryptedPayload - The XOR-decrypted bytes.
- * @returns {{ data: Uint8Array, ext: string }} Object containing raw data and extension.
- */
 export function unpackSEP1(decryptedPayload) {
     const hasMagic = decryptedPayload.length > 4 && 
         decryptedPayload[0] === 83 && decryptedPayload[1] === 69 && 
@@ -115,47 +58,149 @@ export function unpackSEP1(decryptedPayload) {
     return { data: decryptedPayload, ext: '' };
 }
 
+/** Standalone SEP Encryption */
+export function encryptSEP(dataBytes, extension, passwordString) {
+    const packedPayload = packSEP1(dataBytes, extension);
+    const xorKey = createKeyFromPassword(passwordString);
+    return processXOR(packedPayload, xorKey);
+}
+
+/** Standalone SEP Decryption */
+export function decryptSEP(encryptedBytes, passwordString) {
+    const xorKey = createKeyFromPassword(passwordString);
+    const unpacked = processXOR(encryptedBytes, xorKey);
+    return unpackSEP1(unpacked);
+}
+
+// ==========================================
+// LAYER 2: THE AES-GCM SHIELD
+// ==========================================
+
+function getCryptoRandom(length) {
+    return crypto.getRandomValues(new Uint8Array(length));
+}
+
+async function deriveAESKey(passwordString, salt) {
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+        "raw",
+        enc.encode(passwordString),
+        { name: "PBKDF2" },
+        false,
+        ["deriveBits", "deriveKey"]
+    );
+    
+    return crypto.subtle.deriveKey(
+        {
+            name: "PBKDF2",
+            salt: salt,
+            iterations: 100000, 
+            hash: "SHA-256"
+        },
+        keyMaterial,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["encrypt", "decrypt"]
+    );
+}
+
+/** Standalone AES-GCM Encryption */
+export async function encryptAES(dataBytes, passwordString) {
+    if (!passwordString) throw new Error("Password cannot be empty.");
+    
+    const salt = getCryptoRandom(16);
+    const iv = getCryptoRandom(12);
+    const aesKey = await deriveAESKey(passwordString, salt);
+    
+    const aesCipherBuffer = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv: iv },
+        aesKey,
+        dataBytes
+    );
+    const aesCipherBytes = new Uint8Array(aesCipherBuffer);
+
+    // Package final file: [Salt] + [IV] + [Encrypted Data]
+    const finalBytes = new Uint8Array(16 + 12 + aesCipherBytes.length);
+    finalBytes.set(salt, 0);
+    finalBytes.set(iv, 16);
+    finalBytes.set(aesCipherBytes, 16 + 12);
+    
+    return finalBytes;
+}
+
+/** Standalone AES-GCM Decryption */
+export async function decryptAES(encryptedBytes, passwordString) {
+    if (!passwordString) throw new Error("Password cannot be empty.");
+    if (encryptedBytes.length < 28) throw new Error("File is corrupted or too small.");
+
+    const salt = encryptedBytes.slice(0, 16);
+    const iv = encryptedBytes.slice(16, 28);
+    const aesCipherBytes = encryptedBytes.slice(28);
+
+    try {
+        const aesKey = await deriveAESKey(passwordString, salt);
+        const decryptedBuffer = await crypto.subtle.decrypt(
+            { name: "AES-GCM", iv: iv },
+            aesKey,
+            aesCipherBytes
+        );
+        return new Uint8Array(decryptedBuffer);
+    } catch (error) {
+        throw new Error("AES Decryption failed! Incorrect password or corrupted data.");
+    }
+}
+
+// ==========================================
+// MASTER FUNCTIONS: LAYERED ENCRYPTION
+// ==========================================
+
 /**
- * High-level encryption combining SEP1 packing and XOR processing.
- * @param {Uint8Array} dataBytes - Raw file data.
- * @param {string} extension - File extension to preserve (e.g. ".pdf").
- * @param {Uint8Array} keyBytes - 1024-byte encryption key.
- * @returns {Uint8Array} The final encrypted .enc file bytes.
+ * Encrypts the data using SEP1 + XOR, then wraps it in AES-GCM.
  */
-export function encryptFile(dataBytes, extension, keyBytes) {
-    if (keyBytes.length !== REQUIRED_KEY_LENGTH) throw new Error(`Invalid key length: Expected ${REQUIRED_KEY_LENGTH} bytes.`);
-    const payload = packSEP1(dataBytes, extension);
-    return processXOR(payload, keyBytes);
+export async function encryptFile(dataBytes, extension, passwordString) {
+    // 1. Layer 1 (SEP)
+    const sepEncrypted = encryptSEP(dataBytes, extension, passwordString);
+    // 2. Layer 2 (AES)
+    return await encryptAES(sepEncrypted, passwordString);
 }
 
 /**
- * High-level decryption combining XOR processing and SEP1 unpacking.
- * @param {Uint8Array} encryptedBytes - The raw bytes of the .enc file.
- * @param {Uint8Array} keyBytes - 1024-byte encryption key.
- * @returns {{ data: Uint8Array, ext: string }} Original file data and preserved extension.
+ * Decrypts the AES-GCM layer, then undoes the XOR and SEP1 packing.
  */
-export function decryptFile(encryptedBytes, keyBytes) {
-    if (keyBytes.length !== REQUIRED_KEY_LENGTH) throw new Error(`Invalid key length: Expected ${REQUIRED_KEY_LENGTH} bytes.`);
-    const decryptedPayload = processXOR(encryptedBytes, keyBytes);
-    return unpackSEP1(decryptedPayload);
+export async function decryptFile(encryptedBytes, passwordString) {
+    // 1. Layer 2 (AES)
+    const aesDecrypted = await decryptAES(encryptedBytes, passwordString);
+    // 2. Layer 1 (SEP)
+    return decryptSEP(aesDecrypted, passwordString);
 }
 
 /*
 =============================================================================
 USAGE EXAMPLE:
 =============================================================================
-import { generateKeyBytes, encryptFile, decryptFile } from './sep-crypto.js';
+import { encryptFile, decryptFile } from './sep-crypto.js';
 
-// 1. Generate Key
-const myKey = generateKeyBytes();
+async function demo() {
+    // Mock file data (e.g., read via FileReader or fs.readFile)
+    const rawFileBytes = new TextEncoder().encode("Hello, World!"); 
+    const originalExtension = ".txt";
+    const password = "mySecretPassword123";
 
-// 2. Encrypt (assuming 'rawFileBytes' is a Uint8Array of your file)
-const originalExtension = ".txt"; // The extension you want to preserve
-const encryptedData = encryptFile(rawFileBytes, originalExtension, myKey);
+    try {
+        // 1. Encrypt (Double Layer: SEP + AES-GCM)
+        const encryptedData = await encryptFile(rawFileBytes, originalExtension, password);
+        console.log("Encrypted:", encryptedData);
 
-// 3. Decrypt
-const decryptedResult = decryptFile(encryptedData, myKey);
-// decryptedResult.data -> Uint8Array (the original file bytes)
-// decryptedResult.ext -> ".txt" (the preserved extension)
+        // 2. Decrypt
+        const decryptedResult = await decryptFile(encryptedData, password);
+        // decryptedResult.data -> Uint8Array (the original file bytes)
+        // decryptedResult.ext -> ".txt" (the preserved extension)
+        
+        console.log("Decrypted text:", new TextDecoder().decode(decryptedResult.data));
+        console.log("Original extension:", decryptedResult.ext);
+    } catch (err) {
+        console.error("Encryption/Decryption failed:", err);
+    }
+}
 =============================================================================
 */
