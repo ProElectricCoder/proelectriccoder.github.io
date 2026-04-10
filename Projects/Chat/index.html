@@ -1426,6 +1426,37 @@
 			}
 		}
 
+		function formatMessageText(text) {
+			if (!text) return '';
+			
+			// 1. Escape raw HTML to prevent XSS injection
+			let safe = String(text).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
+			
+			// 2. Extract and protect Code Blocks & Inline Code from other formatting
+			const codeBlocks = [];
+			safe = safe.replace(/```([\s\S]*?)```/g, (m, p1) => {
+				codeBlocks.push(`<pre class="bg-gray-900/60 border border-gray-700/50 p-2 rounded-md my-1 text-xs font-mono overflow-x-auto whitespace-pre"><code>${p1}</code></pre>`);
+				return `___CB${codeBlocks.length - 1}___`;
+			});
+			
+			const inlineCodes = [];
+			safe = safe.replace(/`([^`]+)`/g, (m, p1) => {
+				inlineCodes.push(`<code class="bg-gray-900/60 border border-gray-700/50 px-1.5 py-0.5 rounded-md text-xs font-mono text-cyan-300">${p1}</code>`);
+				return `___IC${inlineCodes.length - 1}___`;
+			});
+
+			// 3. Apply WhatsApp style Markdown formatting (Single characters)
+			safe = safe.replace(/(?<!\w)\*([^\*]+)\*(?!\w)/g, '<strong class="font-bold">$1</strong>');
+			safe = safe.replace(/(?<!\w)_([^_]+)_(?!\w)/g, '<em class="italic">$1</em>');
+			safe = safe.replace(/(?<!\w)~([^~]+)~(?!\w)/g, '<del class="line-through opacity-80">$1</del>');
+
+			// 4. Restore Code Blocks
+			safe = safe.replace(/___IC(\d+)___/g, (m, p1) => inlineCodes[p1]);
+			safe = safe.replace(/___CB(\d+)___/g, (m, p1) => codeBlocks[p1]);
+
+			return safe;
+		}
+
 		function createMessageElement(msg, isAnimated) {
 			const msgDiv = document.createElement('div');
 			
@@ -1518,7 +1549,7 @@
 			if (msg.text) {
 				const textDiv = document.createElement('div');
 				textDiv.className = 'whitespace-pre-wrap break-words overflow-hidden';
-				textDiv.textContent = msg.text;
+				textDiv.innerHTML = formatMessageText(msg.text);
 				bubble.appendChild(textDiv);
 			}
 			
