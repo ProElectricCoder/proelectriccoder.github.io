@@ -1032,6 +1032,7 @@
 		initLocalChats();
 
 		// Asynchronous Storage Wrapper
+		let localSaveTimer = null;
 		let cloudSaveTimer = null;
 		let isSavingStorage = false;
 		
@@ -1040,17 +1041,16 @@
 		};
 
 		async function saveToStorage() {
-			if (isSavingStorage) return; // Prevent overlapping encryption threads
-			isSavingStorage = true;
-			
-			try {
-				// 1. Prepare an isolated clone so we don't accidentally wipe live UI data
-				let clone = JSON.parse(JSON.stringify(savedChats));
+			clearTimeout(localSaveTimer);
+			localSaveTimer = setTimeout(async () => {
+				if (isSavingStorage) return; // Prevent overlapping encryption threads
+				isSavingStorage = true;
 				
-				// 2. Apply Per-Chat Advanced Encryption
-				for (let id in clone) {
-					const room = clone[id];
-					if (room.isAdvancedProtected) {
+				try {
+					// 1. Prepare an isolated clone so we don't accidentally wipe live UI data
+					let clone = JSON.parse(JSON.stringify(savedChats));
+					
+					// 2. Apply Per-Chat Advanced Encryption
 						if (activeUnlockedChats[id] && room.messages && room.messages.length > 0) {
 							// Encrypt messages for this chat
 							const msgBytes = new TextEncoder().encode(JSON.stringify(room.messages));
@@ -1087,10 +1087,11 @@
 					const method = localStorage.getItem('p2p_storage_method');
 					if (method === 'drive') saveChatsToDrive();
 					else if (method === 'local') saveChatsToDisk(); 
-				}, 3000);
+				}, 2000);
 
 			} catch(e) { console.error("Encryption Save Failed:", e); }
 			isSavingStorage = false;
+			}, 1000);
 		}
 
 		// --- REST OF APP LOGIC ---
@@ -1511,6 +1512,7 @@
 
 			if (msg.text) {
 				const textDiv = document.createElement('div');
+				textDiv.className = 'whitespace-pre-wrap break-words overflow-hidden';
 				textDiv.textContent = msg.text;
 				bubble.appendChild(textDiv);
 			}
