@@ -648,6 +648,8 @@
 				} else if (activeStorage === 'local') {
 					document.getElementById('startup-modal').classList.add('hidden');
 					loadChatsFromDisk(); 
+				} else if (activeStorage === 'browser') {
+					document.getElementById('startup-modal').classList.add('hidden');
 				} else {
 					document.getElementById('storage-buttons-container').classList.remove('hidden');
 					document.getElementById('startup-modal-desc').textContent = "Select where to securely store your chat history.";
@@ -1051,15 +1053,18 @@
 					let clone = JSON.parse(JSON.stringify(savedChats));
 					
 					// 2. Apply Per-Chat Advanced Encryption
-						if (activeUnlockedChats[id] && room.messages && room.messages.length > 0) {
-							// Encrypt messages for this chat
-							const msgBytes = new TextEncoder().encode(JSON.stringify(room.messages));
-							const encryptedBytes = await encryptFile(msgBytes, ".json", activeUnlockedChats[id]);
-							room.encryptedPayload = bytesToBase64(encryptedBytes);
-							room.messages = []; // Destroy plaintext from the clone being saved
+					for (let id in clone) {
+						const room = clone[id];
+						if (room.isAdvancedProtected) {
+							if (activeUnlockedChats[id] && room.messages && room.messages.length > 0) {
+								// Encrypt messages for this chat
+								const msgBytes = new TextEncoder().encode(JSON.stringify(room.messages));
+								const encryptedBytes = await encryptFile(msgBytes, ".json", activeUnlockedChats[id]);
+								room.encryptedPayload = bytesToBase64(encryptedBytes);
+								room.messages = []; // Destroy plaintext from the clone being saved
+							}
 						}
 					}
-				}
 
 				let finalStorageData = JSON.stringify(clone);
 				
