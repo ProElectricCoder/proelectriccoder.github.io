@@ -261,9 +261,10 @@
 	</div>
 
 	<!-- Settings Modal -->
-	<div id="settings-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-[150] backdrop-blur-sm transition-opacity">
-		<div class="bg-gray-800 w-full max-w-sm rounded-2xl shadow-2xl p-6 border border-gray-700 transform scale-95 transition-transform" id="settings-modal-content">
-			<div class="flex justify-between items-center mb-6">
+	<div id="settings-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-[150] backdrop-blur-sm transition-opacity p-4 md:p-6">
+		<div class="bg-gray-800 w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-700 transform scale-95 transition-transform max-h-full" id="settings-modal-content">
+			<!-- Header -->
+			<div class="flex justify-between items-center p-5 md:p-6 border-b border-gray-700 bg-gray-850/50 flex-shrink-0">
 				<h2 class="text-xl font-bold text-cyan-400 flex items-center gap-2">
 					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
 					Settings
@@ -273,73 +274,140 @@
 				</button>
 			</div>
 			
-			<div class="space-y-5">
-				<div class="flex flex-col items-center gap-3">
-					<div class="relative group cursor-pointer" onclick="document.getElementById('avatar-upload').click()" title="Change Profile Picture">
-						<div id="my-avatar-preview-container" class="w-20 h-20 rounded-full bg-gray-700/50 border-2 border-gray-600 flex items-center justify-center overflow-hidden group-hover:border-cyan-500 transition shadow-lg">
-							<svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+			<div class="flex flex-col md:flex-row flex-1 overflow-hidden min-h-[400px]">
+				<!-- Sidebar Tabs -->
+				<div class="md:w-64 border-b md:border-b-0 md:border-r border-gray-700 bg-gray-900/30 p-4 space-y-2 flex-shrink-0 overflow-x-auto flex md:flex-col gap-2 md:gap-0 chat-scroll">
+					<button onclick="switchSettingsTab('profile')" id="btn-tab-profile" class="settings-tab-btn flex-shrink-0 w-full text-left px-4 py-3 rounded-lg font-medium transition bg-cyan-600/20 text-cyan-400 border border-cyan-500/30 whitespace-nowrap md:whitespace-normal">Profile & Account</button>
+					<button onclick="switchSettingsTab('storage')" id="btn-tab-storage" class="settings-tab-btn flex-shrink-0 w-full text-left px-4 py-3 rounded-lg font-medium transition text-gray-400 hover:bg-gray-800 hover:text-gray-200 border border-transparent whitespace-nowrap md:whitespace-normal">Storage Settings</button>
+					<button onclick="switchSettingsTab('theme')" id="btn-tab-theme" class="settings-tab-btn flex-shrink-0 w-full text-left px-4 py-3 rounded-lg font-medium transition text-gray-400 hover:bg-gray-800 hover:text-gray-200 border border-transparent whitespace-nowrap md:whitespace-normal">Theme</button>
+				</div>
+
+				<!-- Content Area -->
+				<div class="flex-1 p-5 md:p-8 overflow-y-auto chat-scroll">
+					
+					<!-- TAB: PROFILE & ACCOUNT -->
+					<div id="settings-tab-profile" class="space-y-6 max-w-md mx-auto">
+						<div class="flex flex-col items-center gap-3">
+							<div class="relative group cursor-pointer" onclick="document.getElementById('avatar-upload').click()" title="Change Profile Picture">
+								<div id="my-avatar-preview-container" class="w-20 h-20 rounded-full bg-gray-700/50 border-2 border-gray-600 flex items-center justify-center overflow-hidden group-hover:border-cyan-500 transition shadow-lg">
+									<svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+								</div>
+								<div class="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm">
+									<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+								</div>
+							</div>
+							<input type="file" id="avatar-upload" accept="image/*" class="hidden" onchange="handleAvatarUpload(event)">
+							<div class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Tap to change avatar</div>
 						</div>
-						<div class="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm">
-							<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+
+						<div>
+							<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1">Display Name</label>
+							<input type="text" id="my-username" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:border-cyan-500 focus:outline-none transition font-medium" value="Anonymous" oninput="saveMyProfile()">
+						</div>
+
+						<div>
+							<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1">About Me (Description)</label>
+							<input type="text" id="my-description" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-cyan-500 focus:outline-none transition text-sm" placeholder="Available" oninput="saveMyProfile()">
+						</div>
+
+						<div class="pt-2 border-t border-gray-700">
+							<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1 mt-2">Change Password (Email Auth Only)</label>
+							<div class="flex gap-2">
+								<input type="password" id="new-password" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-cyan-500 focus:outline-none transition text-sm" placeholder="New Password">
+								<button onclick="updateUserPassword()" class="bg-gray-700 hover:bg-cyan-600 text-white px-4 rounded-lg text-sm font-medium transition shadow">Update</button>
+							</div>
+						</div>
+
+						<div class="pt-4">
+							<button onclick="logoutUser()" class="w-full bg-red-900/40 hover:bg-red-800/80 text-red-300 py-3 rounded-lg font-bold shadow-lg transition flex items-center justify-center gap-2 border border-red-800/50 hover:border-red-500/50">
+								<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+								Log Out
+							</button>
 						</div>
 					</div>
-					<input type="file" id="avatar-upload" accept="image/*" class="hidden" onchange="handleAvatarUpload(event)">
-					<div class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Tap to change avatar</div>
-				</div>
 
-				<div>
-					<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1">Display Name</label>
-					<input type="text" id="my-username" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:border-cyan-500 focus:outline-none transition font-medium" value="Anonymous" oninput="saveMyProfile()">
-				</div>
+					<!-- TAB: STORAGE SETTINGS -->
+					<div id="settings-tab-storage" class="space-y-6 max-w-md mx-auto hidden">
+						<!-- STORAGE METHOD SELECTION -->
+						<div>
+							<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1">Storage Method</label>
+							<div class="relative">
+								<select id="settings-storage-method" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:border-cyan-500 focus:outline-none transition text-sm appearance-none cursor-pointer shadow-sm" onchange="handleStorageMethodChange(this.value)">
+									<option value="browser">Browser Storage</option>
+									<option value="drive">Google Drive</option>
+									<option value="local">Local Folder</option>
+								</select>
+								<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+								</div>
+							</div>
+							<p id="browser-storage-warning" class="text-[10px] text-yellow-500 mt-1.5 hidden pl-1 tracking-wide">⚠️ Only the last 2MB of the text msgs will be stored.</p>
+						</div>
 
-				<div>
-					<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1">About Me (Description)</label>
-					<input type="text" id="my-description" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-cyan-500 focus:outline-none transition text-sm" placeholder="Available" oninput="saveMyProfile()">
-				</div>
-
-				<!-- STORAGE METHOD SELECTION -->
-				<div class="pt-2 border-t border-gray-700">
-					<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1 mt-2">Storage Method</label>
-					<div class="relative">
-						<select id="settings-storage-method" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:border-cyan-500 focus:outline-none transition text-sm appearance-none cursor-pointer shadow-sm" onchange="handleStorageMethodChange(this.value)">
-							<option value="browser">Browser Storage</option>
-							<option value="drive">Google Drive</option>
-							<option value="local">Local Folder</option>
-						</select>
-						<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
-							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+						<!-- GLOBAL ENCRYPTION SETTINGS -->
+						<div class="pt-4 border-t border-gray-700">
+							<label class="block text-xs text-cyan-400 mb-1 font-semibold pl-1 flex items-center gap-2">
+								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg> Storage Security
+							</label>
+							<div class="flex items-center gap-2 mt-3 mb-3">
+								<input type="checkbox" id="global-encrypt-checkbox" class="w-4 h-4 text-cyan-600 bg-gray-900 border-gray-600 rounded focus:ring-cyan-500 focus:ring-2" onchange="toggleGlobalPasswordUI()">
+								<label for="global-encrypt-checkbox" class="text-sm text-gray-300 font-medium cursor-pointer">Encrypt Local Storage</label>
+							</div>
+							<div id="global-password-container" class="hidden">
+								<input type="password" id="global-encrypt-password" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:border-cyan-500 focus:outline-none transition text-sm" placeholder="Set Master Password" onchange="triggerForceSave()">
+							</div>
 						</div>
 					</div>
-					<p id="browser-storage-warning" class="text-[10px] text-yellow-500 mt-1.5 hidden pl-1 tracking-wide">⚠️ Only the last 2MB of the text msgs will be stored.</p>
-				</div>
 
-				<!-- GLOBAL ENCRYPTION SETTINGS -->
-				<div class="pt-2 border-t border-gray-700">
-					<label class="block text-xs text-cyan-400 mb-1 font-semibold pl-1 mt-2 flex items-center gap-2">
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg> Storage Security
-					</label>
-					<div class="flex items-center gap-2 mt-2 mb-2">
-						<input type="checkbox" id="global-encrypt-checkbox" class="w-4 h-4 text-cyan-600 bg-gray-900 border-gray-600 rounded focus:ring-cyan-500 focus:ring-2" onchange="toggleGlobalPasswordUI()">
-						<label for="global-encrypt-checkbox" class="text-sm text-gray-300 font-medium cursor-pointer">Encrypt Local Storage</label>
-					</div>
-					<div id="global-password-container" class="hidden">
-						<input type="password" id="global-encrypt-password" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-cyan-500 focus:outline-none transition text-sm" placeholder="Set Master Password" onchange="triggerForceSave()">
-					</div>
-				</div>
+					<!-- TAB: THEME -->
+					<div id="settings-tab-theme" class="space-y-6 max-w-md mx-auto hidden">
+						<h3 class="text-lg font-bold text-white border-b border-gray-700 pb-2 mb-4">Background Gradient</h3>
+						
+						<div class="grid grid-cols-2 gap-4">
+							<div>
+								<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1">Start Color</label>
+								<div class="flex items-center gap-2">
+									<input type="color" id="theme-start-color" class="h-10 w-10 rounded cursor-pointer bg-transparent border-0 p-0" oninput="updateThemePreview()">
+									<input type="text" id="theme-start-text" class="flex-1 bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:border-cyan-500 focus:outline-none uppercase font-mono" oninput="syncThemeText('start')" maxlength="7">
+								</div>
+							</div>
+							<div>
+								<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1">End Color</label>
+								<div class="flex items-center gap-2">
+									<input type="color" id="theme-end-color" class="h-10 w-10 rounded cursor-pointer bg-transparent border-0 p-0" oninput="updateThemePreview()">
+									<input type="text" id="theme-end-text" class="flex-1 bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:border-cyan-500 focus:outline-none uppercase font-mono" oninput="syncThemeText('end')" maxlength="7">
+								</div>
+							</div>
+						</div>
 
-				<div class="pt-2 border-t border-gray-700">
-					<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1 mt-2">Change Password (Email Auth Only)</label>
-					<div class="flex gap-2">
-						<input type="password" id="new-password" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-cyan-500 focus:outline-none transition text-sm" placeholder="New Password">
-						<button onclick="updateUserPassword()" class="bg-gray-700 hover:bg-cyan-600 text-white px-4 rounded-lg text-sm font-medium transition shadow">Update</button>
-					</div>
-				</div>
+						<div>
+							<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1">Direction</label>
+							<select id="theme-direction" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:border-cyan-500 focus:outline-none transition text-sm cursor-pointer shadow-sm" onchange="updateThemePreview()">
+								<option value="to bottom right">To Bottom Right</option>
+								<option value="to bottom">To Bottom</option>
+								<option value="to bottom left">To Bottom Left</option>
+								<option value="to right">To Right</option>
+								<option value="to left">To Left</option>
+								<option value="to top">To Top</option>
+								<option value="to top right">To Top Right</option>
+								<option value="to top left">To Top Left</option>
+							</select>
+						</div>
 
-				<div class="pt-4">
-					<button onclick="logoutUser()" class="w-full bg-red-900/40 hover:bg-red-800/80 text-red-300 py-3 rounded-lg font-bold shadow-lg transition flex items-center justify-center gap-2 border border-red-800/50 hover:border-red-500/50">
-						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-						Log Out
-					</button>
+						<div>
+							<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1 flex justify-between">
+								<span>Power (Intensity)</span>
+								<span id="theme-power-val" class="text-cyan-400 font-mono">3.0</span>
+							</label>
+							<input type="range" id="theme-power" min="0.5" max="10" step="0.5" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-500" oninput="updateThemePreview()">
+						</div>
+
+						<div class="pt-6 border-t border-gray-700 flex gap-3">
+							<button onclick="resetTheme()" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2.5 rounded-lg text-sm font-medium transition shadow">Reset Default</button>
+							<button onclick="saveTheme()" class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white py-2.5 rounded-lg text-sm font-bold shadow-lg transition">Save Theme</button>
+						</div>
+					</div>
+
 				</div>
 			</div>
 		</div>
@@ -452,6 +520,31 @@
 		import { getFirestore, doc, setDoc, updateDoc, onSnapshot, collection, arrayUnion, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 		import { cubicGradient } from "https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js";
 		import { encryptFile, decryptFile } from "../SEP/sep-crypto.js"; // <--- ENCRYPTION INTEGRATION
+
+		// --- 0. APPLY ELECTRON THEME ---
+		const defaultTheme = { start: '#0f172a', end: '#000000', direction: 'to bottom right', power: 3 };
+		window.applyTheme = function(customTheme = null) {
+			const theme = customTheme || JSON.parse(localStorage.getItem('p2p_theme')) || defaultTheme;
+			document.body.style.background = cubicGradient({
+				direction: theme.direction,
+				start: theme.start,
+				end: theme.end,
+				steps: 25,
+				power: theme.power
+			});
+			
+			// Sync UI inputs if they exist
+			if(document.getElementById('theme-start-color')) {
+				document.getElementById('theme-start-color').value = theme.start;
+				document.getElementById('theme-start-text').value = theme.start;
+				document.getElementById('theme-end-color').value = theme.end;
+				document.getElementById('theme-end-text').value = theme.end;
+				document.getElementById('theme-direction').value = theme.direction;
+				document.getElementById('theme-power').value = theme.power;
+				document.getElementById('theme-power-val').textContent = parseFloat(theme.power).toFixed(1);
+			}
+		};
+		window.applyTheme();
 
 		// --- ENCRYPTION GLOBALS & HELPERS ---
 		let globalEncryptionEnabled = localStorage.getItem('p2p_global_enc_enabled') === 'true';
@@ -1545,10 +1638,29 @@
 			}
 		};
 
+		window.switchSettingsTab = function(tabName) {
+			const tabs = ['profile', 'storage', 'theme'];
+			tabs.forEach(t => {
+				const btn = document.getElementById(`btn-tab-${t}`);
+				const content = document.getElementById(`settings-tab-${t}`);
+				if(t === tabName) {
+					btn.className = "settings-tab-btn flex-shrink-0 w-full text-left px-4 py-3 rounded-lg font-medium transition bg-cyan-600/20 text-cyan-400 border border-cyan-500/30 whitespace-nowrap md:whitespace-normal";
+					content.classList.remove('hidden');
+				} else {
+					btn.className = "settings-tab-btn flex-shrink-0 w-full text-left px-4 py-3 rounded-lg font-medium transition text-gray-400 hover:bg-gray-800 hover:text-gray-200 border border-transparent whitespace-nowrap md:whitespace-normal";
+					content.classList.add('hidden');
+				}
+			});
+		};
+
 		window.openSettingsModal = function() {
 			document.getElementById('settings-modal').classList.remove('hidden');
 			document.getElementById('settings-modal').classList.add('flex');
 			
+			// Always default to Profile tab when opening
+			switchSettingsTab('profile');
+			window.applyTheme(); // Sync theme UI
+
 			// Sync Storage Method Dropdown to active preference
 			const currentMethod = localStorage.getItem('p2p_storage_method') || 'browser';
 			const selectEl = document.getElementById('settings-storage-method');
@@ -1585,6 +1697,46 @@
 			const currentMethod = localStorage.getItem('p2p_storage_method') || 'browser';
 			selectEl.value = currentMethod;
 			warning.classList.toggle('hidden', currentMethod !== 'browser');
+		};
+
+		// --- THEME SETTINGS BINDINGS ---
+		window.updateThemePreview = function() {
+			const start = document.getElementById('theme-start-color').value;
+			const end = document.getElementById('theme-end-color').value;
+			const dir = document.getElementById('theme-direction').value;
+			const pwr = document.getElementById('theme-power').value;
+			
+			document.getElementById('theme-start-text').value = start;
+			document.getElementById('theme-end-text').value = end;
+			document.getElementById('theme-power-val').textContent = parseFloat(pwr).toFixed(1);
+			
+			window.applyTheme({ start: start, end: end, direction: dir, power: pwr });
+		};
+
+		window.syncThemeText = function(type) {
+			let val = document.getElementById(`theme-${type}-text`).value;
+			if(!val.startsWith('#')) val = '#' + val;
+			if(val.length === 7 || val.length === 4) {
+				document.getElementById(`theme-${type}-color`).value = val;
+				window.updateThemePreview();
+			}
+		};
+
+		window.saveTheme = function() {
+			const theme = {
+				start: document.getElementById('theme-start-color').value,
+				end: document.getElementById('theme-end-color').value,
+				direction: document.getElementById('theme-direction').value,
+				power: document.getElementById('theme-power').value
+			};
+			localStorage.setItem('p2p_theme', JSON.stringify(theme));
+			window.applyTheme();
+			alert("Theme saved successfully!");
+		};
+
+		window.resetTheme = function() {
+			localStorage.removeItem('p2p_theme');
+			window.applyTheme();
 		};
 
 		window.logoutUser = async function() {
