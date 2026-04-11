@@ -520,7 +520,7 @@
 		import { getFirestore, doc, setDoc, updateDoc, onSnapshot, collection, arrayUnion, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 		import { getVertexAI, getGenerativeModel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-vertexai.js";
 		import { cubicGradient } from "https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js";
-		import { encryptFile, decryptFile } from "../SEP/sep-crypto.js"; // <--- ENCRYPTION INTEGRATION
+		import { encryptFile, decryptFile } from "https://proelectriccoder.github.io/Projects/SEP/sep-crypto.js"; // <--- ENCRYPTION INTEGRATION
 
 		// --- 0. APPLY ELECTRON THEME ---
 		const defaultTheme = { start: '#0f172a', end: '#000000', direction: 'to bottom right', power: 3 };
@@ -613,7 +613,7 @@
 			
 			// Initialize Firebase Vertex AI
 			vertexAI = getVertexAI(app);
-			geminiModel = getGenerativeModel(vertexAI, { model: "gemini-1.5-flash" });
+			geminiModel = getGenerativeModel(vertexAI, { model: "gemini-2.5-flash" });
 		} catch(e) { console.warn("Firebase config error.", e); }
 
 		const appId = 'my-local-p2p-chat';
