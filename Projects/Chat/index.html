@@ -518,6 +518,7 @@
 		import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 		import { getAuth, GoogleAuthProvider, GithubAuthProvider, signInWithPopup, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 		import { getFirestore, doc, setDoc, updateDoc, onSnapshot, collection, arrayUnion, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+		import { getVertexAI, getGenerativeModel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-vertexai.js";
 		import { cubicGradient } from "https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js";
 		import { encryptFile, decryptFile } from "../SEP/sep-crypto.js"; // <--- ENCRYPTION INTEGRATION
 
@@ -604,10 +605,15 @@
         };
 		
 		let app, auth, db;
+		let vertexAI, geminiModel; // AI Variables
 		try {
 			app = initializeApp(firebaseConfig);
 			auth = getAuth(app);
 			db = getFirestore(app);
+			
+			// Initialize Firebase Vertex AI
+			vertexAI = getVertexAI(app);
+			geminiModel = getGenerativeModel(vertexAI, { model: "gemini-1.5-flash" });
 		} catch(e) { console.warn("Firebase config error.", e); }
 
 		const appId = 'my-local-p2p-chat';
@@ -2291,54 +2297,32 @@
 			sendDataChunked(currentRoomId, payload);
 
 			// AI Interceptor: Check if the user is summoning Gemini in a P2P chat
-			if (text.toLowerCase().startsWith('@gemini')) {
+			if (text.toLowerCase().startsWith('@gemini') && geminiModel) {
 				handleAIBotRequest(currentRoomId, text);
 			}
 		};
 
-		async function geminiFetchWithBackoff(payload) {
-			const apiKey = ""; // Keys are injected by the execution environment securely
-			const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-			const delays = [1000, 2000, 4000, 8000, 16000];
-			
-			for (let i = 0; i < delays.length + 1; i++) {
-				try {
-					const response = await fetch(url, {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify(payload)
-					});
-					if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
-					return await response.json();
-				} catch (error) {
-					if (i === delays.length) throw new Error("AI API request failed after multiple retries.");
-					await new Promise(resolve => setTimeout(resolve, delays[i]));
-				}
-			}
-		}
-
 		async function handleDedicatedAIRequest(userText, attachment) {
+			if (!geminiModel) return;
 			const roomId = 'AI_ASSISTANT';
 			handleRemoteTyping(roomId, 'Gemini AI', true);
 
 			try {
-				let parts = [];
-				if (userText) parts.push({ text: userText });
+				let promptContent = [];
+				if (userText) promptContent.push(userText);
 				
 				if (attachment && attachment.data) {
 					const mimeType = attachment.type;
 					const base64Data = attachment.data.includes(',') ? attachment.data.split(',')[1] : attachment.data;
 					if (base64Data && mimeType.startsWith('image/')) {
-						parts.push({ inlineData: { data: base64Data, mimeType: mimeType } });
-						if (!userText) parts.push({ text: "Please describe this file." });
+						promptContent.push({ inlineData: { data: base64Data, mimeType: mimeType } });
 					}
 				}
 
-				if (parts.length === 0) parts.push({ text: "Hello!" });
+				if (promptContent.length === 0) promptContent.push("Please describe this file.");
 
-				const payload = { contents: [{ role: "user", parts: parts }] };
-				const result = await geminiFetchWithBackoff(payload);
-				const responseText = result.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't generate a response.";
+				const result = await geminiModel.generateContent(promptContent);
+				const responseText = result.response.text();
 				const aiMsgId = Math.random().toString(36).substring(2, 11);
 
 				pushMessageToHistory(roomId, responseText, 'Gemini AI', false, false, null, aiMsgId);
@@ -2351,6 +2335,7 @@
 		}
 
 		async function handleAIBotRequest(roomId, userText) {
+			if (!geminiModel) return;
 			const prompt = userText.replace(/^@gemini\s*/i, '').trim();
 			if (!prompt) return;
 
@@ -2359,9 +2344,8 @@
 			sendDataChunked(roomId, { type: 'typing', username: 'Gemini AI', isTyping: true });
 
 			try {
-				const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-				const result = await geminiFetchWithBackoff(payload);
-				const responseText = result.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't generate a response.";
+				const result = await geminiModel.generateContent(prompt);
+				const responseText = result.response.text();
 
 				// Create AI Message Payload
 				const aiMsgId = Math.random().toString(36).substring(2, 11);
