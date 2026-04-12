@@ -1550,10 +1550,18 @@ window.onload=function(){
 	function handleGithubImport() {
 		closeAddMenu();
 		setTimeout(async () => {
-			const repoInput = await customPrompt("Enter GitHub Repo (e.g., octocat/Hello-World):", "", "Import GitHub Repository");
+			let repoInput = await customPrompt("Enter GitHub Repo (e.g., ProElectricCoder/proelectriccoder.github.io):", "", "Import GitHub Repository");
 			if (!repoInput) return;
+			
+			// Clean input in case user pastes full URL instead of owner/repo
+			repoInput = repoInput.replace(/^https?:\/\/github\.com\//i, '').replace(/\/$/, '');
+			
 			try {
-				const branch = await customPrompt("Enter branch name:", "main", "Branch Details") || "main";
+				// Auto-detect default branch to prevent 404 errors on "main" vs "master"
+				const repoInfo = await ghApi(`/repos/${repoInput}`);
+				const defaultBranch = repoInfo.default_branch || "main";
+				
+				const branch = await customPrompt("Enter branch name:", defaultBranch, "Branch Details") || defaultBranch;
 				currentGithubRepo = repoInput;
 				currentGithubBranch = branch;
 				
