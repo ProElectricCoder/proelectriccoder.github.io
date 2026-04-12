@@ -206,10 +206,19 @@
 		}
 		.tab:hover .tab-actions { opacity: 1; }
 
-		/* File Icons & Folders */
-		.folder-header .lucide-chevron-right { width: 14px; height: 14px; transition: transform 0.2s; opacity: 0.5; }
-		.folder-header.open .lucide-chevron-right { transform: rotate(90deg); }
-		.folder-header .icon-folder { width: 14px; height: 14px; color: var(--accent); margin-right: 4px; }
+		/* --- Folder System --- */
+		.folder-header {
+			padding: 8px 15px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem; user-select: none; border-left: 3px solid transparent;
+		}
+		.folder-header:hover { background: rgba(255,255,255,0.03); color: var(--text-main); }
+		.folder-name-container { display: flex; align-items: center; gap: 8px; }
+		.folder-actions { opacity: 0; transition: opacity 0.2s; display: flex; gap: 4px; }
+		.folder-header:hover .folder-actions { opacity: 1; }
+		.folder-header .chevron { transition: transform 0.2s; font-size: 0.6rem; display: inline-block; }
+		.folder-header.open .chevron { transform: rotate(90deg); }
+		.folder-content { display: none; flex-direction: column; }
+		.folder-content.open { display: flex; }
+		.folder-header .icon-folder { width: 14px; height: 14px; color: var(--accent); }
 		.tab-name .lucide { margin-right: 4px; flex-shrink: 0; }
 
 		/* --- Editor Area --- */
@@ -505,16 +514,6 @@
 		.console-input-row { display: flex; align-items: center; padding: 4px 8px; border-top: 1px solid var(--border); background: #161b22; }
 		.console-prompt { color: var(--accent); margin-right: 8px; font-weight: bold; }
 		#console-input { flex: 1; background: transparent; border: none; color: #fff; font-family: 'Consolas', monospace; font-size: 0.85rem; height: 24px; }
-
-		/* --- Folder System --- */
-		.folder-header {
-			padding: 8px 15px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; gap: 8px; font-size: 0.85rem; user-select: none; border-left: 3px solid transparent;
-		}
-		.folder-header:hover { background: rgba(255,255,255,0.03); color: var(--text-main); }
-		.folder-header .chevron { transition: transform 0.2s; font-size: 0.6rem; display: inline-block; }
-		.folder-header.open .chevron { transform: rotate(90deg); }
-		.folder-content { display: none; flex-direction: column; }
-		.folder-content.open { display: flex; }
 
 		/* --- Drag & Drop Overlay --- */
 		#drag-overlay {
@@ -896,6 +895,7 @@
 	let autoSaveInterval = null;
 	let explicitFolders = [];
 	let folderStates = {};
+	let importedRepoFolders = [];
 
 	let githubToken = localStorage.getItem('deepBlue_gh_token') || '';
 	let currentGithubRepo = null;
@@ -1023,10 +1023,12 @@
 		const savedAssets = localStorage.getItem('deepBlueAssets');
 		const savedFolders = localStorage.getItem('deepBlueFolders');
 		const savedDeleted = localStorage.getItem('deepBlueDeleted');
+		const savedRepoFolders = localStorage.getItem('deepBlueRepoFolders');
 		if (savedFS) { try { fileSystem = JSON.parse(savedFS); } catch(e) {} }
 		if (savedAssets) { try { assets = JSON.parse(savedAssets); } catch(e) {} }
 		if (savedFolders) { try { explicitFolders = JSON.parse(savedFolders); } catch(e) {} }
 		if (savedDeleted) { try { deletedFiles = JSON.parse(savedDeleted); } catch(e) {} }
+		if (savedRepoFolders) { try { importedRepoFolders = JSON.parse(savedRepoFolders); } catch(e) {} }
 
 		setInterval(() => {
 			if (unsavedChanges) {
@@ -1036,6 +1038,7 @@
 				localStorage.setItem('deepBlueAssets', JSON.stringify(assets));
 				localStorage.setItem('deepBlueFolders', JSON.stringify(explicitFolders));
 				localStorage.setItem('deepBlueDeleted', JSON.stringify(deletedFiles));
+				localStorage.setItem('deepBlueRepoFolders', JSON.stringify(importedRepoFolders));
 				unsavedChanges = false;
 			}
 		}, 5000);
@@ -1184,6 +1187,8 @@
 			
 			// Default to closed (false) unless explicitly opened (true)
 			const isOpen = folderStates[folderPath] === true; 
+			const isRepo = depth === 0 && importedRepoFolders.includes(folderName);
+			const iconFolderStr = isRepo ? 'github' : (isOpen ? 'folder-open' : 'folder');
 			
 			const folderDiv = document.createElement('div');
 			folderDiv.className = 'folder-group';
@@ -1191,17 +1196,30 @@
 			const header = document.createElement('div');
 			header.className = `folder-header ${isOpen ? 'open' : ''}`;
 			header.style.paddingLeft = `${15 + depth * 15}px`;
-			header.innerHTML = `<i data-lucide="chevron-right" class="chevron"></i> <i data-lucide="${isOpen ? 'folder-open' : 'folder'}" class="icon-folder"></i> ${folderName}`;
+			header.innerHTML = `
+				<div class="folder-name-container">
+					<i data-lucide="chevron-right" class="chevron"></i>
+					<i data-lucide="${iconFolderStr}" class="icon-folder"></i>
+					${folderName}
+				</div>
+				<div class="folder-actions">
+					<button class="btn-icon" onclick="event.stopPropagation(); renameFolder('${folderPath}')" title="Rename Folder"><i data-lucide="edit-2" style="width:12px;height:12px;"></i></button>
+					<button class="btn-icon" onclick="event.stopPropagation(); deleteFolder('${folderPath}')" style="color: #ef4444;" title="Delete Folder"><i data-lucide="trash-2" style="width:12px;height:12px;"></i></button>
+				</div>
+			`;
 			
 			const content = document.createElement('div');
 			content.className = `folder-content ${isOpen ? 'open' : ''}`;
 			
-			header.onclick = () => {
+			header.onclick = (e) => {
+				if (e.target.closest('.folder-actions')) return;
 				const willOpen = !header.classList.contains('open');
 				folderStates[folderPath] = willOpen;
 				header.classList.toggle('open', willOpen);
 				content.classList.toggle('open', willOpen);
-				header.innerHTML = `<i data-lucide="chevron-right" class="chevron"></i> <i data-lucide="${willOpen ? 'folder-open' : 'folder'}" class="icon-folder"></i> ${folderName}`;
+				const newIconFolderStr = isRepo ? 'github' : (willOpen ? 'folder-open' : 'folder');
+				const iconEl = header.querySelector('.icon-folder');
+				if(iconEl) iconEl.setAttribute('data-lucide', newIconFolderStr);
 				lucide.createIcons({ root: header });
 			};
 			
@@ -1385,9 +1403,6 @@
 			let resolved = basePath + cleanPath;
 			if (blobMap[resolved]) return `${attr}="${blobMap[resolved]}"`;
 			if (blobMap[cleanPath]) return `${attr}="${blobMap[cleanPath]}"`;
-			// Try Assets prefix logic fallback
-			let assetFallback = basePath + 'Assets/' + cleanPath;
-			if (blobMap[assetFallback]) return `${attr}="${blobMap[assetFallback]}"`;
 			return match; 
 		});
 		if (processedHTML.includes('<head>')) processedHTML = processedHTML.replace('<head>', '<head>' + consoleScript); else processedHTML = consoleScript + processedHTML;
@@ -1456,8 +1471,7 @@
 		htmlContent = htmlContent.replace(/(src|href)=["']([^"']+)["']/g, (match, attr, path) => {
 			if (path.startsWith('http') || path.startsWith('data:')) return match;
 			let cleanPath = path.startsWith('./') ? path.slice(2) : path;
-			const cleanNameOld = path.replace(/^(\.\/)?Assets\//, '');
-			const asset = assets[basePath + cleanPath] || assets[cleanPath] || assets[cleanNameOld];
+			const asset = assets[basePath + cleanPath] || assets[cleanPath];
 			if (asset) {
 				let dataUri = '';
 				if (asset.subtype === 'svg') {
@@ -1520,7 +1534,7 @@ window.onload=function(){
 	function saveApiKey() { const input = document.getElementById('apikey-input'); if (input.value.trim()) { localStorage.setItem('gemini_api_key', input.value.trim()); checkApiKey(); addAiMessage('bot', 'API Key saved!'); } }
 	function addAiMessage(role, text) { const box = document.getElementById('ai-chat-box'); const div = document.createElement('div'); div.className = `ai-msg ${role}`; if (text.includes('```')) { const parts = text.split(/```(\w*)\n([\s\S]*?)```/g); div.innerHTML = ""; for (let i = 0; i < parts.length; i++) { if (i % 3 === 0) { if(parts[i].trim()) { const p = document.createElement('div'); p.innerText = parts[i]; div.appendChild(p); } } else if (i % 3 === 2) { const code = parts[i]; const wrapper = document.createElement('div'); wrapper.className = 'code-block-wrapper'; wrapper.innerHTML = `<div class="code-block-header"><span>Code</span><button class="insert-btn" onclick="insertCode(this)">Insert</button></div><div class="code-block-content">${code.replace(/</g,'&lt;')}</div>`; wrapper.querySelector('.insert-btn').dataset.code = code; div.appendChild(wrapper); } } } else { div.innerText = text; } box.appendChild(div); box.scrollTop = box.scrollHeight; }
 	function insertCode(btn) { const code = btn.dataset.code; if(code) { aceEditor.session.insert(aceEditor.getCursorPosition(), code); aceEditor.focus(); } }
-	async function callGemini() { const input = document.getElementById('ai-user-input'); const prompt = input.value.trim(); const apiKey = localStorage.getItem('gemini_api_key'); if (!prompt) return; addAiMessage('user', prompt); input.value = ''; const context = `File: ${activeFile}\nCode:\n\`\`\`\n${aceEditor.getValue()}\n\`\`\`\nReq: ${prompt}`; const loadingDiv = document.createElement('div'); loadingDiv.className = 'ai-msg bot'; loadingDiv.innerText = 'Thinking...'; loadingDiv.id = 'ai-loading'; document.getElementById('ai-chat-box').appendChild(loadingDiv); if (!apiKey) { setTimeout(() => { document.getElementById('ai-loading').remove(); addAiMessage('bot', `Please provide API Key.`); }, 1000); return; } try { const { GoogleGenerativeAI } = await import('https://esm.run/@google/generative-ai'); const genAI = new GoogleGenerativeAI(apiKey); const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); const result = await model.generateContent(context); const response = await result.response; document.getElementById('ai-loading').remove(); addAiMessage('bot', response.text()); } catch (e) { document.getElementById('ai-loading').remove(); addAiMessage('bot', "Error: " + e.message); } }
+	async function callGemini() { const input = document.getElementById('ai-user-input'); const prompt = input.value.trim(); const apiKey = localStorage.getItem('gemini_api_key'); if (!prompt) return; addAiMessage('user', prompt); input.value = ''; const context = `File: ${activeFile}\nCode:\n\`\`\`\n${aceEditor.getValue()}\n\`\`\`\nReq: ${prompt}`; const loadingDiv = document.createElement('div'); loadingDiv.className = 'ai-msg bot'; loadingDiv.innerText = 'Thinking...'; loadingDiv.id = 'ai-loading'; document.getElementById('ai-chat-box').appendChild(loadingDiv); if (!apiKey) { setTimeout(() => { document.getElementById('ai-loading').remove(); addAiMessage('bot', `Please provide API Key.`); }, 1000); return; } try { const { GoogleGenerativeAI } = await import('[https://esm.run/@google/generative-ai](https://esm.run/@google/generative-ai)'); const genAI = new GoogleGenerativeAI(apiKey); const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); const result = await model.generateContent(context); const response = await result.response; document.getElementById('ai-loading').remove(); addAiMessage('bot', response.text()); } catch (e) { document.getElementById('ai-loading').remove(); addAiMessage('bot', "Error: " + e.message); } }
 
 	// --- SEARCH & FORMAT ---
 	function toggleSearch() { const tb = document.getElementById('search-toolbar'); const input = document.getElementById('search-input'); if (tb.classList.contains('visible')) { tb.classList.remove('visible'); aceEditor.focus(); } else { tb.classList.add('visible'); input.focus(); input.select(); } }
@@ -1566,8 +1580,8 @@ window.onload=function(){
 	// --- GITHUB INTEGRATION LOGIC ---
 	async function initFirebase() {
 		if (firebaseApp) return;
-		const { initializeApp } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js');
-		const { getAuth } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
+		const { initializeApp } = await import('[https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js)');
+		const { getAuth } = await import('[https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js)');
 		firebaseApp = initializeApp(firebaseConfig);
 		firebaseAuth = getAuth(firebaseApp);
 	}
@@ -1579,7 +1593,7 @@ window.onload=function(){
 		}
 		try {
 			await initFirebase();
-			const { signInWithPopup, GithubAuthProvider } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
+			const { signInWithPopup, GithubAuthProvider } = await import('[https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js)');
 			const provider = new GithubAuthProvider();
 			provider.addScope('repo'); // Required for reading/writing repositories
 			
@@ -1635,6 +1649,10 @@ window.onload=function(){
 				
 				const repoFolderName = repoInput.split('/').pop();
 				if (!explicitFolders.includes(repoFolderName)) explicitFolders.push(repoFolderName);
+				if (!importedRepoFolders.includes(repoFolderName)) importedRepoFolders.push(repoFolderName);
+				
+				// Auto-open the main repository folder
+				folderStates[repoFolderName] = true;
 
 				// Check for conflicts first
 				let conflicts = [];
@@ -1697,7 +1715,7 @@ window.onload=function(){
 					loadingBar.style.width = `${40 + (loadedCount / Math.max(fileItems.length, 1)) * 50}%`;
 				}
 				renderSidebar();
-				const defaultFile = Object.keys(fileSystem).find(f => f.endsWith('index.html')) || Object.keys(fileSystem)[0];
+				const defaultFile = Object.keys(fileSystem).find(f => f.startsWith(repoFolderName + '/') && f.endsWith('index.html')) || Object.keys(fileSystem).find(f => f.startsWith(repoFolderName + '/'));
 				if (defaultFile && !activeFile) switchFile(defaultFile); 
 				else if (activeFile) switchFile(activeFile);
 				deletedFiles = [];
@@ -1786,11 +1804,99 @@ window.onload=function(){
 		}
 	}
 
-	async function createNewFile() { let name = await customPrompt("Enter file path (e.g. src/script.js, style.css):", "", "New File"); if (!name) return; let type = ""; let content = ""; if (name.endsWith('.js')) { type = 'js'; content = `// ${name}\n`; } else if (name.endsWith('.css')) { type = 'css'; content = `/* ${name} */\n`; } else if (name.endsWith('.html')) { type = 'html'; content = `<h1>${name}</h1>`; } else if (name.endsWith('.json')) { type = 'text'; content = `{\n  \n}`; } else if (name.endsWith('.md')) { type = 'text'; content = `# ${name}\n`; } else if (name.endsWith('.txt')) { type = 'text'; content = ``; } else if (name.endsWith('.svg')) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'svg', content: '<svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg"><circle cx="25" cy="25" r="20" fill="red"/></svg>', modified: true }; switchFile(name); return; } else if (name.match(/\.(png|jpe?g|gif|webp)$/i)) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'image', src: 'https://placehold.co/100x100/333/white?text=IMG', content: null, modified: true }; switchFile(name); return; } else { await customAlert("Supported formats: .html, .css, .js, .svg, md, txt, json, images", "Invalid Format"); return; } if (fileSystem[name]) { await customAlert("File name exists!", "Error"); return; } fileSystem[name] = { type, content, modified: true }; switchFile(name); unsavedChanges = true; }
+	async function createNewFile() { let name = await customPrompt("Enter file path (e.g. src/script.js, style.css):", "", "New File"); if (!name) return; let type = ""; let content = ""; if (name.endsWith('.js')) { type = 'js'; content = `// ${name}\n`; } else if (name.endsWith('.css')) { type = 'css'; content = `/* ${name} */\n`; } else if (name.endsWith('.html')) { type = 'html'; content = `<h1>${name}</h1>`; } else if (name.endsWith('.json')) { type = 'text'; content = `{\n  \n}`; } else if (name.endsWith('.md')) { type = 'text'; content = `# ${name}\n`; } else if (name.endsWith('.txt')) { type = 'text'; content = ``; } else if (name.endsWith('.svg')) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'svg', content: '<svg viewBox="0 0 50 50" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)"><circle cx="25" cy="25" r="20" fill="red"/></svg>', modified: true }; switchFile(name); return; } else if (name.match(/\.(png|jpe?g|gif|webp)$/i)) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'image', src: '[https://placehold.co/100x100/333/white?text=IMG](https://placehold.co/100x100/333/white?text=IMG)', content: null, modified: true }; switchFile(name); return; } else { await customAlert("Supported formats: .html, .css, .js, .svg, md, txt, json, images", "Invalid Format"); return; } if (fileSystem[name]) { await customAlert("File name exists!", "Error"); return; } fileSystem[name] = { type, content, modified: true }; switchFile(name); unsavedChanges = true; }
 	async function createNewFolder() { let name = await customPrompt("Enter folder path (e.g. src/components):", "", "New Folder"); if (!name) return; name = name.replace(/\/+$/, ''); if (!explicitFolders.includes(name)) { explicitFolders.push(name); renderSidebar(); unsavedChanges = true; } }
 	async function processUpload(event) { const file = event.target.files[0]; if (!file) return; const name = file.name; if ((fileSystem[name] || assets[name])) { const ok = await customConfirm(`Overwrite '${name}'?`, "File Exists"); if (!ok) { event.target.value = ''; return;} } const reader = new FileReader(); const isMedia = /\.(png|jpe?g|gif|webp|pdf|mp3|mp4|wav|webm|ogg)$/i.test(name); const isSVG = /\.svg$/i.test(name); if (isMedia && !isSVG) reader.readAsDataURL(file); else reader.readAsText(file); reader.onload = (e) => { const content = e.target.result; if (isMedia || isSVG) { if (isMedia && !isSVG) { let subtype = 'image'; if (/\.(mp3|wav|ogg)$/i.test(name)) subtype = 'audio'; else if (/\.(mp4|webm)$/i.test(name)) subtype = 'video'; else if (/\.pdf$/i.test(name)) subtype = 'pdf'; assets[name] = { type: 'asset', subtype: subtype, src: content, content: null, modified: true }; } else if (isSVG) assets[name] = { type: 'asset', subtype: 'svg', content: content, modified: true }; } else { let type = 'html'; if (name.endsWith('.js')) type = 'js'; else if (name.endsWith('.css')) type = 'css'; else if (name.endsWith('.json') || name.endsWith('.md') || name.endsWith('.txt')) type = 'text'; fileSystem[name] = { type, content, modified: true }; } switchFile(name); unsavedChanges = true; event.target.value = ''; renderSidebar(); }; }
 	async function renameFile(oldName) { const newName = await customPrompt("Rename to:", oldName, "Rename File"); if (!newName || newName === oldName) return; if (fileSystem[newName] || assets[newName]) { await customAlert("Name already taken!", "Error"); return; } if (fileSystem[oldName]) { fileSystem[newName] = { ...fileSystem[oldName], modified: true }; delete fileSystem[oldName]; deletedFiles.push(oldName); } else if (assets[oldName]) { assets[newName] = { ...assets[oldName], modified: true }; delete assets[oldName]; deletedFiles.push(oldName); } if (activeFile === oldName) activeFile = newName; renderSidebar(); unsavedChanges = true; }
 	async function deleteFile(name) { const ok = await customConfirm(`Delete '${name}'?`, "Confirm Deletion"); if (!ok) return; if (fileSystem[name]) { delete fileSystem[name]; deletedFiles.push(name); } else if (assets[name]) { delete assets[name]; deletedFiles.push(name); } if (activeFile === name) activeFile = Object.keys(fileSystem)[0] || null; renderSidebar(); if(activeFile) switchFile(activeFile); else { document.getElementById('code-editor').style.display='none'; document.getElementById('binary-overlay').style.display='flex'; } unsavedChanges = true; }
+
+	async function renameFolder(oldPath) {
+		const parts = oldPath.split('/');
+		const oldName = parts.pop();
+		const parentPath = parts.join('/');
+		
+		const newName = await customPrompt("Rename folder to:", oldName, "Rename Folder");
+		if (!newName || newName === oldName) return;
+		if (newName.includes('/')) { await customAlert("Folder names cannot contain slashes.", "Error"); return; }
+		
+		const newPath = parentPath ? `${parentPath}/${newName}` : newName;
+		if (explicitFolders.includes(newPath)) { await customAlert("Folder already exists!", "Error"); return; }
+		
+		explicitFolders = explicitFolders.map(f => {
+			if (f === oldPath) return newPath;
+			if (f.startsWith(oldPath + '/')) return newPath + f.substring(oldPath.length);
+			return f;
+		});
+
+		if (importedRepoFolders.includes(oldPath)) {
+			importedRepoFolders = importedRepoFolders.map(f => f === oldPath ? newPath : f);
+		}
+
+		Object.keys(fileSystem).forEach(p => {
+			if (p.startsWith(oldPath + '/')) {
+				const newFilePath = newPath + p.substring(oldPath.length);
+				fileSystem[newFilePath] = { ...fileSystem[p], modified: true };
+				delete fileSystem[p];
+				deletedFiles.push(p);
+				if (activeFile === p) activeFile = newFilePath;
+			}
+		});
+
+		Object.keys(assets).forEach(p => {
+			if (p.startsWith(oldPath + '/')) {
+				const newFilePath = newPath + p.substring(oldPath.length);
+				assets[newFilePath] = { ...assets[p], modified: true };
+				delete assets[p];
+				deletedFiles.push(p);
+				if (activeFile === p) activeFile = newFilePath;
+			}
+		});
+
+		const newStates = {};
+		Object.keys(folderStates).forEach(p => {
+			if (p === oldPath) newStates[newPath] = folderStates[p];
+			else if (p.startsWith(oldPath + '/')) newStates[newPath + p.substring(oldPath.length)] = folderStates[p];
+			else newStates[p] = folderStates[p];
+		});
+		folderStates = newStates;
+
+		unsavedChanges = true;
+		renderSidebar();
+		if (activeFile) switchFile(activeFile);
+	}
+
+	async function deleteFolder(folderPath) {
+		const ok = await customConfirm(`Delete folder '${folderPath}' and all its contents?`, "Confirm Deletion");
+		if (!ok) return;
+
+		explicitFolders = explicitFolders.filter(f => f !== folderPath && !f.startsWith(folderPath + '/'));
+		importedRepoFolders = importedRepoFolders.filter(f => f !== folderPath);
+
+		let activeDeleted = false;
+		Object.keys(fileSystem).forEach(p => {
+			if (p.startsWith(folderPath + '/')) {
+				delete fileSystem[p];
+				deletedFiles.push(p);
+				if (activeFile === p) activeDeleted = true;
+			}
+		});
+		Object.keys(assets).forEach(p => {
+			if (p.startsWith(folderPath + '/')) {
+				delete assets[p];
+				deletedFiles.push(p);
+				if (activeFile === p) activeDeleted = true;
+			}
+		});
+
+		if (activeDeleted) {
+			activeFile = Object.keys(fileSystem)[0] || null;
+			if (activeFile) switchFile(activeFile);
+			else { document.getElementById('code-editor').style.display='none'; document.getElementById('binary-overlay').style.display='flex'; }
+		}
+		
+		unsavedChanges = true;
+		renderSidebar();
+	}
 
 	function initResizers() {
 		const resizerLeft = document.getElementById('resizer-left'); const resizerRight = document.getElementById('resizer-right'); const sidebar = document.getElementById('sidebar-panel'); const editor = document.getElementById('editor-panel'); const output = document.getElementById('output-container'); const container = document.getElementById('main-container');
