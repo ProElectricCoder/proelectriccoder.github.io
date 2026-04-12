@@ -202,7 +202,7 @@
 		.folder-header .lucide-chevron-right { width: 14px; height: 14px; transition: transform 0.2s; opacity: 0.5; }
 		.folder-header.open .lucide-chevron-right { transform: rotate(90deg); }
 		.folder-header .icon-folder { width: 14px; height: 14px; color: var(--accent); margin-right: 4px; }
-		.tab-name .lucide { margin-right: 4px; }
+		.tab-name .lucide { margin-right: 4px; flex-shrink: 0; }
 
 		/* --- Editor Area --- */
 		.editor-container {
@@ -337,7 +337,6 @@
 			transition: opacity 0.3s ease;
 		}
 
-		/* FIXED: Use !important to override inline width/height from JS resizing */
 		.output-container.expanded {
 			position: fixed;
 			top: 0; left: 0; 
@@ -348,6 +347,8 @@
 			flex: none !important;
 		}
 		
+		/* HIDE CONSOLE IN FULLSCREEN */
+		.output-container.expanded #web-console { display: none; }
 		.output-container.expanded .asset-tray { display: none; }
 
 		#fullscreen-trigger {
@@ -434,11 +435,11 @@
 		.tab-close:hover { background: rgba(255,255,255,0.2); opacity: 1; color: #ef4444; }
 
 		/* --- CONTENT CONTAINERS --- */
-		#content-area { flex: 1; position: relative; background-color: #000000; overflow: hidden; }
+		#content-area { flex: 1; position: relative; background-color: #0f172a; overflow: hidden; }
 
 		.tab-content {
 			position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-			display: none; flex-direction: column;
+			display: none; flex-direction: column; background: #ffffff; z-index: 2;
 		}
 		
 		.tab-content.active { display: flex; }
@@ -446,7 +447,7 @@
 		.web-mode-container { flex-direction: column; height: 100%; flex: 1; }
 
 		.iframe-wrapper {
-			flex: 1; background-color: #000000; position: relative;
+			flex: 1; background-color: #ffffff; position: relative;
 			width: 100%; height: 100%; overflow: hidden;
 			display: flex; justify-content: center; align-items: center;
 		}
@@ -456,8 +457,9 @@
 		iframe.fixed { position: static; transform-origin: center center; }
 
 		/* --- Toolbar Controls --- */
-		.device-controls { display: none; gap: 4px; background: rgba(255,255,255,0.05); padding: 2px; border-radius: 6px; align-items: center; }
-		.device-controls.visible { display: flex; }
+		.device-controls { display: flex; gap: 4px; background: rgba(255,255,255,0.05); padding: 2px; border-radius: 6px; align-items: center; }
+		.device-controls.disabled { cursor: not-allowed; }
+		.device-controls.disabled > * { pointer-events: none; opacity: 0.3; filter: grayscale(1); }
 		
 		.device-btn {
 			background: transparent; border: none; color: var(--text-muted); padding: 4px 6px;
@@ -465,7 +467,6 @@
 		}
 		.device-btn:hover, .device-btn.active { color: var(--text-main); background: rgba(255,255,255,0.1); }
 
-		/* FIXED: Increased left margin for zoom control */
 		.zoom-control { display: flex; align-items: center; gap: 8px; margin-right: 8px; margin-left: 12px; }
 		
 		.zoom-slider { -webkit-appearance: none; appearance: none; width: 80px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; outline: none; }
@@ -544,6 +545,35 @@
 			color: var(--text-muted); cursor: pointer; font-size: 0.85rem;
 		}
 		.modal-close:hover { color: var(--text-main); text-decoration: underline; }
+
+		/* --- Custom Dialog Modals --- */
+		#dialog-overlay {
+			position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7);
+			z-index: 2000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(2px);
+		}
+		#dialog-overlay .modal {
+			background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius-lg);
+			width: 350px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); transform: translateY(20px);
+			opacity: 0; transition: all 0.2s ease;
+		}
+		#dialog-overlay.open .modal { transform: translateY(0); opacity: 1; }
+		#dialog-title { font-weight: 700; color: var(--text-main); margin-bottom: 10px; font-size: 1.1rem; }
+		#dialog-msg { color: var(--text-muted); margin-bottom: 15px; font-size: 0.9rem; word-wrap: break-word; }
+		#dialog-input { width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border); color: white; border-radius: 4px; margin-bottom: 15px; display: none; font-family: inherit;}
+		#dialog-input:focus { border-color: var(--accent); outline: none; }
+
+		/* --- Empty State Additions & GitHub Loader --- */
+		.empty-tabs-msg {
+			color: var(--text-muted); font-size: 0.8rem; font-style: italic;
+			padding: 0 10px; margin-bottom: 8px; opacity: 0.6; pointer-events: none; align-self: center;
+		}
+		
+		#gh-loading-bar {
+			position: absolute; top: 60px; left: 0; height: 2px; width: 0%;
+			background-color: var(--accent); z-index: 1000; opacity: 0;
+			transition: width 0.3s ease, opacity 0.3s ease; box-shadow: 0 0 10px var(--accent);
+			pointer-events: none;
+		}
 
 		/* --- AI Sidebar --- */
 		.ai-sidebar {
@@ -635,6 +665,8 @@
 	</div>
 </header>
 
+<div id="gh-loading-bar"></div>
+
 <div class="container" id="main-container">
 	<!-- Sidebar -->
 	<div class="sidebar" id="sidebar-panel">
@@ -678,7 +710,7 @@
 		<div id="binary-overlay">
 			<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-bottom:10px"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
 			<div id="binary-info">Binary File</div>
-			<div style="font-size: 0.8rem; opacity: 0.6; margin-top: 5px;">Use 'Assets' + button to upload new image</div>
+			<div style="font-size: 0.8rem; opacity: 0.6; margin-top: 5px;">Use 'Assets' + button to upload new media</div>
 		</div>
 
 		<!-- Status Bar -->
@@ -718,7 +750,7 @@
 					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
 				</button>
 				<div style="width:1px; background:rgba(255,255,255,0.1); margin:0 4px;"></div>
-				<!-- FIXED: Added ID to toggle icon -->
+				<!-- Fullscreen Toggle Icon -->
 				<button class="device-btn" id="fullscreen-btn" onclick="toggleFullscreen()" title="Fullscreen (Esc to exit)">
 					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 15 6 6"/><path d="m15 9 6-6"/><path d="M21 16v5h-5"/><path d="M21 8V3h-5"/><path d="M3 16v5h5"/><path d="m3 21 6-6"/><path d="M3 8V3h5"/><path d="M9 9 3 3"/></svg>
 				</button>
@@ -726,7 +758,12 @@
 		</div>
 		
 		<div id="content-area">
-			<!-- Dynamic Tab Contents -->
+			<!-- Generic Placeholder (Shown when no tabs are active) -->
+			<div id="global-placeholder" style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100%; background:#0f172a; color:#64748b; position:absolute; top:0; left:0; width:100%; z-index:1;">
+				<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:1rem;opacity:0.5;"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+				<div style="font-size:0.9rem;font-weight:500;opacity:0.7;">Deep Blue Preview</div>
+			</div>
+			<!-- Dynamic Tab Contents stack on top via higher z-index -->
 		</div>
 		
 		<!-- Console Pane -->
@@ -766,7 +803,7 @@
 <div id="drag-overlay">
 	<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
 	<h2 style="margin-top:20px;">Drop files to Import</h2>
-	<p>Supports code (.html, .js, .css) and images</p>
+	<p>Supports code, md, json, images, audio, video & pdfs</p>
 </div>
 
 <!-- Add File Modal -->
@@ -799,8 +836,21 @@
 	</div>
 </div>
 
-<!-- Hidden Input for Upload -->
-<input type="file" id="file-upload" style="display:none" onchange="processUpload(event)">
+<!-- Custom Dialog Modals -->
+<div id="dialog-overlay">
+	<div class="modal" id="dialog-modal">
+		<div id="dialog-title">Alert</div>
+		<div id="dialog-msg"></div>
+		<input type="text" id="dialog-input" autocomplete="off" spellcheck="false">
+		<div style="display:flex; gap:10px; justify-content:flex-end;">
+			<button class="btn btn-secondary" id="dialog-btn-cancel">Cancel</button>
+			<button class="btn" id="dialog-btn-ok">OK</button>
+		</div>
+	</div>
+</div>
+
+<!-- Hidden Input for Upload (Updated accepted types) -->
+<input type="file" id="file-upload" style="display:none" onchange="processUpload(event)" accept=".html,.css,.js,.png,.jpg,.jpeg,.gif,.svg,.webp,.txt,.md,.json,.pdf,.mp3,.mp4,.wav,.webm">
 
 <script>
 	// --- FIREBASE CONFIGURATION ---
@@ -842,6 +892,58 @@
 	let githubToken = localStorage.getItem('deepBlue_gh_token') || '';
 	let currentGithubRepo = null;
 	let currentGithubBranch = 'main';
+
+	// --- Custom Dialog System ---
+	function showCustomDialog(type, title, msg, defaultVal = '') {
+		return new Promise(resolve => {
+			const overlay = document.getElementById('dialog-overlay');
+			const titleEl = document.getElementById('dialog-title');
+			const msgEl = document.getElementById('dialog-msg');
+			const inputEl = document.getElementById('dialog-input');
+			const btnCancel = document.getElementById('dialog-btn-cancel');
+			const btnOk = document.getElementById('dialog-btn-ok');
+
+			titleEl.innerText = title;
+			msgEl.innerHTML = msg; 
+			inputEl.value = defaultVal;
+			
+			if (type === 'prompt') {
+				inputEl.style.display = 'block';
+				btnCancel.style.display = 'block';
+			} else if (type === 'confirm') {
+				inputEl.style.display = 'none';
+				btnCancel.style.display = 'block';
+			} else { // alert
+				inputEl.style.display = 'none';
+				btnCancel.style.display = 'none';
+			}
+
+			overlay.style.display = 'flex';
+			setTimeout(() => { 
+				overlay.classList.add('open'); 
+				if(type === 'prompt') inputEl.focus(); 
+			}, 10);
+
+			const cleanup = () => {
+				overlay.classList.remove('open');
+				setTimeout(() => overlay.style.display = 'none', 200);
+				btnOk.onclick = null;
+				btnCancel.onclick = null;
+				inputEl.onkeydown = null;
+			};
+
+			btnOk.onclick = () => { cleanup(); resolve(type === 'prompt' ? inputEl.value : true); };
+			btnCancel.onclick = () => { cleanup(); resolve(type === 'prompt' ? null : false); };
+
+			inputEl.onkeydown = (e) => {
+				if (e.key === 'Enter') btnOk.click();
+				if (e.key === 'Escape') btnCancel.click();
+			};
+		});
+	}
+	const customAlert = (msg, title="Alert") => showCustomDialog('alert', title, msg);
+	const customConfirm = (msg, title="Confirm") => showCustomDialog('confirm', title, msg);
+	const customPrompt = (msg, defaultVal='', title="Input") => showCustomDialog('prompt', title, msg, defaultVal);
 
 	// --- Init Ace Editor ---
 	window.addEventListener('load', function() {
@@ -919,26 +1021,43 @@
 		window.addEventListener('drop', (e) => { e.preventDefault(); dragCounter = 0; overlay.classList.remove('active'); handleDroppedFiles(e.dataTransfer.files); });
 	}
 
-	function handleDroppedFiles(files) {
-		Array.from(files).forEach(file => {
+	async function handleDroppedFiles(files) {
+		for (const file of Array.from(files)) {
 			const name = file.name;
-			if ((fileSystem[name] || assets[name]) && !confirm(`Overwrite ${name}?`)) return;
+			if ((fileSystem[name] || assets[name])) {
+				const ok = await customConfirm(`Overwrite ${name}?`, "File Exists");
+				if (!ok) continue;
+			}
 			const reader = new FileReader();
-			if (/\.(png|jpe?g|gif|webp)$/i.test(name)) {
-				reader.onload = (e) => { assets[name] = { type: 'asset', subtype: 'image', src: e.target.result, content: null }; renderSidebar(); unsavedChanges = true; };
+			
+			// Handle media assets directly to native browser viewers
+			if (/\.(png|jpe?g|gif|webp|pdf|mp3|wav|ogg|mp4|webm)$/i.test(name)) {
+				reader.onload = (e) => { 
+					let subtype = 'image';
+					if (/\.(mp3|wav|ogg)$/i.test(name)) subtype = 'audio';
+					else if (/\.(mp4|webm)$/i.test(name)) subtype = 'video';
+					else if (/\.pdf$/i.test(name)) subtype = 'pdf';
+					
+					assets[name] = { type: 'asset', subtype: subtype, src: e.target.result, content: null }; 
+					renderSidebar(); unsavedChanges = true; 
+				};
 				reader.readAsDataURL(file);
-			} else if (/\.(html|css|js|txt|json|md)$/i.test(name) || /\.svg$/i.test(name)) {
+			} else if (/\.(html|css|js|txt|json|md|sep|enc)$/i.test(name) || /\.svg$/i.test(name)) {
 				reader.onload = (e) => {
 					if (/\.svg$/i.test(name)) assets[name] = { type: 'asset', subtype: 'svg', content: e.target.result };
 					else {
-						let type = 'html'; if (name.endsWith('.js')) type = 'js'; else if (name.endsWith('.css')) type = 'css';
+						let type = 'html'; 
+						if (name.endsWith('.js')) type = 'js'; 
+						else if (name.endsWith('.css')) type = 'css';
+						else if (name.endsWith('.json') || name.endsWith('.md') || name.endsWith('.txt')) type = 'text'; // Text types
+						
 						fileSystem[name] = { type, content: e.target.result };
 					}
 					renderSidebar(); unsavedChanges = true; switchFile(name);
 				};
 				reader.readAsText(file);
 			}
-		});
+		}
 	}
 
 	// --- INTERACTIVE CONSOLE ---
@@ -964,7 +1083,23 @@
 	let activeTabId = null;
 	let viewMode = 'responsive';
 
+	function setTabsEmptyState(isEmpty) {
+		const controls = document.getElementById('device-controls');
+		const tabsContainer = document.getElementById('preview-tabs');
+		if (isEmpty) {
+			controls.classList.add('disabled');
+			controls.title = "Run a file to enable controls";
+			tabsContainer.innerHTML = '<div class="empty-tabs-msg">Execute a file to preview</div>';
+		} else {
+			controls.classList.remove('disabled');
+			controls.removeAttribute('title');
+			const msg = tabsContainer.querySelector('.empty-tabs-msg');
+			if (msg) msg.remove();
+		}
+	}
+
 	function createTab(id, type) {
+		setTabsEmptyState(false);
 		if (openTabs.includes(id)) { activateTab(id); return; }
 		openTabs.push(id);
 		const tabContainer = document.getElementById('preview-tabs');
@@ -990,9 +1125,6 @@
 		document.getElementById(`tab-header-${id}`)?.classList.add('active');
 		document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 		document.getElementById(`tab-content-${id}`)?.classList.add('active');
-		const isWeb = !id.includes("Terminal"); 
-		const controls = document.getElementById('device-controls');
-		if (isWeb) { controls.classList.add('visible'); } else { controls.classList.remove('visible'); }
 	}
 
 	function closeTab(id) {
@@ -1000,9 +1132,17 @@
 		if (index > -1) openTabs.splice(index, 1);
 		document.getElementById(`tab-header-${id}`)?.remove();
 		document.getElementById(`tab-content-${id}`)?.remove();
+		
 		if (activeTabId === id) {
-			if (openTabs.length > 0) { const newId = openTabs[index - 1] || openTabs[0]; activateTab(newId); } 
-			else { activeTabId = null; document.getElementById('device-controls').classList.remove('visible'); }
+			if (openTabs.length > 0) { 
+				const newId = openTabs[index - 1] || openTabs[0]; 
+				activateTab(newId); 
+			} 
+			else { 
+				activeTabId = null; 
+				document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+				setTabsEmptyState(true);
+			}
 		}
 	}
 
@@ -1047,13 +1187,19 @@
 			
 			let iconName = 'file';
 			let iconColor = '#7b8ea5';
+			const ext = file.path.split('.').pop().toLowerCase();
 			
-			if (file.path.endsWith('.html')) { iconName = 'file-code-2'; iconColor = '#e34c26'; }
-			else if (file.path.endsWith('.css')) { iconName = 'file-code'; iconColor = '#264de4'; }
-			else if (file.path.endsWith('.js')) { iconName = 'file-json'; iconColor = '#f7df1e'; }
-			else if (file.path.endsWith('.sep')) { iconName = 'file-key-2'; iconColor = '#00e5ff'; }
-			else if (file.path.endsWith('.enc')) { iconName = 'file-lock-2'; iconColor = '#f43f5e'; }
-			else if (file.source === 'asset') { iconName = 'image'; iconColor = '#10b981'; }
+			if (ext === 'html') { iconName = 'file-code-2'; iconColor = '#e34c26'; }
+			else if (ext === 'css') { iconName = 'file-code'; iconColor = '#264de4'; }
+			else if (ext === 'js') { iconName = 'file-json'; iconColor = '#f7df1e'; }
+			else if (ext === 'json') { iconName = 'file-json-2'; iconColor = '#f7df1e'; }
+			else if (ext === 'md' || ext === 'txt') { iconName = 'file-text'; iconColor = '#94a3b8'; }
+			else if (ext === 'sep') { iconName = 'file-key-2'; iconColor = '#00e5ff'; }
+			else if (ext === 'enc') { iconName = 'file-lock-2'; iconColor = '#f43f5e'; }
+			else if (ext === 'pdf') { iconName = 'file-text'; iconColor = '#ef4444'; }
+			else if (['png','jpg','jpeg','gif','webp','svg'].includes(ext)) { iconName = 'file-image'; iconColor = '#10b981'; }
+			else if (['mp3','wav','ogg'].includes(ext)) { iconName = 'file-audio'; iconColor = '#8b5cf6'; }
+			else if (['mp4','webm'].includes(ext)) { iconName = 'file-video'; iconColor = '#f43f5e'; }
 
 			div.innerHTML = `<div class="tab-name"><i data-lucide="${iconName}" style="color: ${iconColor}; width: 14px; height: 14px;"></i> ${file.name}</div><div class="tab-actions"><button class="btn-icon" onclick="renameFile('${file.path}')" title="Rename"><i data-lucide="edit-2" style="width:12px;height:12px;"></i></button><button class="btn-icon" onclick="deleteFile('${file.path}')" style="color: #ef4444;" title="Delete"><i data-lucide="trash-2" style="width:12px;height:12px;"></i></button></div>`;
 			container.appendChild(div);
@@ -1105,9 +1251,14 @@
 		if (fileSystem[filename]) {
 			overlay.style.display = 'none'; editorDiv.style.display = 'flex';
 			aceEditor.setValue(fileSystem[filename].content, -1); 
-			label.innerText = fileSystem[filename].type.toUpperCase();
+			label.innerText = fileSystem[filename].type.toUpperCase() || 'TEXT';
 			
-			let mode = 'ace/mode/text'; if (filename.endsWith('.html')) mode = 'ace/mode/html'; else if (filename.endsWith('.css')) mode = 'ace/mode/css'; else if (filename.endsWith('.js')) mode = 'ace/mode/javascript';
+			let mode = 'ace/mode/text'; 
+			if (filename.endsWith('.html')) mode = 'ace/mode/html'; 
+			else if (filename.endsWith('.css')) mode = 'ace/mode/css'; 
+			else if (filename.endsWith('.js')) mode = 'ace/mode/javascript';
+			else if (filename.endsWith('.json')) mode = 'ace/mode/json';
+			else if (filename.endsWith('.md')) mode = 'ace/mode/markdown';
 			aceEditor.session.setMode(mode);
 			
 		} else if (assets[filename]) {
@@ -1119,23 +1270,65 @@
 			} else {
 				editorDiv.style.display = 'none'; overlay.style.display = 'flex'; 
 				document.getElementById('binary-info').innerText = filename + " (" + assets[filename].subtype + ")"; 
-				label.innerText = 'BINARY';
+				label.innerText = 'MEDIA';
 			}
 		}
 	}
 
 	function runCode() {
+		if (!activeFile) { runWeb(); return; }
 		if (fileSystem[activeFile]) fileSystem[activeFile].content = aceEditor.getValue();
 		else if (assets[activeFile]?.subtype === 'svg') assets[activeFile].content = aceEditor.getValue();
+		
 		const btn = document.querySelector('.btn'); btn.style.transform = 'scale(0.95)'; setTimeout(() => btn.style.transform = 'translateY(0)', 150);
-		if (assets[activeFile] && assets[activeFile].subtype !== 'svg') renderAssetPreview(activeFile); else runWeb();
+		
+		if (assets[activeFile]) { // Safely pushes both generic media and SVGs to native rendering
+			renderAssetPreview(activeFile); 
+		} else {
+			runWeb();
+		}
 	}
 
 	function runWeb() {
 		let targetFile = activeFile;
-		if (!fileSystem[targetFile] || fileSystem[targetFile].type !== 'html') {
-			if (fileSystem['index.html']) targetFile = 'index.html'; else { createTab('Preview', 'web'); showPlaceholder('Preview'); return; }
+
+		// 1. If NO file is active, reveal global placeholder and exit
+		if (!targetFile) {
+			document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+			document.querySelectorAll('.preview-tab').forEach(t => t.classList.remove('active'));
+			activeTabId = null;
+			setTabsEmptyState(true);
+			return;
 		}
+
+		const ext = targetFile.split('.').pop().toLowerCase();
+
+		// 2. If it's a non-executable text format (md, json, txt), view it natively via blob URL
+		if (['txt', 'md', 'json'].includes(ext)) {
+			createTab(targetFile, 'web');
+			let mime = 'text/plain';
+			if (ext === 'json') mime = 'application/json';
+			
+			const blob = new Blob([fileSystem[targetFile].content], { type: mime });
+			const iframe = document.getElementById(`iframe-${targetFile}`);
+			if (iframe) iframe.src = URL.createObjectURL(blob);
+			return;
+		}
+
+		// 3. If it's code (JS, CSS, etc.) that requires an HTML shell to execute, fallback to index.html
+		if (!fileSystem[targetFile] || fileSystem[targetFile].type !== 'html') {
+			if (fileSystem['index.html']) {
+				targetFile = 'index.html'; 
+			} else { 
+				document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+				document.querySelectorAll('.preview-tab').forEach(t => t.classList.remove('active'));
+				activeTabId = null;
+				setTabsEmptyState(true);
+				return; 
+			}
+		}
+		
+		// 4. Normal HTML bundling flow
 		createTab(targetFile, 'web');
 		document.getElementById('console-log-container').innerHTML = '<div style="opacity:0.5;font-size:0.7rem;margin-bottom:5px;">--- Run Started ---</div>';
 		let htmlContent = fileSystem[targetFile].content;
@@ -1152,9 +1345,27 @@
 		if (processedHTML.includes('<head>')) processedHTML = processedHTML.replace('<head>', '<head>' + consoleScript); else processedHTML = consoleScript + processedHTML;
 		const oldIframe = document.getElementById(`iframe-${targetFile}`);
 		if(oldIframe) {
+			// Clear URL to ensure we accept raw content writing
+			oldIframe.src = '';
 			const newIframe = document.createElement('iframe'); newIframe.id = oldIframe.id; newIframe.className = oldIframe.className; newIframe.style.cssText = oldIframe.style.cssText;
 			const parent = oldIframe.parentNode; parent.replaceChild(newIframe, oldIframe);
 			const doc = newIframe.contentDocument; doc.open(); doc.write(processedHTML); doc.close();
+		}
+	}
+
+	function renderAssetPreview(filename) { 
+		createTab(filename, 'web'); 
+		const iframe = document.getElementById(`iframe-${filename}`); 
+		if (!iframe) return; 
+		const asset = assets[filename]; 
+
+		// Assign the media blob/URL directly to the iframe source.
+		// The browser's native text/image/video viewer will render it natively!
+		if (asset.subtype === 'svg') {
+			const blob = new Blob([asset.content], { type: 'image/svg+xml' });
+			iframe.src = URL.createObjectURL(blob);
+		} else {
+			iframe.src = asset.src; 
 		}
 	}
 
@@ -1166,7 +1377,7 @@
 		let targetFile = activeFile;
 		if (!fileSystem[targetFile] || fileSystem[targetFile].type !== 'html') {
 			if (fileSystem['index.html']) targetFile = 'index.html';
-			else { alert("Open an HTML file to share."); return; }
+			else { await customAlert("Open an HTML file to share.", "Notice"); return; }
 		}
 		
 		// Ensure current editor content is saved to memory
@@ -1234,15 +1445,15 @@ window.onload=function(){
 			const finalDataUrl = "data:text/html;base64," + btoa(wrapper);
 			
 			// Copy to Clipboard
-			navigator.clipboard.writeText(finalDataUrl).then(() => {
-				alert("Compressed project copied to clipboard! (Data URL)");
-			}).catch(err => {
+			navigator.clipboard.writeText(finalDataUrl).then(async () => {
+				await customAlert("Compressed project copied to clipboard! (Data URL)", "Success");
+			}).catch(async (err) => {
 				console.error('Failed to copy: ', err);
-				prompt("Copy this Data URL manually:", finalDataUrl);
+				await customPrompt("Copy this Data URL manually:", finalDataUrl, "Data URL Generated");
 			});
 
 		} catch(e) {
-			alert("Compression Failed: " + e.message);
+			await customAlert("Compression Failed: " + e.message, "Error");
 		}
 	}
 
@@ -1263,9 +1474,8 @@ window.onload=function(){
 	function findPrev() { const val = document.getElementById('search-input').value; if(!val) return; aceEditor.find(val, { backwards: true, wrap: true, caseSensitive: false, wholeWord: false, regExp: false, skipCurrent: false }); }
 	function replaceOne() { const findVal = document.getElementById('search-input').value; const repVal = document.getElementById('replace-input').value; if(!findVal) return; aceEditor.find(findVal, { backwards: false, wrap: true, skipCurrent: false }); aceEditor.replace(repVal); }
 	function replaceAll() { const findVal = document.getElementById('search-input').value; const repVal = document.getElementById('replace-input').value; if(!findVal) return; aceEditor.replaceAll(repVal, { needle: findVal, backwards: false, wrap: true, caseSensitive: false, wholeWord: false, regExp: false }); }
-	function formatCurrentFile() { if (!fileSystem[activeFile]) return; const content = aceEditor.getValue(); let parser = null; if (activeFile.endsWith('.html')) parser = 'html'; else if (activeFile.endsWith('.css')) parser = 'css'; else if (activeFile.endsWith('.js')) parser = 'babel'; if (parser) { try { const formatted = prettier.format(content, { parser: parser, plugins: prettierPlugins, tabWidth: 4, useTabs: true }); aceEditor.setValue(formatted, -1); fileSystem[activeFile].content = formatted; unsavedChanges = true; } catch (e) { alert("Format Error: " + e.message); } } else { alert("Not supported."); } }
-	function renderAssetPreview(filename) { createTab(filename, 'web'); const iframe = document.getElementById(`iframe-${filename}`); if (!iframe) return; const doc = iframe.contentDocument; const asset = assets[filename]; doc.open(); const style = "display:flex;justify-content:center;align-items:center;height:100vh;background:#f8fafc;background-image: radial-gradient(#cbd5e1 1px, transparent 1px); background-size: 20px 20px; overflow:hidden;"; const content = asset.subtype === 'svg' ? `<div style="${style}"><div style="width:100%;height:100%;max-width:80vw;max-height:80vh;">${asset.content}</div></div>` : `<div style="${style}"><img src="${asset.src}" style="max-width:90%;max-height:90%;object-fit:contain;box-shadow:0 10px 25px rgba(0,0,0,0.1);"></div>`; doc.write(content); doc.close(); }
-	function showPlaceholder(tabId) { const iframe = document.getElementById(`iframe-${tabId}`); if (!iframe) return; const doc = iframe.contentDocument; doc.open(); doc.write(`<!DOCTYPE html><html style="height:100%;margin:0;background:#0f172a;font-family:'Segoe UI',sans-serif;overflow:hidden;"><body style="height:100%;margin:0;display:flex;flex-direction:column;justify-content:center;align-items:center;color:#64748b;"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:1rem;opacity:0.5;"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg><div style="font-size:0.9rem;font-weight:500;opacity:0.7;">Deep Blue Preview</div></body></html>`); doc.close(); }
+	async function formatCurrentFile() { if (!fileSystem[activeFile]) return; const content = aceEditor.getValue(); let parser = null; if (activeFile.endsWith('.html')) parser = 'html'; else if (activeFile.endsWith('.css')) parser = 'css'; else if (activeFile.endsWith('.js')) parser = 'babel'; if (parser) { try { const formatted = prettier.format(content, { parser: parser, plugins: prettierPlugins, tabWidth: 4, useTabs: true }); aceEditor.setValue(formatted, -1); fileSystem[activeFile].content = formatted; unsavedChanges = true; } catch (e) { await customAlert("Format Error: " + e.message, "Error"); } } else { await customAlert("Formatting not supported for this file type.", "Notice"); } }
+	
 	function updateZoom(value) { const iframe = document.getElementById(`iframe-${activeTabId}`); if(!iframe) return; if (viewMode === 'responsive') { const percent = 100 / value; iframe.style.width = `${percent}%`; iframe.style.height = `${percent}%`; iframe.style.transform = `scale(${value})`; } else { iframe.style.transform = `scale(${value})`; } document.getElementById('zoom-val').innerText = Math.round(value * 100) + '%'; }
 	function setPresetSize(mode) { if(!activeTabId || activeTabId.includes("Terminal")) return; const iframe = document.getElementById(`iframe-${activeTabId}`); if(!iframe) return; iframe.style.width = ''; iframe.style.height = ''; iframe.style.borderLeft = 'none'; iframe.style.borderRight = 'none'; iframe.classList.remove('responsive', 'fixed'); if (mode === 'desktop') { viewMode = 'responsive'; iframe.classList.add('responsive'); } else { viewMode = mode; iframe.classList.add('fixed'); if (mode === 'tablet') { iframe.style.width = '768px'; iframe.style.height = '1024px'; } else if (mode === 'mobile') { iframe.style.width = '375px'; iframe.style.height = '667px'; } iframe.style.borderLeft = '1px solid #333'; iframe.style.borderRight = '1px solid #333'; } updateZoom(document.getElementById('zoom-slider').value); document.querySelectorAll('.device-btn').forEach(btn => btn.classList.remove('active')); if(event.currentTarget) event.currentTarget.classList.add('active'); }
 	async function saveProject(isAutoSave = false) { if (activeFile) { if (fileSystem[activeFile]) fileSystem[activeFile].content = aceEditor.getValue(); else if (assets[activeFile]?.subtype === 'svg') assets[activeFile].content = aceEditor.getValue(); } const btn = document.getElementById('save-btn'); const originalText = "Save"; if (!isAutoSave) btn.innerText = "Saving..."; try { if ('showDirectoryPicker' in window) { if (!projectHandle && !isAutoSave) { projectHandle = await window.showDirectoryPicker(); } if (projectHandle) { await saveToHandle(projectHandle); if (!isAutoSave) { btn.innerText = "Saved!"; setTimeout(() => btn.innerText = originalText, 2000); } else { btn.style.color = '#4ade80'; setTimeout(() => btn.style.color = '', 1000); } } } else { throw new Error("API not supported"); } } catch (err) { if (!isAutoSave) { await saveToZip(); if (err.name === 'AbortError') projectHandle = null; btn.innerText = "Saved!"; setTimeout(() => btn.innerText = originalText, 2000); } } }
@@ -1286,27 +1496,27 @@ window.onload=function(){
 	}
 
 	function closeAddMenu() { document.getElementById('modal-overlay').classList.remove('open'); setTimeout(() => document.getElementById('modal-overlay').style.display = 'none', 200); }
-	function handleCreateNew() { closeAddMenu(); setTimeout(() => createNewFile(), 300); }
-	function handleCreateFolder() { closeAddMenu(); setTimeout(() => createNewFolder(), 300); }
-	function handleUpload() { closeAddMenu(); const input = document.getElementById('file-upload'); input.accept = ".html,.css,.js,.png,.jpg,.jpeg,.gif,.svg,.webp"; input.click(); }
+	function handleCreateNew() { closeAddMenu(); setTimeout(async () => await createNewFile(), 250); }
+	function handleCreateFolder() { closeAddMenu(); setTimeout(async () => await createNewFolder(), 250); }
+	function handleUpload() { closeAddMenu(); const input = document.getElementById('file-upload'); input.click(); }
 	
 	// --- GITHUB INTEGRATION LOGIC ---
 	async function initFirebase() {
 		if (firebaseApp) return;
-		const { initializeApp } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js');
-		const { getAuth } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
+		const { initializeApp } = await import('[https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js)');
+		const { getAuth } = await import('[https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js)');
 		firebaseApp = initializeApp(firebaseConfig);
 		firebaseAuth = getAuth(firebaseApp);
 	}
 
 	async function openGithubAuth() {
 		if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "YOUR_API_KEY") {
-			alert("Please configure your Firebase credentials in the code first (search for firebaseConfig).");
+			await customAlert("Please configure your Firebase credentials in the code first (search for firebaseConfig).", "Missing Credentials");
 			return;
 		}
 		try {
 			await initFirebase();
-			const { signInWithPopup, GithubAuthProvider } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
+			const { signInWithPopup, GithubAuthProvider } = await import('[https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js)');
 			const provider = new GithubAuthProvider();
 			provider.addScope('repo'); // Required for reading/writing repositories
 			
@@ -1317,11 +1527,11 @@ window.onload=function(){
 				githubToken = credential.accessToken;
 				localStorage.setItem('deepBlue_gh_token', githubToken);
 				document.getElementById('gh-commit-btn').style.display = 'flex';
-				alert(`Successfully logged in as ${result.user.displayName || result.user.email}`);
+				await customAlert(`Successfully logged in as ${result.user.displayName || result.user.email}`, "Success");
 			}
 		} catch (error) {
 			console.error("Firebase Auth Error:", error);
-			alert("Login Failed: " + error.message);
+			await customAlert("Login Failed: " + error.message, "Authentication Error");
 		}
 	}
 
@@ -1335,69 +1545,108 @@ window.onload=function(){
 		return res.json();
 	}
 
-	async function handleGithubImport() {
+	function handleGithubImport() {
 		closeAddMenu();
-		const repoInput = prompt("Enter GitHub Repo (e.g., octocat/Hello-World):");
-		if (!repoInput) return;
-		try {
-			const branch = prompt("Enter branch name:", "main") || "main";
-			currentGithubRepo = repoInput;
-			currentGithubBranch = branch;
-			
-			const treeData = await ghApi(`/repos/${repoInput}/git/trees/${branch}?recursive=1`);
-			
-			// Check for conflicts first
-			let conflicts = [];
-			for (const item of treeData.tree) {
-				if (item.type !== 'tree' && (fileSystem[item.path] || assets[item.path])) {
-					conflicts.push(item.path);
-				}
-			}
-
-			let overwrite = true;
-			if (conflicts.length > 0) {
-				overwrite = confirm(`Warning: ${conflicts.length} file(s) from the repo already exist in your editor. Overwrite them?`);
-			}
-			
-			for (const item of treeData.tree) {
-				if (item.type === 'tree') { 
-					if (!explicitFolders.includes(item.path)) explicitFolders.push(item.path); 
-					continue; 
-				}
-
-				if (conflicts.includes(item.path) && !overwrite) continue;
+		setTimeout(async () => {
+			const repoInput = await customPrompt("Enter GitHub Repo (e.g., octocat/Hello-World):", "", "Import GitHub Repository");
+			if (!repoInput) return;
+			try {
+				const branch = await customPrompt("Enter branch name:", "main", "Branch Details") || "main";
+				currentGithubRepo = repoInput;
+				currentGithubBranch = branch;
 				
-				const rawUrl = `https://raw.githubusercontent.com/${repoInput}/${branch}/${item.path}`;
+				const loadingBar = document.getElementById('gh-loading-bar');
+				loadingBar.style.opacity = '1';
+				loadingBar.style.width = '10%';
+
+				const treeData = await ghApi(`/repos/${repoInput}/git/trees/${branch}?recursive=1`);
+				loadingBar.style.width = '30%';
 				
-				if (/\.(png|jpe?g|gif|webp)$/i.test(item.path)) {
-					assets[item.path] = { type: 'asset', subtype: 'image', src: rawUrl, content: null };
-				} else {
-					const contentRes = await fetch(rawUrl);
-					const content = await contentRes.text();
-					if (/\.svg$/i.test(item.path)) {
-						assets[item.path] = { type: 'asset', subtype: 'svg', content };
-					} else {
-						let type = 'html'; if (item.path.endsWith('.js')) type = 'js'; if (item.path.endsWith('.css')) type = 'css';
-						fileSystem[item.path] = { type, content };
+				// Check for conflicts first
+				let conflicts = [];
+				let fileItems = [];
+				for (const item of treeData.tree) {
+					if (item.type !== 'tree') {
+						fileItems.push(item);
+						if ((fileSystem[item.path] || assets[item.path])) {
+							conflicts.push(item.path);
+						}
 					}
 				}
+
+				let overwrite = true;
+				if (conflicts.length > 0) {
+					overwrite = await customConfirm(`Warning: ${conflicts.length} file(s) from the repo already exist in your editor. Overwrite them?`, "Conflicts Detected");
+				}
+				
+				loadingBar.style.width = '40%';
+				let loadedCount = 0;
+
+				for (const item of treeData.tree) {
+					if (item.type === 'tree') { 
+						if (!explicitFolders.includes(item.path)) explicitFolders.push(item.path); 
+						continue; 
+					}
+
+					if (conflicts.includes(item.path) && !overwrite) {
+						loadedCount++;
+						continue;
+					}
+					
+					const rawUrl = `https://raw.githubusercontent.com/${repoInput}/${branch}/${item.path}`;
+					
+					if (/\.(png|jpe?g|gif|webp|pdf|mp3|wav|ogg|mp4|webm)$/i.test(item.path)) {
+						let subtype = 'image';
+						if (/\.(mp3|wav|ogg)$/i.test(item.path)) subtype = 'audio';
+						else if (/\.(mp4|webm)$/i.test(item.path)) subtype = 'video';
+						else if (/\.pdf$/i.test(item.path)) subtype = 'pdf';
+						
+						assets[item.path] = { type: 'asset', subtype: subtype, src: rawUrl, content: null };
+					} else {
+						const contentRes = await fetch(rawUrl);
+						const content = await contentRes.text();
+						if (/\.svg$/i.test(item.path)) {
+							assets[item.path] = { type: 'asset', subtype: 'svg', content };
+						} else {
+							let type = 'html'; 
+							if (item.path.endsWith('.js')) type = 'js'; 
+							else if (item.path.endsWith('.css')) type = 'css';
+							else if (item.path.endsWith('.json') || item.path.endsWith('.md') || item.path.endsWith('.txt')) type = 'text';
+							
+							fileSystem[item.path] = { type, content };
+						}
+					}
+					loadedCount++;
+					loadingBar.style.width = `${40 + (loadedCount / Math.max(fileItems.length, 1)) * 50}%`;
+				}
+				renderSidebar();
+				const defaultFile = Object.keys(fileSystem).find(f => f.endsWith('index.html')) || Object.keys(fileSystem)[0];
+				if (defaultFile && !activeFile) switchFile(defaultFile); 
+				else if (activeFile) switchFile(activeFile);
+				unsavedChanges = true;
+				
+				loadingBar.style.width = '100%';
+				setTimeout(() => {
+					loadingBar.style.opacity = '0';
+					setTimeout(() => loadingBar.style.width = '0%', 300);
+				}, 500);
+
+				await customAlert(`Imported repository: ${repoInput}`, "Success");
+			} catch (error) {
+				const loadingBar = document.getElementById('gh-loading-bar');
+				loadingBar.style.opacity = '0';
+				setTimeout(() => loadingBar.style.width = '0%', 300);
+				
+				await customAlert("GitHub Import Failed: " + error.message, "Error");
+				console.error(error);
 			}
-			renderSidebar();
-			const defaultFile = Object.keys(fileSystem).find(f => f.endsWith('index.html')) || Object.keys(fileSystem)[0];
-			if (defaultFile && !activeFile) switchFile(defaultFile); 
-			else if (activeFile) switchFile(activeFile);
-			unsavedChanges = true;
-			alert(`Imported repository: ${repoInput}`);
-		} catch (error) {
-			alert("GitHub Import Failed: " + error.message);
-			console.error(error);
-		}
+		}, 250);
 	}
 
 	async function openGithubCommit() {
-		if (!currentGithubRepo) { alert("You must import a GitHub repository first."); return; }
+		if (!currentGithubRepo) { await customAlert("You must import a GitHub repository first.", "Not Connected"); return; }
 		if (!githubToken) { openGithubAuth(); return; }
-		const msg = prompt("Enter commit message:");
+		const msg = await customPrompt("Enter commit message:", "", "Commit to GitHub");
 		if (!msg) return;
 		
 		try {
@@ -1431,20 +1680,19 @@ window.onload=function(){
 				sha: newCommit.sha
 			});
 
-			alert("Successfully committed to GitHub!");
+			await customAlert("Successfully committed to GitHub!", "Success");
 			unsavedChanges = false;
 		} catch (err) {
-			alert("Commit failed: " + err.message);
+			await customAlert("Commit failed: " + err.message, "Error");
 			console.error(err);
 		}
 	}
 
-	function createNewFile() { let name = prompt("Enter file path (e.g. src/script.js, style.css):"); if (!name) return; let type = ""; let content = ""; if (name.endsWith('.js')) { type = 'js'; content = `// ${name}\n`; } else if (name.endsWith('.css')) { type = 'css'; content = `/* ${name} */\n`; } else if (name.endsWith('.html')) { type = 'html'; content = `<h1>${name}</h1>`; } else if (name.endsWith('.svg')) { if (assets[name]) { alert("Exists!"); return; } assets[name] = { type: 'asset', subtype: 'svg', content: '<svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg"><circle cx="25" cy="25" r="20" fill="red"/></svg>' }; switchFile(name); return; } else if (name.match(/\.(png|jpe?g|gif|webp)$/i)) { if (assets[name]) { alert("Exists!"); return; } assets[name] = { type: 'asset', subtype: 'image', src: 'https://placehold.co/100x100/333/white?text=IMG', content: null }; switchFile(name); return; } else { alert("Supported: .html, .css, .js, .svg, images"); return; } if (fileSystem[name]) { alert("Exists!"); return; } fileSystem[name] = { type, content }; switchFile(name); unsavedChanges = true; }
-	function createNewFolder() { let name = prompt("Enter folder path (e.g. src/components):"); if (!name) return; name = name.replace(/\/+$/, ''); if (!explicitFolders.includes(name)) { explicitFolders.push(name); renderSidebar(); unsavedChanges = true; } }
-	function processUpload(event) { const file = event.target.files[0]; if (!file) return; const name = file.name; if ((fileSystem[name] || assets[name]) && !confirm(`Overwrite '${name}'?`)) return; const reader = new FileReader(); const isImage = /\.(png|jpe?g|gif|webp)$/i.test(name); const isSVG = /\.svg$/i.test(name); if (isImage && !isSVG) reader.readAsDataURL(file); else reader.readAsText(file); reader.onload = (e) => { const content = e.target.result; if (isImage || isSVG) { if (isImage && !isSVG) assets[name] = { type: 'asset', subtype: 'image', src: content, content: null }; else if (isSVG) assets[name] = { type: 'asset', subtype: 'svg', content: content }; } else { let type = 'html'; if (name.endsWith('.js')) type = 'js'; if (name.endsWith('.css')) type = 'css'; fileSystem[name] = { type, content }; } switchFile(name); unsavedChanges = true; event.target.value = ''; renderSidebar(); }; }
-	function renameFile(oldName) { const newName = prompt("Rename to:", oldName); if (!newName || newName === oldName) return; if (fileSystem[newName] || assets[newName]) { alert("Taken!"); return; } if (fileSystem[oldName]) { fileSystem[newName] = fileSystem[oldName]; delete fileSystem[oldName]; } else if (assets[oldName]) { assets[newName] = assets[oldName]; delete assets[oldName]; } if (activeFile === oldName) activeFile = newName; renderSidebar(); unsavedChanges = true; }
-	function deleteFile(name) { if (!confirm(`Delete '${name}'?`)) return; if (fileSystem[name]) delete fileSystem[name]; else if (assets[name]) delete assets[name]; if (activeFile === name) activeFile = Object.keys(fileSystem)[0] || null; renderSidebar(); if(activeFile) switchFile(activeFile); else { document.getElementById('code-editor').style.display='none'; document.getElementById('binary-overlay').style.display='flex'; } unsavedChanges = true; }
-	function toggleFullscreen() { document.getElementById('output-container').classList.toggle('expanded'); }
+	async function createNewFile() { let name = await customPrompt("Enter file path (e.g. src/script.js, style.css):", "", "New File"); if (!name) return; let type = ""; let content = ""; if (name.endsWith('.js')) { type = 'js'; content = `// ${name}\n`; } else if (name.endsWith('.css')) { type = 'css'; content = `/* ${name} */\n`; } else if (name.endsWith('.html')) { type = 'html'; content = `<h1>${name}</h1>`; } else if (name.endsWith('.json')) { type = 'text'; content = `{\n  \n}`; } else if (name.endsWith('.md')) { type = 'text'; content = `# ${name}\n`; } else if (name.endsWith('.txt')) { type = 'text'; content = ``; } else if (name.endsWith('.svg')) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'svg', content: '<svg viewBox="0 0 50 50" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)"><circle cx="25" cy="25" r="20" fill="red"/></svg>' }; switchFile(name); return; } else if (name.match(/\.(png|jpe?g|gif|webp)$/i)) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'image', src: '[https://placehold.co/100x100/333/white?text=IMG](https://placehold.co/100x100/333/white?text=IMG)', content: null }; switchFile(name); return; } else { await customAlert("Supported formats: .html, .css, .js, .svg, md, txt, json, images", "Invalid Format"); return; } if (fileSystem[name]) { await customAlert("File name exists!", "Error"); return; } fileSystem[name] = { type, content }; switchFile(name); unsavedChanges = true; }
+	async function createNewFolder() { let name = await customPrompt("Enter folder path (e.g. src/components):", "", "New Folder"); if (!name) return; name = name.replace(/\/+$/, ''); if (!explicitFolders.includes(name)) { explicitFolders.push(name); renderSidebar(); unsavedChanges = true; } }
+	async function processUpload(event) { const file = event.target.files[0]; if (!file) return; const name = file.name; if ((fileSystem[name] || assets[name])) { const ok = await customConfirm(`Overwrite '${name}'?`, "File Exists"); if (!ok) { event.target.value = ''; return;} } const reader = new FileReader(); const isMedia = /\.(png|jpe?g|gif|webp|pdf|mp3|mp4|wav|webm|ogg)$/i.test(name); const isSVG = /\.svg$/i.test(name); if (isMedia && !isSVG) reader.readAsDataURL(file); else reader.readAsText(file); reader.onload = (e) => { const content = e.target.result; if (isMedia || isSVG) { if (isMedia && !isSVG) { let subtype = 'image'; if (/\.(mp3|wav|ogg)$/i.test(name)) subtype = 'audio'; else if (/\.(mp4|webm)$/i.test(name)) subtype = 'video'; else if (/\.pdf$/i.test(name)) subtype = 'pdf'; assets[name] = { type: 'asset', subtype: subtype, src: content, content: null }; } else if (isSVG) assets[name] = { type: 'asset', subtype: 'svg', content: content }; } else { let type = 'html'; if (name.endsWith('.js')) type = 'js'; else if (name.endsWith('.css')) type = 'css'; else if (name.endsWith('.json') || name.endsWith('.md') || name.endsWith('.txt')) type = 'text'; fileSystem[name] = { type, content }; } switchFile(name); unsavedChanges = true; event.target.value = ''; renderSidebar(); }; }
+	async function renameFile(oldName) { const newName = await customPrompt("Rename to:", oldName, "Rename File"); if (!newName || newName === oldName) return; if (fileSystem[newName] || assets[newName]) { await customAlert("Name already taken!", "Error"); return; } if (fileSystem[oldName]) { fileSystem[newName] = fileSystem[oldName]; delete fileSystem[oldName]; } else if (assets[oldName]) { assets[newName] = assets[oldName]; delete assets[oldName]; } if (activeFile === oldName) activeFile = newName; renderSidebar(); unsavedChanges = true; }
+	async function deleteFile(name) { const ok = await customConfirm(`Delete '${name}'?`, "Confirm Deletion"); if (!ok) return; if (fileSystem[name]) delete fileSystem[name]; else if (assets[name]) delete assets[name]; if (activeFile === name) activeFile = Object.keys(fileSystem)[0] || null; renderSidebar(); if(activeFile) switchFile(activeFile); else { document.getElementById('code-editor').style.display='none'; document.getElementById('binary-overlay').style.display='flex'; } unsavedChanges = true; }
 
 	function initResizers() {
 		const resizerLeft = document.getElementById('resizer-left'); const resizerRight = document.getElementById('resizer-right'); const sidebar = document.getElementById('sidebar-panel'); const editor = document.getElementById('editor-panel'); const output = document.getElementById('output-container'); const container = document.getElementById('main-container');
