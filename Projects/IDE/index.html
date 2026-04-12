@@ -900,6 +900,8 @@
 	let githubToken = localStorage.getItem('deepBlue_gh_token') || '';
 	let currentGithubRepo = null;
 	let currentGithubBranch = 'main';
+	let deletedFiles = [];
+	let isSwitchingFile = false;
 
 	// --- Custom Dialog System ---
 	function showCustomDialog(type, title, msg, defaultVal = '') {
@@ -972,7 +974,23 @@
 
 		// Sync Logic
 		aceEditor.session.on('change', function() {
+			if (isSwitchingFile) return;
 			unsavedChanges = true;
+			if (activeFile) {
+				const target = fileSystem[activeFile] || assets[activeFile];
+				if (target && !target.modified) {
+					target.modified = true;
+					const tabNameEl = document.querySelector(`.tab.active .tab-name`);
+					if (tabNameEl && !tabNameEl.querySelector('.mod-dot')) {
+						const dot = document.createElement('span');
+						dot.className = 'mod-dot';
+						dot.innerHTML = ' •';
+						dot.style.color = 'var(--accent)';
+						dot.style.fontWeight = 'bold';
+						tabNameEl.appendChild(dot);
+					}
+				}
+			}
 		});
 		
 		// Sync Selection/Cursor (Optional status bar update)
@@ -1004,16 +1022,20 @@
 		const savedFS = localStorage.getItem('deepBlueFS');
 		const savedAssets = localStorage.getItem('deepBlueAssets');
 		const savedFolders = localStorage.getItem('deepBlueFolders');
+		const savedDeleted = localStorage.getItem('deepBlueDeleted');
 		if (savedFS) { try { fileSystem = JSON.parse(savedFS); } catch(e) {} }
 		if (savedAssets) { try { assets = JSON.parse(savedAssets); } catch(e) {} }
 		if (savedFolders) { try { explicitFolders = JSON.parse(savedFolders); } catch(e) {} }
+		if (savedDeleted) { try { deletedFiles = JSON.parse(savedDeleted); } catch(e) {} }
 
 		setInterval(() => {
 			if (unsavedChanges) {
 				if (activeFile && fileSystem[activeFile]) fileSystem[activeFile].content = aceEditor.getValue();
+				else if (activeFile && assets[activeFile] && assets[activeFile].subtype === 'svg') assets[activeFile].content = aceEditor.getValue();
 				localStorage.setItem('deepBlueFS', JSON.stringify(fileSystem));
 				localStorage.setItem('deepBlueAssets', JSON.stringify(assets));
 				localStorage.setItem('deepBlueFolders', JSON.stringify(explicitFolders));
+				localStorage.setItem('deepBlueDeleted', JSON.stringify(deletedFiles));
 				unsavedChanges = false;
 			}
 		}, 5000);
@@ -1046,20 +1068,20 @@
 					else if (/\.(mp4|webm)$/i.test(name)) subtype = 'video';
 					else if (/\.pdf$/i.test(name)) subtype = 'pdf';
 					
-					assets[name] = { type: 'asset', subtype: subtype, src: e.target.result, content: null }; 
+					assets[name] = { type: 'asset', subtype: subtype, src: e.target.result, content: null, modified: true }; 
 					renderSidebar(); unsavedChanges = true; 
 				};
 				reader.readAsDataURL(file);
 			} else if (/\.(html|css|js|txt|json|md|sep|enc)$/i.test(name) || /\.svg$/i.test(name)) {
 				reader.onload = (e) => {
-					if (/\.svg$/i.test(name)) assets[name] = { type: 'asset', subtype: 'svg', content: e.target.result };
+					if (/\.svg$/i.test(name)) assets[name] = { type: 'asset', subtype: 'svg', content: e.target.result, modified: true };
 					else {
 						let type = 'html'; 
 						if (name.endsWith('.js')) type = 'js'; 
 						else if (name.endsWith('.css')) type = 'css';
 						else if (name.endsWith('.json') || name.endsWith('.md') || name.endsWith('.txt')) type = 'text'; // Text types
 						
-						fileSystem[name] = { type, content: e.target.result };
+						fileSystem[name] = { type, content: e.target.result, modified: true };
 					}
 					renderSidebar(); unsavedChanges = true; switchFile(name);
 				};
@@ -1211,7 +1233,10 @@
 			else if (['mp3','wav','ogg'].includes(ext)) { iconName = 'file-audio'; iconColor = '#8b5cf6'; }
 			else if (['mp4','webm'].includes(ext)) { iconName = 'file-video'; iconColor = '#f43f5e'; }
 
-			div.innerHTML = `<div class="tab-name"><i data-lucide="${iconName}" style="color: ${iconColor}; width: 14px; height: 14px;"></i> ${file.name}</div><div class="tab-actions"><button class="btn-icon" onclick="renameFile('${file.path}')" title="Rename"><i data-lucide="edit-2" style="width:12px;height:12px;"></i></button><button class="btn-icon" onclick="deleteFile('${file.path}')" style="color: #ef4444;" title="Delete"><i data-lucide="trash-2" style="width:12px;height:12px;"></i></button></div>`;
+			const isMod = file.source === 'fs' ? fileSystem[file.path].modified : assets[file.path].modified;
+			const modDot = isMod ? `<span class="mod-dot" style="color: var(--accent); font-weight: bold;"> •</span>` : '';
+
+			div.innerHTML = `<div class="tab-name"><i data-lucide="${iconName}" style="color: ${iconColor}; width: 14px; height: 14px;"></i> ${file.name}${modDot}</div><div class="tab-actions"><button class="btn-icon" onclick="renameFile('${file.path}')" title="Rename"><i data-lucide="edit-2" style="width:12px;height:12px;"></i></button><button class="btn-icon" onclick="deleteFile('${file.path}')" style="color: #ef4444;" title="Delete"><i data-lucide="trash-2" style="width:12px;height:12px;"></i></button></div>`;
 			container.appendChild(div);
 		});
 	}
@@ -1251,6 +1276,7 @@
 	}
 
 	function switchFile(filename) {
+		isSwitchingFile = true;
 		if (activeFile) {
 			if (fileSystem[activeFile]) fileSystem[activeFile].content = aceEditor.getValue();
 			else if (assets[activeFile] && assets[activeFile].subtype === 'svg') assets[activeFile].content = aceEditor.getValue();
@@ -1283,6 +1309,7 @@
 				label.innerText = 'MEDIA';
 			}
 		}
+		isSwitchingFile = false;
 	}
 
 	function runCode() {
@@ -1484,12 +1511,21 @@ window.onload=function(){
 	function findPrev() { const val = document.getElementById('search-input').value; if(!val) return; aceEditor.find(val, { backwards: true, wrap: true, caseSensitive: false, wholeWord: false, regExp: false, skipCurrent: false }); }
 	function replaceOne() { const findVal = document.getElementById('search-input').value; const repVal = document.getElementById('replace-input').value; if(!findVal) return; aceEditor.find(findVal, { backwards: false, wrap: true, skipCurrent: false }); aceEditor.replace(repVal); }
 	function replaceAll() { const findVal = document.getElementById('search-input').value; const repVal = document.getElementById('replace-input').value; if(!findVal) return; aceEditor.replaceAll(repVal, { needle: findVal, backwards: false, wrap: true, caseSensitive: false, wholeWord: false, regExp: false }); }
-	async function formatCurrentFile() { if (!fileSystem[activeFile]) return; const content = aceEditor.getValue(); let parser = null; if (activeFile.endsWith('.html')) parser = 'html'; else if (activeFile.endsWith('.css')) parser = 'css'; else if (activeFile.endsWith('.js')) parser = 'babel'; if (parser) { try { const formatted = prettier.format(content, { parser: parser, plugins: prettierPlugins, tabWidth: 4, useTabs: true }); aceEditor.setValue(formatted, -1); fileSystem[activeFile].content = formatted; unsavedChanges = true; } catch (e) { await customAlert("Format Error: " + e.message, "Error"); } } else { await customAlert("Formatting not supported for this file type.", "Notice"); } }
+	async function formatCurrentFile() { if (!fileSystem[activeFile]) return; const content = aceEditor.getValue(); let parser = null; if (activeFile.endsWith('.html')) parser = 'html'; else if (activeFile.endsWith('.css')) parser = 'css'; else if (activeFile.endsWith('.js')) parser = 'babel'; if (parser) { try { const formatted = prettier.format(content, { parser: parser, plugins: prettierPlugins, tabWidth: 4, useTabs: true }); isSwitchingFile = true; aceEditor.setValue(formatted, -1); isSwitchingFile = false; fileSystem[activeFile].content = formatted; fileSystem[activeFile].modified = true; unsavedChanges = true; renderSidebar(); } catch (e) { await customAlert("Format Error: " + e.message, "Error"); } } else { await customAlert("Formatting not supported for this file type.", "Notice"); } }
 	
 	function updateZoom(value) { const iframe = document.getElementById(`iframe-${activeTabId}`); if(!iframe) return; if (viewMode === 'responsive') { const percent = 100 / value; iframe.style.width = `${percent}%`; iframe.style.height = `${percent}%`; iframe.style.transform = `scale(${value})`; } else { iframe.style.transform = `scale(${value})`; } document.getElementById('zoom-val').innerText = Math.round(value * 100) + '%'; }
 	function setPresetSize(mode) { if(!activeTabId || activeTabId.includes("Terminal")) return; const iframe = document.getElementById(`iframe-${activeTabId}`); if(!iframe) return; iframe.style.width = ''; iframe.style.height = ''; iframe.style.borderLeft = 'none'; iframe.style.borderRight = 'none'; iframe.classList.remove('responsive', 'fixed'); if (mode === 'desktop') { viewMode = 'responsive'; iframe.classList.add('responsive'); } else { viewMode = mode; iframe.classList.add('fixed'); if (mode === 'tablet') { iframe.style.width = '768px'; iframe.style.height = '1024px'; } else if (mode === 'mobile') { iframe.style.width = '375px'; iframe.style.height = '667px'; } iframe.style.borderLeft = '1px solid #333'; iframe.style.borderRight = '1px solid #333'; } updateZoom(document.getElementById('zoom-slider').value); document.querySelectorAll('.device-btn').forEach(btn => btn.classList.remove('active')); if(event.currentTarget) event.currentTarget.classList.add('active'); }
-	async function saveProject(isAutoSave = false) { if (activeFile) { if (fileSystem[activeFile]) fileSystem[activeFile].content = aceEditor.getValue(); else if (assets[activeFile]?.subtype === 'svg') assets[activeFile].content = aceEditor.getValue(); } const btn = document.getElementById('save-btn'); const originalText = "Save"; if (!isAutoSave) btn.innerText = "Saving..."; try { if ('showDirectoryPicker' in window) { if (!projectHandle && !isAutoSave) { projectHandle = await window.showDirectoryPicker(); } if (projectHandle) { await saveToHandle(projectHandle); if (!isAutoSave) { btn.innerText = "Saved!"; setTimeout(() => btn.innerText = originalText, 2000); } else { btn.style.color = '#4ade80'; setTimeout(() => btn.style.color = '', 1000); } } } else { throw new Error("API not supported"); } } catch (err) { if (!isAutoSave) { await saveToZip(); if (err.name === 'AbortError') projectHandle = null; btn.innerText = "Saved!"; setTimeout(() => btn.innerText = originalText, 2000); } } }
-	async function saveToHandle(dirHandle) { for (const [name, file] of Object.entries(fileSystem)) { const fileHandle = await dirHandle.getFileHandle(name, { create: true }); const writable = await fileHandle.createWritable(); await writable.write(file.content); await writable.close(); } const assetsHandle = await dirHandle.getDirectoryHandle('Assets', { create: true }); for (const [name, asset] of Object.entries(assets)) { const fileHandle = await assetsHandle.getFileHandle(name, { create: true }); const writable = await fileHandle.createWritable(); let blob; if (asset.subtype === 'svg') blob = new Blob([asset.content], { type: 'image/svg+xml' }); else { const response = await fetch(asset.src); blob = await response.blob(); } await writable.write(blob); await writable.close(); } }
+	
+	function clearModifiedFlags() {
+		Object.values(fileSystem).forEach(f => f.modified = false);
+		Object.values(assets).forEach(a => a.modified = false);
+		deletedFiles = [];
+		unsavedChanges = true;
+		renderSidebar();
+	}
+
+	async function saveProject(isAutoSave = false) { if (activeFile) { if (fileSystem[activeFile]) fileSystem[activeFile].content = aceEditor.getValue(); else if (assets[activeFile]?.subtype === 'svg') assets[activeFile].content = aceEditor.getValue(); } const btn = document.getElementById('save-btn'); const originalText = "Save"; if (!isAutoSave) btn.innerText = "Saving..."; try { if ('showDirectoryPicker' in window) { if (!projectHandle && !isAutoSave) { projectHandle = await window.showDirectoryPicker(); } if (projectHandle) { await saveToHandle(projectHandle); if (!isAutoSave) { btn.innerText = "Saved!"; setTimeout(() => btn.innerText = originalText, 2000); clearModifiedFlags(); } else { btn.style.color = '#4ade80'; setTimeout(() => btn.style.color = '', 1000); } } } else { throw new Error("API not supported"); } } catch (err) { if (!isAutoSave) { await saveToZip(); if (err.name === 'AbortError') projectHandle = null; btn.innerText = "Saved!"; setTimeout(() => btn.innerText = originalText, 2000); clearModifiedFlags(); } } }
+	async function saveToHandle(dirHandle) { for (const [name, file] of Object.entries(fileSystem)) { if(!file.modified && file.modified !== undefined) continue; const fileHandle = await dirHandle.getFileHandle(name, { create: true }); const writable = await fileHandle.createWritable(); await writable.write(file.content); await writable.close(); } const assetsHandle = await dirHandle.getDirectoryHandle('Assets', { create: true }); for (const [name, asset] of Object.entries(assets)) { if(!asset.modified && asset.modified !== undefined) continue; const fileHandle = await assetsHandle.getFileHandle(name, { create: true }); const writable = await fileHandle.createWritable(); let blob; if (asset.subtype === 'svg') blob = new Blob([asset.content], { type: 'image/svg+xml' }); else { const response = await fetch(asset.src); blob = await response.blob(); } await writable.write(blob); await writable.close(); } for(const name of deletedFiles) { try { if(!name.includes('/')) await dirHandle.removeEntry(name); } catch(e){} } }
 	async function saveToZip() { const zip = new JSZip(); Object.keys(fileSystem).forEach(name => { zip.file(name, fileSystem[name].content); }); const imgFolder = zip.folder("Assets"); const assetPromises = Object.keys(assets).map(async name => { const asset = assets[name]; if (asset.subtype === 'svg') imgFolder.file(name, asset.content); else { try { const response = await fetch(asset.src); const blob = await response.blob(); imgFolder.file(name, blob); } catch (e) { console.error(name); imgFolder.file(name + ".txt", "Err"); } } }); await Promise.all(assetPromises); const content = await zip.generateAsync({ type: "blob" }); saveAs(content, "project.zip"); }
 	
 	function openAddMenu(category) { 
@@ -1619,19 +1655,19 @@ window.onload=function(){
 						else if (/\.(mp4|webm)$/i.test(item.path)) subtype = 'video';
 						else if (/\.pdf$/i.test(item.path)) subtype = 'pdf';
 						
-						assets[item.path] = { type: 'asset', subtype: subtype, src: rawUrl, content: null };
+						assets[item.path] = { type: 'asset', subtype: subtype, src: rawUrl, content: null, modified: false };
 					} else {
 						const contentRes = await fetch(rawUrl);
 						const content = await contentRes.text();
 						if (/\.svg$/i.test(item.path)) {
-							assets[item.path] = { type: 'asset', subtype: 'svg', content };
+							assets[item.path] = { type: 'asset', subtype: 'svg', content, modified: false };
 						} else {
 							let type = 'html'; 
 							if (item.path.endsWith('.js')) type = 'js'; 
 							else if (item.path.endsWith('.css')) type = 'css';
 							else if (item.path.endsWith('.json') || item.path.endsWith('.md') || item.path.endsWith('.txt')) type = 'text';
 							
-							fileSystem[item.path] = { type, content };
+							fileSystem[item.path] = { type, content, modified: false };
 						}
 					}
 					loadedCount++;
@@ -1641,6 +1677,7 @@ window.onload=function(){
 				const defaultFile = Object.keys(fileSystem).find(f => f.endsWith('index.html')) || Object.keys(fileSystem)[0];
 				if (defaultFile && !activeFile) switchFile(defaultFile); 
 				else if (activeFile) switchFile(activeFile);
+				deletedFiles = [];
 				unsavedChanges = true;
 				
 				loadingBar.style.width = '100%';
@@ -1675,10 +1712,18 @@ window.onload=function(){
 			// 2. Create Tree (Text Blobs & SVGs only for simplicity)
 			const treeObj = [];
 			for (const [path, file] of Object.entries(fileSystem)) {
-				treeObj.push({ path, mode: '100644', type: 'blob', content: file.content });
+				if (file.modified || file.modified === undefined) treeObj.push({ path, mode: '100644', type: 'blob', content: file.content });
 			}
 			for (const [path, asset] of Object.entries(assets)) {
-				if (asset.subtype === 'svg') treeObj.push({ path, mode: '100644', type: 'blob', content: asset.content });
+				if ((asset.modified || asset.modified === undefined) && asset.subtype === 'svg') treeObj.push({ path, mode: '100644', type: 'blob', content: asset.content });
+			}
+			for (const path of deletedFiles) {
+				treeObj.push({ path, mode: '100644', type: 'blob', sha: null });
+			}
+
+			if (treeObj.length === 0) {
+				await customAlert("No unsaved changes to commit.", "Up to date");
+				return;
 			}
 			
 			const newTree = await ghApi(`/repos/${currentGithubRepo}/git/trees`, 'POST', {
@@ -1698,19 +1743,19 @@ window.onload=function(){
 				sha: newCommit.sha
 			});
 
+			clearModifiedFlags();
 			await customAlert("Successfully committed to GitHub!", "Success");
-			unsavedChanges = false;
 		} catch (err) {
 			await customAlert("Commit failed: " + err.message, "Error");
 			console.error(err);
 		}
 	}
 
-	async function createNewFile() { let name = await customPrompt("Enter file path (e.g. src/script.js, style.css):", "", "New File"); if (!name) return; let type = ""; let content = ""; if (name.endsWith('.js')) { type = 'js'; content = `// ${name}\n`; } else if (name.endsWith('.css')) { type = 'css'; content = `/* ${name} */\n`; } else if (name.endsWith('.html')) { type = 'html'; content = `<h1>${name}</h1>`; } else if (name.endsWith('.json')) { type = 'text'; content = `{\n  \n}`; } else if (name.endsWith('.md')) { type = 'text'; content = `# ${name}\n`; } else if (name.endsWith('.txt')) { type = 'text'; content = ``; } else if (name.endsWith('.svg')) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'svg', content: '<svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg"><circle cx="25" cy="25" r="20" fill="red"/></svg>' }; switchFile(name); return; } else if (name.match(/\.(png|jpe?g|gif|webp)$/i)) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'image', src: 'https://placehold.co/100x100/333/white?text=IMG', content: null }; switchFile(name); return; } else { await customAlert("Supported formats: .html, .css, .js, .svg, md, txt, json, images", "Invalid Format"); return; } if (fileSystem[name]) { await customAlert("File name exists!", "Error"); return; } fileSystem[name] = { type, content }; switchFile(name); unsavedChanges = true; }
+	async function createNewFile() { let name = await customPrompt("Enter file path (e.g. src/script.js, style.css):", "", "New File"); if (!name) return; let type = ""; let content = ""; if (name.endsWith('.js')) { type = 'js'; content = `// ${name}\n`; } else if (name.endsWith('.css')) { type = 'css'; content = `/* ${name} */\n`; } else if (name.endsWith('.html')) { type = 'html'; content = `<h1>${name}</h1>`; } else if (name.endsWith('.json')) { type = 'text'; content = `{\n  \n}`; } else if (name.endsWith('.md')) { type = 'text'; content = `# ${name}\n`; } else if (name.endsWith('.txt')) { type = 'text'; content = ``; } else if (name.endsWith('.svg')) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'svg', content: '<svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg"><circle cx="25" cy="25" r="20" fill="red"/></svg>', modified: true }; switchFile(name); return; } else if (name.match(/\.(png|jpe?g|gif|webp)$/i)) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'image', src: 'https://placehold.co/100x100/333/white?text=IMG', content: null, modified: true }; switchFile(name); return; } else { await customAlert("Supported formats: .html, .css, .js, .svg, md, txt, json, images", "Invalid Format"); return; } if (fileSystem[name]) { await customAlert("File name exists!", "Error"); return; } fileSystem[name] = { type, content, modified: true }; switchFile(name); unsavedChanges = true; }
 	async function createNewFolder() { let name = await customPrompt("Enter folder path (e.g. src/components):", "", "New Folder"); if (!name) return; name = name.replace(/\/+$/, ''); if (!explicitFolders.includes(name)) { explicitFolders.push(name); renderSidebar(); unsavedChanges = true; } }
-	async function processUpload(event) { const file = event.target.files[0]; if (!file) return; const name = file.name; if ((fileSystem[name] || assets[name])) { const ok = await customConfirm(`Overwrite '${name}'?`, "File Exists"); if (!ok) { event.target.value = ''; return;} } const reader = new FileReader(); const isMedia = /\.(png|jpe?g|gif|webp|pdf|mp3|mp4|wav|webm|ogg)$/i.test(name); const isSVG = /\.svg$/i.test(name); if (isMedia && !isSVG) reader.readAsDataURL(file); else reader.readAsText(file); reader.onload = (e) => { const content = e.target.result; if (isMedia || isSVG) { if (isMedia && !isSVG) { let subtype = 'image'; if (/\.(mp3|wav|ogg)$/i.test(name)) subtype = 'audio'; else if (/\.(mp4|webm)$/i.test(name)) subtype = 'video'; else if (/\.pdf$/i.test(name)) subtype = 'pdf'; assets[name] = { type: 'asset', subtype: subtype, src: content, content: null }; } else if (isSVG) assets[name] = { type: 'asset', subtype: 'svg', content: content }; } else { let type = 'html'; if (name.endsWith('.js')) type = 'js'; else if (name.endsWith('.css')) type = 'css'; else if (name.endsWith('.json') || name.endsWith('.md') || name.endsWith('.txt')) type = 'text'; fileSystem[name] = { type, content }; } switchFile(name); unsavedChanges = true; event.target.value = ''; renderSidebar(); }; }
-	async function renameFile(oldName) { const newName = await customPrompt("Rename to:", oldName, "Rename File"); if (!newName || newName === oldName) return; if (fileSystem[newName] || assets[newName]) { await customAlert("Name already taken!", "Error"); return; } if (fileSystem[oldName]) { fileSystem[newName] = fileSystem[oldName]; delete fileSystem[oldName]; } else if (assets[oldName]) { assets[newName] = assets[oldName]; delete assets[oldName]; } if (activeFile === oldName) activeFile = newName; renderSidebar(); unsavedChanges = true; }
-	async function deleteFile(name) { const ok = await customConfirm(`Delete '${name}'?`, "Confirm Deletion"); if (!ok) return; if (fileSystem[name]) delete fileSystem[name]; else if (assets[name]) delete assets[name]; if (activeFile === name) activeFile = Object.keys(fileSystem)[0] || null; renderSidebar(); if(activeFile) switchFile(activeFile); else { document.getElementById('code-editor').style.display='none'; document.getElementById('binary-overlay').style.display='flex'; } unsavedChanges = true; }
+	async function processUpload(event) { const file = event.target.files[0]; if (!file) return; const name = file.name; if ((fileSystem[name] || assets[name])) { const ok = await customConfirm(`Overwrite '${name}'?`, "File Exists"); if (!ok) { event.target.value = ''; return;} } const reader = new FileReader(); const isMedia = /\.(png|jpe?g|gif|webp|pdf|mp3|mp4|wav|webm|ogg)$/i.test(name); const isSVG = /\.svg$/i.test(name); if (isMedia && !isSVG) reader.readAsDataURL(file); else reader.readAsText(file); reader.onload = (e) => { const content = e.target.result; if (isMedia || isSVG) { if (isMedia && !isSVG) { let subtype = 'image'; if (/\.(mp3|wav|ogg)$/i.test(name)) subtype = 'audio'; else if (/\.(mp4|webm)$/i.test(name)) subtype = 'video'; else if (/\.pdf$/i.test(name)) subtype = 'pdf'; assets[name] = { type: 'asset', subtype: subtype, src: content, content: null, modified: true }; } else if (isSVG) assets[name] = { type: 'asset', subtype: 'svg', content: content, modified: true }; } else { let type = 'html'; if (name.endsWith('.js')) type = 'js'; else if (name.endsWith('.css')) type = 'css'; else if (name.endsWith('.json') || name.endsWith('.md') || name.endsWith('.txt')) type = 'text'; fileSystem[name] = { type, content, modified: true }; } switchFile(name); unsavedChanges = true; event.target.value = ''; renderSidebar(); }; }
+	async function renameFile(oldName) { const newName = await customPrompt("Rename to:", oldName, "Rename File"); if (!newName || newName === oldName) return; if (fileSystem[newName] || assets[newName]) { await customAlert("Name already taken!", "Error"); return; } if (fileSystem[oldName]) { fileSystem[newName] = { ...fileSystem[oldName], modified: true }; delete fileSystem[oldName]; deletedFiles.push(oldName); } else if (assets[oldName]) { assets[newName] = { ...assets[oldName], modified: true }; delete assets[oldName]; deletedFiles.push(oldName); } if (activeFile === oldName) activeFile = newName; renderSidebar(); unsavedChanges = true; }
+	async function deleteFile(name) { const ok = await customConfirm(`Delete '${name}'?`, "Confirm Deletion"); if (!ok) return; if (fileSystem[name]) { delete fileSystem[name]; deletedFiles.push(name); } else if (assets[name]) { delete assets[name]; deletedFiles.push(name); } if (activeFile === name) activeFile = Object.keys(fileSystem)[0] || null; renderSidebar(); if(activeFile) switchFile(activeFile); else { document.getElementById('code-editor').style.display='none'; document.getElementById('binary-overlay').style.display='flex'; } unsavedChanges = true; }
 
 	function initResizers() {
 		const resizerLeft = document.getElementById('resizer-left'); const resizerRight = document.getElementById('resizer-right'); const sidebar = document.getElementById('sidebar-panel'); const editor = document.getElementById('editor-panel'); const output = document.getElementById('output-container'); const container = document.getElementById('main-container');
