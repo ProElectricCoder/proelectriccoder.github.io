@@ -155,6 +155,12 @@
 			align-items: center;
 		}
 
+		/* --- Custom Sidebar Scrollbar --- */
+		.sidebar-section::-webkit-scrollbar { width: 6px; }
+		.sidebar-section::-webkit-scrollbar-track { background: transparent; }
+		.sidebar-section::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+		.sidebar-section::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
 		.file-list {
 			display: flex;
 			flex-direction: column;
@@ -1153,7 +1159,9 @@
 		Object.keys(node.children).sort().forEach(folderName => {
 			const childNode = node.children[folderName];
 			const folderPath = pathPrefix ? `${pathPrefix}/${folderName}` : folderName;
-			const isOpen = folderStates[folderPath] !== false; 
+			
+			// Default to closed (false) unless explicitly opened (true)
+			const isOpen = folderStates[folderPath] === true; 
 			
 			const folderDiv = document.createElement('div');
 			folderDiv.className = 'folder-group';
