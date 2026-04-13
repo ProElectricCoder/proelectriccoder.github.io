@@ -17,6 +17,12 @@
 	<script src="https://unpkg.com/prettier@2.8.8/parser-postcss.js"></script>
 	<script src="https://unpkg.com/prettier@2.8.8/parser-babel.js"></script>
 
+	<!-- Load Marked for Markdown Rendering -->
+	<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+	<!-- Load Babel for JSX Compilation -->
+	<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
 	<!-- Load Ace Editor -->
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ace.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ext-language_tools.min.js"></script>
@@ -868,9 +874,26 @@
 
 	// --- File System State ---
 	let fileSystem = {
-		'index.html': { type: 'html', content: `<!DOCTYPE html>\n<html>\n\t<head>\n\t\t<link rel="stylesheet" href="style.css" />\n\t</head>\n\t<body>\n\t\t<div class="card">\n\t\t\t<div class="icon-container"><img src="logo.svg" /></div>\n\t\t\t<h2 class="card-title">Deep Blue</h2>\n\t\t\t<p class="card-subtitle">Code comfortably</p>\n\t\t</div>\n\t\t<script src="script.js"><\/script>\n\t</body>\n</html>` },
-		'style.css': { type: 'css', content: `body {\n\tbackground-color: #0a0e14;\n\tdisplay: flex;\n\tjustify-content: center;\n\talign-items: center;\n\theight: 100vh;\n\tmargin: 0;\n\toverflow: hidden;\n\tfont-family: system-ui, sans-serif;\n}\n.card {\n\twidth: 100%;\n\tmax-width: 24rem;\n\taspect-ratio: 16/9;\n\tbackground-color: #111720;\n\tborder-radius: 1rem;\n\tborder: 1px solid rgba(0, 229, 255, 0.3);\n\tdisplay: flex;\n\tflex-direction: column;\n\talign-items: center;\n\tjustify-content: center;\n\tbox-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);\n\ttransition: all 300ms;\n}\n.card:hover {\n\ttransform: translateY(-0.25rem);\n\tbox-shadow: 0 0 40px -10px rgba(0, 229, 255, 0.3);\n}\n.icon-container {\n\twidth: 4rem;\n\theight: 4rem;\n\tmargin-bottom: 1rem;\n\topacity: 0.8;\n}\n.icon-container img {\n\twidth: 100%;\n\theight: 100%;\n}\n.card-title {\n\tfont-size: 1.5rem;\n\tfont-weight: 700;\n\tcolor: white;\n\tmargin: 0;\n}\n.card-subtitle {\n\tcolor: rgba(0, 229, 255, 0.5);\n\tmargin-top: 0.25rem;\n\tfont-weight: 300;\n\tmargin-bottom: 0;\n}` },
-		'script.js': { type: 'js', content: `console.log("Welcome to Deep Blue!");\nconsole.info("This is an info message useful for debugging.");\nconsole.warn("Be careful! This is a warning.");\nconsole.error("Oops! Something went wrong (Simulation).");\nconsole.info("Try typing 'document.body.style.background = \\"purple\\"' in the console below!");` }
+    	'index.html': { 
+     	    type: 'html', 
+    	    content: `<!DOCTYPE html>\n<html>\n\t<head>\n\t\t<link rel="stylesheet" href="style.css" />\n\t</head>\n\t<body>\n\t\t<div class="card">\n\t\t\t<div class="icon-container"><img src="logo.svg" /></div>\n\t\t\t<h2 class="card-title">Deep Blue</h2>\n\t\t\t<p class="card-subtitle">Code comfortably</p>\n\t\t</div>\n\t\t<div class="brand-watermark">DeepBlue - World Class IDE</div>\n\t\t<script src="script.js"><\/script>\n\t</body>\n</html>` 
+    	},
+   		'style.css': { 
+    	    type: 'css', 
+    	    content: `body {\n\tbackground-color: #0a0e14;\n\tdisplay: flex;\n\tjustify-content: center;\n\talign-items: center;\n\theight: 100vh;\n\tmargin: 0;\n\toverflow: hidden;\n\tfont-family: system-ui, sans-serif;\n}\n.card {\n\twidth: 100%;\n\tmax-width: 24rem;\n\taspect-ratio: 16/9;\n\tbackground-color: #111720;\n\tborder-radius: 1rem;\n\tborder: 1px solid rgba(0, 229, 255, 0.3);\n\tdisplay: flex;\n\tflex-direction: column;\n\talign-items: center;\n\tjustify-content: center;\n\tbox-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);\n\ttransition: all 300ms;\n}\n.card:hover {\n\ttransform: translateY(-0.25rem);\n\tbox-shadow: 0 0 40px -10px rgba(0, 229, 255, 0.3);\n}\n.icon-container {\n\twidth: 4rem;\n\theight: 4rem;\n\tmargin-bottom: 1rem;\n\topacity: 0.8;\n}\n.icon-container img {\n\twidth: 100%;\n\theight: 100%;\n}\n.card-title {\n\tfont-size: 1.5rem;\n\tfont-weight: 700;\n\tcolor: white;\n\tmargin: 0;\n}\n.card-subtitle {\n\tcolor: rgba(0, 229, 255, 0.5);\n\tmargin-top: 0.25rem;\n\tfont-weight: 300;\n\tmargin-bottom: 0;\n}\n.brand-watermark {\n\tposition: absolute;\n\tbottom: 1rem;\n\tleft: 1rem;\n\tcolor: #000000ff;\n\tfont-size: 0.85rem;\n\ttransition: color 300ms;\n\tcursor: default;\n}\n.brand-watermark:hover {\n\tcolor: #00e5ff;\n}` 
+    	},
+    	'script.js': { 
+    	    type: 'js', 
+    	    content: `console.log("Welcome to Deep Blue!");\nconsole.info("This is an info message useful for debugging.");\nconsole.warn("Be Careful! This is a warning.");\nconsole.error("Oops! Something went wrong (Simulation).");\nconsole.warn("This IDE is too good for you to use");\nconsole.info("But keep using it, you are welcome!");\nconsole.info("Try typing 'document.body.style.background = \\"purple\\"' in the console below!");` 
+    	},
+    	'markdown.md': { 
+    	    type: 'text', 
+    	    content: `# Hello Markdown\n\nThis is a sample markdown file. It will be rendered to HTML when you run it!\n\nImagine having such a good IDE (like this one) for coding.\n\n---\n*Just a humble masterpiece, casually built by **ProElectricCoder***`, 
+    	},
+		'jsxml.jsx': {
+        	type: 'react',
+        	content: `const { useState } = React;\n\nfunction App() {\n\tconst [awesomeness, setAwesomeness] = useState(9000);\n\tconst perks = ['Seamless Logic', 'Elegant Syntax', 'ProElectricCoder Certified'];\n\n\treturn (\n\t\t<div style={{ padding: '2rem', textAlign: 'center', color: '#fff', fontFamily: 'system-ui' }}>\n\t\t\t<h1 style={{ color: '#00e5ff' }}>Behold the Power of JSX!</h1>\n\t\t\t<p>Where UI meets logic. So flawless it feels like cheating.</p>\n\t\t\t<ul style={{ listStyleType: 'none', padding: 0, color: 'rgba(0, 229, 255, 0.8)' }}>\n\t\t\t\t{perks.map((perk, index) => (\n\t\t\t\t\t<li key={index}>⚡ {perk}</li>\n\t\t\t\t))}\n\t\t\t</ul>\n\t\t\t<button \n\t\t\t\tonClick={() => setAwesomeness(awesomeness + 1)}\n\t\t\t\tstyle={{ marginTop: '1rem', padding: '0.5rem 1rem', background: '#00e5ff', color: '#0a0e14', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 'bold' }}\n\t\t\t>\n\t\t\t\tAwesomeness Level: {awesomeness}\n\t\t\t</button>\n\t\t</div>\n\t);\n}\n\nconst root = ReactDOM.createRoot(document.getElementById('react-root'));\nroot.render(<App />);`
+    	}
 	};
 
 	let assets = {
@@ -1242,7 +1265,7 @@
 			
 			if (ext === 'html') { iconName = 'file-code-2'; iconColor = '#e34c26'; }
 			else if (ext === 'css') { iconName = 'file-code'; iconColor = '#264de4'; }
-			else if (ext === 'js') { iconName = 'file-json'; iconColor = '#f7df1e'; }
+			else if (ext === 'js' || ext === 'jsx') { iconName = 'file-json'; iconColor = ext === 'jsx' ? '#61dafb' : '#f7df1e'; }
 			else if (ext === 'json') { iconName = 'file-json-2'; iconColor = '#f7df1e'; }
 			else if (ext === 'md' || ext === 'txt') { iconName = 'file-text'; iconColor = '#94a3b8'; }
 			else if (ext === 'sep') { iconName = 'file-key-2'; iconColor = '#00e5ff'; }
@@ -1344,7 +1367,7 @@
 			let mode = 'ace/mode/text'; 
 			if (filename.endsWith('.html')) mode = 'ace/mode/html'; 
 			else if (filename.endsWith('.css')) mode = 'ace/mode/css'; 
-			else if (filename.endsWith('.js')) mode = 'ace/mode/javascript';
+			else if (filename.endsWith('.js') || filename.endsWith('.jsx')) mode = 'ace/mode/javascript';
 			else if (filename.endsWith('.json')) mode = 'ace/mode/json';
 			else if (filename.endsWith('.md')) mode = 'ace/mode/markdown';
 			aceEditor.session.setMode(mode);
@@ -1408,6 +1431,7 @@
 			createTab(targetFile, 'web');
 			let mime = 'text/plain';
 			if (ext === 'json') mime = 'application/json';
+			if (ext === 'md') mime = 'text/html';
 			
 			let content = fileSystem[targetFile].content;
 			if (content === null && fileSystem[targetFile].ghUrl) {
@@ -1415,14 +1439,28 @@
 				fileSystem[targetFile].content = content;
 			}
 
-			const blob = new Blob([content], { type: mime });
+			let finalContent = content;
+			if (ext === 'md') {
+				const htmlBody = marked.parse(content);
+				finalContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>body{font-family:system-ui,-apple-system,sans-serif;line-height:1.6;padding:2rem;max-width:800px;margin:0 auto;color:#333;background:#fff;}pre{background:#f1f5f9;padding:1rem;border-radius:6px;overflow-x:auto;}code{font-family:monospace;background:#f1f5f9;padding:0.2rem 0.4rem;border-radius:4px;}blockquote{border-left:4px solid #cbd5e1;margin:0;padding-left:1rem;color:#64748b;}img{max-width:100%;height:auto;border-radius:6px;}h1,h2,h3,h4{color:#0f172a;}a{color:#00e5ff;text-decoration:none;}a:hover{text-decoration:underline;}</style></head><body>${htmlBody}</body></html>`;
+			}
+
+			const blob = new Blob([finalContent], { type: mime });
 			const iframe = document.getElementById(`iframe-${targetFile}`);
 			if (iframe) iframe.src = URL.createObjectURL(blob);
 			return;
 		}
 
-		// 3. If it's code (JS, CSS, etc.) that requires an HTML shell to execute, fallback to index.html
-		if (!fileSystem[targetFile] || fileSystem[targetFile].type !== 'html') {
+		let isVirtualJSX = false;
+		let htmlContent = '';
+
+		// 3. JSX Virtual Environment Shell
+		if (ext === 'jsx') {
+			isVirtualJSX = true;
+			htmlContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>body { margin: 0; background: #0a0e14; color: #fff; font-family: system-ui, sans-serif; }</style><script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin><\/script><script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin><\/script></head><body><div id="react-root"></div><script src="${targetFile}"><\/script><script>console.warn("JSX isn’t executed directly, it’s transpiled and rendered in an HTML context; this preview shows the compiled output, not the raw JSX.")<\/script></body></html>`;
+		}
+		// 4. If it's code (JS, CSS, etc.) that requires an HTML shell to execute, fallback to index.html
+		else if (!fileSystem[targetFile] || fileSystem[targetFile].type !== 'html') {
 			if (fileSystem['index.html']) {
 				targetFile = 'index.html'; 
 			} else { 
@@ -1434,22 +1472,32 @@
 			}
 		}
 		
-		// 4. Normal HTML bundling flow
-		createTab(targetFile, 'web');
+		// 5. Normal HTML bundling flow
+		const tabId = isVirtualJSX ? activeFile : targetFile;
+		createTab(tabId, 'web');
 		document.getElementById('console-log-container').innerHTML = '<div style="opacity:0.5;font-size:0.7rem;margin-bottom:5px;">--- Run Started ---</div>';
-		let htmlContent = fileSystem[targetFile].content;
 		
-		if (htmlContent === null && fileSystem[targetFile].ghUrl) {
-			try {
-				htmlContent = await fetchWithProgress(fileSystem[targetFile].ghUrl);
-				fileSystem[targetFile].content = htmlContent;
-			} catch(e) { htmlContent = "<h1>Error loading entry file</h1>"; }
+		if (!isVirtualJSX) {
+			htmlContent = fileSystem[targetFile].content;
+			if (htmlContent === null && fileSystem[targetFile].ghUrl) {
+				try {
+					htmlContent = await fetchWithProgress(fileSystem[targetFile].ghUrl);
+					fileSystem[targetFile].content = htmlContent;
+				} catch(e) { htmlContent = "<h1>Error loading entry file</h1>"; }
+			}
 		}
 
 		const blobMap = {}; const createBlob = (content, mime) => URL.createObjectURL(new Blob([content], { type: mime }));
 		Object.keys(fileSystem).forEach(fname => {
-			if (fname === targetFile || fileSystem[fname].content === null) return;
-			const mime = fname.endsWith('.js') ? 'application/javascript' : 'text/css'; blobMap[fname] = createBlob(fileSystem[fname].content, mime);
+			if (!isVirtualJSX && fname === targetFile) return;
+			if (fileSystem[fname].content === null) return;
+			let mime = (fname.endsWith('.js') || fname.endsWith('.jsx')) ? 'application/javascript' : 'text/css';
+			let fContent = fileSystem[fname].content;
+			if (fname.endsWith('.jsx') && typeof Babel !== 'undefined') {
+				try { fContent = Babel.transform(fContent, { presets: ['react'] }).code; }
+				catch(e) { console.error('JSX Error:', e); }
+			}
+			blobMap[fname] = createBlob(fContent, mime);
 		});
 		Object.keys(assets).forEach(fname => {
 			const a = assets[fname]; if (a.subtype === 'svg' && a.content === null) return;
@@ -1471,8 +1519,9 @@
 
 			return match; 
 		});
+		processedHTML = processedHTML.replace(/type\s*=\s*["']text\/babel["']/g, 'type="application/javascript"');
 		if (processedHTML.includes('<head>')) processedHTML = processedHTML.replace('<head>', '<head>' + consoleScript); else processedHTML = consoleScript + processedHTML;
-		const oldIframe = document.getElementById(`iframe-${targetFile}`);
+		const oldIframe = document.getElementById(`iframe-${tabId}`);
 		if(oldIframe) {
 			// Clear URL to ensure we accept raw content writing
 			oldIframe.src = '';
@@ -1504,7 +1553,13 @@
 
 	async function shareProject() {
 		let targetFile = activeFile;
-		if (!fileSystem[targetFile] || fileSystem[targetFile].type !== 'html') {
+		let isVirtualJSX = false;
+		let htmlContent = '';
+
+		if (targetFile && targetFile.endsWith('.jsx')) {
+			isVirtualJSX = true;
+			htmlContent = `<!DOCTYPE html>\n<html>\n<head>\n\t<meta charset="utf-8">\n\t<meta name="viewport" content="width=device-width, initial-scale=1.0">\n\t<style>body { margin: 0; background: #0a0e14; color: #fff; font-family: system-ui, sans-serif; }</style>\n\t<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin><\/script>\n\t<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin><\/script>\n</head>\n<body>\n\t<div id="react-root"></div>\n\t<script src="${targetFile}"><\/script>\n</body>\n</html>`;
+		} else if (!fileSystem[targetFile] || fileSystem[targetFile].type !== 'html') {
 			if (fileSystem['index.html']) targetFile = 'index.html';
 			else { await customAlert("Open an HTML file to share.", "Notice"); return; }
 		}
@@ -1512,9 +1567,11 @@
 		// Ensure current editor content is saved to memory
 		if (fileSystem[activeFile]) fileSystem[activeFile].content = aceEditor.getValue();
 
-		let htmlContent = fileSystem[targetFile].content;
-		if (htmlContent === null && fileSystem[targetFile].ghUrl) {
-			htmlContent = await fetchWithProgress(fileSystem[targetFile].ghUrl);
+		if (!isVirtualJSX) {
+			htmlContent = fileSystem[targetFile].content;
+			if (htmlContent === null && fileSystem[targetFile].ghUrl) {
+				htmlContent = await fetchWithProgress(fileSystem[targetFile].ghUrl);
+			}
 		}
 
 		let basePath = targetFile.includes('/') ? targetFile.substring(0, targetFile.lastIndexOf('/') + 1) : '';
@@ -1537,11 +1594,17 @@
 			let cleanPath = src.startsWith('./') ? src.slice(2) : src;
 			const file = fileSystem[basePath + cleanPath] || fileSystem[cleanPath];
 			if (file && file.type === 'js') {
-				if (file.content !== null) return `<script>${file.content}<\/script>`;
+				let fContent = file.content;
+				if (cleanPath.endsWith('.jsx') && typeof Babel !== 'undefined' && fContent) {
+					try { fContent = Babel.transform(fContent, { presets: ['react'] }).code; }
+					catch(e) { console.error('JSX Error:', e); }
+				}
+				if (fContent !== null) return `<script>${fContent}<\/script>`;
 				if (file.ghUrl) return match.replace(src, file.ghUrl);
 			}
 			return match;
 		});
+		htmlContent = htmlContent.replace(/type\s*=\s*["']text\/babel["']/g, 'type="application/javascript"');
 
 		// Inline Assets (Images/SVGs)
 		htmlContent = htmlContent.replace(/(src|href)=["']([^"']+)["']/g, (match, attr, path) => {
@@ -1789,7 +1852,7 @@ window.onload=function(){
 							assets[prefixedPath] = { type: 'asset', subtype: 'svg', content: null, modified: false, ghUrl: rawUrl };
 						} else {
 							let type = 'html'; 
-							if (item.path.endsWith('.js')) type = 'js'; 
+							if (item.path.endsWith('.js') || item.path.endsWith('.jsx')) type = 'js'; 
 							else if (item.path.endsWith('.css')) type = 'css';
 							else if (item.path.endsWith('.json') || item.path.endsWith('.md') || item.path.endsWith('.txt')) type = 'text';
 							
@@ -1887,9 +1950,9 @@ window.onload=function(){
 		}
 	}
 
-	async function createNewFile() { let name = await customPrompt("Enter file path (e.g. src/script.js, style.css):", "", "New File"); if (!name) return; let type = ""; let content = ""; if (name.endsWith('.js')) { type = 'js'; content = `// ${name}\n`; } else if (name.endsWith('.css')) { type = 'css'; content = `/* ${name} */\n`; } else if (name.endsWith('.html')) { type = 'html'; content = `<h1>${name}</h1>`; } else if (name.endsWith('.json')) { type = 'text'; content = `{\n  \n}`; } else if (name.endsWith('.md')) { type = 'text'; content = `# ${name}\n`; } else if (name.endsWith('.txt')) { type = 'text'; content = ``; } else if (name.endsWith('.svg')) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'svg', content: '<svg viewBox="0 0 50 50" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)"><circle cx="25" cy="25" r="20" fill="red"/></svg>', modified: true }; await switchFile(name); return; } else if (name.match(/\.(png|jpe?g|gif|webp)$/i)) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'image', src: '[https://placehold.co/100x100/333/white?text=IMG](https://placehold.co/100x100/333/white?text=IMG)', content: null, modified: true }; await switchFile(name); return; } else { await customAlert("Supported formats: .html, .css, .js, .svg, md, txt, json, images", "Invalid Format"); return; } if (fileSystem[name]) { await customAlert("File name exists!", "Error"); return; } fileSystem[name] = { type, content, modified: true }; await switchFile(name); unsavedChanges = true; }
+	async function createNewFile() { let name = await customPrompt("Enter file path (e.g. src/script.js, style.css):", "", "New File"); if (!name) return; let type = ""; let content = ""; if (name.endsWith('.js') || name.endsWith('.jsx')) { type = 'js'; content = `// ${name}\n`; } else if (name.endsWith('.css')) { type = 'css'; content = `/* ${name} */\n`; } else if (name.endsWith('.html')) { type = 'html'; content = `<h1>${name}</h1>`; } else if (name.endsWith('.json')) { type = 'text'; content = `{\n  \n}`; } else if (name.endsWith('.md')) { type = 'text'; content = `# ${name}\n`; } else if (name.endsWith('.txt')) { type = 'text'; content = ``; } else if (name.endsWith('.svg')) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'svg', content: '<svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg"><circle cx="25" cy="25" r="20" fill="red"/></svg>', modified: true }; await switchFile(name); return; } else if (name.match(/\.(png|jpe?g|gif|webp)$/i)) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'image', src: 'https://placehold.co/100x100/333/white?text=IMG', content: null, modified: true }; await switchFile(name); return; } else { await customAlert("Supported formats: .html, .css, .js, .jsx, .svg, md, txt, json, images", "Invalid Format"); return; } if (fileSystem[name]) { await customAlert("File name exists!", "Error"); return; } fileSystem[name] = { type, content, modified: true }; await switchFile(name); unsavedChanges = true; }
 	async function createNewFolder() { let name = await customPrompt("Enter folder path (e.g. src/components):", "", "New Folder"); if (!name) return; name = name.replace(/\/+$/, ''); if (!explicitFolders.includes(name)) { explicitFolders.push(name); renderSidebar(); unsavedChanges = true; } }
-	async function processUpload(event) { const file = event.target.files[0]; if (!file) return; const name = file.name; if ((fileSystem[name] || assets[name])) { const ok = await customConfirm(`Overwrite '${name}'?`, "File Exists"); if (!ok) { event.target.value = ''; return;} } const reader = new FileReader(); const isMedia = /\.(png|jpe?g|gif|webp|pdf|mp3|mp4|wav|webm|ogg)$/i.test(name); const isSVG = /\.svg$/i.test(name); if (isMedia && !isSVG) reader.readAsDataURL(file); else reader.readAsText(file); reader.onload = async (e) => { const content = e.target.result; if (isMedia || isSVG) { if (isMedia && !isSVG) { let subtype = 'image'; if (/\.(mp3|wav|ogg)$/i.test(name)) subtype = 'audio'; else if (/\.(mp4|webm)$/i.test(name)) subtype = 'video'; else if (/\.pdf$/i.test(name)) subtype = 'pdf'; assets[name] = { type: 'asset', subtype: subtype, src: content, content: null, modified: false }; } else if (isSVG) assets[name] = { type: 'asset', subtype: 'svg', content: content, modified: false }; } else { let type = 'html'; if (name.endsWith('.js')) type = 'js'; else if (name.endsWith('.css')) type = 'css'; else if (name.endsWith('.json') || name.endsWith('.md') || name.endsWith('.txt')) type = 'text'; fileSystem[name] = { type, content, modified: false }; } await switchFile(name); unsavedChanges = true; event.target.value = ''; renderSidebar(); }; }
+	async function processUpload(event) { const file = event.target.files[0]; if (!file) return; const name = file.name; if ((fileSystem[name] || assets[name])) { const ok = await customConfirm(`Overwrite '${name}'?`, "File Exists"); if (!ok) { event.target.value = ''; return;} } const reader = new FileReader(); const isMedia = /\.(png|jpe?g|gif|webp|pdf|mp3|mp4|wav|webm|ogg)$/i.test(name); const isSVG = /\.svg$/i.test(name); if (isMedia && !isSVG) reader.readAsDataURL(file); else reader.readAsText(file); reader.onload = async (e) => { const content = e.target.result; if (isMedia || isSVG) { if (isMedia && !isSVG) { let subtype = 'image'; if (/\.(mp3|wav|ogg)$/i.test(name)) subtype = 'audio'; else if (/\.(mp4|webm)$/i.test(name)) subtype = 'video'; else if (/\.pdf$/i.test(name)) subtype = 'pdf'; assets[name] = { type: 'asset', subtype: subtype, src: content, content: null, modified: false }; } else if (isSVG) assets[name] = { type: 'asset', subtype: 'svg', content: content, modified: false }; } else { let type = 'html'; if (name.endsWith('.js') || name.endsWith('.jsx')) type = 'js'; else if (name.endsWith('.css')) type = 'css'; else if (name.endsWith('.json') || name.endsWith('.md') || name.endsWith('.txt')) type = 'text'; fileSystem[name] = { type, content, modified: false }; } await switchFile(name); unsavedChanges = true; event.target.value = ''; renderSidebar(); }; }
 	
 	async function processFolderUpload(event) {
 		const files = event.target.files;
@@ -1930,7 +1993,7 @@ window.onload=function(){
 						} else if (isSVG) assets[path] = { type: 'asset', subtype: 'svg', content: content, modified: false };
 					} else {
 						let type = 'html';
-						if (path.endsWith('.js')) type = 'js';
+						if (path.endsWith('.js') || path.endsWith('.jsx')) type = 'js';
 						else if (path.endsWith('.css')) type = 'css';
 						else if (path.endsWith('.json') || path.endsWith('.md') || path.endsWith('.txt')) type = 'text';
 						fileSystem[path] = { type, content, modified: false };
