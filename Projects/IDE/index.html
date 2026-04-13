@@ -214,11 +214,12 @@
 		.folder-name-container { display: flex; align-items: center; gap: 8px; }
 		.folder-actions { opacity: 0; transition: opacity 0.2s; display: flex; gap: 4px; }
 		.folder-header:hover .folder-actions { opacity: 1; }
-		.folder-header .chevron { transition: transform 0.2s; font-size: 0.6rem; display: inline-block; }
+		.folder-header .chevron { transition: transform 0.2s; width: 14px; height: 14px; display: inline-block; }
 		.folder-header.open .chevron { transform: rotate(90deg); }
 		.folder-content { display: none; flex-direction: column; }
 		.folder-content.open { display: flex; }
 		.folder-header .icon-folder { width: 14px; height: 14px; color: var(--accent); }
+		.folder-header .icon-github { width: 14px; height: 14px; color: #ffffff; }
 		.tab-name .lucide { margin-right: 4px; flex-shrink: 0; }
 
 		/* --- Editor Area --- */
@@ -232,22 +233,6 @@
 			flex-direction: column;
 			overflow: hidden;
 			position: relative;
-		}
-
-		.editor-label {
-			position: absolute;
-			top: 0;
-			right: 0;
-			background: var(--bg-app);
-			color: var(--text-muted);
-			padding: 4px 12px;
-			border-bottom-left-radius: var(--radius-md);
-			font-size: 0.75rem;
-			font-family: monospace;
-			border-left: 1px solid var(--border);
-			border-bottom: 1px solid var(--border);
-			pointer-events: none;
-			z-index: 25;
 		}
 
 		.ace_scrollbar::-webkit-scrollbar {
@@ -298,7 +283,7 @@
 			border-top: 1px solid var(--border);
 			display: flex;
 			align-items: center;
-			justify-content: flex-end;
+			justify-content: space-between;
 			padding: 0 15px;
 			gap: 20px;
 			font-family: 'Consolas', monospace;
@@ -652,7 +637,7 @@
 		</button>
 
 		<!-- GitHub Actions -->
-		<button class="btn btn-secondary btn-icon" onclick="openGithubAuth()" title="GitHub Authentication">
+		<button class="btn btn-secondary btn-icon" onclick="confirmGithubAuth()" title="GitHub Authentication">
 			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
 		</button>
 		<button class="btn btn-secondary btn-icon" onclick="openGithubCommit()" title="Commit to GitHub" id="gh-commit-btn" style="display:none;">
@@ -691,7 +676,6 @@
 
 	<!-- Code Input Area -->
 	<div class="editor-container" id="editor-panel">
-		<div class="editor-label" id="editor-lang-label">HTML</div>
 		
 		<!-- Search Toolbar -->
 		<div id="search-toolbar">
@@ -722,6 +706,7 @@
 
 		<!-- Status Bar -->
 		<div class="status-bar" id="status-bar">
+			<div class="status-item" id="editor-lang-label">HTML</div>
 			<div class="status-item" id="cursor-pos">Ln 1, Col 1</div>
 		</div>
 	</div>
@@ -833,6 +818,11 @@
 			<div><h4>Upload File</h4><p>Import from computer</p></div>
 		</div>
 
+		<div class="modal-option" onclick="handleFolderUpload()">
+			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+			<div><h4>Upload Folder</h4><p>Import directory from computer</p></div>
+		</div>
+
 		<!-- New Import from URL Option -->
 		<div class="modal-option" id="import-url-option" onclick="handleGithubImport()" style="display:none;">
 			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
@@ -858,6 +848,7 @@
 
 <!-- Hidden Input for Upload (Updated accepted types) -->
 <input type="file" id="file-upload" style="display:none" onchange="processUpload(event)" accept=".html,.css,.js,.png,.jpg,.jpeg,.gif,.svg,.webp,.txt,.md,.json,.pdf,.mp3,.mp4,.wav,.webm">
+<input type="file" id="folder-upload" style="display:none" webkitdirectory directory onchange="processFolderUpload(event)">
 
 <script>
 	// --- FIREBASE CONFIGURATION ---
@@ -904,7 +895,7 @@
 	let isSwitchingFile = false;
 
 	// --- Custom Dialog System ---
-	function showCustomDialog(type, title, msg, defaultVal = '') {
+	function showCustomDialog(type, title, msg, defaultVal = '', okText = 'OK', cancelText = 'Cancel') {
 		return new Promise(resolve => {
 			const overlay = document.getElementById('dialog-overlay');
 			const titleEl = document.getElementById('dialog-title');
@@ -916,6 +907,8 @@
 			titleEl.innerText = title;
 			msgEl.innerHTML = msg; 
 			inputEl.value = defaultVal;
+			btnOk.innerText = okText;
+			btnCancel.innerText = cancelText;
 			
 			if (type === 'prompt') {
 				inputEl.style.display = 'block';
@@ -956,7 +949,7 @@
 	const customPrompt = (msg, defaultVal='', title="Input") => showCustomDialog('prompt', title, msg, defaultVal);
 
 	// --- Init Ace Editor ---
-	window.addEventListener('load', function() {
+	window.addEventListener('load', async function() {
 		ace.config.set('basePath', 'https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/');
 
 		// Main Editor
@@ -1008,8 +1001,8 @@
 		if (githubToken) document.getElementById('gh-commit-btn').style.display = 'flex';
 
 		renderSidebar();
-		switchFile('index.html'); 
-		runWeb();
+		await switchFile('index.html'); 
+		await runWeb();
 		initResizers();
 
 		window.addEventListener('message', (e) => {
@@ -1065,7 +1058,7 @@
 			
 			// Handle media assets directly to native browser viewers
 			if (/\.(png|jpe?g|gif|webp|pdf|mp3|wav|ogg|mp4|webm)$/i.test(name)) {
-				reader.onload = (e) => { 
+				reader.onload = async (e) => { 
 					let subtype = 'image';
 					if (/\.(mp3|wav|ogg)$/i.test(name)) subtype = 'audio';
 					else if (/\.(mp4|webm)$/i.test(name)) subtype = 'video';
@@ -1076,7 +1069,7 @@
 				};
 				reader.readAsDataURL(file);
 			} else if (/\.(html|css|js|txt|json|md|sep|enc)$/i.test(name) || /\.svg$/i.test(name)) {
-				reader.onload = (e) => {
+				reader.onload = async (e) => {
 					if (/\.svg$/i.test(name)) assets[name] = { type: 'asset', subtype: 'svg', content: e.target.result, modified: true };
 					else {
 						let type = 'html'; 
@@ -1086,7 +1079,7 @@
 						
 						fileSystem[name] = { type, content: e.target.result, modified: true };
 					}
-					renderSidebar(); unsavedChanges = true; switchFile(name);
+					renderSidebar(); unsavedChanges = true; await switchFile(name);
 				};
 				reader.readAsText(file);
 			}
@@ -1188,7 +1181,8 @@
 			// Default to closed (false) unless explicitly opened (true)
 			const isOpen = folderStates[folderPath] === true; 
 			const isRepo = depth === 0 && importedRepoFolders.includes(folderName);
-			const iconFolderStr = isRepo ? 'github' : (isOpen ? 'folder-open' : 'folder');
+			const iconFolderStr = isOpen ? 'folder-open' : 'folder';
+			const iconClass = isRepo ? 'icon-github' : 'icon-folder';
 			
 			const folderDiv = document.createElement('div');
 			folderDiv.className = 'folder-group';
@@ -1196,10 +1190,15 @@
 			const header = document.createElement('div');
 			header.className = `folder-header ${isOpen ? 'open' : ''}`;
 			header.style.paddingLeft = `${15 + depth * 15}px`;
+			
+			const folderIconHtml = isRepo 
+				? `<svg class="${iconClass}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>`
+				: `<i data-lucide="${iconFolderStr}" class="${iconClass}"></i>`;
+
 			header.innerHTML = `
 				<div class="folder-name-container">
 					<i data-lucide="chevron-right" class="chevron"></i>
-					<i data-lucide="${iconFolderStr}" class="icon-folder"></i>
+					${folderIconHtml}
 					${folderName}
 				</div>
 				<div class="folder-actions">
@@ -1217,10 +1216,12 @@
 				folderStates[folderPath] = willOpen;
 				header.classList.toggle('open', willOpen);
 				content.classList.toggle('open', willOpen);
-				const newIconFolderStr = isRepo ? 'github' : (willOpen ? 'folder-open' : 'folder');
-				const iconEl = header.querySelector('.icon-folder');
-				if(iconEl) iconEl.setAttribute('data-lucide', newIconFolderStr);
-				lucide.createIcons({ root: header });
+				if (!isRepo) {
+					const newIconFolderStr = willOpen ? 'folder-open' : 'folder';
+					const iconEl = header.querySelector('.icon-folder');
+					if(iconEl) iconEl.setAttribute('data-lucide', newIconFolderStr);
+					lucide.createIcons({ root: header });
+				}
 			};
 			
 			renderTree(childNode, content, depth + 1, folderPath);
@@ -1233,7 +1234,7 @@
 			const div = document.createElement('div');
 			div.className = `tab ${file.path === activeFile ? 'active' : ''}`;
 			div.style.paddingLeft = `${15 + depth * 15}px`;
-			div.onclick = (e) => { if(!e.target.closest('.btn-icon')) switchFile(file.path); };
+			div.onclick = async (e) => { if(!e.target.closest('.btn-icon')) await switchFile(file.path); };
 			
 			let iconName = 'file';
 			let iconColor = '#7b8ea5';
@@ -1293,18 +1294,51 @@
 		lucide.createIcons({ root: list });
 	}
 
-	function switchFile(filename) {
+	async function fetchWithProgress(url) {
+		const bar = document.getElementById('gh-loading-bar');
+		bar.style.opacity = '1'; bar.style.width = '50%';
+		try {
+			const res = await fetch(url);
+			const text = await res.text();
+			bar.style.width = '100%';
+			setTimeout(() => { bar.style.opacity = '0'; setTimeout(() => bar.style.width = '0%', 300); }, 300);
+			return text;
+		} catch(e) {
+			bar.style.opacity = '0'; setTimeout(() => bar.style.width = '0%', 300);
+			throw e;
+		}
+	}
+
+	async function switchFile(filename) {
 		isSwitchingFile = true;
 		if (activeFile) {
 			if (fileSystem[activeFile]) fileSystem[activeFile].content = aceEditor.getValue();
 			else if (assets[activeFile] && assets[activeFile].subtype === 'svg') assets[activeFile].content = aceEditor.getValue();
+			
+			// RAM saving logic: clear unedited repo files from memory when not viewed
+			if (fileSystem[activeFile] && fileSystem[activeFile].ghUrl && !fileSystem[activeFile].modified) {
+				fileSystem[activeFile].content = null;
+			} else if (assets[activeFile] && assets[activeFile].ghUrl && !assets[activeFile].modified && assets[activeFile].subtype === 'svg') {
+				assets[activeFile].content = null;
+			}
 		}
 		activeFile = filename; renderSidebar();
 		const overlay = document.getElementById('binary-overlay'); const editorDiv = document.querySelector('.editor-wrapper'); const label = document.getElementById('editor-lang-label');
 		
 		if (fileSystem[filename]) {
 			overlay.style.display = 'none'; editorDiv.style.display = 'flex';
-			aceEditor.setValue(fileSystem[filename].content, -1); 
+			
+			// Lazy load missing text file contents from GitHub
+			if (fileSystem[filename].content === null && fileSystem[filename].ghUrl) {
+				aceEditor.setValue("Loading...", -1);
+				try {
+					fileSystem[filename].content = await fetchWithProgress(fileSystem[filename].ghUrl);
+				} catch(e) {
+					fileSystem[filename].content = "Error loading: " + e.message;
+				}
+			}
+
+			aceEditor.setValue(fileSystem[filename].content || "", -1); 
 			label.innerText = fileSystem[filename].type.toUpperCase() || 'TEXT';
 			
 			let mode = 'ace/mode/text'; 
@@ -1318,7 +1352,18 @@
 		} else if (assets[filename]) {
 			if (assets[filename].subtype === 'svg') {
 				overlay.style.display = 'none'; editorDiv.style.display = 'flex'; 
-				aceEditor.setValue(assets[filename].content, -1); 
+				
+				// Lazy load missing SVGs from GitHub
+				if (assets[filename].content === null && assets[filename].ghUrl) {
+					aceEditor.setValue("Loading...", -1);
+					try {
+						assets[filename].content = await fetchWithProgress(assets[filename].ghUrl);
+					} catch(e) {
+						assets[filename].content = "<!-- Error loading SVG -->";
+					}
+				}
+
+				aceEditor.setValue(assets[filename].content || "", -1); 
 				label.innerText = 'SVG';
 				aceEditor.session.setMode('ace/mode/xml');
 			} else {
@@ -1330,8 +1375,8 @@
 		isSwitchingFile = false;
 	}
 
-	function runCode() {
-		if (!activeFile) { runWeb(); return; }
+	async function runCode() {
+		if (!activeFile) { await runWeb(); return; }
 		if (fileSystem[activeFile]) fileSystem[activeFile].content = aceEditor.getValue();
 		else if (assets[activeFile]?.subtype === 'svg') assets[activeFile].content = aceEditor.getValue();
 		
@@ -1340,11 +1385,11 @@
 		if (assets[activeFile]) { // Safely pushes both generic media and SVGs to native rendering
 			renderAssetPreview(activeFile); 
 		} else {
-			runWeb();
+			await runWeb();
 		}
 	}
 
-	function runWeb() {
+	async function runWeb() {
 		let targetFile = activeFile;
 
 		// 1. If NO file is active, reveal global placeholder and exit
@@ -1364,7 +1409,13 @@
 			let mime = 'text/plain';
 			if (ext === 'json') mime = 'application/json';
 			
-			const blob = new Blob([fileSystem[targetFile].content], { type: mime });
+			let content = fileSystem[targetFile].content;
+			if (content === null && fileSystem[targetFile].ghUrl) {
+				content = await fetchWithProgress(fileSystem[targetFile].ghUrl);
+				fileSystem[targetFile].content = content;
+			}
+
+			const blob = new Blob([content], { type: mime });
 			const iframe = document.getElementById(`iframe-${targetFile}`);
 			if (iframe) iframe.src = URL.createObjectURL(blob);
 			return;
@@ -1387,14 +1438,24 @@
 		createTab(targetFile, 'web');
 		document.getElementById('console-log-container').innerHTML = '<div style="opacity:0.5;font-size:0.7rem;margin-bottom:5px;">--- Run Started ---</div>';
 		let htmlContent = fileSystem[targetFile].content;
+		
+		if (htmlContent === null && fileSystem[targetFile].ghUrl) {
+			try {
+				htmlContent = await fetchWithProgress(fileSystem[targetFile].ghUrl);
+				fileSystem[targetFile].content = htmlContent;
+			} catch(e) { htmlContent = "<h1>Error loading entry file</h1>"; }
+		}
+
 		const blobMap = {}; const createBlob = (content, mime) => URL.createObjectURL(new Blob([content], { type: mime }));
 		Object.keys(fileSystem).forEach(fname => {
-			if (fname === targetFile) return;
+			if (fname === targetFile || fileSystem[fname].content === null) return;
 			const mime = fname.endsWith('.js') ? 'application/javascript' : 'text/css'; blobMap[fname] = createBlob(fileSystem[fname].content, mime);
 		});
 		Object.keys(assets).forEach(fname => {
-			const a = assets[fname]; blobMap[fname] = a.subtype === 'svg' ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(a.content) : a.src;
+			const a = assets[fname]; if (a.subtype === 'svg' && a.content === null) return;
+			blobMap[fname] = a.subtype === 'svg' ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(a.content) : a.src;
 		});
+
 		const consoleScript = `<script>(function(){function send(type,args){const msg=args.map(a=>{if(typeof a==='object'){try{return JSON.stringify(a);}catch(e){return String(a);}}return String(a);}).join(' ');window.parent.postMessage({type:'console',level:type,msg:msg},'*');}const methods=['log','warn','error','info'];methods.forEach(m=>{const original=console[m];console[m]=(...args)=>{original.apply(console,args);send(m,args);};});window.onerror=function(msg,url,line){send('error',["Runtime Error: "+msg+" (Line "+line+")"]);};window.addEventListener('unhandledrejection',function(event){send('error',["Unhandled Promise Rejection: "+(event.reason?event.reason.toString():'Unknown')]);});})();<\/script>`;
 		let basePath = targetFile.includes('/') ? targetFile.substring(0, targetFile.lastIndexOf('/') + 1) : '';
 		let processedHTML = htmlContent.replace(/(href|src)\s*=\s*["']([^"']+)["']/g, (match, attr, path) => { 
@@ -1403,6 +1464,11 @@
 			let resolved = basePath + cleanPath;
 			if (blobMap[resolved]) return `${attr}="${blobMap[resolved]}"`;
 			if (blobMap[cleanPath]) return `${attr}="${blobMap[cleanPath]}"`;
+			
+			// Lazy load URL fallback injection for bundling
+			const fileObj = fileSystem[resolved] || fileSystem[cleanPath] || assets[resolved] || assets[cleanPath];
+			if (fileObj && fileObj.ghUrl) return `${attr}="${fileObj.ghUrl}"`;
+
 			return match; 
 		});
 		if (processedHTML.includes('<head>')) processedHTML = processedHTML.replace('<head>', '<head>' + consoleScript); else processedHTML = consoleScript + processedHTML;
@@ -1447,6 +1513,10 @@
 		if (fileSystem[activeFile]) fileSystem[activeFile].content = aceEditor.getValue();
 
 		let htmlContent = fileSystem[targetFile].content;
+		if (htmlContent === null && fileSystem[targetFile].ghUrl) {
+			htmlContent = await fetchWithProgress(fileSystem[targetFile].ghUrl);
+		}
+
 		let basePath = targetFile.includes('/') ? targetFile.substring(0, targetFile.lastIndexOf('/') + 1) : '';
 		
 		// Inline CSS
@@ -1454,7 +1524,10 @@
 			if (href.startsWith('http') || href.startsWith('data:')) return match;
 			let cleanPath = href.startsWith('./') ? href.slice(2) : href;
 			const file = fileSystem[basePath + cleanPath] || fileSystem[cleanPath];
-			if (file && file.type === 'css') return `<style>${file.content}</style>`;
+			if (file && file.type === 'css') {
+				if (file.content !== null) return `<style>${file.content}</style>`;
+				if (file.ghUrl) return match.replace(href, file.ghUrl);
+			}
 			return match;
 		});
 
@@ -1463,7 +1536,10 @@
 			if (src.startsWith('http') || src.startsWith('data:')) return match;
 			let cleanPath = src.startsWith('./') ? src.slice(2) : src;
 			const file = fileSystem[basePath + cleanPath] || fileSystem[cleanPath];
-			if (file && file.type === 'js') return `<script>${file.content}<\/script>`;
+			if (file && file.type === 'js') {
+				if (file.content !== null) return `<script>${file.content}<\/script>`;
+				if (file.ghUrl) return match.replace(src, file.ghUrl);
+			}
 			return match;
 		});
 
@@ -1473,6 +1549,7 @@
 			let cleanPath = path.startsWith('./') ? path.slice(2) : path;
 			const asset = assets[basePath + cleanPath] || assets[cleanPath];
 			if (asset) {
+				if (asset.subtype === 'svg' && asset.content === null && asset.ghUrl) return `${attr}="${asset.ghUrl}"`;
 				let dataUri = '';
 				if (asset.subtype === 'svg') {
 					dataUri = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(asset.content);
@@ -1534,7 +1611,7 @@ window.onload=function(){
 	function saveApiKey() { const input = document.getElementById('apikey-input'); if (input.value.trim()) { localStorage.setItem('gemini_api_key', input.value.trim()); checkApiKey(); addAiMessage('bot', 'API Key saved!'); } }
 	function addAiMessage(role, text) { const box = document.getElementById('ai-chat-box'); const div = document.createElement('div'); div.className = `ai-msg ${role}`; if (text.includes('```')) { const parts = text.split(/```(\w*)\n([\s\S]*?)```/g); div.innerHTML = ""; for (let i = 0; i < parts.length; i++) { if (i % 3 === 0) { if(parts[i].trim()) { const p = document.createElement('div'); p.innerText = parts[i]; div.appendChild(p); } } else if (i % 3 === 2) { const code = parts[i]; const wrapper = document.createElement('div'); wrapper.className = 'code-block-wrapper'; wrapper.innerHTML = `<div class="code-block-header"><span>Code</span><button class="insert-btn" onclick="insertCode(this)">Insert</button></div><div class="code-block-content">${code.replace(/</g,'&lt;')}</div>`; wrapper.querySelector('.insert-btn').dataset.code = code; div.appendChild(wrapper); } } } else { div.innerText = text; } box.appendChild(div); box.scrollTop = box.scrollHeight; }
 	function insertCode(btn) { const code = btn.dataset.code; if(code) { aceEditor.session.insert(aceEditor.getCursorPosition(), code); aceEditor.focus(); } }
-	async function callGemini() { const input = document.getElementById('ai-user-input'); const prompt = input.value.trim(); const apiKey = localStorage.getItem('gemini_api_key'); if (!prompt) return; addAiMessage('user', prompt); input.value = ''; const context = `File: ${activeFile}\nCode:\n\`\`\`\n${aceEditor.getValue()}\n\`\`\`\nReq: ${prompt}`; const loadingDiv = document.createElement('div'); loadingDiv.className = 'ai-msg bot'; loadingDiv.innerText = 'Thinking...'; loadingDiv.id = 'ai-loading'; document.getElementById('ai-chat-box').appendChild(loadingDiv); if (!apiKey) { setTimeout(() => { document.getElementById('ai-loading').remove(); addAiMessage('bot', `Please provide API Key.`); }, 1000); return; } try { const { GoogleGenerativeAI } = await import('https://esm.run/@google/generative-ai'); const genAI = new GoogleGenerativeAI(apiKey); const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); const result = await model.generateContent(context); const response = await result.response; document.getElementById('ai-loading').remove(); addAiMessage('bot', response.text()); } catch (e) { document.getElementById('ai-loading').remove(); addAiMessage('bot', "Error: " + e.message); } }
+	async function callGemini() { const input = document.getElementById('ai-user-input'); const prompt = input.value.trim(); const apiKey = localStorage.getItem('gemini_api_key'); if (!prompt) return; addAiMessage('user', prompt); input.value = ''; const context = `File: ${activeFile}\nCode:\n\`\`\`\n${aceEditor.getValue()}\n\`\`\`\nReq: ${prompt}`; const loadingDiv = document.createElement('div'); loadingDiv.className = 'ai-msg bot'; loadingDiv.innerText = 'Thinking...'; loadingDiv.id = 'ai-loading'; document.getElementById('ai-chat-box').appendChild(loadingDiv); if (!apiKey) { setTimeout(() => { document.getElementById('ai-loading').remove(); addAiMessage('bot', `Please provide API Key.`); }, 1000); return; } try { const { GoogleGenerativeAI } = await import('[https://esm.run/@google/generative-ai](https://esm.run/@google/generative-ai)'); const genAI = new GoogleGenerativeAI(apiKey); const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); const result = await model.generateContent(context); const response = await result.response; document.getElementById('ai-loading').remove(); addAiMessage('bot', response.text()); } catch (e) { document.getElementById('ai-loading').remove(); addAiMessage('bot', "Error: " + e.message); } }
 
 	// --- SEARCH & FORMAT ---
 	function toggleSearch() { const tb = document.getElementById('search-toolbar'); const input = document.getElementById('search-input'); if (tb.classList.contains('visible')) { tb.classList.remove('visible'); aceEditor.focus(); } else { tb.classList.add('visible'); input.focus(); input.select(); } }
@@ -1576,14 +1653,24 @@ window.onload=function(){
 	function handleCreateNew() { closeAddMenu(); setTimeout(async () => await createNewFile(), 250); }
 	function handleCreateFolder() { closeAddMenu(); setTimeout(async () => await createNewFolder(), 250); }
 	function handleUpload() { closeAddMenu(); const input = document.getElementById('file-upload'); input.click(); }
+	function handleFolderUpload() { closeAddMenu(); const input = document.getElementById('folder-upload'); input.click(); }
 	
 	// --- GITHUB INTEGRATION LOGIC ---
 	async function initFirebase() {
 		if (firebaseApp) return;
-		const { initializeApp } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js');
-		const { getAuth } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
+		const { initializeApp } = await import('[https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js)');
+		const { getAuth } = await import('[https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js)');
 		firebaseApp = initializeApp(firebaseConfig);
 		firebaseAuth = getAuth(firebaseApp);
+	}
+
+	async function confirmGithubAuth() {
+		if (githubToken) {
+			await customAlert("You are already connected to GitHub.", "GitHub Connect");
+			return;
+		}
+		const connect = await showCustomDialog('confirm', "Connect GitHub", "Connect your GitHub account to import and commit to repositories.", "", "Connect", "Cancel");
+		if (connect) openGithubAuth();
 	}
 
 	async function openGithubAuth() {
@@ -1593,7 +1680,7 @@ window.onload=function(){
 		}
 		try {
 			await initFirebase();
-			const { signInWithPopup, GithubAuthProvider } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
+			const { signInWithPopup, GithubAuthProvider } = await import('[https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js)');
 			const provider = new GithubAuthProvider();
 			provider.addScope('repo'); // Required for reading/writing repositories
 			
@@ -1696,19 +1783,17 @@ window.onload=function(){
 						else if (/\.(mp4|webm)$/i.test(item.path)) subtype = 'video';
 						else if (/\.pdf$/i.test(item.path)) subtype = 'pdf';
 						
-						assets[prefixedPath] = { type: 'asset', subtype: subtype, src: rawUrl, content: null, modified: false };
+						assets[prefixedPath] = { type: 'asset', subtype: subtype, src: rawUrl, content: null, modified: false, ghUrl: rawUrl };
 					} else {
-						const contentRes = await fetch(rawUrl);
-						const content = await contentRes.text();
 						if (/\.svg$/i.test(item.path)) {
-							assets[prefixedPath] = { type: 'asset', subtype: 'svg', content, modified: false };
+							assets[prefixedPath] = { type: 'asset', subtype: 'svg', content: null, modified: false, ghUrl: rawUrl };
 						} else {
 							let type = 'html'; 
 							if (item.path.endsWith('.js')) type = 'js'; 
 							else if (item.path.endsWith('.css')) type = 'css';
 							else if (item.path.endsWith('.json') || item.path.endsWith('.md') || item.path.endsWith('.txt')) type = 'text';
 							
-							fileSystem[prefixedPath] = { type, content, modified: false };
+							fileSystem[prefixedPath] = { type, content: null, modified: false, ghUrl: rawUrl };
 						}
 					}
 					loadedCount++;
@@ -1716,8 +1801,8 @@ window.onload=function(){
 				}
 				renderSidebar();
 				const defaultFile = Object.keys(fileSystem).find(f => f.startsWith(repoFolderName + '/') && f.endsWith('index.html')) || Object.keys(fileSystem).find(f => f.startsWith(repoFolderName + '/'));
-				if (defaultFile && !activeFile) switchFile(defaultFile); 
-				else if (activeFile) switchFile(activeFile);
+				if (defaultFile && !activeFile) await switchFile(defaultFile); 
+				else if (activeFile) await switchFile(activeFile);
 				deletedFiles = [];
 				unsavedChanges = true;
 				
@@ -1726,8 +1811,6 @@ window.onload=function(){
 					loadingBar.style.opacity = '0';
 					setTimeout(() => loadingBar.style.width = '0%', 300);
 				}, 500);
-
-				await customAlert(`Imported repository: ${repoInput}`, "Success");
 			} catch (error) {
 				const loadingBar = document.getElementById('gh-loading-bar');
 				loadingBar.style.opacity = '0';
@@ -1804,11 +1887,72 @@ window.onload=function(){
 		}
 	}
 
-	async function createNewFile() { let name = await customPrompt("Enter file path (e.g. src/script.js, style.css):", "", "New File"); if (!name) return; let type = ""; let content = ""; if (name.endsWith('.js')) { type = 'js'; content = `// ${name}\n`; } else if (name.endsWith('.css')) { type = 'css'; content = `/* ${name} */\n`; } else if (name.endsWith('.html')) { type = 'html'; content = `<h1>${name}</h1>`; } else if (name.endsWith('.json')) { type = 'text'; content = `{\n  \n}`; } else if (name.endsWith('.md')) { type = 'text'; content = `# ${name}\n`; } else if (name.endsWith('.txt')) { type = 'text'; content = ``; } else if (name.endsWith('.svg')) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'svg', content: '<svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg"><circle cx="25" cy="25" r="20" fill="red"/></svg>', modified: true }; switchFile(name); return; } else if (name.match(/\.(png|jpe?g|gif|webp)$/i)) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'image', src: 'https://placehold.co/100x100/333/white?text=IMG', content: null, modified: true }; switchFile(name); return; } else { await customAlert("Supported formats: .html, .css, .js, .svg, md, txt, json, images", "Invalid Format"); return; } if (fileSystem[name]) { await customAlert("File name exists!", "Error"); return; } fileSystem[name] = { type, content, modified: true }; switchFile(name); unsavedChanges = true; }
+	async function createNewFile() { let name = await customPrompt("Enter file path (e.g. src/script.js, style.css):", "", "New File"); if (!name) return; let type = ""; let content = ""; if (name.endsWith('.js')) { type = 'js'; content = `// ${name}\n`; } else if (name.endsWith('.css')) { type = 'css'; content = `/* ${name} */\n`; } else if (name.endsWith('.html')) { type = 'html'; content = `<h1>${name}</h1>`; } else if (name.endsWith('.json')) { type = 'text'; content = `{\n  \n}`; } else if (name.endsWith('.md')) { type = 'text'; content = `# ${name}\n`; } else if (name.endsWith('.txt')) { type = 'text'; content = ``; } else if (name.endsWith('.svg')) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'svg', content: '<svg viewBox="0 0 50 50" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)"><circle cx="25" cy="25" r="20" fill="red"/></svg>', modified: true }; await switchFile(name); return; } else if (name.match(/\.(png|jpe?g|gif|webp)$/i)) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'image', src: '[https://placehold.co/100x100/333/white?text=IMG](https://placehold.co/100x100/333/white?text=IMG)', content: null, modified: true }; await switchFile(name); return; } else { await customAlert("Supported formats: .html, .css, .js, .svg, md, txt, json, images", "Invalid Format"); return; } if (fileSystem[name]) { await customAlert("File name exists!", "Error"); return; } fileSystem[name] = { type, content, modified: true }; await switchFile(name); unsavedChanges = true; }
 	async function createNewFolder() { let name = await customPrompt("Enter folder path (e.g. src/components):", "", "New Folder"); if (!name) return; name = name.replace(/\/+$/, ''); if (!explicitFolders.includes(name)) { explicitFolders.push(name); renderSidebar(); unsavedChanges = true; } }
-	async function processUpload(event) { const file = event.target.files[0]; if (!file) return; const name = file.name; if ((fileSystem[name] || assets[name])) { const ok = await customConfirm(`Overwrite '${name}'?`, "File Exists"); if (!ok) { event.target.value = ''; return;} } const reader = new FileReader(); const isMedia = /\.(png|jpe?g|gif|webp|pdf|mp3|mp4|wav|webm|ogg)$/i.test(name); const isSVG = /\.svg$/i.test(name); if (isMedia && !isSVG) reader.readAsDataURL(file); else reader.readAsText(file); reader.onload = (e) => { const content = e.target.result; if (isMedia || isSVG) { if (isMedia && !isSVG) { let subtype = 'image'; if (/\.(mp3|wav|ogg)$/i.test(name)) subtype = 'audio'; else if (/\.(mp4|webm)$/i.test(name)) subtype = 'video'; else if (/\.pdf$/i.test(name)) subtype = 'pdf'; assets[name] = { type: 'asset', subtype: subtype, src: content, content: null, modified: true }; } else if (isSVG) assets[name] = { type: 'asset', subtype: 'svg', content: content, modified: true }; } else { let type = 'html'; if (name.endsWith('.js')) type = 'js'; else if (name.endsWith('.css')) type = 'css'; else if (name.endsWith('.json') || name.endsWith('.md') || name.endsWith('.txt')) type = 'text'; fileSystem[name] = { type, content, modified: true }; } switchFile(name); unsavedChanges = true; event.target.value = ''; renderSidebar(); }; }
+	async function processUpload(event) { const file = event.target.files[0]; if (!file) return; const name = file.name; if ((fileSystem[name] || assets[name])) { const ok = await customConfirm(`Overwrite '${name}'?`, "File Exists"); if (!ok) { event.target.value = ''; return;} } const reader = new FileReader(); const isMedia = /\.(png|jpe?g|gif|webp|pdf|mp3|mp4|wav|webm|ogg)$/i.test(name); const isSVG = /\.svg$/i.test(name); if (isMedia && !isSVG) reader.readAsDataURL(file); else reader.readAsText(file); reader.onload = async (e) => { const content = e.target.result; if (isMedia || isSVG) { if (isMedia && !isSVG) { let subtype = 'image'; if (/\.(mp3|wav|ogg)$/i.test(name)) subtype = 'audio'; else if (/\.(mp4|webm)$/i.test(name)) subtype = 'video'; else if (/\.pdf$/i.test(name)) subtype = 'pdf'; assets[name] = { type: 'asset', subtype: subtype, src: content, content: null, modified: false }; } else if (isSVG) assets[name] = { type: 'asset', subtype: 'svg', content: content, modified: false }; } else { let type = 'html'; if (name.endsWith('.js')) type = 'js'; else if (name.endsWith('.css')) type = 'css'; else if (name.endsWith('.json') || name.endsWith('.md') || name.endsWith('.txt')) type = 'text'; fileSystem[name] = { type, content, modified: false }; } await switchFile(name); unsavedChanges = true; event.target.value = ''; renderSidebar(); }; }
+	
+	async function processFolderUpload(event) {
+		const files = event.target.files;
+		if (!files || files.length === 0) return;
+		
+		const uploadedFolders = new Set();
+		const promises = [];
+		
+		for (let i = 0; i < files.length; i++) {
+			const file = files[i];
+			const path = file.webkitRelativePath || file.name;
+			
+			const parts = path.split('/');
+			parts.pop();
+			let currentPath = '';
+			for (const part of parts) {
+				currentPath = currentPath ? `${currentPath}/${part}` : part;
+				uploadedFolders.add(currentPath);
+			}
+			
+			promises.push(new Promise(resolve => {
+				const reader = new FileReader();
+				const isMedia = /\.(png|jpe?g|gif|webp|pdf|mp3|mp4|wav|webm|ogg)$/i.test(path);
+				const isSVG = /\.svg$/i.test(path);
+				
+				if (isMedia && !isSVG) reader.readAsDataURL(file);
+				else reader.readAsText(file);
+				
+				reader.onload = (e) => {
+					const content = e.target.result;
+					if (isMedia || isSVG) {
+						if (isMedia && !isSVG) {
+							let subtype = 'image';
+							if (/\.(mp3|wav|ogg)$/i.test(path)) subtype = 'audio';
+							else if (/\.(mp4|webm)$/i.test(path)) subtype = 'video';
+							else if (/\.pdf$/i.test(path)) subtype = 'pdf';
+							assets[path] = { type: 'asset', subtype: subtype, src: content, content: null, modified: false };
+						} else if (isSVG) assets[path] = { type: 'asset', subtype: 'svg', content: content, modified: false };
+					} else {
+						let type = 'html';
+						if (path.endsWith('.js')) type = 'js';
+						else if (path.endsWith('.css')) type = 'css';
+						else if (path.endsWith('.json') || path.endsWith('.md') || path.endsWith('.txt')) type = 'text';
+						fileSystem[path] = { type, content, modified: false };
+					}
+					resolve();
+				};
+			}));
+		}
+		
+		await Promise.all(promises);
+		
+		uploadedFolders.forEach(f => {
+			if (!explicitFolders.includes(f)) explicitFolders.push(f);
+		});
+		
+		renderSidebar();
+		unsavedChanges = true;
+		event.target.value = '';
+	}
+
 	async function renameFile(oldName) { const newName = await customPrompt("Rename to:", oldName, "Rename File"); if (!newName || newName === oldName) return; if (fileSystem[newName] || assets[newName]) { await customAlert("Name already taken!", "Error"); return; } if (fileSystem[oldName]) { fileSystem[newName] = { ...fileSystem[oldName], modified: true }; delete fileSystem[oldName]; deletedFiles.push(oldName); } else if (assets[oldName]) { assets[newName] = { ...assets[oldName], modified: true }; delete assets[oldName]; deletedFiles.push(oldName); } if (activeFile === oldName) activeFile = newName; renderSidebar(); unsavedChanges = true; }
-	async function deleteFile(name) { const ok = await customConfirm(`Delete '${name}'?`, "Confirm Deletion"); if (!ok) return; if (fileSystem[name]) { delete fileSystem[name]; deletedFiles.push(name); } else if (assets[name]) { delete assets[name]; deletedFiles.push(name); } if (activeFile === name) activeFile = Object.keys(fileSystem)[0] || null; renderSidebar(); if(activeFile) switchFile(activeFile); else { document.getElementById('code-editor').style.display='none'; document.getElementById('binary-overlay').style.display='flex'; } unsavedChanges = true; }
+	async function deleteFile(name) { const ok = await customConfirm(`Delete '${name}'?`, "Confirm Deletion"); if (!ok) return; if (fileSystem[name]) { delete fileSystem[name]; deletedFiles.push(name); } else if (assets[name]) { delete assets[name]; deletedFiles.push(name); } if (activeFile === name) activeFile = Object.keys(fileSystem)[0] || null; renderSidebar(); if(activeFile) await switchFile(activeFile); else { document.getElementById('code-editor').style.display='none'; document.getElementById('binary-overlay').style.display='flex'; } unsavedChanges = true; }
 
 	async function renameFolder(oldPath) {
 		const parts = oldPath.split('/');
@@ -1862,7 +2006,7 @@ window.onload=function(){
 
 		unsavedChanges = true;
 		renderSidebar();
-		if (activeFile) switchFile(activeFile);
+		if (activeFile) await switchFile(activeFile);
 	}
 
 	async function deleteFolder(folderPath) {
@@ -1890,7 +2034,7 @@ window.onload=function(){
 
 		if (activeDeleted) {
 			activeFile = Object.keys(fileSystem)[0] || null;
-			if (activeFile) switchFile(activeFile);
+			if (activeFile) await switchFile(activeFile);
 			else { document.getElementById('code-editor').style.display='none'; document.getElementById('binary-overlay').style.display='flex'; }
 		}
 		
