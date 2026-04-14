@@ -1684,7 +1684,7 @@ window.onload=function(){
 	function saveApiKey() { const input = document.getElementById('apikey-input'); if (input.value.trim()) { localStorage.setItem('gemini_api_key', input.value.trim()); checkApiKey(); addAiMessage('bot', 'API Key saved!'); } }
 	function addAiMessage(role, text) { const box = document.getElementById('ai-chat-box'); const div = document.createElement('div'); div.className = `ai-msg ${role}`; if (text.includes('```')) { const parts = text.split(/```(\w*)\n([\s\S]*?)```/g); div.innerHTML = ""; for (let i = 0; i < parts.length; i++) { if (i % 3 === 0) { if(parts[i].trim()) { const p = document.createElement('div'); p.innerText = parts[i]; div.appendChild(p); } } else if (i % 3 === 2) { const code = parts[i]; const wrapper = document.createElement('div'); wrapper.className = 'code-block-wrapper'; wrapper.innerHTML = `<div class="code-block-header"><span>Code</span><button class="insert-btn" onclick="insertCode(this)">Insert</button></div><div class="code-block-content">${code.replace(/</g,'&lt;')}</div>`; wrapper.querySelector('.insert-btn').dataset.code = code; div.appendChild(wrapper); } } } else { div.innerText = text; } box.appendChild(div); box.scrollTop = box.scrollHeight; }
 	function insertCode(btn) { const code = btn.dataset.code; if(code) { aceEditor.session.insert(aceEditor.getCursorPosition(), code); aceEditor.focus(); } }
-	async function callGemini() { const input = document.getElementById('ai-user-input'); const prompt = input.value.trim(); const apiKey = localStorage.getItem('gemini_api_key'); if (!prompt) return; addAiMessage('user', prompt); input.value = ''; const context = `File: ${activeFile}\nCode:\n\`\`\`\n${aceEditor.getValue()}\n\`\`\`\nReq: ${prompt}`; const loadingDiv = document.createElement('div'); loadingDiv.className = 'ai-msg bot'; loadingDiv.innerText = 'Thinking...'; loadingDiv.id = 'ai-loading'; document.getElementById('ai-chat-box').appendChild(loadingDiv); if (!apiKey) { setTimeout(() => { document.getElementById('ai-loading').remove(); addAiMessage('bot', `Please provide API Key.`); }, 1000); return; } try { const { GoogleGenerativeAI } = await import('[https://esm.run/@google/generative-ai](https://esm.run/@google/generative-ai)'); const genAI = new GoogleGenerativeAI(apiKey); const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); const result = await model.generateContent(context); const response = await result.response; document.getElementById('ai-loading').remove(); addAiMessage('bot', response.text()); } catch (e) { document.getElementById('ai-loading').remove(); addAiMessage('bot', "Error: " + e.message); } }
+	async function callGemini() { const input = document.getElementById('ai-user-input'); const prompt = input.value.trim(); const apiKey = localStorage.getItem('gemini_api_key'); if (!prompt) return; addAiMessage('user', prompt); input.value = ''; const context = `File: ${activeFile}\nCode:\n\`\`\`\n${aceEditor.getValue()}\n\`\`\`\nReq: ${prompt}`; const loadingDiv = document.createElement('div'); loadingDiv.className = 'ai-msg bot'; loadingDiv.innerText = 'Thinking...'; loadingDiv.id = 'ai-loading'; document.getElementById('ai-chat-box').appendChild(loadingDiv); if (!apiKey) { setTimeout(() => { document.getElementById('ai-loading').remove(); addAiMessage('bot', `Please provide API Key.`); }, 1000); return; } try { const { GoogleGenerativeAI } = await import('https://esm.run/@google/generative-ai'); const genAI = new GoogleGenerativeAI(apiKey); const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); const result = await model.generateContent(context); const response = await result.response; document.getElementById('ai-loading').remove(); addAiMessage('bot', response.text()); } catch (e) { document.getElementById('ai-loading').remove(); addAiMessage('bot', "Error: " + e.message); } }
 
 	// --- SEARCH & FORMAT ---
 	function toggleSearch() { const tb = document.getElementById('search-toolbar'); const input = document.getElementById('search-input'); if (tb.classList.contains('visible')) { tb.classList.remove('visible'); aceEditor.focus(); } else { tb.classList.add('visible'); input.focus(); input.select(); } }
@@ -1731,8 +1731,8 @@ window.onload=function(){
 	// --- GITHUB INTEGRATION LOGIC ---
 	async function initFirebase() {
 		if (firebaseApp) return;
-		const { initializeApp } = await import('[https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js)');
-		const { getAuth } = await import('[https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js)');
+		const { initializeApp } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js');
+		const { getAuth } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
 		firebaseApp = initializeApp(firebaseConfig);
 		firebaseAuth = getAuth(firebaseApp);
 	}
@@ -1753,7 +1753,7 @@ window.onload=function(){
 		}
 		try {
 			await initFirebase();
-			const { signInWithPopup, GithubAuthProvider } = await import('[https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js)');
+			const { signInWithPopup, GithubAuthProvider } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
 			const provider = new GithubAuthProvider();
 			provider.addScope('repo'); // Required for reading/writing repositories
 			
