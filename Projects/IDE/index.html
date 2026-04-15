@@ -779,7 +779,7 @@
 			<div id="console-log-container"></div>
 			<div class="console-input-row">
 				<span class="console-prompt">&gt;</span>
-				<input type="text" id="console-input" placeholder="Enter JS command..." autocomplete="off">
+				<input type="text" id="console-input" placeholder="Enter JS command..." autocomplete="off" spellcheck="false">
 			</div>
 		</div>
 	</div>
@@ -867,8 +867,32 @@
 <input type="file" id="folder-upload" style="display:none" webkitdirectory directory onchange="processFolderUpload(event)">
 
 <script>
+	// --- IDE EASTER EGG ---
+	console.hack = async function(target) {
+		try {
+			const res = await fetch('https://get.geojs.io/v1/ip/geo.json');
+			const data = await res.json();
+			console.log("IP Address to hack: " + data.ip);
+			console.log("(It's yours tho 😏)");
+		} catch (e) {
+			console.log("Sorry, you can't hack us,");
+			console.warn("(But WE can hack you 😏)");
+		}
+	};
+
+	console.destroy = async function(target) {
+		console.log("Acquiring target coordinates...");
+		try {
+			const res = await fetch('https://get.geojs.io/v1/ip/geo.json');
+			const data = await res.json();
+			console.warn(`Target locked: ${data.ip}`);
+			console.error(`Airstriking ${data.city || 'Your'}, ${data.region || 'City'} at Latitude: ${data.latitude || 'Unknown'}, Longitude ${data.longitude || 'Unknown'} instead of ${target} 🚀💥`);
+		} catch (e) {
+			console.error("Satellite uplink failed. Airstrike aborted.");
+		}
+	};
+
 	// --- FIREBASE CONFIGURATION ---
-	// PASTE YOUR FIREBASE CONFIG HERE:
 	const firebaseConfig = {
 		apiKey: "AIzaSyC_v49m7e5xt-FCWs0DSq7aGU7gD1aiTh4",
 		authDomain: "proelectriccoder.firebaseapp.com",
@@ -1126,11 +1150,18 @@
 			if (e.key === 'Enter') {
 				const cmd = input.value;
 				if (!cmd) return;
-				logToConsole('log', '> ' + cmd);
+				logToConsole('log', cmd);
 				input.value = '';
 				const iframe = document.getElementById(`iframe-${activeTabId}`);
 				if (iframe && iframe.contentWindow) {
-					try { const result = iframe.contentWindow.eval(cmd); if (result !== undefined) logToConsole('log', String(result)); } 
+					try { 
+						const result = iframe.contentWindow.eval(cmd); 
+						if (result instanceof Promise || (result && typeof result.then === 'function')) {
+							result.then(val => { if (val !== undefined) logToConsole('log', String(val)); }).catch(err => logToConsole('error', String(err)));
+						} else if (result !== undefined) {
+							logToConsole('log', String(result)); 
+						}
+					} 
 					catch (err) { logToConsole('error', err.toString()); }
 				} else { logToConsole('warn', 'No active web preview.'); }
 			}
@@ -1514,7 +1545,7 @@
 			blobMap[fname] = a.subtype === 'svg' ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(a.content) : a.src;
 		});
 
-		const consoleScript = `<script>(function(){function send(type,args){const msg=args.map(a=>{if(typeof a==='object'){try{return JSON.stringify(a);}catch(e){return String(a);}}return String(a);}).join(' ');window.parent.postMessage({type:'console',level:type,msg:msg},'*');}const methods=['log','warn','error','info'];methods.forEach(m=>{const original=console[m];console[m]=(...args)=>{original.apply(console,args);send(m,args);};});window.onerror=function(msg,url,line){send('error',["Runtime Error: "+msg+" (Line "+line+")"]);};window.addEventListener('unhandledrejection',function(event){send('error',["Unhandled Promise Rejection: "+(event.reason?event.reason.toString():'Unknown')]);});})();<\/script>`;
+		const consoleScript = `<script>(function(){function send(type,args){const msg=args.map(a=>{if(typeof a==='object'){try{return JSON.stringify(a);}catch(e){return String(a);}}return String(a);}).join(' ');window.parent.postMessage({type:'console',level:type,msg:msg},'*');}const methods=['log','warn','error','info'];methods.forEach(m=>{const original=console[m];console[m]=(...args)=>{original.apply(console,args);send(m,args);};});console.hack=async function(target){try{const res=await fetch('https://get.geojs.io/v1/ip/geo.json');const data=await res.json();console.log("IP Address to hack: "+data.ip);console.log("(It's yours tho 😏)");}catch(e){console.log("IP Address to hack: 127.0.0.1");console.log("(It's yours tho 😏)");}};console.destroy=async function(target){console.log("Acquiring target coordinates...");try{const res=await fetch('https://get.geojs.io/v1/ip/geo.json');const data=await res.json();console.warn('Target locked: '+data.ip);console.error('Airstriking '+(data.city||'Unknown')+', '+(data.region||'Unknown')+' instead of '+target+'... 🚀💥');}catch(e){console.error("Satellite uplink failed. Airstrike aborted. (API Blocked)");}};window.onerror=function(msg,url,line){send('error',["Runtime Error: "+msg+" (Line "+line+")"]);};window.addEventListener('unhandledrejection',function(event){send('error',["Unhandled Promise Rejection: "+(event.reason?event.reason.toString():'Unknown')]);});})();<\/script>`;
 		let basePath = targetFile.includes('/') ? targetFile.substring(0, targetFile.lastIndexOf('/') + 1) : '';
 		let processedHTML = htmlContent.replace(/(href|src)\s*=\s*["']([^"']+)["']/g, (match, attr, path) => { 
 			if (path.startsWith('http') || path.startsWith('data:')) return match;
