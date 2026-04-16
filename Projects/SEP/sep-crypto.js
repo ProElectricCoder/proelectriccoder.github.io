@@ -1,26 +1,39 @@
-/**
- * sep-crypto.js (v3 - Layered SEP + AES-GCM)
- * Universal ES module for Double Encryptor logic.
- * Layer 1: SEP1 Packing & XOR Cipher
- * Layer 2: PBKDF2 Key Derivation & AES-GCM Encryption
- */
+/*
+ • sep-crypto.js (v3 - Layered SEP + AES-GCM)
+ • Universal ES module for Double Encryptor logic.
+ • Layer 1: SEP1 Packing & XOR Cipher
+ • Layer 2: PBKDF2 Key Derivation & AES-GCM Encryption
+*/
 
-export const REQUIRED_KEY_LENGTH = 1024;
+export function getCryptoRandom(length) {
+    return crypto.getRandomValues(new Uint8Array(length));
+}
 
 // ==========================================
 // LAYER 1: SEP LOGIC (XOR + Packing)
 // ==========================================
 
-export function createKeyFromPassword(passwordString) {
+export const REQUIRED_KEY_LENGTH = 1024;
+
+export function generateRandomKey(keyLength = REQUIRED_KEY_LENGTH) {
+    return getCryptoRandom(keyLength);
+}
+
+export function createKeyFromPassword(passwordString, keyLength = REQUIRED_KEY_LENGTH, salt = new Uint8Array(0)) {
     const encoder = new TextEncoder();
     const passBytes = encoder.encode(passwordString);
-    const keyBytes = new Uint8Array(REQUIRED_KEY_LENGTH);
     
     if (passBytes.length === 0) throw new Error("Password cannot be empty.");
 
-    // Stretch the password to fill exactly 1024 bytes
-    for (let i = 0; i < REQUIRED_KEY_LENGTH; i++) {
-        keyBytes[i] = passBytes[i % passBytes.length];
+    const combined = new Uint8Array(passBytes.length + salt.length);
+    combined.set(passBytes, 0);
+    combined.set(salt, passBytes.length);
+
+    const keyBytes = new Uint8Array(keyLength);
+
+    // Stretch the combined password+salt to fill exactly keyLength bytes
+    for (let i = 0; i < keyLength; i++) {
+        keyBytes[i] = combined[i % combined.length];
     }
     return keyBytes;
 }
@@ -49,7 +62,7 @@ export function unpackSEP1(decryptedPayload) {
     const hasMagic = decryptedPayload.length > 4 && 
         decryptedPayload[0] === 83 && decryptedPayload[1] === 69 && 
         decryptedPayload[2] === 80 && decryptedPayload[3] === 49;
-    
+
     if (hasMagic) {
         const extLen = decryptedPayload[4];
         const ext = new TextDecoder().decode(decryptedPayload.slice(5, 5 + extLen));
@@ -59,27 +72,32 @@ export function unpackSEP1(decryptedPayload) {
 }
 
 /** Standalone SEP Encryption */
-export function encryptSEP(dataBytes, extension, passwordString) {
+export function encryptSEP(dataBytes, extension, passwordString, keyLength = REQUIRED_KEY_LENGTH) {
+    const salt = getCryptoRandom(16);
     const packedPayload = packSEP1(dataBytes, extension);
-    const xorKey = createKeyFromPassword(passwordString);
-    return processXOR(packedPayload, xorKey);
+    const xorKey = createKeyFromPassword(passwordString, keyLength, salt);
+    const encryptedPayload = processXOR(packedPayload, xorKey);
+    
+    const finalBytes = new Uint8Array(16 + encryptedPayload.length);
+    finalBytes.set(salt, 0);
+    finalBytes.set(encryptedPayload, 16);
+    return finalBytes;
 }
 
 /** Standalone SEP Decryption */
-export function decryptSEP(encryptedBytes, passwordString) {
-    const xorKey = createKeyFromPassword(passwordString);
-    const unpacked = processXOR(encryptedBytes, xorKey);
+export function decryptSEP(encryptedBytes, passwordString, keyLength = REQUIRED_KEY_LENGTH) {
+    if (encryptedBytes.length < 16) throw new Error("SEP Decryption failed! Corrupted data or missing salt.");
+    const salt = encryptedBytes.slice(0, 16);
+    const cipherData = encryptedBytes.slice(16);
+
+    const xorKey = createKeyFromPassword(passwordString, keyLength, salt);
+    const unpacked = processXOR(cipherData, xorKey);
     return unpackSEP1(unpacked);
 }
 
 // ==========================================
 // LAYER 2: THE AES-GCM SHIELD
 // ==========================================
-
-function getCryptoRandom(length) {
-    return crypto.getRandomValues(new Uint8Array(length));
-}
-
 async function deriveAESKey(passwordString, salt) {
     const enc = new TextEncoder();
     const keyMaterial = await crypto.subtle.importKey(
@@ -89,7 +107,7 @@ async function deriveAESKey(passwordString, salt) {
         false,
         ["deriveBits", "deriveKey"]
     );
-    
+
     return crypto.subtle.deriveKey(
         {
             name: "PBKDF2",
@@ -107,11 +125,11 @@ async function deriveAESKey(passwordString, salt) {
 /** Standalone AES-GCM Encryption */
 export async function encryptAES(dataBytes, passwordString) {
     if (!passwordString) throw new Error("Password cannot be empty.");
-    
+
     const salt = getCryptoRandom(16);
     const iv = getCryptoRandom(12);
     const aesKey = await deriveAESKey(passwordString, salt);
-    
+
     const aesCipherBuffer = await crypto.subtle.encrypt(
         { name: "AES-GCM", iv: iv },
         aesKey,
@@ -124,7 +142,7 @@ export async function encryptAES(dataBytes, passwordString) {
     finalBytes.set(salt, 0);
     finalBytes.set(iv, 16);
     finalBytes.set(aesCipherBytes, 16 + 12);
-    
+
     return finalBytes;
 }
 
@@ -157,9 +175,9 @@ export async function decryptAES(encryptedBytes, passwordString) {
 /**
  * Encrypts the data using SEP1 + XOR, then wraps it in AES-GCM.
  */
-export async function encryptFile(dataBytes, extension, passwordString) {
+export async function encryptFile(dataBytes, extension, passwordString, keyLength = REQUIRED_KEY_LENGTH) {
     // 1. Layer 1 (SEP)
-    const sepEncrypted = encryptSEP(dataBytes, extension, passwordString);
+    const sepEncrypted = encryptSEP(dataBytes, extension, passwordString, keyLength);
     // 2. Layer 2 (AES)
     return await encryptAES(sepEncrypted, passwordString);
 }
@@ -167,18 +185,19 @@ export async function encryptFile(dataBytes, extension, passwordString) {
 /**
  * Decrypts the AES-GCM layer, then undoes the XOR and SEP1 packing.
  */
-export async function decryptFile(encryptedBytes, passwordString) {
+export async function decryptFile(encryptedBytes, passwordString, keyLength = REQUIRED_KEY_LENGTH) {
     // 1. Layer 2 (AES)
     const aesDecrypted = await decryptAES(encryptedBytes, passwordString);
     // 2. Layer 1 (SEP)
-    return decryptSEP(aesDecrypted, passwordString);
+    return decryptSEP(aesDecrypted, passwordString, keyLength);
 }
 
 /*
 =============================================================================
 USAGE EXAMPLE:
 =============================================================================
-import { encryptFile, decryptFile } from './sep-crypto.js';
+
+import { encryptFile, decryptFile } from 'https://proelectriccoder.github.io/Projects/sep-crypto.js';
 
 async function demo() {
     // Mock file data (e.g., read via FileReader or fs.readFile)
@@ -195,7 +214,7 @@ async function demo() {
         const decryptedResult = await decryptFile(encryptedData, password);
         // decryptedResult.data -> Uint8Array (the original file bytes)
         // decryptedResult.ext -> ".txt" (the preserved extension)
-        
+
         console.log("Decrypted text:", new TextDecoder().decode(decryptedResult.data));
         console.log("Original extension:", decryptedResult.ext);
     } catch (err) {
