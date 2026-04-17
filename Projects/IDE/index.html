@@ -30,8 +30,7 @@
 	<!-- Load Marked for Markdown Rendering -->
 	<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-	<!-- Load Babel for JSX Compilation -->
-	<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+	<!-- Load Babel for JSX Compilation (Removed - Now Lazy Loaded) -->
 
 	<!-- Load Ace Editor -->
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ace.js"></script>
@@ -583,6 +582,9 @@
 			pointer-events: none;
 		}
 
+		/* --- Execution Loader --- */
+		@keyframes executeLoad { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
 		/* --- AI Sidebar --- */
 		.ai-sidebar {
 			position: fixed; top: 60px; right: -350px; width: 320px; height: calc(100vh - 60px);
@@ -766,6 +768,8 @@
 		</div>
 		
 		<div id="content-area">
+			<!-- Execution Loading Indicator -->
+			<div id="execution-loading-bar" style="position:absolute; top:0; left:0; width:100%; height:3px; background: linear-gradient(90deg, transparent, var(--accent), transparent); background-size: 200% 100%; animation: executeLoad 1.5s infinite linear; z-index: 60; display: none;"></div>
 			<!-- Generic Placeholder (Shown when no tabs are active) -->
 			<div id="global-placeholder" style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100%; background:#0f172a; color:#64748b; position:absolute; top:0; left:0; width:100%; z-index:1;">
 				<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:1rem;opacity:0.5;"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
@@ -811,7 +815,7 @@
 <div id="drag-overlay">
 	<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
 	<h2 style="margin-top:20px;">Drop files to Import</h2>
-	<p>Supports code, md, json, images, audio, video & pdfs</p>
+	<p>Supports code, md, json, py, images, audio, video & pdfs</p>
 </div>
 
 <!-- Add File Modal -->
@@ -863,7 +867,7 @@
 </div>
 
 <!-- Hidden Input for Upload (Updated accepted types) -->
-<input type="file" id="file-upload" style="display:none" onchange="processUpload(event)" accept=".html,.css,.js,.png,.jpg,.jpeg,.gif,.svg,.webp,.txt,.md,.json,.pdf,.mp3,.mp4,.wav,.webm">
+<input type="file" id="file-upload" style="display:none" onchange="processUpload(event)" accept=".html,.css,.js,.py,.png,.jpg,.jpeg,.gif,.svg,.webp,.txt,.md,.json,.pdf,.mp3,.mp4,.wav,.webm">
 <input type="file" id="folder-upload" style="display:none" webkitdirectory directory onchange="processFolderUpload(event)">
 
 <script>
@@ -924,7 +928,7 @@
     	    type: 'text', 
     	    content: `# Hello Markdown\n\nThis is a sample markdown file. It will be rendered to HTML when you run it!\n\nImagine having such a good IDE (like this one) for coding.\n\n---\n*Just a humble masterpiece, casually built by **ProElectricCoder***`, 
     	},
-		'jsxml.jsx': {
+		'Component.jsx': {
         	type: 'react',
         	content: `const { useState } = React;\n\nfunction App() {\n\tconst [awesomeness, setAwesomeness] = useState(9000);\n\tconst perks = ['Seamless Logic', 'Elegant Syntax', 'ProElectricCoder Certified'];\n\n\treturn (\n\t\t<div style={{ padding: '2rem', textAlign: 'center', color: '#fff', fontFamily: 'system-ui' }}>\n\t\t\t<h1 style={{ color: '#00e5ff' }}>Behold the Power of JSX!</h1>\n\t\t\t<p>Where UI meets logic. So flawless it feels like cheating.</p>\n\t\t\t<ul style={{ listStyleType: 'none', padding: 0, color: 'rgba(0, 229, 255, 0.8)' }}>\n\t\t\t\t{perks.map((perk, index) => (\n\t\t\t\t\t<li key={index}>⚡ {perk}</li>\n\t\t\t\t))}\n\t\t\t</ul>\n\t\t\t<button \n\t\t\t\tonClick={() => setAwesomeness(awesomeness + 1)}\n\t\t\t\tstyle={{ marginTop: '1rem', padding: '0.5rem 1rem', background: '#00e5ff', color: '#0a0e14', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 'bold' }}\n\t\t\t>\n\t\t\t\tAwesomeness Level: {awesomeness}\n\t\t\t</button>\n\t\t</div>\n\t);\n}\n\nconst root = ReactDOM.createRoot(document.getElementById('react-root'));\nroot.render(<App />);`
     	}
@@ -950,6 +954,24 @@
 	let currentGithubBranch = 'main';
 	let deletedFiles = [];
 	let isSwitchingFile = false;
+
+	// --- Helper: Dynamic Babel Lazy Loading ---
+	let isBabelLoading = false;
+	async function loadBabel() {
+		if (window.Babel) return;
+		if (isBabelLoading) {
+			while (!window.Babel) await new Promise(r => setTimeout(r, 100));
+			return;
+		}
+		isBabelLoading = true;
+		return new Promise((resolve, reject) => {
+			const script = document.createElement('script');
+			script.src = "https://unpkg.com/@babel/standalone/babel.min.js";
+			script.onload = () => resolve();
+			script.onerror = () => reject(new Error("Failed to load Babel Standalone"));
+			document.head.appendChild(script);
+		});
+	}
 
 	// --- Custom Dialog System ---
 	function showCustomDialog(type, title, msg, defaultVal = '', okText = 'OK', cancelText = 'Cancel') {
@@ -1004,6 +1026,12 @@
 	const customAlert = (msg, title="Alert") => showCustomDialog('alert', title, msg);
 	const customConfirm = (msg, title="Confirm") => showCustomDialog('confirm', title, msg);
 	const customPrompt = (msg, defaultVal='', title="Input") => showCustomDialog('prompt', title, msg, defaultVal);
+
+	// --- Execution Loading UI Helper ---
+	function setExecLoading(state) {
+		const bar = document.getElementById('execution-loading-bar');
+		if (bar) bar.style.display = state ? 'block' : 'none';
+	}
 
 	// --- Init Ace Editor ---
 	window.addEventListener('load', async function() {
@@ -1125,14 +1153,14 @@
 					renderSidebar(); unsavedChanges = true; 
 				};
 				reader.readAsDataURL(file);
-			} else if (/\.(html|css|js|txt|json|md|sep|enc)$/i.test(name) || /\.svg$/i.test(name)) {
+			} else if (/\.(html|css|js|py|txt|json|md|sep|enc)$/i.test(name) || /\.svg$/i.test(name)) {
 				reader.onload = async (e) => {
 					if (/\.svg$/i.test(name)) assets[name] = { type: 'asset', subtype: 'svg', content: e.target.result, modified: true };
 					else {
 						let type = 'html'; 
 						if (name.endsWith('.js')) type = 'js'; 
 						else if (name.endsWith('.css')) type = 'css';
-						else if (name.endsWith('.json') || name.endsWith('.md') || name.endsWith('.txt')) type = 'text'; // Text types
+						else if (name.endsWith('.json') || name.endsWith('.md') || name.endsWith('.txt') || name.endsWith('.py')) type = 'text'; // Text types
 						
 						fileSystem[name] = { type, content: e.target.result, modified: true };
 					}
@@ -1307,6 +1335,7 @@
 			if (ext === 'html') { iconName = 'file-code-2'; iconColor = '#e34c26'; }
 			else if (ext === 'css') { iconName = 'file-code'; iconColor = '#264de4'; }
 			else if (ext === 'js' || ext === 'jsx') { iconName = 'file-json'; iconColor = ext === 'jsx' ? '#61dafb' : '#f7df1e'; }
+			else if (ext === 'py') { iconName = 'file-code'; iconColor = '#3b82f6'; }
 			else if (ext === 'json') { iconName = 'file-json-2'; iconColor = '#f7df1e'; }
 			else if (ext === 'md' || ext === 'txt') { iconName = 'file-text'; iconColor = '#94a3b8'; }
 			else if (ext === 'sep') { iconName = 'file-key-2'; iconColor = '#00e5ff'; }
@@ -1411,6 +1440,7 @@
 			else if (filename.endsWith('.js') || filename.endsWith('.jsx')) mode = 'ace/mode/javascript';
 			else if (filename.endsWith('.json')) mode = 'ace/mode/json';
 			else if (filename.endsWith('.md')) mode = 'ace/mode/markdown';
+			else if (filename.endsWith('.py')) mode = 'ace/mode/python';
 			aceEditor.session.setMode(mode);
 			
 		} else if (assets[filename]) {
@@ -1439,6 +1469,84 @@
 		isSwitchingFile = false;
 	}
 
+	async function runPython(targetFile) {
+		const hasSetup = localStorage.getItem('deepBlue_python_setup');
+		if (!hasSetup) {
+			const doSetup = await showCustomDialog('confirm', 'Python Execution Setup', 'Python execution requires a local helper file (DeepBluePython.py). This file will be downloaded to your computer. You must run it locally to enable Python execution.', '', 'Download file', 'Cancel');
+			if (doSetup) {
+				const pyCode = `import http.server, json, sys, io, contextlib
+
+class Handler(http.server.SimpleHTTPRequestHandler):
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
+        
+    def do_POST(self):
+        if self.path == '/execute':
+            length = int(self.headers['Content-Length'])
+            data = json.loads(self.rfile.read(length))
+            code = data.get('code', '')
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                try: exec(code, {})
+                except Exception as e: print(e, file=sys.stderr)
+            self.send_response(200)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'stdout': stdout.getvalue(), 'stderr': stderr.getvalue()}).encode())
+
+print("DeepBlue Python Server running on http://127.0.0.1:8765...")
+http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
+				const blob = new Blob([pyCode], {type: 'text/plain'});
+				saveAs(blob, "DeepBluePython.py");
+				localStorage.setItem('deepBlue_python_setup', 'true');
+			} else {
+				return;
+			}
+		}
+
+		setExecLoading(true);
+		try {
+			let codeContent = fileSystem[targetFile].content;
+			if (codeContent === null && fileSystem[targetFile].ghUrl) {
+				codeContent = await fetchWithProgress(fileSystem[targetFile].ghUrl);
+				fileSystem[targetFile].content = codeContent;
+			}
+
+			const res = await fetch('http://127.0.0.1:8765/execute', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ code: codeContent })
+			});
+			
+			if (!res.ok) throw new Error("Local server error");
+			const data = await res.json();
+			
+			createTab(targetFile, 'web');
+			let htmlOutput = `<!DOCTYPE html><html><head><style>body{background:#000;color:#0f0;font-family:monospace;padding:1rem;white-space:pre-wrap;}</style></head><body>`;
+			if (data.stdout) htmlOutput += `<div style="color:#e2e8f0">${data.stdout.replace(/</g, '&lt;')}</div>`;
+			if (data.stderr) htmlOutput += `<div style="color:#f87171">${data.stderr.replace(/</g, '&lt;')}</div>`;
+			if (!data.stdout && !data.stderr) htmlOutput += `<div style="color:#64748b;font-style:italic">Program exited with no output.</div>`;
+			htmlOutput += `</body></html>`;
+			
+			const blob = new Blob([htmlOutput], { type: 'text/html' });
+			const iframe = document.getElementById(`iframe-${targetFile}`);
+			if (iframe) iframe.src = URL.createObjectURL(blob);
+			
+			if(data.stdout) logToConsole('info', "Python Output:\n" + data.stdout);
+			if(data.stderr) logToConsole('error', "Python Error:\n" + data.stderr);
+
+		} catch (err) {
+			await customAlert("Could not connect to local Python server. Ensure DeepBluePython.py is running on your machine.", "Execution Failed");
+		} finally {
+			setExecLoading(false);
+		}
+	}
+
 	async function runCode() {
 		if (!activeFile) { await runWeb(); return; }
 		if (fileSystem[activeFile]) fileSystem[activeFile].content = aceEditor.getValue();
@@ -1448,127 +1556,139 @@
 		
 		if (assets[activeFile]) { // Safely pushes both generic media and SVGs to native rendering
 			renderAssetPreview(activeFile); 
+		} else if (activeFile.endsWith('.py')) {
+			await runPython(activeFile);
 		} else {
 			await runWeb();
 		}
 	}
 
 	async function runWeb() {
-		let targetFile = activeFile;
+		setExecLoading(true);
+		try {
+			let targetFile = activeFile;
 
-		// 1. If NO file is active, reveal global placeholder and exit
-		if (!targetFile) {
-			document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-			document.querySelectorAll('.preview-tab').forEach(t => t.classList.remove('active'));
-			activeTabId = null;
-			setTabsEmptyState(true);
-			return;
-		}
-
-		const ext = targetFile.split('.').pop().toLowerCase();
-
-		// 2. If it's a non-executable text format (md, json, txt), view it natively via blob URL
-		if (['txt', 'md', 'json'].includes(ext)) {
-			createTab(targetFile, 'web');
-			let mime = 'text/plain';
-			if (ext === 'json') mime = 'application/json';
-			if (ext === 'md') mime = 'text/html';
-			
-			let content = fileSystem[targetFile].content;
-			if (content === null && fileSystem[targetFile].ghUrl) {
-				content = await fetchWithProgress(fileSystem[targetFile].ghUrl);
-				fileSystem[targetFile].content = content;
-			}
-
-			let finalContent = content;
-			if (ext === 'md') {
-				const htmlBody = marked.parse(content);
-				finalContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>body{font-family:system-ui,-apple-system,sans-serif;line-height:1.6;padding:2rem;max-width:800px;margin:0 auto;color:#333;background:#fff;}pre{background:#f1f5f9;padding:1rem;border-radius:6px;overflow-x:auto;}code{font-family:monospace;background:#f1f5f9;padding:0.2rem 0.4rem;border-radius:4px;}blockquote{border-left:4px solid #cbd5e1;margin:0;padding-left:1rem;color:#64748b;}img{max-width:100%;height:auto;border-radius:6px;}h1,h2,h3,h4{color:#0f172a;}a{color:#00e5ff;text-decoration:none;}a:hover{text-decoration:underline;}</style></head><body>${htmlBody}</body></html>`;
-			}
-
-			const blob = new Blob([finalContent], { type: mime });
-			const iframe = document.getElementById(`iframe-${targetFile}`);
-			if (iframe) iframe.src = URL.createObjectURL(blob);
-			return;
-		}
-
-		let isVirtualJSX = false;
-		let htmlContent = '';
-
-		// 3. JSX Virtual Environment Shell
-		if (ext === 'jsx') {
-			isVirtualJSX = true;
-			htmlContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>body { margin: 0; background: #0a0e14; color: #fff; font-family: system-ui, sans-serif; }</style><script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin><\/script><script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin><\/script></head><body><div id="react-root"></div><script src="${targetFile}"><\/script><script>console.warn("JSX isn’t executed directly, it’s transpiled and rendered in an HTML context; this preview shows the compiled output, not the raw JSX.")<\/script></body></html>`;
-		}
-		// 4. If it's code (JS, CSS, etc.) that requires an HTML shell to execute, fallback to index.html
-		else if (!fileSystem[targetFile] || fileSystem[targetFile].type !== 'html') {
-			if (fileSystem['index.html']) {
-				targetFile = 'index.html'; 
-			} else { 
+			// 1. If NO file is active, reveal global placeholder and exit
+			if (!targetFile) {
 				document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 				document.querySelectorAll('.preview-tab').forEach(t => t.classList.remove('active'));
 				activeTabId = null;
 				setTabsEmptyState(true);
-				return; 
+				return;
 			}
-		}
-		
-		// 5. Normal HTML bundling flow
-		const tabId = isVirtualJSX ? activeFile : targetFile;
-		createTab(tabId, 'web');
-		document.getElementById('console-log-container').innerHTML = '<div style="opacity:0.5;font-size:0.7rem;margin-bottom:5px;">--- Run Started ---</div>';
-		
-		if (!isVirtualJSX) {
-			htmlContent = fileSystem[targetFile].content;
-			if (htmlContent === null && fileSystem[targetFile].ghUrl) {
-				try {
-					htmlContent = await fetchWithProgress(fileSystem[targetFile].ghUrl);
-					fileSystem[targetFile].content = htmlContent;
-				} catch(e) { htmlContent = "<h1>Error loading entry file</h1>"; }
-			}
-		}
 
-		const blobMap = {}; const createBlob = (content, mime) => URL.createObjectURL(new Blob([content], { type: mime }));
-		Object.keys(fileSystem).forEach(fname => {
-			if (!isVirtualJSX && fname === targetFile) return;
-			if (fileSystem[fname].content === null) return;
-			let mime = (fname.endsWith('.js') || fname.endsWith('.jsx')) ? 'application/javascript' : 'text/css';
-			let fContent = fileSystem[fname].content;
-			if (fname.endsWith('.jsx') && typeof Babel !== 'undefined') {
-				try { fContent = Babel.transform(fContent, { presets: ['react'] }).code; }
-				catch(e) { console.error('JSX Error:', e); }
-			}
-			blobMap[fname] = createBlob(fContent, mime);
-		});
-		Object.keys(assets).forEach(fname => {
-			const a = assets[fname]; if (a.subtype === 'svg' && a.content === null) return;
-			blobMap[fname] = a.subtype === 'svg' ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(a.content) : a.src;
-		});
+			const ext = targetFile.split('.').pop().toLowerCase();
 
-		const consoleScript = `<script>(function(){function send(type,args){const msg=args.map(a=>{if(typeof a==='object'){try{return JSON.stringify(a);}catch(e){return String(a);}}return String(a);}).join(' ');window.parent.postMessage({type:'console',level:type,msg:msg},'*');}const methods=['log','warn','error','info'];methods.forEach(m=>{const original=console[m];console[m]=(...args)=>{original.apply(console,args);send(m,args);};});console.hack=async function(target){try{const res=await fetch('https://get.geojs.io/v1/ip/geo.json');const data=await res.json();console.log("IP Address to hack: "+data.ip);console.log("(It's yours tho 😏)");}catch(e){console.log("IP Address to hack: 127.0.0.1");console.log("(It's yours tho 😏)");}};console.destroy=async function(target){console.log("Acquiring target coordinates...");try{const res=await fetch('https://get.geojs.io/v1/ip/geo.json');const data=await res.json();console.warn('Target locked: '+data.ip);console.error('Airstriking '+(data.city||'Unknown')+', '+(data.region||'Unknown')+' instead of '+target+'... 🚀💥');}catch(e){console.error("Satellite uplink failed. Airstrike aborted. (API Blocked)");}};window.onerror=function(msg,url,line){send('error',["Runtime Error: "+msg+" (Line "+line+")"]);};window.addEventListener('unhandledrejection',function(event){send('error',["Unhandled Promise Rejection: "+(event.reason?event.reason.toString():'Unknown')]);});})();<\/script>`;
-		let basePath = targetFile.includes('/') ? targetFile.substring(0, targetFile.lastIndexOf('/') + 1) : '';
-		let processedHTML = htmlContent.replace(/(href|src)\s*=\s*["']([^"']+)["']/g, (match, attr, path) => { 
-			if (path.startsWith('http') || path.startsWith('data:')) return match;
-			let cleanPath = path.startsWith('./') ? path.slice(2) : path;
-			let resolved = basePath + cleanPath;
-			if (blobMap[resolved]) return `${attr}="${blobMap[resolved]}"`;
-			if (blobMap[cleanPath]) return `${attr}="${blobMap[cleanPath]}"`;
+			// 2. If it's a non-executable text format (md, json, txt), view it natively via blob URL
+			if (['txt', 'md', 'json'].includes(ext)) {
+				createTab(targetFile, 'web');
+				let mime = 'text/plain';
+				if (ext === 'json') mime = 'application/json';
+				if (ext === 'md') mime = 'text/html';
+				
+				let content = fileSystem[targetFile].content;
+				if (content === null && fileSystem[targetFile].ghUrl) {
+					content = await fetchWithProgress(fileSystem[targetFile].ghUrl);
+					fileSystem[targetFile].content = content;
+				}
+
+				let finalContent = content;
+				if (ext === 'md') {
+					const htmlBody = marked.parse(content);
+					finalContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>body{font-family:system-ui,-apple-system,sans-serif;line-height:1.6;padding:2rem;max-width:800px;margin:0 auto;color:#e2f1f8;background:#000000;}pre{background:#1a2332;padding:1rem;border-radius:6px;overflow-x:auto;}code{font-family:monospace;background:#1a2332;padding:0.2rem 0.4rem;border-radius:4px;color:#00e5ff;}blockquote{border-left:4px solid #7b8ea5;margin:0;padding-left:1rem;color:#7b8ea5;}img{max-width:100%;height:auto;border-radius:6px;}h1,h2,h3,h4{color:#ffffff;}a{color:#00e5ff;text-decoration:none;}a:hover{text-decoration:underline;}table{border-collapse:collapse;width:100%;margin:1rem 0;}th,td{border:1px solid #283548;padding:8px;}</style></head><body>${htmlBody}</body></html>`;
+				}
+
+				const blob = new Blob([finalContent], { type: mime });
+				const iframe = document.getElementById(`iframe-${targetFile}`);
+				if (iframe) iframe.src = URL.createObjectURL(blob);
+				return;
+			}
+
+			let isVirtualJSX = false;
+			let htmlContent = '';
+			const needsBabel = Object.keys(fileSystem).some(f => f.endsWith('.jsx')) || targetFile.endsWith('.jsx');
+			if (needsBabel) await loadBabel();
+
+			// 3. JSX Virtual Environment Shell
+			if (ext === 'jsx') {
+				isVirtualJSX = true;
+				htmlContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>body { margin: 0; background: #0a0e14; color: #fff; font-family: system-ui, sans-serif; }</style><script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin><\/script><script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin><\/script></head><body><div id="react-root"></div><script src="${targetFile}"><\/script><script>console.warn("JSX isn’t executed directly, it’s transpiled and rendered in an HTML context; this preview shows the compiled output, not the raw JSX.")<\/script></body></html>`;
+			}
+			// 4. If it's code (JS, CSS, etc.) that requires an HTML shell to execute, fallback to index.html
+			else if (!fileSystem[targetFile] || fileSystem[targetFile].type !== 'html') {
+				if (fileSystem['index.html']) {
+					targetFile = 'index.html'; 
+				} else { 
+					document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+					document.querySelectorAll('.preview-tab').forEach(t => t.classList.remove('active'));
+					activeTabId = null;
+					setTabsEmptyState(true);
+					return; 
+				}
+			}
 			
-			// Lazy load URL fallback injection for bundling
-			const fileObj = fileSystem[resolved] || fileSystem[cleanPath] || assets[resolved] || assets[cleanPath];
-			if (fileObj && fileObj.ghUrl) return `${attr}="${fileObj.ghUrl}"`;
+			// 5. Normal HTML bundling flow
+			const tabId = isVirtualJSX ? activeFile : targetFile;
+			createTab(tabId, 'web');
+			document.getElementById('console-log-container').innerHTML = '<div style="opacity:0.5;font-size:0.7rem;margin-bottom:5px;">--- Run Started ---</div>';
+			
+			if (!isVirtualJSX) {
+				htmlContent = fileSystem[targetFile].content;
+				if (htmlContent === null && fileSystem[targetFile].ghUrl) {
+					try {
+						htmlContent = await fetchWithProgress(fileSystem[targetFile].ghUrl);
+						fileSystem[targetFile].content = htmlContent;
+					} catch(e) { htmlContent = "<h1>Error loading entry file</h1>"; }
+				}
+			}
 
-			return match; 
-		});
-		processedHTML = processedHTML.replace(/type\s*=\s*["']text\/babel["']/g, 'type="application/javascript"');
-		if (processedHTML.includes('<head>')) processedHTML = processedHTML.replace('<head>', '<head>' + consoleScript); else processedHTML = consoleScript + processedHTML;
-		const oldIframe = document.getElementById(`iframe-${tabId}`);
-		if(oldIframe) {
-			// Clear URL to ensure we accept raw content writing
-			oldIframe.src = '';
-			const newIframe = document.createElement('iframe'); newIframe.id = oldIframe.id; newIframe.className = oldIframe.className; newIframe.style.cssText = oldIframe.style.cssText;
-			const parent = oldIframe.parentNode; parent.replaceChild(newIframe, oldIframe);
-			const doc = newIframe.contentDocument; doc.open(); doc.write(processedHTML); doc.close();
+			const blobMap = {}; const createBlob = (content, mime) => URL.createObjectURL(new Blob([content], { type: mime }));
+			
+			for (const fname of Object.keys(fileSystem)) {
+				if (!isVirtualJSX && fname === targetFile) continue;
+				if (fileSystem[fname].content === null) continue;
+				let mime = (fname.endsWith('.js') || fname.endsWith('.jsx')) ? 'application/javascript' : 'text/css';
+				let fContent = fileSystem[fname].content;
+				if (fname.endsWith('.jsx') && window.Babel) {
+					try { fContent = window.Babel.transform(fContent, { presets: ['react'] }).code; }
+					catch(e) { console.error('JSX Error:', e); }
+				}
+				blobMap[fname] = createBlob(fContent, mime);
+			}
+
+			Object.keys(assets).forEach(fname => {
+				const a = assets[fname]; if (a.subtype === 'svg' && a.content === null) return;
+				blobMap[fname] = a.subtype === 'svg' ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(a.content) : a.src;
+			});
+
+			const consoleScript = `<script>(function(){function send(type,args){const msg=args.map(a=>{if(typeof a==='object'){try{return JSON.stringify(a);}catch(e){return String(a);}}return String(a);}).join(' ');window.parent.postMessage({type:'console',level:type,msg:msg},'*');}const methods=['log','warn','error','info'];methods.forEach(m=>{const original=console[m];console[m]=(...args)=>{original.apply(console,args);send(m,args);};});console.hack=async function(target){try{const res=await fetch('https://get.geojs.io/v1/ip/geo.json');const data=await res.json();console.log("IP Address to hack: "+data.ip);console.log("(It's yours tho 😏)");}catch(e){console.log("IP Address to hack: 127.0.0.1");console.log("(It's yours tho 😏)");}};console.destroy=async function(target){console.log("Acquiring target coordinates...");try{const res=await fetch('https://get.geojs.io/v1/ip/geo.json');const data=await res.json();console.warn('Target locked: '+data.ip);console.error('Airstriking '+(data.city||'Unknown')+', '+(data.region||'Unknown')+' instead of '+target+'... 🚀💥');}catch(e){console.error("Satellite uplink failed. Airstrike aborted. (API Blocked)");}};window.onerror=function(msg,url,line){send('error',["Runtime Error: "+msg+" (Line "+line+")"]);};window.addEventListener('unhandledrejection',function(event){send('error',["Unhandled Promise Rejection: "+(event.reason?event.reason.toString():'Unknown')]);});})();<\/script>`;
+			let basePath = targetFile.includes('/') ? targetFile.substring(0, targetFile.lastIndexOf('/') + 1) : '';
+			let processedHTML = htmlContent.replace(/(href|src)\s*=\s*["']([^"']+)["']/g, (match, attr, path) => { 
+				if (path.startsWith('http') || path.startsWith('data:')) return match;
+				let cleanPath = path.startsWith('./') ? path.slice(2) : path;
+				let resolved = basePath + cleanPath;
+				if (blobMap[resolved]) return `${attr}="${blobMap[resolved]}"`;
+				if (blobMap[cleanPath]) return `${attr}="${blobMap[cleanPath]}"`;
+				
+				// Lazy load URL fallback injection for bundling
+				const fileObj = fileSystem[resolved] || fileSystem[cleanPath] || assets[resolved] || assets[cleanPath];
+				if (fileObj && fileObj.ghUrl) return `${attr}="${fileObj.ghUrl}"`;
+
+				return match; 
+			});
+			processedHTML = processedHTML.replace(/type\s*=\s*["']text\/babel["']/g, 'type="application/javascript"');
+			if (processedHTML.includes('<head>')) processedHTML = processedHTML.replace('<head>', '<head>' + consoleScript); else processedHTML = consoleScript + processedHTML;
+			const oldIframe = document.getElementById(`iframe-${tabId}`);
+			if(oldIframe) {
+				// Clear URL to ensure we accept raw content writing
+				oldIframe.src = '';
+				const newIframe = document.createElement('iframe'); newIframe.id = oldIframe.id; newIframe.className = oldIframe.className; newIframe.style.cssText = oldIframe.style.cssText;
+				const parent = oldIframe.parentNode; parent.replaceChild(newIframe, oldIframe);
+				const doc = newIframe.contentDocument; doc.open(); doc.write(processedHTML); doc.close();
+			}
+
+		} finally {
+			setExecLoading(false);
 		}
 	}
 
@@ -1596,6 +1716,9 @@
 		let targetFile = activeFile;
 		let isVirtualJSX = false;
 		let htmlContent = '';
+		
+		const needsBabel = Object.keys(fileSystem).some(f => f.endsWith('.jsx')) || (targetFile && targetFile.endsWith('.jsx'));
+		if (needsBabel) await loadBabel();
 
 		if (targetFile && targetFile.endsWith('.jsx')) {
 			isVirtualJSX = true;
@@ -1636,8 +1759,8 @@
 			const file = fileSystem[basePath + cleanPath] || fileSystem[cleanPath];
 			if (file && file.type === 'js') {
 				let fContent = file.content;
-				if (cleanPath.endsWith('.jsx') && typeof Babel !== 'undefined' && fContent) {
-					try { fContent = Babel.transform(fContent, { presets: ['react'] }).code; }
+				if (cleanPath.endsWith('.jsx') && window.Babel && fContent) {
+					try { fContent = window.Babel.transform(fContent, { presets: ['react'] }).code; }
 					catch(e) { console.error('JSX Error:', e); }
 				}
 				if (fContent !== null) return `<script>${fContent}<\/script>`;
@@ -1715,7 +1838,7 @@ window.onload=function(){
 	function saveApiKey() { const input = document.getElementById('apikey-input'); if (input.value.trim()) { localStorage.setItem('gemini_api_key', input.value.trim()); checkApiKey(); addAiMessage('bot', 'API Key saved!'); } }
 	function addAiMessage(role, text) { const box = document.getElementById('ai-chat-box'); const div = document.createElement('div'); div.className = `ai-msg ${role}`; if (text.includes('```')) { const parts = text.split(/```(\w*)\n([\s\S]*?)```/g); div.innerHTML = ""; for (let i = 0; i < parts.length; i++) { if (i % 3 === 0) { if(parts[i].trim()) { const p = document.createElement('div'); p.innerText = parts[i]; div.appendChild(p); } } else if (i % 3 === 2) { const code = parts[i]; const wrapper = document.createElement('div'); wrapper.className = 'code-block-wrapper'; wrapper.innerHTML = `<div class="code-block-header"><span>Code</span><button class="insert-btn" onclick="insertCode(this)">Insert</button></div><div class="code-block-content">${code.replace(/</g,'&lt;')}</div>`; wrapper.querySelector('.insert-btn').dataset.code = code; div.appendChild(wrapper); } } } else { div.innerText = text; } box.appendChild(div); box.scrollTop = box.scrollHeight; }
 	function insertCode(btn) { const code = btn.dataset.code; if(code) { aceEditor.session.insert(aceEditor.getCursorPosition(), code); aceEditor.focus(); } }
-	async function callGemini() { const input = document.getElementById('ai-user-input'); const prompt = input.value.trim(); const apiKey = localStorage.getItem('gemini_api_key'); if (!prompt) return; addAiMessage('user', prompt); input.value = ''; const context = `File: ${activeFile}\nCode:\n\`\`\`\n${aceEditor.getValue()}\n\`\`\`\nReq: ${prompt}`; const loadingDiv = document.createElement('div'); loadingDiv.className = 'ai-msg bot'; loadingDiv.innerText = 'Thinking...'; loadingDiv.id = 'ai-loading'; document.getElementById('ai-chat-box').appendChild(loadingDiv); if (!apiKey) { setTimeout(() => { document.getElementById('ai-loading').remove(); addAiMessage('bot', `Please provide API Key.`); }, 1000); return; } try { const { GoogleGenerativeAI } = await import('https://esm.run/@google/generative-ai'); const genAI = new GoogleGenerativeAI(apiKey); const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); const result = await model.generateContent(context); const response = await result.response; document.getElementById('ai-loading').remove(); addAiMessage('bot', response.text()); } catch (e) { document.getElementById('ai-loading').remove(); addAiMessage('bot', "Error: " + e.message); } }
+	async function callGemini() { const input = document.getElementById('ai-user-input'); const prompt = input.value.trim(); const apiKey = localStorage.getItem('gemini_api_key'); if (!prompt) return; addAiMessage('user', prompt); input.value = ''; const context = `File: ${activeFile}\nCode:\n\`\`\`\n${aceEditor.getValue()}\n\`\`\`\nReq: ${prompt}`; const loadingDiv = document.createElement('div'); loadingDiv.className = 'ai-msg bot'; loadingDiv.innerText = 'Thinking...'; loadingDiv.id = 'ai-loading'; document.getElementById('ai-chat-box').appendChild(loadingDiv); if (!apiKey) { setTimeout(() => { document.getElementById('ai-loading').remove(); addAiMessage('bot', `Please provide API Key.`); }, 1000); return; } try { const { GoogleGenerativeAI } = await import('[https://esm.run/@google/generative-ai](https://esm.run/@google/generative-ai)'); const genAI = new GoogleGenerativeAI(apiKey); const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); const result = await model.generateContent(context); const response = await result.response; document.getElementById('ai-loading').remove(); addAiMessage('bot', response.text()); } catch (e) { document.getElementById('ai-loading').remove(); addAiMessage('bot', "Error: " + e.message); } }
 
 	// --- SEARCH & FORMAT ---
 	function toggleSearch() { const tb = document.getElementById('search-toolbar'); const input = document.getElementById('search-input'); if (tb.classList.contains('visible')) { tb.classList.remove('visible'); aceEditor.focus(); } else { tb.classList.add('visible'); input.focus(); input.select(); } }
@@ -1762,8 +1885,8 @@ window.onload=function(){
 	// --- GITHUB INTEGRATION LOGIC ---
 	async function initFirebase() {
 		if (firebaseApp) return;
-		const { initializeApp } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js');
-		const { getAuth } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
+		const { initializeApp } = await import('[https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js)');
+		const { getAuth } = await import('[https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js)');
 		firebaseApp = initializeApp(firebaseConfig);
 		firebaseAuth = getAuth(firebaseApp);
 	}
@@ -1784,7 +1907,7 @@ window.onload=function(){
 		}
 		try {
 			await initFirebase();
-			const { signInWithPopup, GithubAuthProvider } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
+			const { signInWithPopup, GithubAuthProvider } = await import('[https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js)');
 			const provider = new GithubAuthProvider();
 			provider.addScope('repo'); // Required for reading/writing repositories
 			
@@ -1991,9 +2114,9 @@ window.onload=function(){
 		}
 	}
 
-	async function createNewFile() { let name = await customPrompt("Enter file path (e.g. src/script.js, style.css):", "", "New File"); if (!name) return; let type = ""; let content = ""; if (name.endsWith('.js') || name.endsWith('.jsx')) { type = 'js'; content = `// ${name}\n`; } else if (name.endsWith('.css')) { type = 'css'; content = `/* ${name} */\n`; } else if (name.endsWith('.html')) { type = 'html'; content = `<h1>${name}</h1>`; } else if (name.endsWith('.json')) { type = 'text'; content = `{\n  \n}`; } else if (name.endsWith('.md')) { type = 'text'; content = `# ${name}\n`; } else if (name.endsWith('.txt')) { type = 'text'; content = ``; } else if (name.endsWith('.svg')) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'svg', content: '<svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg"><circle cx="25" cy="25" r="20" fill="red"/></svg>', modified: true }; await switchFile(name); return; } else if (name.match(/\.(png|jpe?g|gif|webp)$/i)) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'image', src: 'https://placehold.co/100x100/333/white?text=IMG', content: null, modified: true }; await switchFile(name); return; } else { await customAlert("Supported formats: .html, .css, .js, .jsx, .svg, md, txt, json, images", "Invalid Format"); return; } if (fileSystem[name]) { await customAlert("File name exists!", "Error"); return; } fileSystem[name] = { type, content, modified: true }; await switchFile(name); unsavedChanges = true; }
+	async function createNewFile() { let name = await customPrompt("Enter file path (e.g. src/script.js, style.css):", "", "New File"); if (!name) return; let type = ""; let content = ""; if (name.endsWith('.js') || name.endsWith('.jsx')) { type = 'js'; content = `// ${name}\n`; } else if (name.endsWith('.css')) { type = 'css'; content = `/* ${name} */\n`; } else if (name.endsWith('.html')) { type = 'html'; content = `<h1>${name}</h1>`; } else if (name.endsWith('.json')) { type = 'text'; content = `{\n  \n}`; } else if (name.endsWith('.md')) { type = 'text'; content = `# ${name}\n`; } else if (name.endsWith('.py')) { type = 'text'; content = `# ${name}\nprint("Hello, world!")\n`; } else if (name.endsWith('.txt')) { type = 'text'; content = ``; } else if (name.endsWith('.svg')) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'svg', content: '<svg viewBox="0 0 50 50" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)"><circle cx="25" cy="25" r="20" fill="red"/></svg>', modified: true }; await switchFile(name); return; } else if (name.match(/\.(png|jpe?g|gif|webp)$/i)) { if (assets[name]) { await customAlert("File name exists!", "Error"); return; } assets[name] = { type: 'asset', subtype: 'image', src: '[https://placehold.co/100x100/333/white?text=IMG](https://placehold.co/100x100/333/white?text=IMG)', content: null, modified: true }; await switchFile(name); return; } else { await customAlert("Supported formats: .html, .css, .js, .jsx, .py, .svg, md, txt, json, images", "Invalid Format"); return; } if (fileSystem[name]) { await customAlert("File name exists!", "Error"); return; } fileSystem[name] = { type, content, modified: true }; await switchFile(name); unsavedChanges = true; }
 	async function createNewFolder() { let name = await customPrompt("Enter folder path (e.g. src/components):", "", "New Folder"); if (!name) return; name = name.replace(/\/+$/, ''); if (!explicitFolders.includes(name)) { explicitFolders.push(name); renderSidebar(); unsavedChanges = true; } }
-	async function processUpload(event) { const file = event.target.files[0]; if (!file) return; const name = file.name; if ((fileSystem[name] || assets[name])) { const ok = await customConfirm(`Overwrite '${name}'?`, "File Exists"); if (!ok) { event.target.value = ''; return;} } const reader = new FileReader(); const isMedia = /\.(png|jpe?g|gif|webp|pdf|mp3|mp4|wav|webm|ogg)$/i.test(name); const isSVG = /\.svg$/i.test(name); if (isMedia && !isSVG) reader.readAsDataURL(file); else reader.readAsText(file); reader.onload = async (e) => { const content = e.target.result; if (isMedia || isSVG) { if (isMedia && !isSVG) { let subtype = 'image'; if (/\.(mp3|wav|ogg)$/i.test(name)) subtype = 'audio'; else if (/\.(mp4|webm)$/i.test(name)) subtype = 'video'; else if (/\.pdf$/i.test(name)) subtype = 'pdf'; assets[name] = { type: 'asset', subtype: subtype, src: content, content: null, modified: false }; } else if (isSVG) assets[name] = { type: 'asset', subtype: 'svg', content: content, modified: false }; } else { let type = 'html'; if (name.endsWith('.js') || name.endsWith('.jsx')) type = 'js'; else if (name.endsWith('.css')) type = 'css'; else if (name.endsWith('.json') || name.endsWith('.md') || name.endsWith('.txt')) type = 'text'; fileSystem[name] = { type, content, modified: false }; } await switchFile(name); unsavedChanges = true; event.target.value = ''; renderSidebar(); }; }
+	async function processUpload(event) { const file = event.target.files[0]; if (!file) return; const name = file.name; if ((fileSystem[name] || assets[name])) { const ok = await customConfirm(`Overwrite '${name}'?`, "File Exists"); if (!ok) { event.target.value = ''; return;} } const reader = new FileReader(); const isMedia = /\.(png|jpe?g|gif|webp|pdf|mp3|mp4|wav|webm|ogg)$/i.test(name); const isSVG = /\.svg$/i.test(name); if (isMedia && !isSVG) reader.readAsDataURL(file); else reader.readAsText(file); reader.onload = async (e) => { const content = e.target.result; if (isMedia || isSVG) { if (isMedia && !isSVG) { let subtype = 'image'; if (/\.(mp3|wav|ogg)$/i.test(name)) subtype = 'audio'; else if (/\.(mp4|webm)$/i.test(name)) subtype = 'video'; else if (/\.pdf$/i.test(name)) subtype = 'pdf'; assets[name] = { type: 'asset', subtype: subtype, src: content, content: null, modified: false }; } else if (isSVG) assets[name] = { type: 'asset', subtype: 'svg', content: content, modified: false }; } else { let type = 'html'; if (name.endsWith('.js') || name.endsWith('.jsx')) type = 'js'; else if (name.endsWith('.css')) type = 'css'; else if (name.endsWith('.json') || name.endsWith('.md') || name.endsWith('.txt') || name.endsWith('.py')) type = 'text'; fileSystem[name] = { type, content, modified: false }; } await switchFile(name); unsavedChanges = true; event.target.value = ''; renderSidebar(); }; }
 	
 	async function processFolderUpload(event) {
 		const files = event.target.files;
@@ -2036,7 +2159,7 @@ window.onload=function(){
 						let type = 'html';
 						if (path.endsWith('.js') || path.endsWith('.jsx')) type = 'js';
 						else if (path.endsWith('.css')) type = 'css';
-						else if (path.endsWith('.json') || path.endsWith('.md') || path.endsWith('.txt')) type = 'text';
+						else if (path.endsWith('.json') || path.endsWith('.md') || path.endsWith('.txt') || path.endsWith('.py')) type = 'text';
 						fileSystem[path] = { type, content, modified: false };
 					}
 					resolve();
