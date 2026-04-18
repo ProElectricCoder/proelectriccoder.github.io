@@ -860,6 +860,7 @@
 		<div id="dialog-msg"></div>
 		<input type="text" id="dialog-input" autocomplete="off" spellcheck="false">
 		<div style="display:flex; gap:10px; justify-content:flex-end;">
+			<button class="btn btn-secondary" id="dialog-btn-extra" style="display:none;"></button>
 			<button class="btn btn-secondary" id="dialog-btn-cancel">Cancel</button>
 			<button class="btn" id="dialog-btn-ok">OK</button>
 		</div>
@@ -967,7 +968,6 @@
 	let isSwitchingFile = false;
 
 	// System state for Python input
-	let pythonWaiting = false;
 	let pythonPollFn = null;
 
 	// --- Helper: Dynamic Babel Lazy Loading ---
@@ -989,7 +989,7 @@
 	}
 
 	// --- Custom Dialog System ---
-	function showCustomDialog(type, title, msg, defaultVal = '', okText = 'OK', cancelText = 'Cancel') {
+	function showCustomDialog(type, title, msg, defaultVal = '', okText = 'OK', cancelText = 'Cancel', extraText = null) {
 		return new Promise(resolve => {
 			const overlay = document.getElementById('dialog-overlay');
 			const titleEl = document.getElementById('dialog-title');
@@ -997,6 +997,7 @@
 			const inputEl = document.getElementById('dialog-input');
 			const btnCancel = document.getElementById('dialog-btn-cancel');
 			const btnOk = document.getElementById('dialog-btn-ok');
+			const btnExtra = document.getElementById('dialog-btn-extra');
 
 			titleEl.innerText = title;
 			msgEl.innerHTML = msg; 
@@ -1004,6 +1005,13 @@
 			btnOk.innerText = okText;
 			btnCancel.innerText = cancelText;
 			
+			if (extraText) {
+				btnExtra.style.display = 'block';
+				btnExtra.innerText = extraText;
+			} else {
+				btnExtra.style.display = 'none';
+			}
+
 			if (type === 'prompt') {
 				inputEl.style.display = 'block';
 				btnCancel.style.display = 'block';
@@ -1026,11 +1034,13 @@
 				setTimeout(() => overlay.style.display = 'none', 200);
 				btnOk.onclick = null;
 				btnCancel.onclick = null;
+				if(btnExtra) btnExtra.onclick = null;
 				inputEl.onkeydown = null;
 			};
 
 			btnOk.onclick = () => { cleanup(); resolve(type === 'prompt' ? inputEl.value : true); };
 			btnCancel.onclick = () => { cleanup(); resolve(type === 'prompt' ? null : false); };
+			btnExtra.onclick = () => { cleanup(); resolve('extra'); };
 
 			inputEl.onkeydown = (e) => {
 				if (e.key === 'Enter') btnOk.click();
@@ -1192,29 +1202,6 @@
 		input.addEventListener('keydown', async (e) => {
 			if (e.key === 'Enter') {
 				const cmd = input.value;
-				
-				if (window.pythonWaiting) {
-					window.pythonWaiting = false;
-					const promptEl = document.querySelector('.console-prompt');
-					promptEl.innerText = '>';
-					promptEl.style.color = 'var(--accent)';
-					input.value = '';
-					
-					logToConsole('log', cmd); // Echo the user input to the IDE console
-					
-					try {
-						await fetch('http://127.0.0.1:8765/input', {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({ input: cmd })
-						});
-						// Resume polling
-						if (window.pythonPollFn) window.pythonPollFn();
-					} catch(err) {
-						logToConsole('error', 'Failed to send input to Python Server');
-					}
-					return;
-				}
 
 				if (!cmd) return;
 				logToConsole('log', cmd);
@@ -1498,11 +1485,7 @@
 	}
 
 	async function runPython(targetFile) {
-		const hasSetup = localStorage.getItem('deepBlue_python_setup_v2');
-		if (!hasSetup) {
-			const doSetup = await showCustomDialog('confirm', 'Python Execution Setup', 'Python execution requires a local helper file (DeepBluePython.py). This file will be downloaded to your computer. You must run it locally to enable Python execution.', '', 'Download file', 'Cancel');
-			if (doSetup) {
-				const pyCode = `import http.server, json, sys, io, threading
+		const pyCode = `import http.server, json, sys, io, threading
 
 class ExecutionState:
     def __init__(self):
@@ -1516,7 +1499,7 @@ class ExecutionState:
 state = ExecutionState()
 
 def custom_input(prompt=""):
-    print(prompt, end="")
+    print(prompt, end="", flush=True)
     with state.lock:
         state.status = "waiting_input"
         state.input_event.clear()
@@ -1610,104 +1593,145 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 print("DeepBlue Python Server running on http://127.0.0.1:8765...")
 http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
+
+		let codeContent = fileSystem[targetFile].content;
+		if (codeContent === null && fileSystem[targetFile].ghUrl) {
+			codeContent = await fetchWithProgress(fileSystem[targetFile].ghUrl);
+			fileSystem[targetFile].content = codeContent;
+		}
+
+		const attemptRun = async () => {
+			try {
+				const res = await fetch('http://127.0.0.1:8765/execute', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ code: codeContent })
+				});
+				if (!res.ok) throw new Error("Local server error");
+				return true;
+			} catch (err) {
+				return false;
+			}
+		};
+
+		setExecLoading(true);
+		let isRunning = await attemptRun();
+		setExecLoading(false);
+
+		if (!isRunning) {
+			const action = await showCustomDialog('confirm', 'Python Execution Required', 'Run DeepBluePython.py', '', 'Run File', 'Cancel', 'Download Python Runner');
+			
+			if (action === 'extra') {
 				const blob = new Blob([pyCode], {type: 'text/plain'});
 				saveAs(blob, "DeepBluePython.py");
-				localStorage.setItem('deepBlue_python_setup_v2', 'true');
+				return;
+			} else if (action === true) {
+				setExecLoading(true);
+				isRunning = await attemptRun();
+				setExecLoading(false);
+				if (!isRunning) {
+					await customAlert("Run DeepBluePython.py", "Execution Failed");
+					return;
+				}
 			} else {
 				return;
 			}
 		}
 
-		setExecLoading(true);
-		try {
-			let codeContent = fileSystem[targetFile].content;
-			if (codeContent === null && fileSystem[targetFile].ghUrl) {
-				codeContent = await fetchWithProgress(fileSystem[targetFile].ghUrl);
-				fileSystem[targetFile].content = codeContent;
-			}
+		// Set up an iterative HTML frame for terminal output
+		createTab(targetFile, 'web');
+		const initialHtml = `<!DOCTYPE html><html><head><style>body{background:#000;color:#e2e8f0;font-family:monospace;padding:1rem;margin:0;display:flex;flex-direction:column;height:100vh;box-sizing:border-box;}#output{white-space:pre-wrap;overflow-y:auto;flex:1;}.err{color:#f87171;}#input-line{display:none;align-items:center;margin-top:4px;flex-shrink:0;}#prompt{color:#fbbf24;margin-right:8px;}#term-input{background:transparent;border:none;color:#fff;font-family:monospace;font-size:1rem;flex:1;outline:none;}</style></head><body><div id="output"></div><div id="input-line"><span id="prompt">&gt;</span><input type="text" id="term-input" autocomplete="off" spellcheck="false"></div></body></html>`;
+		const blob = new Blob([initialHtml], { type: 'text/html' });
+		const iframe = document.getElementById(`iframe-${targetFile}`);
+		if (iframe) iframe.src = URL.createObjectURL(blob);
+		
+		// Small delay to ensure the DOM within the iframe is hydrated
+		await new Promise(r => setTimeout(r, 100));
 
-			// Set up an iterative HTML frame for terminal output
-			createTab(targetFile, 'web');
-			const initialHtml = `<!DOCTYPE html><html><head><style>body{background:#000;color:#e2e8f0;font-family:monospace;padding:1rem;white-space:pre-wrap;margin:0;word-break:break-all;}</style></head><body id="term"></body></html>`;
-			const blob = new Blob([initialHtml], { type: 'text/html' });
-			const iframe = document.getElementById(`iframe-${targetFile}`);
-			if (iframe) iframe.src = URL.createObjectURL(blob);
-			
-			// Small delay to ensure the DOM within the iframe is hydrated
-			await new Promise(r => setTimeout(r, 100));
+		if (window.pythonPollTimer) clearTimeout(window.pythonPollTimer);
 
-			const res = await fetch('http://127.0.0.1:8765/execute', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ code: codeContent })
-			});
-			
-			if (!res.ok) throw new Error("Local server error");
-			logToConsole('info', "--- Python Execution Started ---");
-
-			if (window.pythonPollTimer) clearTimeout(window.pythonPollTimer);
-
-			// Start the background polling loop for stream data
-			const poll = async () => {
-				try {
-					const pollRes = await fetch('http://127.0.0.1:8765/poll');
-					if (!pollRes.ok) throw new Error("Poll failed");
-					const data = await pollRes.json();
-					
-					const term = iframe.contentDocument?.getElementById('term');
-					
-					// Print any new stdout stream
-					if (data.stdout) {
-						if (term) {
-							const span = iframe.contentDocument.createElement('span');
-							span.textContent = data.stdout;
-							term.appendChild(span);
-							iframe.contentWindow.scrollTo(0, 9999999);
-						}
-						const outText = data.stdout.replace(/\n$/, '');
-						if (outText) logToConsole('log', outText);
-					}
-					
-					// Print any new stderr stream
-					if (data.stderr) {
-						if (term) {
-							const span = iframe.contentDocument.createElement('span');
-							span.style.color = '#f87171';
-							span.textContent = data.stderr;
-							term.appendChild(span);
-							iframe.contentWindow.scrollTo(0, 9999999);
-						}
-						const errText = data.stderr.replace(/\n$/, '');
-						if (errText) logToConsole('error', errText);
-					}
-					
-					// Handle thread execution locks vs input parsing
-					if (data.status === "waiting_input") {
-						window.pythonWaiting = true;
-						const promptEl = document.querySelector('.console-prompt');
-						promptEl.innerText = 'Python Input >';
-						promptEl.style.color = '#fbbf24';
-						document.getElementById('console-input').focus();
-						// Freeze polling loop. It will be re-summoned automatically when the user responds.
-					} else if (data.status === "finished") {
-						setExecLoading(false);
-						logToConsole('info', "--- Python Execution Finished ---");
-					} else {
-						window.pythonPollTimer = setTimeout(poll, 200);
-					}
-				} catch(e) {
-					setExecLoading(false);
-					logToConsole('error', "Python Execution Disconnected");
+		const poll = async () => {
+			try {
+				const pollRes = await fetch('http://127.0.0.1:8765/poll');
+				if (!pollRes.ok) throw new Error("Poll failed");
+				const data = await pollRes.json();
+				
+				const termDoc = iframe.contentDocument;
+				if (!termDoc) return;
+				
+				const termOut = termDoc.getElementById('output');
+				const termInputLine = termDoc.getElementById('input-line');
+				const termInput = termDoc.getElementById('term-input');
+				
+				if (data.stdout && termOut) {
+					termOut.appendChild(termDoc.createTextNode(data.stdout));
+					termOut.scrollTop = termOut.scrollHeight;
 				}
-			};
+				
+				if (data.stderr && termOut) {
+					const span = termDoc.createElement('span');
+					span.className = 'err';
+					span.textContent = data.stderr;
+					termOut.appendChild(span);
+					termOut.scrollTop = termOut.scrollHeight;
+				}
+				
+				if (data.status === "waiting_input") {
+					if (termInputLine && termInput) {
+						termInputLine.style.display = 'flex';
+						termInput.focus();
+						termInput.onkeydown = async (e) => {
+							if (e.key === 'Enter') {
+								const val = termInput.value;
+								termInput.value = '';
+								termInputLine.style.display = 'none';
+								termOut.appendChild(termDoc.createTextNode(val + '\\n'));
+								termOut.scrollTop = termOut.scrollHeight;
+								
+								try {
+									await fetch('http://127.0.0.1:8765/input', {
+										method: 'POST',
+										headers: { 'Content-Type': 'application/json' },
+										body: JSON.stringify({ input: val })
+									});
+									if (window.pythonPollFn) window.pythonPollFn();
+								} catch(err) {
+									const errSpan = termDoc.createElement('span');
+									errSpan.className = 'err';
+									errSpan.textContent = '\\n[Local Server Error: Failed to send input]\\n';
+									termOut.appendChild(errSpan);
+								}
+							}
+						};
+					}
+				} else if (data.status === "finished") {
+					setExecLoading(false);
+					if (termOut) {
+						const span = termDoc.createElement('div');
+						span.style.color = '#64748b';
+						span.style.marginTop = '10px';
+						span.style.fontStyle = 'italic';
+						span.textContent = '--- Program finished ---';
+						termOut.appendChild(span);
+						termOut.scrollTop = termOut.scrollHeight;
+					}
+				} else {
+					window.pythonPollTimer = setTimeout(poll, 200);
+				}
+			} catch(e) {
+				setExecLoading(false);
+				const termOut = iframe.contentDocument?.getElementById('output');
+				if (termOut) {
+					const span = iframe.contentDocument.createElement('span');
+					span.className = 'err';
+					span.textContent = '\\n[Disconnected from Python Server]\\n';
+					termOut.appendChild(span);
+				}
+			}
+		};
 
-			window.pythonPollFn = poll;
-			poll();
-
-		} catch (err) {
-			setExecLoading(false);
-			await customAlert("Could not connect to local Python server. Ensure DeepBluePython.py is running on your machine.", "Execution Failed");
-		}
+		window.pythonPollFn = poll;
+		poll();
 	}
 
 	async function runCode() {
