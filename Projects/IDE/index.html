@@ -1559,7 +1559,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 \t\t\tval = data.get('input', '')
 \t\t\twith state.lock:
 \t\t\t\tstate.input_value = val
-\t\t\t\tstate.stdout_buf.write(val + "\\n")
 \t\t\t\tstate.input_event.set()
 \t\t\tself.send_json({"success": True})
 \tdef do_GET(self):
@@ -1601,12 +1600,15 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 		let isRunning = await attemptRun();
 		setExecLoading(false);
 
-		if (!isRunning) {
+		// Bumped to v3 to force users to redownload the runner to fix input echoing
+		const hasSetup = localStorage.getItem('deepBlue_python_setup_v3');
+		if (!isRunning || !hasSetup) {
 			const action = await showCustomDialog('confirm', 'Python Execution Required', 'Run DeepBluePython.py', '', 'Run File', 'Cancel', 'Download Python Runner');
 			
 			if (action === 'extra') {
 				const blob = new Blob([pyCode], {type: 'text/plain'});
 				saveAs(blob, "DeepBluePython.py");
+				localStorage.setItem('deepBlue_python_setup_v3', 'true');
 				return;
 			} else if (action === true) {
 				setExecLoading(true);
@@ -1615,6 +1617,8 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 				if (!isRunning) {
 					await customAlert("Run DeepBluePython.py", "Execution Failed");
 					return;
+				} else {
+					localStorage.setItem('deepBlue_python_setup_v3', 'true');
 				}
 			} else {
 				return;
@@ -1623,7 +1627,7 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 
 		// Set up an iterative HTML frame for terminal output
 		createTab(targetFile, 'web');
-		const initialHtml = `<!DOCTYPE html><html><head><style>body{background:#000;color:#e2e8f0;font-family:monospace;padding:1rem;margin:0;display:flex;flex-direction:column;height:100vh;box-sizing:border-box;}#output{white-space:pre-wrap;overflow-y:auto;flex:1;}.err{color:#f87171;}#input-line{display:none;align-items:center;margin-top:4px;flex-shrink:0;}#prompt{color:#fbbf24;margin-right:8px;}#term-input{background:transparent;border:none;color:#fff;font-family:monospace;font-size:1rem;flex:1;outline:none;}</style></head><body><div id="output"></div><div id="input-line"><span id="prompt">&gt;</span><input type="text" id="term-input" autocomplete="off" spellcheck="false"></div></body></html>`;
+		const initialHtml = `<!DOCTYPE html><html><head><style>body{background:#000;color:#e2e8f0;font-family:monospace;padding:1rem;margin:0;height:100vh;box-sizing:border-box;overflow-y:auto;cursor:text;font-size:14px;}.err{color:#f87171;}#terminal-content{white-space:pre-wrap;word-break:break-all;}#active-input{color:#fff;white-space:pre-wrap;}#cursor{display:none;width:8px;height:15px;background-color:#e2e8f0;vertical-align:bottom;animation:blink 1s step-end infinite;margin-left:1px;}@keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}#hidden-input{position:absolute;opacity:0;width:1px;height:1px;border:none;padding:0;margin:0;}</style></head><body><span id="terminal-content"></span><span id="active-input"></span><span id="cursor"></span><input type="text" id="hidden-input" autocomplete="off" spellcheck="false"></body></html>`;
 		const blob = new Blob([initialHtml], { type: 'text/html' });
 		const iframe = document.getElementById(`iframe-${targetFile}`);
 		if (iframe) iframe.src = URL.createObjectURL(blob);
@@ -1642,13 +1646,24 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 				const termDoc = iframe.contentDocument;
 				if (!termDoc) return;
 				
-				const termOut = termDoc.getElementById('output');
-				const termInputLine = termDoc.getElementById('input-line');
-				const termInput = termDoc.getElementById('term-input');
+				const termOut = termDoc.getElementById('terminal-content');
+				const activeInput = termDoc.getElementById('active-input');
+				const cursor = termDoc.getElementById('cursor');
+				const hiddenInput = termDoc.getElementById('hidden-input');
+
+				// Bind input syncing natively to the iframe document body
+				if (!termDoc.body.hasAttribute('data-bound')) {
+					termDoc.body.setAttribute('data-bound', 'true');
+					termDoc.addEventListener('click', () => { if(cursor.style.display === 'inline-block') hiddenInput.focus(); });
+					hiddenInput.addEventListener('input', () => {
+						activeInput.textContent = hiddenInput.value;
+						termDoc.body.scrollTop = termDoc.body.scrollHeight;
+					});
+				}
 				
 				if (data.stdout && termOut) {
 					termOut.appendChild(termDoc.createTextNode(data.stdout));
-					termOut.scrollTop = termOut.scrollHeight;
+					termDoc.body.scrollTop = termDoc.body.scrollHeight;
 				}
 				
 				if (data.stderr && termOut) {
@@ -1656,20 +1671,26 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 					span.className = 'err';
 					span.textContent = data.stderr;
 					termOut.appendChild(span);
-					termOut.scrollTop = termOut.scrollHeight;
+					termDoc.body.scrollTop = termDoc.body.scrollHeight;
 				}
 				
 				if (data.status === "waiting_input") {
-					if (termInputLine && termInput) {
-						termInputLine.style.display = 'flex';
-						termInput.focus();
-						termInput.onkeydown = async (e) => {
+					if (cursor && hiddenInput) {
+						cursor.style.display = 'inline-block';
+						hiddenInput.focus();
+						
+						hiddenInput.onkeydown = async (e) => {
 							if (e.key === 'Enter') {
-								const val = termInput.value;
-								termInput.value = '';
-								termInputLine.style.display = 'none';
-								termOut.appendChild(termDoc.createTextNode(val + '\\n'));
-								termOut.scrollTop = termOut.scrollHeight;
+								const val = hiddenInput.value;
+								hiddenInput.value = '';
+								activeInput.textContent = '';
+								cursor.style.display = 'none';
+								
+								// Move the final entered text into the readonly output block
+								termOut.appendChild(termDoc.createTextNode(val + '\n'));
+								termDoc.body.scrollTop = termDoc.body.scrollHeight;
+								
+								hiddenInput.onkeydown = null; // Unbind to prevent duplicate triggers
 								
 								try {
 									await fetch('http://127.0.0.1:8765/input', {
@@ -1681,7 +1702,7 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 								} catch(err) {
 									const errSpan = termDoc.createElement('span');
 									errSpan.className = 'err';
-									errSpan.textContent = '\\n[Local Server Error: Failed to send input]\\n';
+									errSpan.textContent = '\n[Local Server Error: Failed to send input]\n';
 									termOut.appendChild(errSpan);
 								}
 							}
@@ -1696,18 +1717,18 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 						span.style.fontStyle = 'italic';
 						span.textContent = '--- Program finished ---';
 						termOut.appendChild(span);
-						termOut.scrollTop = termOut.scrollHeight;
+						termDoc.body.scrollTop = termDoc.body.scrollHeight;
 					}
 				} else {
 					window.pythonPollTimer = setTimeout(poll, 200);
 				}
 			} catch(e) {
 				setExecLoading(false);
-				const termOut = iframe.contentDocument?.getElementById('output');
+				const termOut = iframe.contentDocument?.getElementById('terminal-content');
 				if (termOut) {
 					const span = iframe.contentDocument.createElement('span');
 					span.className = 'err';
-					span.textContent = '\\n[Disconnected from Python Server]\\n';
+					span.textContent = '\n[Disconnected from Python Server]\n';
 					termOut.appendChild(span);
 				}
 			}
