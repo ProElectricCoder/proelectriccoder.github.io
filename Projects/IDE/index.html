@@ -512,7 +512,7 @@
 
 		/* Console Input Area */
 		.console-input-row { display: flex; align-items: center; padding: 4px 8px; border-top: 1px solid var(--border); background: #161b22; }
-		.console-prompt { color: var(--accent); margin-right: 8px; font-weight: bold; }
+		.console-prompt { color: var(--accent); margin-right: 8px; font-weight: bold; transition: color 0.2s; }
 		#console-input { flex: 1; background: transparent; border: none; color: #fff; font-family: 'Consolas', monospace; font-size: 0.85rem; height: 24px; }
 
 		/* --- Drag & Drop Overlay --- */
@@ -966,6 +966,10 @@
 	let deletedFiles = [];
 	let isSwitchingFile = false;
 
+	// System state for Python input
+	let pythonWaiting = false;
+	let pythonPollFn = null;
+
 	// --- Helper: Dynamic Babel Lazy Loading ---
 	let isBabelLoading = false;
 	async function loadBabel() {
@@ -1185,9 +1189,33 @@
 	// --- INTERACTIVE CONSOLE ---
 	function initConsoleInput() {
 		const input = document.getElementById('console-input');
-		input.addEventListener('keydown', (e) => {
+		input.addEventListener('keydown', async (e) => {
 			if (e.key === 'Enter') {
 				const cmd = input.value;
+				
+				if (window.pythonWaiting) {
+					window.pythonWaiting = false;
+					const promptEl = document.querySelector('.console-prompt');
+					promptEl.innerText = '>';
+					promptEl.style.color = 'var(--accent)';
+					input.value = '';
+					
+					logToConsole('log', cmd); // Echo the user input to the IDE console
+					
+					try {
+						await fetch('http://127.0.0.1:8765/input', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ input: cmd })
+						});
+						// Resume polling
+						if (window.pythonPollFn) window.pythonPollFn();
+					} catch(err) {
+						logToConsole('error', 'Failed to send input to Python Server');
+					}
+					return;
+				}
+
 				if (!cmd) return;
 				logToConsole('log', cmd);
 				input.value = '';
@@ -1470,40 +1498,121 @@
 	}
 
 	async function runPython(targetFile) {
-		const hasSetup = localStorage.getItem('deepBlue_python_setup');
+		const hasSetup = localStorage.getItem('deepBlue_python_setup_v2');
 		if (!hasSetup) {
 			const doSetup = await showCustomDialog('confirm', 'Python Execution Setup', 'Python execution requires a local helper file (DeepBluePython.py). This file will be downloaded to your computer. You must run it locally to enable Python execution.', '', 'Download file', 'Cancel');
 			if (doSetup) {
-				const pyCode = `import http.server, json, sys, io, contextlib
+				const pyCode = `import http.server, json, sys, io, threading
+
+class ExecutionState:
+    def __init__(self):
+        self.stdout_buf = io.StringIO()
+        self.stderr_buf = io.StringIO()
+        self.status = "idle"
+        self.input_value = None
+        self.input_event = threading.Event()
+        self.lock = threading.Lock()
+
+state = ExecutionState()
+
+def custom_input(prompt=""):
+    print(prompt, end="")
+    with state.lock:
+        state.status = "waiting_input"
+        state.input_event.clear()
+    state.input_event.wait()
+    with state.lock:
+        val = state.input_value
+        state.status = "running"
+    return val
+
+def run_code(code):
+    global state
+    env = {"input": custom_input}
+    
+    class StreamCatcher(io.StringIO):
+        def __init__(self, target_buf):
+            super().__init__()
+            self.target_buf = target_buf
+        def write(self, s):
+            with state.lock:
+                self.target_buf.write(s)
+        def flush(self):
+            pass
+            
+    old_stdout, old_stderr = sys.stdout, sys.stderr
+    sys.stdout = StreamCatcher(state.stdout_buf)
+    sys.stderr = StreamCatcher(state.stderr_buf)
+    
+    with state.lock:
+        state.status = "running"
+        
+    try:
+        exec(code, env)
+    except Exception as e:
+        print(e, file=sys.stderr)
+    finally:
+        sys.stdout, sys.stderr = old_stdout, old_stderr
+        with state.lock:
+            state.status = "finished"
 
 class Handler(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass
+        
     def do_OPTIONS(self):
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
         
+    def send_json(self, data):
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps(data).encode())
+
     def do_POST(self):
+        length = int(self.headers.get('Content-Length', 0))
+        data = json.loads(self.rfile.read(length)) if length > 0 else {}
+        
         if self.path == '/execute':
-            length = int(self.headers['Content-Length'])
-            data = json.loads(self.rfile.read(length))
             code = data.get('code', '')
-            stdout, stderr = io.StringIO(), io.StringIO()
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-                try: exec(code, {})
-                except Exception as e: print(e, file=sys.stderr)
-            self.send_response(200)
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.send_header('Content-Type', 'application/json')
-            self.end_headers()
-            self.wfile.write(json.dumps({'stdout': stdout.getvalue(), 'stderr': stderr.getvalue()}).encode())
+            with state.lock:
+                state.stdout_buf = io.StringIO()
+                state.stderr_buf = io.StringIO()
+            threading.Thread(target=run_code, args=(code,), daemon=True).start()
+            self.send_json({"success": True})
+            
+        elif self.path == '/input':
+            val = data.get('input', '')
+            with state.lock:
+                state.input_value = val
+                state.stdout_buf.write(val + "\\n")
+                state.input_event.set()
+            self.send_json({"success": True})
+
+    def do_GET(self):
+        if self.path == '/poll':
+            with state.lock:
+                out = state.stdout_buf.getvalue()
+                err = state.stderr_buf.getvalue()
+                state.stdout_buf.seek(0); state.stdout_buf.truncate(0)
+                state.stderr_buf.seek(0); state.stderr_buf.truncate(0)
+                
+                self.send_json({
+                    "status": state.status,
+                    "stdout": out,
+                    "stderr": err
+                })
 
 print("DeepBlue Python Server running on http://127.0.0.1:8765...")
 http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 				const blob = new Blob([pyCode], {type: 'text/plain'});
 				saveAs(blob, "DeepBluePython.py");
-				localStorage.setItem('deepBlue_python_setup', 'true');
+				localStorage.setItem('deepBlue_python_setup_v2', 'true');
 			} else {
 				return;
 			}
@@ -1517,6 +1626,16 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 				fileSystem[targetFile].content = codeContent;
 			}
 
+			// Set up an iterative HTML frame for terminal output
+			createTab(targetFile, 'web');
+			const initialHtml = `<!DOCTYPE html><html><head><style>body{background:#000;color:#e2e8f0;font-family:monospace;padding:1rem;white-space:pre-wrap;margin:0;word-break:break-all;}</style></head><body id="term"></body></html>`;
+			const blob = new Blob([initialHtml], { type: 'text/html' });
+			const iframe = document.getElementById(`iframe-${targetFile}`);
+			if (iframe) iframe.src = URL.createObjectURL(blob);
+			
+			// Small delay to ensure the DOM within the iframe is hydrated
+			await new Promise(r => setTimeout(r, 100));
+
 			const res = await fetch('http://127.0.0.1:8765/execute', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -1524,26 +1643,70 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 			});
 			
 			if (!res.ok) throw new Error("Local server error");
-			const data = await res.json();
-			
-			createTab(targetFile, 'web');
-			let htmlOutput = `<!DOCTYPE html><html><head><style>body{background:#000;color:#0f0;font-family:monospace;padding:1rem;white-space:pre-wrap;}</style></head><body>`;
-			if (data.stdout) htmlOutput += `<div style="color:#e2e8f0">${data.stdout.replace(/</g, '&lt;')}</div>`;
-			if (data.stderr) htmlOutput += `<div style="color:#f87171">${data.stderr.replace(/</g, '&lt;')}</div>`;
-			if (!data.stdout && !data.stderr) htmlOutput += `<div style="color:#64748b;font-style:italic">Program exited with no output.</div>`;
-			htmlOutput += `</body></html>`;
-			
-			const blob = new Blob([htmlOutput], { type: 'text/html' });
-			const iframe = document.getElementById(`iframe-${targetFile}`);
-			if (iframe) iframe.src = URL.createObjectURL(blob);
-			
-			if(data.stdout) logToConsole('info', "Python Output:\n" + data.stdout);
-			if(data.stderr) logToConsole('error', "Python Error:\n" + data.stderr);
+			logToConsole('info', "--- Python Execution Started ---");
+
+			if (window.pythonPollTimer) clearTimeout(window.pythonPollTimer);
+
+			// Start the background polling loop for stream data
+			const poll = async () => {
+				try {
+					const pollRes = await fetch('http://127.0.0.1:8765/poll');
+					if (!pollRes.ok) throw new Error("Poll failed");
+					const data = await pollRes.json();
+					
+					const term = iframe.contentDocument?.getElementById('term');
+					
+					// Print any new stdout stream
+					if (data.stdout) {
+						if (term) {
+							const span = iframe.contentDocument.createElement('span');
+							span.textContent = data.stdout;
+							term.appendChild(span);
+							iframe.contentWindow.scrollTo(0, 9999999);
+						}
+						const outText = data.stdout.replace(/\n$/, '');
+						if (outText) logToConsole('log', outText);
+					}
+					
+					// Print any new stderr stream
+					if (data.stderr) {
+						if (term) {
+							const span = iframe.contentDocument.createElement('span');
+							span.style.color = '#f87171';
+							span.textContent = data.stderr;
+							term.appendChild(span);
+							iframe.contentWindow.scrollTo(0, 9999999);
+						}
+						const errText = data.stderr.replace(/\n$/, '');
+						if (errText) logToConsole('error', errText);
+					}
+					
+					// Handle thread execution locks vs input parsing
+					if (data.status === "waiting_input") {
+						window.pythonWaiting = true;
+						const promptEl = document.querySelector('.console-prompt');
+						promptEl.innerText = 'Python Input >';
+						promptEl.style.color = '#fbbf24';
+						document.getElementById('console-input').focus();
+						// Freeze polling loop. It will be re-summoned automatically when the user responds.
+					} else if (data.status === "finished") {
+						setExecLoading(false);
+						logToConsole('info', "--- Python Execution Finished ---");
+					} else {
+						window.pythonPollTimer = setTimeout(poll, 200);
+					}
+				} catch(e) {
+					setExecLoading(false);
+					logToConsole('error', "Python Execution Disconnected");
+				}
+			};
+
+			window.pythonPollFn = poll;
+			poll();
 
 		} catch (err) {
-			await customAlert("Could not connect to local Python server. Ensure DeepBluePython.py is running on your machine.", "Execution Failed");
-		} finally {
 			setExecLoading(false);
+			await customAlert("Could not connect to local Python server. Ensure DeepBluePython.py is running on your machine.", "Execution Failed");
 		}
 	}
 
