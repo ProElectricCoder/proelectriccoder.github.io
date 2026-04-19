@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+	<!-- “Created by Gemini 3.1 Pro” - ProElectricCoder -->
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>DeepBlue IDE - ProElectricCoder</title>
@@ -587,27 +588,51 @@
 
 		/* --- AI Sidebar --- */
 		.ai-sidebar {
-			position: fixed; top: 60px; right: -350px; width: 320px; height: calc(100vh - 60px);
+			position: fixed; top: 60px; right: 0; width: 320px; height: calc(100vh - 60px);
 			background: var(--bg-panel); border-left: 1px solid var(--border); z-index: 90;
-			transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column;
+			transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column;
 			box-shadow: -5px 0 15px rgba(0,0,0,0.3);
 		}
-		.ai-sidebar.open { right: 0; }
+		.ai-sidebar.open { transform: translateX(0); }
+		.ai-resizer { position: absolute; top: 0; left: -4px; width: 8px; height: 100%; cursor: col-resize; z-index: 100; }
 		.ai-header { padding: 15px; border-bottom: 1px solid var(--border); font-weight: 700; color: var(--accent); display: flex; justify-content: space-between; align-items: center; }
 		.ai-content { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; }
-		.ai-msg { font-size: 0.9rem; line-height: 1.5; padding: 10px; border-radius: 8px; max-width: 90%; white-space: pre-wrap; }
+		.ai-content::-webkit-scrollbar { width: 6px; }
+		.ai-content::-webkit-scrollbar-track { background: transparent; }
+		.ai-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+		.ai-content::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+		.ai-msg { font-size: 0.9rem; line-height: 1.5; padding: 10px; border-radius: 8px; max-width: 90%; word-break: break-word; }
 		.ai-msg.user { align-self: flex-end; background: rgba(0, 229, 255, 0.1); color: var(--text-main); border: 1px solid rgba(0, 229, 255, 0.2); }
-		.ai-msg.bot { align-self: flex-start; background: rgba(255,255,255,0.03); color: var(--text-muted); border: 1px solid var(--border); }
+		.ai-msg.bot { align-self: flex-start; background: rgba(255,255,255,0.03); color: #e2e8f0; border: 1px solid var(--border); }
+		
+		/* AI Markdown Formatting */
+		.ai-msg p { margin-bottom: 0.75em; }
+		.ai-msg p:last-child { margin-bottom: 0; }
+		.ai-msg ul, .ai-msg ol { margin-left: 1.5em; margin-bottom: 0.75em; }
+		.ai-msg li { margin-bottom: 0.25em; }
+		.ai-msg code:not(.code-block-content code) { font-family: monospace; font-size: 0.9em; background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 4px; color: #a5b3ce; }
+		
 		.ai-input-area { padding: 15px; border-top: 1px solid var(--border); background: var(--bg-app); display: flex; gap: 8px; }
 		.ai-input { flex: 1; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); padding: 8px; border-radius: 6px; resize: none; height: 40px; font-family: inherit; font-size: 0.9rem; }
 		.ai-input:focus { border-color: var(--accent); }
+		.ai-input::-webkit-scrollbar { width: 6px; }
+		.ai-input::-webkit-scrollbar-track { background: transparent; }
+		.ai-input::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+		.ai-input::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 		.ai-key-container { padding: 15px; background: rgba(245, 158, 11, 0.1); border-bottom: 1px solid rgba(245, 158, 11, 0.2); display: none; flex-direction: column; gap: 8px; }
 		.ai-key-container.visible { display: flex; }
 		.code-block-wrapper { margin-top: 8px; background: #000; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
 		.code-block-header { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; background: rgba(255,255,255,0.1); font-size: 0.7rem; color: var(--text-muted); }
 		.code-block-content { padding: 8px; font-family: monospace; font-size: 0.8rem; color: #a5b3ce; overflow-x: auto; white-space: pre; }
-		.insert-btn { background: var(--accent); color: #000; border: none; padding: 2px 8px; border-radius: 3px; font-size: 0.7rem; font-weight: 600; cursor: pointer; }
-		.insert-btn:hover { background: var(--accent-hover); }
+		.code-block-content::-webkit-scrollbar { height: 6px; width: 6px; }
+		.code-block-content::-webkit-scrollbar-track { background: transparent; }
+		.code-block-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+		.code-block-content::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+		.code-block-actions { display: flex; gap: 6px; }
+		.insert-btn, .replace-btn { background: var(--accent); color: #000; border: none; padding: 2px 8px; border-radius: 3px; font-size: 0.7rem; font-weight: 600; cursor: pointer; }
+		.insert-btn:hover, .replace-btn:hover { background: var(--accent-hover); }
+		.replace-btn { background: var(--text-muted); color: #fff; }
+		.replace-btn:hover { background: #94a3b8; }
 
 		/* --- Search Toolbar --- */
 		#search-toolbar {
@@ -790,12 +815,13 @@
 	
 	<!-- AI Sidebar -->
 	<div class="ai-sidebar" id="ai-sidebar">
+		<div class="ai-resizer" id="ai-resizer"></div>
 		<div class="ai-header">
 			<span>Gemini Assistant</span>
 			<button class="btn-icon" onclick="toggleAI()">✕</button>
 		</div>
 		<div class="ai-key-container" id="apikey-container">
-			<div style="font-size:0.8rem; color:#fbbf24;">⚠️ API Key Required</div>
+			<div style="font-size:0.8rem; color:#fbbf24;">⚠️ API Key</div>
 			<input type="password" id="apikey-input" class="ai-input" placeholder="Paste Gemini API Key here" style="height:34px;">
 			<button class="btn" style="width:100%; justify-content:center; font-size:0.8rem;" onclick="saveApiKey()">Save Key</button>
 			<div style="font-size:0.7rem; color:var(--text-muted);">Key is stored locally in your browser.</div>
@@ -941,7 +967,7 @@
 			type: 'js', 
 			content: `console.log("Welcome to Deep Blue!");\nconsole.info("This is an info message useful for debugging.");\nconsole.warn("Be Careful! This is a warning.");\nconsole.error("Oops! Something went wrong (Simulation).");\nconsole.warn("This IDE is too good for you to use");\nconsole.info("But keep using it, you are welcome!");\nconsole.info("Try typing 'document.body.style.background = \\"purple\\"' in the console below!");` 
 		},
-   		'style.css': { 
+		'style.css': { 
 			type: 'css', 
 			content: `body {\n\tbackground-color: #0a0e14;\n\tdisplay: flex;\n\tjustify-content: center;\n\talign-items: center;\n\theight: 100vh;\n\tmargin: 0;\n\toverflow: hidden;\n\tfont-family: system-ui, sans-serif;\n}\n.card {\n\twidth: 100%;\n\tmax-width: 24rem;\n\taspect-ratio: 16/9;\n\tbackground-color: #111720;\n\tborder-radius: 1rem;\n\tborder: 1px solid rgba(0, 229, 255, 0.3);\n\tdisplay: flex;\n\tflex-direction: column;\n\talign-items: center;\n\tjustify-content: center;\n\tbox-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);\n\ttransition: all 300ms;\n}\n.card:hover {\n\ttransform: translateY(-0.25rem);\n\tbox-shadow: 0 0 40px -10px rgba(0, 229, 255, 0.3);\n}\n.icon-container {\n\twidth: 4rem;\n\theight: 4rem;\n\tmargin-bottom: 1rem;\n\topacity: 0.8;\n}\n.icon-container img {\n\twidth: 100%;\n\theight: 100%;\n}\n.card-title {\n\tfont-size: 1.5rem;\n\tfont-weight: 700;\n\tcolor: white;\n\tmargin: 0;\n}\n.card-subtitle {\n\tcolor: rgba(0, 229, 255, 0.5);\n\tmargin-top: 0.25rem;\n\tfont-weight: 300;\n\tmargin-bottom: 0;\n}\n.brand-watermark {\n\tposition: absolute;\n\tbottom: 1rem;\n\tleft: 1rem;\n\tcolor: #00000000;\n\tfont-size: 0.85rem;\n\ttransition: color 300ms;\n\tcursor: default;\n}\n.brand-watermark:hover {\n\tcolor: #00e5ffff;\n}` 
 		},
@@ -1108,6 +1134,8 @@
 		initAutoSave();
 		initDragDrop();
 		initConsoleInput();
+		initResizers();
+		initAIResizer();
 		if (githubToken) document.getElementById('gh-commit-btn').style.display = 'flex';
 
 		renderSidebar();
@@ -2037,9 +2065,112 @@ window.onload=function(){
 	function toggleAI() { document.getElementById('ai-sidebar').classList.toggle('open'); checkApiKey(); }
 	function checkApiKey() { const key = localStorage.getItem('gemini_api_key'); const container = document.getElementById('apikey-container'); if (!key) container.classList.add('visible'); else container.classList.remove('visible'); }
 	function saveApiKey() { const input = document.getElementById('apikey-input'); if (input.value.trim()) { localStorage.setItem('gemini_api_key', input.value.trim()); checkApiKey(); addAiMessage('bot', 'API Key saved!'); } }
-	function addAiMessage(role, text) { const box = document.getElementById('ai-chat-box'); const div = document.createElement('div'); div.className = `ai-msg ${role}`; if (text.includes('```')) { const parts = text.split(/```(\w*)\n([\s\S]*?)```/g); div.innerHTML = ""; for (let i = 0; i < parts.length; i++) { if (i % 3 === 0) { if(parts[i].trim()) { const p = document.createElement('div'); p.innerText = parts[i]; div.appendChild(p); } } else if (i % 3 === 2) { const code = parts[i]; const wrapper = document.createElement('div'); wrapper.className = 'code-block-wrapper'; wrapper.innerHTML = `<div class="code-block-header"><span>Code</span><button class="insert-btn" onclick="insertCode(this)">Insert</button></div><div class="code-block-content">${code.replace(/</g,'&lt;')}</div>`; wrapper.querySelector('.insert-btn').dataset.code = code; div.appendChild(wrapper); } } } else { div.innerText = text; } box.appendChild(div); box.scrollTop = box.scrollHeight; }
-	function insertCode(btn) { const code = btn.dataset.code; if(code) { aceEditor.session.insert(aceEditor.getCursorPosition(), code); aceEditor.focus(); } }
-	async function callGemini() { const input = document.getElementById('ai-user-input'); const prompt = input.value.trim(); const apiKey = localStorage.getItem('gemini_api_key'); if (!prompt) return; addAiMessage('user', prompt); input.value = ''; const context = `File: ${activeFile}\nCode:\n\`\`\`\n${aceEditor.getValue()}\n\`\`\`\nReq: ${prompt}`; const loadingDiv = document.createElement('div'); loadingDiv.className = 'ai-msg bot'; loadingDiv.innerText = 'Thinking...'; loadingDiv.id = 'ai-loading'; document.getElementById('ai-chat-box').appendChild(loadingDiv); if (!apiKey) { setTimeout(() => { document.getElementById('ai-loading').remove(); addAiMessage('bot', `Please provide API Key.`); }, 1000); return; } try { const { GoogleGenerativeAI } = await import('[https://esm.run/@google/generative-ai](https://esm.run/@google/generative-ai)'); const genAI = new GoogleGenerativeAI(apiKey); const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); const result = await model.generateContent(context); const response = await result.response; document.getElementById('ai-loading').remove(); addAiMessage('bot', response.text()); } catch (e) { document.getElementById('ai-loading').remove(); addAiMessage('bot', "Error: " + e.message); } }
+	
+	function addAiMessage(role, text) { 
+		const box = document.getElementById('ai-chat-box'); 
+		const div = document.createElement('div'); 
+		div.className = `ai-msg ${role}`; 
+		
+		div.innerHTML = marked.parse(text);
+		div.querySelectorAll('pre').forEach(pre => {
+			const codeEl = pre.querySelector('code');
+			const rawCode = codeEl ? codeEl.innerText : pre.innerText;
+			
+			const wrapper = document.createElement('div');
+			wrapper.className = 'code-block-wrapper';
+			
+			const header = document.createElement('div');
+			header.className = 'code-block-header';
+			header.innerHTML = `<span>Code</span><div class="code-block-actions"><button class="insert-btn">Insert</button><button class="replace-btn">Replace</button></div>`;
+			header.querySelector('.insert-btn').onclick = () => {
+				if (aceEditor) {
+					aceEditor.session.insert(aceEditor.getCursorPosition(), rawCode);
+					aceEditor.focus();
+				}
+			};
+			header.querySelector('.replace-btn').onclick = () => {
+				if (aceEditor) {
+					aceEditor.setValue(rawCode, -1);
+					aceEditor.focus();
+				}
+			};
+			
+			const content = document.createElement('div');
+			content.className = 'code-block-content';
+			
+			pre.parentNode.insertBefore(wrapper, pre);
+			content.appendChild(pre);
+			wrapper.appendChild(header);
+			wrapper.appendChild(content);
+			
+			pre.style.margin = '0';
+			pre.style.background = 'transparent';
+			pre.style.padding = '0';
+			pre.style.border = 'none';
+		});
+		
+		box.appendChild(div); 
+		box.scrollTop = box.scrollHeight; 
+	}
+	
+	async function callGemini() {
+		const input = document.getElementById('ai-user-input');
+		const prompt = input.value.trim();
+		const apiKey = localStorage.getItem('gemini_api_key') || "";
+		if (!prompt) return;
+		
+		addAiMessage('user', prompt);
+		input.value = '';
+		
+		// Parse @mentions for external file inclusions
+		const fileRegex = /@([\w./-]+)/g;
+		let extraContext = "";
+		let match;
+		while ((match = fileRegex.exec(prompt)) !== null) {
+			const fileName = match[1];
+			if (fileSystem[fileName] && fileSystem[fileName].content !== null) {
+				extraContext += `\n--- Included File: ${fileName} ---\n\`\`\`\n${fileSystem[fileName].content}\n\`\`\`\n`;
+			}
+		}
+		
+		let context = `Current File: ${activeFile}\nCode:\n\`\`\`\n${aceEditor.getValue()}\n\`\`\``;
+		
+		const selectedCode = aceEditor.getSelectedText();
+		if (selectedCode) {
+			context += `\nSelected Code Focus:\n\`\`\`\n${selectedCode}\n\`\`\``;
+		}
+
+		if (extraContext) context += `\n${extraContext}`;
+		context += `\nUser Request: ${prompt}`;
+		
+		const loadingDiv = document.createElement('div');
+		loadingDiv.className = 'ai-msg bot';
+		loadingDiv.innerText = 'Thinking...';
+		loadingDiv.id = 'ai-loading';
+		document.getElementById('ai-chat-box').appendChild(loadingDiv);
+		
+		try {
+			const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+			const payload = { 
+				systemInstruction: { parts: [{ text: "You are an AI coding assistant integrated into DeepBlue, an advanced web-based IDE created by ProElectricCoder. Help the user with their code." }] },
+				contents: [{ parts: [{ text: context }] }] 
+			};
+			const response = await fetch(url, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+			if (!response.ok) throw new Error(`API Error: ${response.status}`);
+			const result = await response.json();
+			const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+			
+			document.getElementById('ai-loading').remove();
+			addAiMessage('bot', text || "No response");
+		} catch (e) {
+			document.getElementById('ai-loading').remove();
+			addAiMessage('bot', "Error: " + e.message);
+		}
+	}
 
 	// --- SEARCH & FORMAT ---
 	function toggleSearch() { const tb = document.getElementById('search-toolbar'); const input = document.getElementById('search-input'); if (tb.classList.contains('visible')) { tb.classList.remove('visible'); aceEditor.focus(); } else { tb.classList.add('visible'); input.focus(); input.select(); } }
@@ -2089,45 +2220,65 @@ window.onload=function(){
 	}
 
 	async function saveToHandle(dirHandle) { 
-		let assetsHandle = null;
+		// Save created/modified files with accurate folder recreation
 		for (const [name, file] of Object.entries(fileSystem)) { 
-			if(!file.modified && file.modified !== undefined) continue; 
+			if (!file.modified && file.modified !== undefined) continue; 
+			
+			// Recreate the proper subdirectories natively based on virtual path
+			const pathParts = name.split('/');
+			const fileName = pathParts.pop();
+			let currentDirHandle = dirHandle;
+			
+			for (const part of pathParts) {
+				currentDirHandle = await currentDirHandle.getDirectoryHandle(part, { create: true });
+			}
+			
+			const fileHandle = await currentDirHandle.getFileHandle(fileName, { create: true }); 
+			const writable = await fileHandle.createWritable(); 
 			
 			if (file.type === 'asset') {
-				if (!assetsHandle) assetsHandle = await dirHandle.getDirectoryHandle('Assets', { create: true });
-				const cleanName = name.split('/').pop();
-				const fileHandle = await assetsHandle.getFileHandle(cleanName, { create: true }); 
-				const writable = await fileHandle.createWritable(); 
 				let blob; 
 				if (file.subtype === 'svg') blob = new Blob([file.content], { type: 'image/svg+xml' }); 
 				else { const response = await fetch(file.src); blob = await response.blob(); } 
-				await writable.write(blob); await writable.close(); 
+				await writable.write(blob); 
 			} else {
-				const fileHandle = await dirHandle.getFileHandle(name.replace(/\//g, '-'), { create: true }); 
-				const writable = await fileHandle.createWritable(); 
-				await writable.write(file.content); await writable.close(); 
+				await writable.write(file.content); 
 			}
+			await writable.close(); 
 		} 
-		for(const name of deletedFiles) { try { if(!name.includes('/')) await dirHandle.removeEntry(name); } catch(e){} } 
+		
+		// Remove deleted files from native disk including inside subdirectories
+		for(const name of deletedFiles) { 
+			try { 
+				const pathParts = name.split('/');
+				const fileName = pathParts.pop();
+				let currentDirHandle = dirHandle;
+				
+				for (const part of pathParts) {
+					currentDirHandle = await currentDirHandle.getDirectoryHandle(part, { create: false });
+				}
+				await currentDirHandle.removeEntry(fileName); 
+			} catch(e) {
+				// Silently catch if file/folder was already removed natively
+			} 
+		} 
 	}
 	
 	async function saveToZip() { 
 		const zip = new JSZip(); 
-		const imgFolder = zip.folder("Assets"); 
 		const assetPromises = [];
 		
 		Object.keys(fileSystem).forEach(name => { 
 			const file = fileSystem[name];
 			if (file.type === 'asset') {
-				const cleanName = name.split('/').pop();
 				if (file.subtype === 'svg') {
-					imgFolder.file(cleanName, file.content);
+					zip.file(name, file.content);
 				} else {
 					assetPromises.push(
 						fetch(file.src)
 						.then(response => response.blob())
-						.then(blob => imgFolder.file(cleanName, blob))
-						.catch(e => imgFolder.file(cleanName + ".txt", "Err"))
+						.then(blob => zip.file(name, blob))
+						.catch(e => zip.file(name + ".txt", "Err"))
 					);
 				}
 			} else {
@@ -2162,8 +2313,8 @@ window.onload=function(){
 	// --- GITHUB INTEGRATION LOGIC ---
 	async function initFirebase() {
 		if (firebaseApp) return;
-		const { initializeApp } = await import('[https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js)');
-		const { getAuth } = await import('[https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js)');
+		const { initializeApp } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js');
+		const { getAuth } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
 		firebaseApp = initializeApp(firebaseConfig);
 		firebaseAuth = getAuth(firebaseApp);
 	}
@@ -2184,7 +2335,7 @@ window.onload=function(){
 		}
 		try {
 			await initFirebase();
-			const { signInWithPopup, GithubAuthProvider } = await import('[https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js)');
+			const { signInWithPopup, GithubAuthProvider } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
 			const provider = new GithubAuthProvider();
 			provider.addScope('repo'); // Required for reading/writing repositories
 			
@@ -2413,10 +2564,10 @@ window.onload=function(){
 		} else if (name.endsWith('.txt')) { 
 			type = 'text'; content = ``; 
 		} else if (name.endsWith('.svg')) { 
-			fileSystem[name] = { type: 'asset', subtype: 'svg', content: '<svg viewBox="0 0 50 50" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)"><circle cx="25" cy="25" r="20" fill="red"/></svg>', modified: true }; 
+			fileSystem[name] = { type: 'asset', subtype: 'svg', content: '<svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg"><circle cx="25" cy="25" r="20" fill="red"/></svg>', modified: true }; 
 			await switchFile(name); return; 
 		} else if (name.match(/\.(png|jpe?g|gif|webp)$/i)) { 
-			fileSystem[name] = { type: 'asset', subtype: 'image', src: '[https://placehold.co/100x100/333/white?text=IMG](https://placehold.co/100x100/333/white?text=IMG)', content: null, modified: true }; 
+			fileSystem[name] = { type: 'asset', subtype: 'image', src: 'https://placehold.co/100x100/333/white?text=IMG', content: null, modified: true }; 
 			await switchFile(name); return; 
 		} else { 
 			await customAlert("Supported formats: .html, .css, .js, .jsx, .py, .svg, md, txt, json, images", "Invalid Format"); return; 
@@ -2602,6 +2753,36 @@ window.onload=function(){
 		const onMouseMove = (e) => { if (!isResizing) return; const containerRect = container.getBoundingClientRect(); if (currentResizer === resizerLeft) { let newWidth = e.clientX - containerRect.left; if (newWidth < 150) newWidth = 150; if (newWidth > containerRect.width * 0.4) newWidth = containerRect.width * 0.4; sidebar.style.width = newWidth + 'px'; } else if (currentResizer === resizerRight) { let newWidth = containerRect.right - e.clientX; if (newWidth < 200) newWidth = 200; if (newWidth > containerRect.width * 0.5) newWidth = containerRect.width * 0.5; output.style.width = newWidth + 'px'; } if(aceEditor) aceEditor.resize(); };
 		const onMouseUp = () => { if (isResizing) { isResizing = false; if (currentResizer) currentResizer.classList.remove('resizing'); currentResizer = null; document.body.style.cursor = ''; document.body.style.userSelect = ''; document.querySelectorAll('iframe').forEach(iframe => iframe.style.pointerEvents = ''); if(aceEditor) aceEditor.resize(); } };
 		resizerLeft.addEventListener('mousedown', (e) => onMouseDown(e, resizerLeft)); resizerRight.addEventListener('mousedown', (e) => onMouseDown(e, resizerRight)); document.addEventListener('mousemove', onMouseMove); document.addEventListener('mouseup', onMouseUp);
+	}
+
+	function initAIResizer() {
+		const aiResizer = document.getElementById('ai-resizer');
+		const aiSidebar = document.getElementById('ai-sidebar');
+		let isResizingAI = false;
+
+		aiResizer.addEventListener('mousedown', (e) => {
+			isResizingAI = true;
+			document.body.style.cursor = 'col-resize';
+			document.body.style.userSelect = 'none';
+			document.querySelectorAll('iframe').forEach(iframe => iframe.style.pointerEvents = 'none');
+		});
+
+		document.addEventListener('mousemove', (e) => {
+			if (!isResizingAI) return;
+			let newWidth = window.innerWidth - e.clientX;
+			if (newWidth < 250) newWidth = 250;
+			if (newWidth > window.innerWidth * 0.8) newWidth = window.innerWidth * 0.8;
+			aiSidebar.style.width = newWidth + 'px';
+		});
+
+		document.addEventListener('mouseup', () => {
+			if (isResizingAI) {
+				isResizingAI = false;
+				document.body.style.cursor = '';
+				document.body.style.userSelect = '';
+				document.querySelectorAll('iframe').forEach(iframe => iframe.style.pointerEvents = '');
+			}
+		});
 	}
 
 	function toggleFullscreen() { 
