@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- “Created by Gemini 3.1 Pro” - ProElectricCoder -->
+    <!-- "Created by Gemini 3.1 Pro" - ProElectricCoder -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SEP Encryptor - ProElectricCoder</title>
@@ -22,8 +22,6 @@
     <link rel="stylesheet" href="/header.css">
     <script src="https://proelectriccoder.github.io/header.js" defer></script>
 
-    <!-- JSZip for handling zip archives -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Custom scrollbar for the textareas and file lists */
@@ -45,21 +43,15 @@
             </svg>
             SEP Encryptor
         </h1>
-        <p class="text-gray-400 mb-8 text-sm">Secure multi-file encryption using a 1024-byte, base-256 stream key.</p>
+        <p class="text-gray-400 mb-8 text-sm">Secure file encryption using a 1024-byte, base-256 stream key.</p>
 
         <!-- File Input Section -->
         <div class="mb-6">
-            <label class="block text-sm font-semibold mb-2 text-cyan-200">1. Select Input File(s)</label>
-            <input type="file" id="fileInput" multiple class="block w-full text-sm text-cyan-100 
+            <label class="block text-sm font-semibold mb-2 text-cyan-200">1. Select Input File</label>
+            <input type="file" id="fileInput" class="block w-full text-sm text-cyan-100 
                 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border file:border-cyan-400 
                 file:text-sm file:font-semibold file:bg-cyan-900/30 file:text-cyan-400 
-                hover:file:bg-cyan-400/20 hover:file:shadow-[0_0_15px_rgba(34,211,238,0.4)] file:transition-all cursor-pointer bg-gray-900/50 rounded-lg p-2 border border-cyan-500/30 transition-colors">
-            
-            <!-- Dynamic File Renaming List -->
-            <div id="fileListContainer" class="hidden mt-4 bg-gray-900/40 p-3 rounded-lg border border-cyan-500/20">
-                <label class="block text-xs font-semibold mb-2 text-cyan-400">Rename Files (Optional):</label>
-                <div id="fileList" class="space-y-2 max-h-32 overflow-y-auto pr-2 custom-scrollbar"></div>
-            </div>
+                hover:file:bg-cyan-400/20 hover:file:shadow-[0_0_15px_rgba(34,211,238,0.4)] file:transition-all cursor-pointer bg-gray-900/50 rounded-lg p-2 border border-cyan-500/30 transition-colors" />
         </div>
 
         <!-- Strategy Section -->
@@ -68,13 +60,13 @@
             <div class="relative w-full" id="strategyDropdown">
                 <button type="button" id="dropdownBtn" class="w-full bg-cyan-900/20 border border-cyan-500/30 rounded-lg px-3 py-3 text-sm text-cyan-100 flex justify-between items-center focus:outline-none focus:border-cyan-400 transition-colors">
                     <span id="dropdownSelectedText">Double Layer: SEP + AES (Requires Password & Key)</span>
-                    <svg class="w-4 h-4 text-cyan-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    <svg class="w-4 h-4 text-cyan-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
                 </button>
                 <div id="dropdownMenu" class="hidden absolute z-10 w-full mt-1 bg-gray-900/95 backdrop-blur border border-cyan-500/30 rounded-lg shadow-xl overflow-hidden">
                     <div class="p-1 space-y-1">
                         <div class="dropdown-option cursor-pointer px-3 py-2 text-sm text-cyan-100 hover:bg-cyan-900/60 rounded transition-colors" data-value="both">Double Layer: SEP + AES (Requires Password & Key)</div>
                         <div class="dropdown-option cursor-pointer px-3 py-2 text-sm text-cyan-100 hover:bg-cyan-900/60 rounded transition-colors" data-value="both_pwd">Double Layer: SEP + AES (Requires Password Only)</div>
-                        <div class="dropdown-option cursor-pointer px-3 py-2 text-sm text-cyan-100 hover:bg-cyan-900/60 rounded transition-colors" data-value="sep_key">SEP Layer Only (Requires Key File)</div>
+                        <div class="dropdown-option cursor-pointer px-3 py-2 text-sm text-cyan-100 hover:bg-cyan-900/60 rounded transition-colors" data-value="sep_key">SEP Layer Only (Requires Key)</div>
                         <div class="dropdown-option cursor-pointer px-3 py-2 text-sm text-cyan-100 hover:bg-cyan-900/60 rounded transition-colors" data-value="sep_pwd">SEP Layer Only (Requires Password)</div>
                         <div class="dropdown-option cursor-pointer px-3 py-2 text-sm text-cyan-100 hover:bg-cyan-900/60 rounded transition-colors" data-value="aes_pwd">AES Layer Only (Requires Password)</div>
                     </div>
@@ -91,10 +83,10 @@
                 <input type="file" id="keyFileInput" accept=".sep" class="block w-full text-sm text-cyan-100 
                     file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border file:border-cyan-400 
                     file:text-sm file:font-semibold file:bg-cyan-900/30 file:text-cyan-400 
-                    hover:file:bg-cyan-400/20 hover:file:shadow-[0_0_15px_rgba(34,211,238,0.4)] file:transition-all cursor-pointer bg-gray-900/50 rounded-lg p-2 border border-cyan-500/30 transition-colors mb-2">
+                    hover:file:bg-cyan-400/20 hover:file:shadow-[0_0_15px_rgba(34,211,238,0.4)] file:transition-all cursor-pointer bg-gray-900/50 rounded-lg p-2 border border-cyan-500/30 transition-colors" />
                 <div class="flex justify-between items-center mt-2">
                     <span id="keyLengthStatus" class="text-xs text-gray-400">Current Key: Not loaded</span>
-                    <button id="genKeyBtn" class="text-sm border border-cyan-400 bg-cyan-900/30 text-cyan-400 hover:bg-cyan-400/20 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)] px-4 py-2 rounded-lg transition-all shadow-sm font-medium">
+                    <button id="genKeyBtn" class="text-sm border border-cyan-400 bg-cyan-900/30 text-cyan-400 hover:bg-cyan-400/20 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)] px-4 py-2 rounded-lg transition-all">
                         Generate & Download Key
                     </button>
                 </div>
@@ -117,59 +109,41 @@
 
             <div id="passwordBlock" class="hidden">
                 <label id="pwd1Label" class="block text-xs font-semibold mb-2 text-cyan-400">Password</label>
-                <input type="password" id="passwordInput" placeholder="Enter secure password..." class="w-full bg-cyan-900/20 border border-cyan-500/30 rounded-lg px-3 py-2 text-sm text-cyan-100 focus:outline-none focus:border-cyan-400 transition-colors mb-3">
+                <input type="password" id="passwordInput" placeholder="Enter secure password..." class="w-full bg-cyan-900/20 border border-cyan-500/30 rounded-lg px-3 py-2 text-sm text-cyan-100 focus:outline-none focus:border-cyan-400 transition-colors mb-3" />
                 
                 <div id="password2Block" class="hidden">
                     <label class="block text-xs font-semibold mb-2 text-cyan-400">AES Layer Password</label>
-                    <input type="password" id="passwordInput2" placeholder="Enter AES password..." class="w-full bg-cyan-900/20 border border-cyan-500/30 rounded-lg px-3 py-2 text-sm text-cyan-100 focus:outline-none focus:border-cyan-400 transition-colors">
+                    <input type="password" id="passwordInput2" placeholder="Enter AES password..." class="w-full bg-cyan-900/20 border border-cyan-500/30 rounded-lg px-3 py-2 text-sm text-cyan-100 focus:outline-none focus:border-cyan-400 transition-colors" />
                 </div>
             </div>
         </div>
 
-        <!-- Settings Section -->
+        <!-- Output Filename Section -->
         <div class="mb-6 bg-gray-900/40 p-4 rounded-lg border border-cyan-500/30">
-            <label class="block text-sm font-semibold mb-3 text-cyan-200">4. Processing Settings</label>
-            <div class="flex flex-col gap-4">
-                <div>
-                    <span class="text-xs text-cyan-400 block mb-2">Encryption Mode:</span>
-                    <div class="flex flex-col sm:flex-row gap-4 text-sm text-cyan-100">
-                        <label class="flex items-center gap-2 cursor-pointer group">
-                            <input type="radio" name="encMode" value="bundle" checked class="accent-cyan-500 w-4 h-4"> 
-                            <span class="group-hover:text-cyan-300 transition-colors">Bundle into one .enc</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer group">
-                            <input type="radio" name="encMode" value="individual" class="accent-cyan-500 w-4 h-4"> 
-                            <span class="group-hover:text-cyan-300 transition-colors">Encrypt separately (ZIP output)</span>
-                        </label>
-                    </div>
-                </div>
-                <div>
-                    <span class="text-xs text-cyan-400 block mb-1">Output Base Filename:</span>
-                    <input type="text" id="outputFileName" value="output" class="w-full bg-cyan-900/20 border border-cyan-500/30 rounded-lg px-3 py-2 text-sm text-cyan-100 focus:outline-none focus:border-cyan-400 transition-colors">
-                </div>
-            </div>
+            <label class="block text-sm font-semibold mb-3 text-cyan-200">4. Output Filename (Optional)</label>
+            <input type="text" id="outputFileName" placeholder="Leave blank to use original filename" class="w-full bg-cyan-900/20 border border-cyan-500/30 rounded-lg px-3 py-2 text-sm text-cyan-100 focus:outline-none focus:border-cyan-400 transition-colors" />
         </div>
 
         <!-- Action Buttons -->
         <div class="flex gap-4 mb-6">
-            <button id="encryptBtn" class="flex-1 border-2 border-cyan-400 bg-cyan-900/30 text-cyan-400 hover:bg-cyan-400/20 hover:shadow-[0_0_20px_rgba(34,211,238,0.5)] font-bold py-3 px-4 rounded-xl transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed">
+            <button id="encryptBtn" class="flex-1 border-2 border-cyan-400 bg-cyan-900/30 text-cyan-400 hover:bg-cyan-400/20 hover:shadow-[0_0_20px_rgba(34,211,238,0.5)] font-bold py-3 px-4 rounded-lg transition-all disabled:opacity-50">
                 Encrypt
             </button>
-            <button id="decryptBtn" class="flex-1 border-2 border-cyan-400 bg-cyan-900/30 text-cyan-400 hover:bg-cyan-400/20 hover:shadow-[0_0_20px_rgba(34,211,238,0.5)] font-bold py-3 px-4 rounded-xl transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed">
+            <button id="decryptBtn" class="flex-1 border-2 border-cyan-400 bg-cyan-900/30 text-cyan-400 hover:bg-cyan-400/20 hover:shadow-[0_0_20px_rgba(34,211,238,0.5)] font-bold py-3 px-4 rounded-lg transition-all disabled:opacity-50">
                 Decrypt
             </button>
         </div>
 
         <!-- Output Section -->
         <div id="outputContainer" class="hidden animate-fade-in">
-            <a id="downloadBtn" class="block text-center w-full border-2 border-cyan-400 bg-cyan-900/30 text-cyan-400 hover:bg-cyan-400/20 hover:shadow-[0_0_20px_rgba(34,211,238,0.5)] font-bold py-3 px-4 rounded-xl transition-all cursor-pointer shadow-lg transform hover:-translate-y-0.5">
+            <a id="downloadBtn" class="block text-center w-full border-2 border-cyan-400 bg-cyan-900/30 text-cyan-400 hover:bg-cyan-400/20 hover:shadow-[0_0_20px_rgba(34,211,238,0.5)] font-bold py-3 px-4 rounded-lg transition-all no-underline">
                 Download Result
             </a>
         </div>
     </div>
 
     <!-- Message Modal/Toast -->
-    <div id="toast" class="fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-xl transform transition-transform duration-300 translate-y-20 opacity-0 z-50">
+    <div id="toast" class="fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-xl transform transition-all duration-300 translate-y-20 opacity-0 z-50">
         <span id="toastMessage">Error message</span>
     </div>
 
@@ -188,11 +162,10 @@
 
         // Security Warning (Self-XSS Prevention)
         console.log("%cSTOP!", "color: #ef4444; font-family: sans-serif; font-size: 4rem; font-weight: bold; text-shadow: 2px 2px 0px #000;");
-        console.log("%cThis is a browser feature intended for developers.\nIf someone told you to copy and paste something here, it is a scam and will give them access to steal your 1024-byte SEP encryption key and decrypted files!", "color: #f3f4f6; font-family: sans-serif; font-size: 1.25rem; font-weight: bold; background: #1f2937; padding: 10px; border-radius: 5px;");
+        console.log("%cThis is a browser feature intended for developers.\nIf someone told you to copy and paste something here, it is a scam and will give them access to steal your 1024-byte SEP key.");
 
         // DOM Elements
         const fileInput = document.getElementById('fileInput');
-        
         const dropdownBtn = document.getElementById('dropdownBtn');
         const dropdownMenu = document.getElementById('dropdownMenu');
         const dropdownSelectedText = document.getElementById('dropdownSelectedText');
@@ -200,7 +173,6 @@
         const pwd1Label = document.getElementById('pwd1Label');
         const password2Block = document.getElementById('password2Block');
         const passwordInput2 = document.getElementById('passwordInput2');
-
         const keyFileBlock = document.getElementById('keyFileBlock');
         const passwordBlock = document.getElementById('passwordBlock');
         const keyFileInput = document.getElementById('keyFileInput');
@@ -213,15 +185,13 @@
         const downloadBtn = document.getElementById('downloadBtn');
         const toast = document.getElementById('toast');
         const toastMessage = document.getElementById('toastMessage');
-        const fileListContainer = document.getElementById('fileListContainer');
-        const fileList = document.getElementById('fileList');
 
         // Constants
         const REQUIRED_KEY_LENGTH = 1024;
 
         // State
         let currentKeyBytes = null;
-        let selectedFiles = [];
+        let selectedFile = null;
         let currentStrategy = 'both';
 
         // Custom Dropdown Logic
@@ -376,45 +346,22 @@
             });
         }
 
-        // Event Listener for Multiple Files
+        // Event Listener for Single File
         fileInput.addEventListener('change', (e) => {
-            const files = Array.from(e.target.files);
-            fileList.innerHTML = '';
-            selectedFiles = [];
-
-            if (files.length === 0) {
-                fileListContainer.classList.add('hidden');
-                document.getElementById('outputFileName').value = "output";
+            const file = e.target.files[0];
+            selectedFile = null;
+            
+            if (!file) {
                 return;
             }
 
-            // Set a default output name based on the first file or "bundle"
-            if (files.length === 1) {
-                const fName = files[0].name;
-                const lastDot = fName.lastIndexOf('.');
-                document.getElementById('outputFileName').value = lastDot !== -1 ? fName.substring(0, lastDot) : fName;
-            } else {
-                document.getElementById('outputFileName').value = "encrypted_bundle";
-            }
-
-            fileListContainer.classList.remove('hidden');
-            files.forEach((file, index) => {
-                const lastDot = file.name.lastIndexOf('.');
-                const baseName = lastDot !== -1 && lastDot !== 0 ? file.name.substring(0, lastDot) : file.name;
-                const ext = lastDot !== -1 && lastDot !== 0 ? file.name.substring(lastDot) : '';
-                
-                const id = `file_${index}`;
-                selectedFiles.push({ file, id, ext });
-
-                const item = document.createElement('div');
-                item.className = 'flex items-center gap-2 text-sm';
-                item.innerHTML = `
-                    <span class="text-gray-400 w-4 text-right">${index + 1}.</span>
-                    <input type="text" id="input_${id}" value="${baseName}" class="flex-1 bg-cyan-900/20 border border-cyan-500/30 rounded px-2 py-1 text-cyan-100 focus:outline-none focus:border-cyan-400 transition-colors">
-                    <span class="text-gray-500 w-12 truncate">${ext}</span>
-                `;
-                fileList.appendChild(item);
-            });
+            selectedFile = file;
+            
+            // Set output filename based on input filename (without extension)
+            const fileName = file.name;
+            const lastDot = fileName.lastIndexOf('.');
+            const baseName = lastDot !== -1 ? fileName.substring(0, lastDot) : fileName;
+            document.getElementById('outputFileName').value = baseName;
         });
 
         // Provide Download Function
@@ -428,7 +375,7 @@
 
         // Handle Encryption
         encryptBtn.addEventListener('click', async () => {
-            if (selectedFiles.length === 0) return showToast("Select input file(s) first.");
+            if (!selectedFile) return showToast("Select an input file first.");
             
             let keyString = "";
             if (currentKeyBytes) {
@@ -442,61 +389,38 @@
             encryptBtn.disabled = true;
 
             try {
-                const mode = document.querySelector('input[name="encMode"]:checked').value;
-                const outName = document.getElementById('outputFileName').value || 'output';
+                const outName = document.getElementById('outputFileName').value || 'encrypted_file';
+                const fileData = await readFileAsUint8Array(selectedFile);
+                const fileExt = selectedFile.name.substring(selectedFile.name.lastIndexOf('.'));
 
-                async function processFileBytes(data, ext) {
-                    if (strategy === 'sep_key') {
-                        if (!keyString) throw new Error("Key file is required.");
-                        return encryptSEP(data, ext, btoa(keyString));
-                    } else if (strategy === 'sep_pwd') {
+                let resultBytes;
+
+                if (strategy === 'sep_key') {
+                    if (!keyString) throw new Error("Key file is required.");
+                    resultBytes = await encryptSEP(fileData, fileExt, btoa(keyString));
+                } else if (strategy === 'sep_pwd') {
+                    if (!password) throw new Error("Password is required.");
+                    resultBytes = await encryptSEP(fileData, fileExt, password);
+                } else if (strategy === 'aes_pwd') {
+                    if (!password) throw new Error("Password is required.");
+                    resultBytes = await encryptAES(fileData, password);
+                } else if (strategy === 'both') {
+                    if (!password || !keyString) throw new Error("Both password and key file are required.");
+                    resultBytes = await encryptFile(fileData, fileExt, password + btoa(keyString));
+                } else if (strategy === 'both_pwd') {
+                    const pwdMode = document.querySelector('input[name="pwdMode"]:checked').value;
+                    if (pwdMode === 'same') {
                         if (!password) throw new Error("Password is required.");
-                        return encryptSEP(data, ext, password);
-                    } else if (strategy === 'aes_pwd') {
-                        if (!password) throw new Error("Password is required.");
-                        return await encryptAES(data, password);
-                    } else if (strategy === 'both') {
-                        if (!password || !keyString) throw new Error("Both password and key file are required.");
-                        return await encryptFile(data, ext, password + btoa(keyString));
-                    } else if (strategy === 'both_pwd') {
-                        const pwdMode = document.querySelector('input[name="pwdMode"]:checked').value;
-                        if (pwdMode === 'same') {
-                            if (!password) throw new Error("Password is required.");
-                            return await encryptFile(data, ext, password);
-                        } else {
-                            if (!password || !pwd2) throw new Error("Both SEP and AES passwords are required.");
-                            const sepEncrypted = encryptSEP(data, ext, password);
-                            return await encryptAES(sepEncrypted, pwd2);
-                        }
+                        resultBytes = await encryptFile(fileData, fileExt, password);
+                    } else {
+                        if (!password || !pwd2) throw new Error("Both SEP and AES passwords are required.");
+                        const sepEncrypted = await encryptSEP(fileData, fileExt, password);
+                        resultBytes = await encryptAES(sepEncrypted, pwd2);
                     }
                 }
 
-                if (mode === 'bundle') {
-                    // Create one ZIP of all files, then encrypt that ZIP as a single .enc file
-                    const zip = new JSZip();
-                    for (const item of selectedFiles) {
-                        const newName = document.getElementById(`input_${item.id}`).value + item.ext;
-                        const data = await readFileAsUint8Array(item.file);
-                        zip.file(newName, data);
-                    }
-                    const zipBytes = await zip.generateAsync({type: "uint8array"});
-                    const resultBytes = await processFileBytes(zipBytes, ".zip");
-                    triggerDownload(resultBytes, `${outName}.enc`);
-                } else {
-                    // Encrypt each file individually, then group them into an unencrypted ZIP
-                    const zip = new JSZip();
-                    for (const item of selectedFiles) {
-                        const newBaseName = document.getElementById(`input_${item.id}`).value;
-                        const data = await readFileAsUint8Array(item.file);
-                        const resultBytes = await processFileBytes(data, item.ext);
-                        // Include extension in filename if AES is used, since AES standalone strips it
-                        const encName = strategy === 'aes_pwd' ? `${newBaseName}${item.ext}.enc` : `${newBaseName}.enc`;
-                        zip.file(encName, resultBytes);
-                    }
-                    const zipBlob = await zip.generateAsync({type: "blob"});
-                    triggerDownload(zipBlob, `${outName}.zip`);
-                }
-                showToast("Files encrypted successfully!", false);
+                triggerDownload(resultBytes, `${outName}.enc`);
+                showToast("File encrypted successfully!", false);
             } catch (error) {
                 showToast("Encryption error: " + error.message);
             } finally {
@@ -506,7 +430,7 @@
 
         // Handle Decryption
         decryptBtn.addEventListener('click', async () => {
-            if (selectedFiles.length === 0) return showToast("Select input file(s) first.");
+            if (!selectedFile) return showToast("Select an input file first.");
             
             let keyString = "";
             if (currentKeyBytes) {
@@ -520,94 +444,39 @@
             decryptBtn.disabled = true;
 
             try {
-                const decryptedFiles = [];
-                const outName = document.getElementById('outputFileName').value || 'decrypted_output';
+                const outName = document.getElementById('outputFileName').value || 'decrypted_file';
+                const fileData = await readFileAsUint8Array(selectedFile);
 
-                async function reverseFileBytes(data) {
-                    if (strategy === 'sep_key') {
-                        if (!keyString) throw new Error("Key file is required.");
-                        return decryptSEP(data, btoa(keyString));
-                    } else if (strategy === 'sep_pwd') {
+                let result;
+
+                if (strategy === 'sep_key') {
+                    if (!keyString) throw new Error("Key file is required.");
+                    result = await decryptSEP(fileData, btoa(keyString));
+                } else if (strategy === 'sep_pwd') {
+                    if (!password) throw new Error("Password is required.");
+                    result = await decryptSEP(fileData, password);
+                } else if (strategy === 'aes_pwd') {
+                    if (!password) throw new Error("Password is required.");
+                    const raw = await decryptAES(fileData, password);
+                    result = { data: raw, ext: "" };
+                } else if (strategy === 'both') {
+                    if (!password || !keyString) throw new Error("Both password and key file are required.");
+                    result = await decryptFile(fileData, password + btoa(keyString));
+                } else if (strategy === 'both_pwd') {
+                    const pwdMode = document.querySelector('input[name="pwdMode"]:checked').value;
+                    if (pwdMode === 'same') {
                         if (!password) throw new Error("Password is required.");
-                        return decryptSEP(data, password);
-                    } else if (strategy === 'aes_pwd') {
-                        if (!password) throw new Error("Password is required.");
-                        const raw = await decryptAES(data, password);
-                        return { data: raw, ext: "" };
-                    } else if (strategy === 'both') {
-                        if (!password || !keyString) throw new Error("Both password and key file are required.");
-                        return await decryptFile(data, password + btoa(keyString));
-                    } else if (strategy === 'both_pwd') {
-                        const pwdMode = document.querySelector('input[name="pwdMode"]:checked').value;
-                        if (pwdMode === 'same') {
-                            if (!password) throw new Error("Password is required.");
-                            return await decryptFile(data, password);
-                        } else {
-                            if (!password || !pwd2) throw new Error("Both SEP and AES passwords are required.");
-                            const aesDecrypted = await decryptAES(data, pwd2);
-                            return decryptSEP(aesDecrypted, password);
-                        }
+                        result = await decryptFile(fileData, password);
+                    } else {
+                        if (!password || !pwd2) throw new Error("Both SEP and AES passwords are required.");
+                        const aesDecrypted = await decryptAES(fileData, pwd2);
+                        result = await decryptSEP(aesDecrypted, password);
                     }
                 }
 
-                for (const item of selectedFiles) {
-                    const currentFileName = item.file.name;
-                    const data = await readFileAsUint8Array(item.file);
-
-                    // Check if it's an unencrypted zip (likely containing .enc files from 'individual' mode)
-                    if (currentFileName.endsWith('.zip')) {
-                        const zip = await JSZip.loadAsync(data);
-                        const relativePaths = Object.keys(zip.files);
-                        
-                        for (const relativePath of relativePaths) {
-                            const zipEntry = zip.files[relativePath];
-                            if (zipEntry.dir) continue;
-                            
-                            const entryData = await zipEntry.async("uint8array");
-                            if (relativePath.endsWith('.enc')) {
-                                const unpacked = await reverseFileBytes(entryData);
-                                // Handle naming when AES-only mode was used
-                                let baseName = relativePath.replace(/\.enc$/i, "");
-                                if (strategy === 'aes_pwd') {
-                                    decryptedFiles.push({ name: baseName, data: unpacked.data });
-                                } else {
-                                    decryptedFiles.push({ name: baseName + unpacked.ext, data: unpacked.data });
-                                }
-                            } else {
-                                // Ignore or pass through non-enc files within a zip
-                                decryptedFiles.push({ name: relativePath, data: entryData });
-                            }
-                        }
-                    } else if (currentFileName.endsWith('.enc')) {
-                        // Standard single encrypted file or bundled encrypted zip
-                        const unpacked = await reverseFileBytes(data);
-                        
-                        const customBaseName = document.getElementById(`input_${item.id}`).value;
-                        let finalName = customBaseName;
-                        if (finalName.endsWith('.enc')) finalName = finalName.replace(/\.enc$/i, "");
-                        
-                        if (strategy === 'aes_pwd' && finalName.includes('.')) {
-                            // Assume the custom base name has the original extension if preserved
-                            decryptedFiles.push({ name: finalName, data: unpacked.data });
-                        } else {
-                            decryptedFiles.push({ name: finalName + unpacked.ext, data: unpacked.data });
-                        }
-                    }
-                }
-
-                if (decryptedFiles.length === 0) {
-                    throw new Error("No valid .enc files found to decrypt.");
-                } else if (decryptedFiles.length === 1) {
-                    // Download directly as a single file
-                    triggerDownload(decryptedFiles[0].data, decryptedFiles[0].name);
-                } else {
-                    // If multiple files were decrypted, package them into a new zip
-                    const zip = new JSZip();
-                    decryptedFiles.forEach(f => zip.file(f.name, f.data));
-                    const zipBlob = await zip.generateAsync({type: "blob"});
-                    triggerDownload(zipBlob, `${outName}.zip`);
-                }
-                showToast("Files decrypted successfully!", false);
+                const finalName = outName + result.ext;
+                triggerDownload(result.data, finalName);
+                showToast("File decrypted successfully!", false);
             } catch (error) {
                 showToast("Decryption error: " + error.message);
             } finally {
