@@ -443,7 +443,7 @@
 
 		.preview-tab:hover:not(.active) { background: rgba(255,255,255,0.06); }
 
-		.preview-tab-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+		.preview-tab-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; }
 
 		.tab-close {
 			width: 16px; height: 16px; border-radius: 50%;
@@ -705,11 +705,7 @@
 <div class="container" id="main-container">
 	<!-- Sidebar -->
 	<div class="sidebar" id="sidebar-panel">
-		<div class="sidebar-section" style="flex: 1; overflow-y: auto;">
-			<div class="sidebar-header">
-				Project Files
-				<button class="btn-icon" onclick="openAddMenu('file')" title="Add File">+</button>
-			</div>
+		<div class="sidebar-section" style="flex: 1; overflow-y: auto; padding-top: 8px;">
 			<div id="file-list-all" class="file-list"></div>
 		</div>
 	</div>
@@ -884,7 +880,8 @@
 	<div class="modal" id="dialog-modal">
 		<div id="dialog-title">Alert</div>
 		<div id="dialog-msg"></div>
-		<input type="text" id="dialog-input" autocomplete="off" spellcheck="false">
+		<input type="text" id="dialog-input" list="dialog-datalist" autocomplete="off" spellcheck="false">
+		<datalist id="dialog-datalist"></datalist>
 		<div style="display:flex; gap:10px; justify-content:flex-end;">
 			<button class="btn btn-secondary" id="dialog-btn-extra" style="display:none;"></button>
 			<button class="btn btn-secondary" id="dialog-btn-cancel">Cancel</button>
@@ -939,39 +936,39 @@
 
 	// --- Unified File System State ---
 	let fileSystem = {
-		'player.png': { 
+		'DeepBlue/player.png': { 
 			type: 'asset', subtype: 'image', 
 			src: 'https://placehold.co/100x100/00e5ff/white?text=Player', content: null 
 		},
-		'logo.svg': { 
+		'DeepBlue/logo.svg': { 
 			type: 'asset', subtype: 'svg', 
 			content: `<svg fill="none" stroke="#00e5ff" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path></svg>` 
 		},
-		'main.py': {
+		'DeepBlue/main.py': {
 			type: 'python',
 			content: '# Python made by DeepBlue\nprint("Welcome to DeepBlue, this runs using your own computer.")\nname = input("Enter your name: ")\nprint("Hello,", name)'
 		},
-		'manifest.json': {
+		'DeepBlue/manifest.json': {
 			type: 'json',
 			content: '{\n\t"manifest_version": 3,\n\t"name": "DeepBlue Extension",\n\t"version": "1.0",\n\t"description": "An Extension made by DeepBlue IDE"\n}'
 		},
-		'Component.jsx': {
+		'DeepBlue/Component.jsx': {
 			type: 'react',
 			content: `const { useState } = React;\n\nfunction App() {\n\tconst [awesomeness, setAwesomeness] = useState(9000);\n\tconst perks = ['Seamless Logic', 'Elegant Syntax', 'ProElectricCoder Certified'];\n\n\treturn (\n\t\t<div style={{ padding: '2rem', textAlign: 'center', color: '#fff', fontFamily: 'system-ui' }}>\n\t\t\t<h1 style={{ color: '#00e5ff' }}>Behold the Power of JSX!</h1>\n\t\t\t<p>Where UI meets logic. So flawless it feels like cheating.</p>\n\t\t\t<ul style={{ listStyleType: 'none', padding: 0, color: 'rgba(0, 229, 255, 0.8)' }}>\n\t\t\t\t{perks.map((perk, index) => (\n\t\t\t\t\t<li key={index}>⚡ {perk}</li>\n\t\t\t\t))}\n\t\t\t</ul>\n\t\t\t<button \n\t\t\t\tonClick={() => setAwesomeness(awesomeness + 1)}\n\t\t\t\tstyle={{ marginTop: '1rem', padding: '0.5rem 1rem', background: '#00e5ff', color: '#0a0e14', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 'bold' }}\n\t\t\t>\n\t\t\t\tAwesomeness Level: {awesomeness}\n\t\t\t</button>\n\t\t</div>\n\t);\n}\n\nconst root = ReactDOM.createRoot(document.getElementById('react-root'));\nroot.render(<App />);`
 		},
-		'README.md': { 
+		'DeepBlue/README.md': { 
 			type: 'text', 
 			content: `# Hello Markdown\n\nThis is a sample markdown file. It will be rendered to HTML when you run it!\n\nImagine having such a good IDE (like this one) for coding.\n\n---\n*Just a humble masterpiece, casually built by **ProElectricCoder***`, 
 		},
-		'script.js': { 
+		'DeepBlue/script.js': { 
 			type: 'js', 
 			content: `console.log("Welcome to Deep Blue!");\nconsole.info("This is an info message useful for debugging.");\nconsole.warn("Be Careful! This is a warning.");\nconsole.error("Oops! Something went wrong (Simulation).");\nconsole.warn("This IDE is too good for you to use");\nconsole.info("But keep using it, you are welcome!");\nconsole.info("Try typing 'document.body.style.background = \\"purple\\"' in the console below!");` 
 		},
-		'style.css': { 
+		'DeepBlue/style.css': { 
 			type: 'css', 
 			content: `body {\n\tbackground-color: #0a0e14;\n\tdisplay: flex;\n\tjustify-content: center;\n\talign-items: center;\n\theight: 100vh;\n\tmargin: 0;\n\toverflow: hidden;\n\tfont-family: system-ui, sans-serif;\n}\n.card {\n\twidth: 100%;\n\tmax-width: 24rem;\n\taspect-ratio: 16/9;\n\tbackground-color: #111720;\n\tborder-radius: 1rem;\n\tborder: 1px solid rgba(0, 229, 255, 0.3);\n\tdisplay: flex;\n\tflex-direction: column;\n\talign-items: center;\n\tjustify-content: center;\n\tbox-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);\n\ttransition: all 300ms;\n}\n.card:hover {\n\ttransform: translateY(-0.25rem);\n\tbox-shadow: 0 0 40px -10px rgba(0, 229, 255, 0.3);\n}\n.icon-container {\n\twidth: 4rem;\n\theight: 4rem;\n\tmargin-bottom: 1rem;\n\topacity: 0.8;\n}\n.icon-container img {\n\twidth: 100%;\n\theight: 100%;\n}\n.card-title {\n\tfont-size: 1.5rem;\n\tfont-weight: 700;\n\tcolor: white;\n\tmargin: 0;\n}\n.card-subtitle {\n\tcolor: rgba(0, 229, 255, 0.5);\n\tmargin-top: 0.25rem;\n\tfont-weight: 300;\n\tmargin-bottom: 0;\n}\n.brand-watermark {\n\tposition: absolute;\n\tbottom: 1rem;\n\tleft: 1rem;\n\tcolor: #00000000;\n\tfont-size: 0.85rem;\n\ttransition: color 300ms;\n\tcursor: default;\n}\n.brand-watermark:hover {\n\tcolor: #00e5ffff;\n}` 
 		},
-		'index.html': { 
+		'DeepBlue/index.html': { 
 	 		type: 'html', 
 			content: `<!DOCTYPE html>\n<html>\n\t<head>\n\t\t<link rel="stylesheet" href="style.css" />\n\t</head>\n\t<body>\n\t\t<div class="card">\n\t\t\t<div class="icon-container"><img src="logo.svg" /></div>\n\t\t\t<h2 class="card-title">Deep Blue</h2>\n\t\t\t<p class="card-subtitle">Code comfortably</p>\n\t\t</div>\n\t\t<div class="brand-watermark">DeepBlue - World Class IDE</div>\n\t\t<script src="script.js"><\/script>\n\t</body>\n</html>` 
 		}
@@ -979,12 +976,12 @@
 
 	let activeFile = null; 
 	let unsavedChanges = false;
-	let addMenuCategory = '';
+	let targetFolderForAdd = '';
 	let projectHandle = null;
 	let aceEditor = null;
 	let autoSaveInterval = null;
 	let explicitFolders = [];
-	let folderStates = {};
+	let folderStates = { 'DeepBlue': true };
 	let importedRepoFolders = [];
 
 	let githubToken = localStorage.getItem('deepBlue_gh_token') || '';
@@ -1015,12 +1012,13 @@
 	}
 
 	// --- Custom Dialog System ---
-	function showCustomDialog(type, title, msg, defaultVal = '', okText = 'OK', cancelText = 'Cancel', extraText = null) {
+	function showCustomDialog(type, title, msg, defaultVal = '', okText = 'OK', cancelText = 'Cancel', extraText = null, datalistOptions = null) {
 		return new Promise(resolve => {
 			const overlay = document.getElementById('dialog-overlay');
 			const titleEl = document.getElementById('dialog-title');
 			const msgEl = document.getElementById('dialog-msg');
 			const inputEl = document.getElementById('dialog-input');
+			const datalistEl = document.getElementById('dialog-datalist');
 			const btnCancel = document.getElementById('dialog-btn-cancel');
 			const btnOk = document.getElementById('dialog-btn-ok');
 			const btnExtra = document.getElementById('dialog-btn-extra');
@@ -1030,6 +1028,12 @@
 			inputEl.value = defaultVal;
 			btnOk.innerText = okText;
 			btnCancel.innerText = cancelText;
+
+			if (datalistOptions && Array.isArray(datalistOptions)) {
+				datalistEl.innerHTML = datalistOptions.map(opt => `<option value="${opt}"></option>`).join('');
+			} else {
+				datalistEl.innerHTML = '';
+			}
 			
 			if (extraText) {
 				btnExtra.style.display = 'block';
@@ -1076,7 +1080,7 @@
 	}
 	const customAlert = (msg, title="Alert") => showCustomDialog('alert', title, msg);
 	const customConfirm = (msg, title="Confirm") => showCustomDialog('confirm', title, msg);
-	const customPrompt = (msg, defaultVal='', title="Input") => showCustomDialog('prompt', title, msg, defaultVal);
+	const customPrompt = (msg, defaultVal='', title="Input", options=null) => showCustomDialog('prompt', title, msg, defaultVal, 'OK', 'Cancel', null, options);
 
 	// --- Execution Loading UI Helper ---
 	function setExecLoading(state) {
@@ -1139,12 +1143,43 @@
 		if (githubToken) document.getElementById('gh-commit-btn').style.display = 'flex';
 
 		renderSidebar();
-		await switchFile('index.html'); 
+		
+		const urlParams = new URLSearchParams(window.location.search);
+		const fileFromUrl = urlParams.get('file');
+		
+		if (fileFromUrl && fileSystem[fileFromUrl]) {
+			await switchFile(fileFromUrl);
+		} else {
+			await switchFile('DeepBlue/index.html'); 
+		}
+		
 		await runWeb();
 		initResizers();
 
 		window.addEventListener('message', (e) => {
 			if (e.data && e.data.type === 'console') logToConsole(e.data.level, e.data.msg);
+			
+			// Intercept navigations from inside the iframe to switch IDE files natively
+			if (e.data && e.data.type === 'navigate') {
+				const urlParts = e.data.path.split('?');
+				let targetPath = urlParts[0];
+				let queryParams = urlParts.length > 1 ? '?' + urlParts[1] : '';
+				
+				let basePath = activeFile.includes('/') ? activeFile.substring(0, activeFile.lastIndexOf('/') + 1) : '';
+				let cleanPath = targetPath.startsWith('./') ? targetPath.slice(2) : targetPath;
+				let resolvedPath = basePath + cleanPath;
+				
+				if (!fileSystem[resolvedPath] && fileSystem[cleanPath]) resolvedPath = cleanPath;
+				
+				if (fileSystem[resolvedPath]) {
+					// Switch the editor visually and then execute it with the passed parameters
+					switchFile(resolvedPath).then(() => {
+						runWeb(resolvedPath, queryParams);
+					});
+				} else {
+					logToConsole('error', '404 - File not found: ' + targetPath);
+				}
+			}
 		});
 	});
 
@@ -1279,7 +1314,7 @@
 		tabEl.className = 'preview-tab';
 		tabEl.id = `tab-header-${id}`;
 		tabEl.onclick = (e) => { if(!e.target.closest('.tab-close')) activateTab(id); };
-		tabEl.innerHTML = `<div class="preview-tab-title">${id}</div><div class="tab-close" onclick="closeTab('${id}')">✕</div>`;
+		tabEl.innerHTML = `<div class="preview-tab-title" title="${id}">&lrm;${id}</div><div class="tab-close" onclick="closeTab('${id}')">✕</div>`;
 		tabContainer.appendChild(tabEl);
 		const contentArea = document.getElementById('content-area');
 		const contentEl = document.createElement('div');
@@ -1320,7 +1355,7 @@
 
 	// --- Core UI Functions ---
 	function renderTree(node, container, depth = 0, pathPrefix = '') {
-		Object.keys(node.children).forEach(folderName => {
+		Object.keys(node.children).sort((a, b) => a.localeCompare(b)).forEach(folderName => {
 			const childNode = node.children[folderName];
 			const folderPath = pathPrefix ? `${pathPrefix}/${folderName}` : folderName;
 			
@@ -1341,6 +1376,8 @@
 				? `<svg class="${iconClass}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>`
 				: `<i data-lucide="${iconFolderStr}" class="${iconClass}"></i>`;
 
+			const deleteBtn = folderPath === 'DeepBlue' ? '' : `<button class="btn-icon" onclick="event.stopPropagation(); deleteFolder('${folderPath}')" style="color: #ef4444;" title="Delete Folder"><i data-lucide="trash-2" style="width:12px;height:12px;"></i></button>`;
+
 			header.innerHTML = `
 				<div class="folder-name-container">
 					<i data-lucide="chevron-right" class="chevron"></i>
@@ -1348,8 +1385,9 @@
 					${folderName}
 				</div>
 				<div class="folder-actions">
+					<button class="btn-icon" onclick="event.stopPropagation(); openAddMenu('${folderPath}')" title="Add File/Folder"><i data-lucide="plus" style="width:12px;height:12px;"></i></button>
 					<button class="btn-icon" onclick="event.stopPropagation(); renameFolder('${folderPath}')" title="Rename Folder"><i data-lucide="edit-2" style="width:12px;height:12px;"></i></button>
-					<button class="btn-icon" onclick="event.stopPropagation(); deleteFolder('${folderPath}')" style="color: #ef4444;" title="Delete Folder"><i data-lucide="trash-2" style="width:12px;height:12px;"></i></button>
+					${deleteBtn}
 				</div>
 			`;
 			
@@ -1376,8 +1414,8 @@
 			container.appendChild(folderDiv);
 		});
 
-		// Ensure newer items at the end of Object.keys appear at the top
-		node.files.reverse().forEach(file => {
+		// Sort files in ascending alphabetical order
+		node.files.sort((a, b) => a.name.localeCompare(b.name)).forEach(file => {
 			const div = document.createElement('div');
 			div.className = `tab ${file.path === activeFile ? 'active' : ''}`;
 			div.style.paddingLeft = `${15 + depth * 15}px`;
@@ -1470,6 +1508,12 @@
 		}
 		
 		activeFile = filename; renderSidebar();
+		
+		// Update URL silently
+		const url = new URL(window.location);
+		url.searchParams.set('file', filename);
+		window.history.replaceState(null, '', url);
+		
 		const target = fileSystem[filename];
 		if (!target) { isSwitchingFile = false; return; }
 
@@ -1786,10 +1830,10 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 		}
 	}
 
-	async function runWeb() {
+	async function runWeb(overrideFile = null, queryParams = '') {
 		setExecLoading(true);
 		try {
-			let targetFile = activeFile;
+			let targetFile = overrideFile || activeFile;
 
 			// 1. If NO file is active, reveal global placeholder and exit
 			if (!targetFile) {
@@ -1823,7 +1867,7 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 
 				const blob = new Blob([finalContent], { type: mime });
 				const iframe = document.getElementById(`iframe-${targetFile}`);
-				if (iframe) iframe.src = URL.createObjectURL(blob);
+				if (iframe) iframe.src = URL.createObjectURL(blob) + queryParams;
 				return;
 			}
 
@@ -1887,6 +1931,9 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 			}
 
 			const consoleScript = `<script>(function(){function send(type,args){const msg=args.map(a=>{if(typeof a==='object'){try{return JSON.stringify(a);}catch(e){return String(a);}}return String(a);}).join(' ');window.parent.postMessage({type:'console',level:type,msg:msg},'*');}const methods=['log','warn','error','info'];methods.forEach(m=>{const original=console[m];console[m]=(...args)=>{original.apply(console,args);send(m,args);};});console.hack=async function(target){try{const res=await fetch('https://get.geojs.io/v1/ip/geo.json');const data=await res.json();console.log("IP Address to hack: "+data.ip);console.log("(It's yours tho 😏)");}catch(e){console.log("IP Address to hack: 127.0.0.1");console.log("(It's yours tho 😏)");}};console.destroy=async function(target){console.log("Acquiring target coordinates...");try{const res=await fetch('https://get.geojs.io/v1/ip/geo.json');const data=await res.json();console.warn('Target locked: '+data.ip);console.error('Airstriking '+(data.city||'Unknown')+', '+(data.region||'Unknown')+' instead of '+target+'... 🚀💥');}catch(e){console.error("Satellite uplink failed. Airstrike aborted. (API Blocked)");}};window.onerror=function(msg,url,line){send('error',["Runtime Error: "+msg+" (Line "+line+")"]);};window.addEventListener('unhandledrejection',function(event){send('error',["Unhandled Promise Rejection: "+(event.reason?event.reason.toString():'Unknown')]);});})();<\/script>`;
+			const navScript = `<script>(function(){document.addEventListener('click',function(e){const a=e.target.closest('a');if(a){const href=a.getAttribute('href');if(href&&!href.startsWith('http')&&!href.startsWith('data:')&&!href.startsWith('blob:')&&!href.startsWith('#')){e.preventDefault();window.parent.postMessage({type:'navigate',path:href},'*');}}});document.addEventListener('submit',function(e){const form=e.target;const action=form.getAttribute('action')||'';if(!action.startsWith('http')&&!action.startsWith('data:')&&!action.startsWith('blob:')){e.preventDefault();const formData=new FormData(form);const params=new URLSearchParams(formData).toString();const sep=action.includes('?')?'&':'?';window.parent.postMessage({type:'navigate',path:action+(params?sep+params:'')},'*');}});const oAssign=window.location.assign;window.location.assign=function(url){if(url&&!url.startsWith('http')&&!url.startsWith('data:')&&!url.startsWith('blob:')){window.parent.postMessage({type:'navigate',path:url},'*');}else{oAssign.call(window.location,url);}};const oReplace=window.location.replace;window.location.replace=function(url){if(url&&!url.startsWith('http')&&!url.startsWith('data:')&&!url.startsWith('blob:')){window.parent.postMessage({type:'navigate',path:url},'*');}else{oReplace.call(window.location,url);}};})();<\/script>`;
+			const injectedScripts = consoleScript + navScript;
+			
 			let basePath = targetFile.includes('/') ? targetFile.substring(0, targetFile.lastIndexOf('/') + 1) : '';
 			let processedHTML = htmlContent.replace(/(href|src)\s*=\s*["']([^"']+)["']/g, (match, attr, path) => { 
 				if (path.startsWith('http') || path.startsWith('data:')) return match;
@@ -1902,14 +1949,17 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 				return match; 
 			});
 			processedHTML = processedHTML.replace(/type\s*=\s*["']text\/babel["']/g, 'type="application/javascript"');
-			if (processedHTML.includes('<head>')) processedHTML = processedHTML.replace('<head>', '<head>' + consoleScript); else processedHTML = consoleScript + processedHTML;
+			if (processedHTML.includes('<head>')) processedHTML = processedHTML.replace('<head>', '<head>' + injectedScripts); else processedHTML = injectedScripts + processedHTML;
+			
 			const oldIframe = document.getElementById(`iframe-${tabId}`);
 			if(oldIframe) {
-				// Clear URL to ensure we accept raw content writing
 				oldIframe.src = '';
 				const newIframe = document.createElement('iframe'); newIframe.id = oldIframe.id; newIframe.className = oldIframe.className; newIframe.style.cssText = oldIframe.style.cssText;
 				const parent = oldIframe.parentNode; parent.replaceChild(newIframe, oldIframe);
-				const doc = newIframe.contentDocument; doc.open(); doc.write(processedHTML); doc.close();
+				
+				// Using Blob URL instead of doc.write allows query parameters to be preserved and read natively inside the iframe
+				const htmlBlob = new Blob([processedHTML], { type: 'text/html' });
+				newIframe.src = URL.createObjectURL(htmlBlob) + queryParams;
 			}
 
 		} finally {
@@ -2291,13 +2341,13 @@ window.onload=function(){
 		saveAs(content, "project.zip"); 
 	}
 	
-	function openAddMenu(category) { 
-		addMenuCategory = category; 
+	function openAddMenu(folderPath = '') { 
+		targetFolderForAdd = folderPath; 
 		const modal = document.getElementById('modal-overlay'); 
 		const title = document.getElementById('modal-title'); 
 		const urlOption = document.getElementById('import-url-option');
 
-		title.innerText = "Add File or Asset";
+		title.innerText = folderPath ? `Add to ${folderPath.split('/').pop()}` : "Add File or Asset";
 		urlOption.style.display = 'flex';
 		
 		document.getElementById('modal-overlay').classList.add('open'); 
@@ -2542,7 +2592,9 @@ window.onload=function(){
 	}
 
 	async function createNewFile() { 
-		let name = await customPrompt("Enter file path (e.g. src/script.js, style.css):", "", "New File"); 
+		let defaultPath = targetFolderForAdd ? targetFolderForAdd + '/' : '';
+		let existingFiles = Object.keys(fileSystem);
+		let name = await customPrompt("Enter file path (e.g. src/script.js, style.css):", defaultPath, "New File", existingFiles); 
 		if (!name) return; 
 		if (fileSystem[name]) { await customAlert("File name exists!", "Error"); return; } 
 		
@@ -2585,10 +2637,52 @@ window.onload=function(){
 		}, 50);
 	}
 	
-	async function createNewFolder() { let name = await customPrompt("Enter folder path (e.g. src/components):", "", "New Folder"); if (!name) return; name = name.replace(/\/+$/, ''); if (!explicitFolders.includes(name)) { explicitFolders.push(name); renderSidebar(); unsavedChanges = true; } }
+	async function createNewFolder() { 
+		let defaultPath = targetFolderForAdd ? targetFolderForAdd + '/' : '';
+		let name = await customPrompt("Enter folder path (e.g. src/components):", defaultPath, "New Folder", explicitFolders); 
+		if (!name) return; 
+		name = name.replace(/\/+$/, ''); 
+		if (!explicitFolders.includes(name)) { explicitFolders.push(name); renderSidebar(); unsavedChanges = true; } 
+	}
 	
-	async function processUpload(event) { const file = event.target.files[0]; if (!file) return; const name = file.name; if (fileSystem[name]) { const ok = await customConfirm(`Overwrite '${name}'?`, "File Exists"); if (!ok) { event.target.value = ''; return;} } const reader = new FileReader(); const isMedia = /\.(png|jpe?g|gif|webp|pdf|mp3|mp4|wav|webm|ogg)$/i.test(name); const isSVG = /\.svg$/i.test(name); if (isMedia && !isSVG) reader.readAsDataURL(file); else reader.readAsText(file); reader.onload = async (e) => { const content = e.target.result; if (isMedia || isSVG) { if (isMedia && !isSVG) { let subtype = 'image'; if (/\.(mp3|wav|ogg)$/i.test(name)) subtype = 'audio'; else if (/\.(mp4|webm)$/i.test(name)) subtype = 'video'; else if (/\.pdf$/i.test(name)) subtype = 'pdf'; fileSystem[name] = { type: 'asset', subtype: subtype, src: content, content: null, modified: false }; } else if (isSVG) fileSystem[name] = { type: 'asset', subtype: 'svg', content: content, modified: false }; } else { let type = 'html'; if (name.endsWith('.js') || name.endsWith('.jsx')) type = 'js'; else if (name.endsWith('.css')) type = 'css'; else if (name.endsWith('.json') || name.endsWith('.md') || name.endsWith('.txt') || name.endsWith('.py')) type = 'text'; fileSystem[name] = { type, content, modified: false }; } await switchFile(name); unsavedChanges = true; event.target.value = ''; renderSidebar(); }; }
-	
+	async function processUpload(event) { 
+		const file = event.target.files[0]; 
+		if (!file) return; 
+		const name = targetFolderForAdd ? `${targetFolderForAdd}/${file.name}` : file.name; 
+		if (fileSystem[name]) { const ok = await customConfirm(`Overwrite '${name}'?`, "File Exists"); if (!ok) { event.target.value = ''; return;} } 
+		const reader = new FileReader(); 
+		const isMedia = /\.(png|jpe?g|gif|webp|pdf|mp3|mp4|wav|webm|ogg)$/i.test(name); 
+		const isSVG = /\.svg$/i.test(name);
+		
+		if (isMedia && !isSVG) reader.readAsDataURL(file);
+		else reader.readAsText(file);
+		
+		reader.onload = async (e) => {
+			const content = e.target.result;
+			if (isMedia || isSVG) {
+				if (isMedia && !isSVG) {
+					let subtype = 'image';
+					if (/\.(mp3|wav|ogg)$/i.test(name)) subtype = 'audio';
+					else if (/\.(mp4|webm)$/i.test(name)) subtype = 'video';
+					else if (/\.pdf$/i.test(name)) subtype = 'pdf';
+					fileSystem[name] = { type: 'asset', subtype: subtype, src: content, content: null, modified: false };
+				} else if (isSVG) {
+					fileSystem[name] = { type: 'asset', subtype: 'svg', content: content, modified: false };
+				}
+			} else {
+				let type = 'html';
+				if (name.endsWith('.js') || name.endsWith('.jsx')) type = 'js';
+				else if (name.endsWith('.css')) type = 'css';
+				else if (name.endsWith('.json') || name.endsWith('.md') || name.endsWith('.txt') || name.endsWith('.py')) type = 'text';
+				fileSystem[name] = { type, content, modified: false };
+			}
+			renderSidebar();
+			unsavedChanges = true;
+			await switchFile(name);
+			event.target.value = '';
+		};
+	}
+
 	async function processFolderUpload(event) {
 		const files = event.target.files;
 		if (!files || files.length === 0) return;
@@ -2598,7 +2692,8 @@ window.onload=function(){
 		
 		for (let i = 0; i < files.length; i++) {
 			const file = files[i];
-			const path = file.webkitRelativePath || file.name;
+			const originalPath = file.webkitRelativePath || file.name;
+			const path = targetFolderForAdd ? `${targetFolderForAdd}/${originalPath}` : originalPath;
 			
 			const parts = path.split('/');
 			parts.pop();
@@ -2668,8 +2763,14 @@ window.onload=function(){
 		if (nextFile && nextFile !== name) {
 			await switchFile(nextFile); 
 		} else if (!nextFile) { 
-			document.getElementById('code-editor').style.display='none'; 
-			document.getElementById('binary-overlay').style.display='flex'; 
+			document.querySelector('.editor-wrapper').style.display = 'none'; 
+			document.getElementById('binary-overlay').style.display = 'flex';
+			document.getElementById('binary-info').innerText = 'No File Selected';
+			document.getElementById('editor-lang-label').innerText = 'NONE';
+			
+			const url = new URL(window.location);
+			url.searchParams.delete('file');
+			window.history.replaceState(null, '', url);
 		} 
 		unsavedChanges = true; 
 	}
@@ -2720,6 +2821,7 @@ window.onload=function(){
 	}
 
 	async function deleteFolder(folderPath) {
+		if (folderPath === 'DeepBlue') return;
 		const ok = await customConfirm(`Delete folder '${folderPath}' and all its contents?`, "Confirm Deletion");
 		if (!ok) return;
 
@@ -2739,7 +2841,16 @@ window.onload=function(){
 			activeFile = null; // Prevent saving old content
 			const nextFile = Object.keys(fileSystem)[0] || null;
 			if (nextFile) await switchFile(nextFile);
-			else { document.getElementById('code-editor').style.display='none'; document.getElementById('binary-overlay').style.display='flex'; }
+			else { 
+				document.querySelector('.editor-wrapper').style.display = 'none'; 
+				document.getElementById('binary-overlay').style.display = 'flex'; 
+				document.getElementById('binary-info').innerText = 'No File Selected';
+				document.getElementById('editor-lang-label').innerText = 'NONE';
+				
+				const url = new URL(window.location);
+				url.searchParams.delete('file');
+				window.history.replaceState(null, '', url);
+			}
 		}
 		
 		unsavedChanges = true;
