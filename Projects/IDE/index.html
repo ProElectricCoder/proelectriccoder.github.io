@@ -993,6 +993,40 @@
 	// System state for Python input
 	let pythonPollFn = null;
 
+	// --- Path Resolution Logic ---
+	function resolveVirtualPath(baseFile, relativePath) {
+		if (!relativePath) return baseFile;
+		if (relativePath.startsWith('/')) {
+			relativePath = relativePath.substring(1);
+			baseFile = '';
+		}
+
+		let parts = baseFile ? baseFile.split('/') : [];
+		if (parts.length > 0) parts.pop(); // remove file name
+
+		let relParts = relativePath.split('/');
+		for (let i = 0; i < relParts.length; i++) {
+			let part = relParts[i];
+			if (part === '.' || (part === '' && i !== relParts.length - 1)) continue;
+			if (part === '..') {
+				if (parts.length > 0) parts.pop();
+			} else if (part !== '') {
+				parts.push(part);
+			}
+		}
+
+		let resolved = parts.join('/');
+
+		// Exact match
+		if (fileSystem[resolved] && fileSystem[resolved].type !== 'folder') return resolved;
+		
+		// Fallback to index.html if pointing to a directory
+		let indexFallback = resolved ? resolved + '/index.html' : 'index.html';
+		if (fileSystem[indexFallback]) return indexFallback;
+
+		return resolved; // Fallback to raw resolution for 404 logs
+	}
+
 	// --- Helper: Dynamic Babel Lazy Loading ---
 	let isBabelLoading = false;
 	async function loadBabel() {
@@ -1165,11 +1199,7 @@
 				let targetPath = urlParts[0];
 				let queryParams = urlParts.length > 1 ? '?' + urlParts[1] : '';
 				
-				let basePath = activeFile.includes('/') ? activeFile.substring(0, activeFile.lastIndexOf('/') + 1) : '';
-				let cleanPath = targetPath.startsWith('./') ? targetPath.slice(2) : targetPath;
-				let resolvedPath = basePath + cleanPath;
-				
-				if (!fileSystem[resolvedPath] && fileSystem[cleanPath]) resolvedPath = cleanPath;
+				let resolvedPath = resolveVirtualPath(activeFile, targetPath);
 				
 				if (fileSystem[resolvedPath]) {
 					// Switch the editor visually and then execute it with the passed parameters
@@ -1177,7 +1207,7 @@
 						runWeb(resolvedPath, queryParams);
 					});
 				} else {
-					logToConsole('error', '404 - File not found: ' + targetPath);
+					logToConsole('error', '404 - File not found: ' + targetPath + ' (Resolved: ' + resolvedPath + ')');
 				}
 			}
 		});
@@ -1934,16 +1964,15 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 			const navScript = `<script>(function(){document.addEventListener('click',function(e){const a=e.target.closest('a');if(a){const href=a.getAttribute('href');if(href&&!href.startsWith('http')&&!href.startsWith('data:')&&!href.startsWith('blob:')&&!href.startsWith('#')){e.preventDefault();window.parent.postMessage({type:'navigate',path:href},'*');}}});document.addEventListener('submit',function(e){const form=e.target;const action=form.getAttribute('action')||'';if(!action.startsWith('http')&&!action.startsWith('data:')&&!action.startsWith('blob:')){e.preventDefault();const formData=new FormData(form);const params=new URLSearchParams(formData).toString();const sep=action.includes('?')?'&':'?';window.parent.postMessage({type:'navigate',path:action+(params?sep+params:'')},'*');}});const oAssign=window.location.assign;window.location.assign=function(url){if(url&&!url.startsWith('http')&&!url.startsWith('data:')&&!url.startsWith('blob:')){window.parent.postMessage({type:'navigate',path:url},'*');}else{oAssign.call(window.location,url);}};const oReplace=window.location.replace;window.location.replace=function(url){if(url&&!url.startsWith('http')&&!url.startsWith('data:')&&!url.startsWith('blob:')){window.parent.postMessage({type:'navigate',path:url},'*');}else{oReplace.call(window.location,url);}};})();<\/script>`;
 			const injectedScripts = consoleScript + navScript;
 			
-			let basePath = targetFile.includes('/') ? targetFile.substring(0, targetFile.lastIndexOf('/') + 1) : '';
 			let processedHTML = htmlContent.replace(/(href|src)\s*=\s*["']([^"']+)["']/g, (match, attr, path) => { 
-				if (path.startsWith('http') || path.startsWith('data:')) return match;
-				let cleanPath = path.startsWith('./') ? path.slice(2) : path;
-				let resolved = basePath + cleanPath;
+				if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:') || path.startsWith('#')) return match;
+				
+				let resolved = resolveVirtualPath(targetFile, path);
+				
 				if (blobMap[resolved]) return `${attr}="${blobMap[resolved]}"`;
-				if (blobMap[cleanPath]) return `${attr}="${blobMap[cleanPath]}"`;
 				
 				// Lazy load URL fallback injection for bundling
-				const fileObj = fileSystem[resolved] || fileSystem[cleanPath];
+				const fileObj = fileSystem[resolved];
 				if (fileObj && fileObj.ghUrl) return `${attr}="${fileObj.ghUrl}"`;
 
 				return match; 
@@ -2017,13 +2046,11 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 			}
 		}
 
-		let basePath = targetFile.includes('/') ? targetFile.substring(0, targetFile.lastIndexOf('/') + 1) : '';
-		
 		// Inline CSS
 		htmlContent = htmlContent.replace(/<link[^>]+href=["'](.*?)["'][^>]*>/g, (match, href) => {
-			if (href.startsWith('http') || href.startsWith('data:')) return match;
-			let cleanPath = href.startsWith('./') ? href.slice(2) : href;
-			const file = fileSystem[basePath + cleanPath] || fileSystem[cleanPath];
+			if (href.startsWith('http') || href.startsWith('data:') || href.startsWith('blob:') || href.startsWith('#')) return match;
+			let resolved = resolveVirtualPath(targetFile, href);
+			const file = fileSystem[resolved];
 			if (file && file.type === 'css') {
 				if (file.content !== null) return `<style>${file.content}</style>`;
 				if (file.ghUrl) return match.replace(href, file.ghUrl);
@@ -2033,12 +2060,12 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 
 		// Inline JS
 		htmlContent = htmlContent.replace(/<script[^>]+src=["'](.*?)["'][^>]*><\/script>/g, (match, src) => {
-			if (src.startsWith('http') || src.startsWith('data:')) return match;
-			let cleanPath = src.startsWith('./') ? src.slice(2) : src;
-			const file = fileSystem[basePath + cleanPath] || fileSystem[cleanPath];
+			if (src.startsWith('http') || src.startsWith('data:') || src.startsWith('blob:') || src.startsWith('#')) return match;
+			let resolved = resolveVirtualPath(targetFile, src);
+			const file = fileSystem[resolved];
 			if (file && file.type === 'js') {
 				let fContent = file.content;
-				if (cleanPath.endsWith('.jsx') && window.Babel && fContent) {
+				if (resolved.endsWith('.jsx') && window.Babel && fContent) {
 					try { fContent = window.Babel.transform(fContent, { presets: ['react'] }).code; }
 					catch(e) { console.error('JSX Error:', e); }
 				}
@@ -2051,9 +2078,9 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 
 		// Inline Assets (Images/SVGs)
 		htmlContent = htmlContent.replace(/(src|href)=["']([^"']+)["']/g, (match, attr, path) => {
-			if (path.startsWith('http') || path.startsWith('data:')) return match;
-			let cleanPath = path.startsWith('./') ? path.slice(2) : path;
-			const asset = fileSystem[basePath + cleanPath] || fileSystem[cleanPath];
+			if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:') || path.startsWith('#')) return match;
+			let resolved = resolveVirtualPath(targetFile, path);
+			const asset = fileSystem[resolved];
 			if (asset && asset.type === 'asset') {
 				if (asset.subtype === 'svg' && asset.content === null && asset.ghUrl) return `${attr}="${asset.ghUrl}"`;
 				let dataUri = '';
