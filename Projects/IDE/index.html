@@ -980,7 +980,7 @@
 	let projectHandle = null;
 	let aceEditor = null;
 	let autoSaveInterval = null;
-	let explicitFolders = [];
+	let explicitFolders = ['DeepBlue'];
 	let folderStates = { 'DeepBlue': true };
 	let importedRepoFolders = [];
 
@@ -1221,6 +1221,7 @@
 		const savedRepoFolders = localStorage.getItem('deepBlueRepoFolders');
 		if (savedFS) { try { fileSystem = JSON.parse(savedFS); } catch(e) {} }
 		if (savedFolders) { try { explicitFolders = JSON.parse(savedFolders); } catch(e) {} }
+		if (!explicitFolders.includes('DeepBlue')) explicitFolders.push('DeepBlue');
 		if (savedDeleted) { try { deletedFiles = JSON.parse(savedDeleted); } catch(e) {} }
 		if (savedRepoFolders) { try { importedRepoFolders = JSON.parse(savedRepoFolders); } catch(e) {} }
 
@@ -1406,6 +1407,7 @@
 				? `<svg class="${iconClass}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>`
 				: `<i data-lucide="${iconFolderStr}" class="${iconClass}"></i>`;
 
+			const renameBtn = folderPath === 'DeepBlue' ? '' : `<button class="btn-icon" onclick="event.stopPropagation(); renameFolder('${folderPath}')" title="Rename Folder"><i data-lucide="edit-2" style="width:12px;height:12px;"></i></button>`;
 			const deleteBtn = folderPath === 'DeepBlue' ? '' : `<button class="btn-icon" onclick="event.stopPropagation(); deleteFolder('${folderPath}')" style="color: #ef4444;" title="Delete Folder"><i data-lucide="trash-2" style="width:12px;height:12px;"></i></button>`;
 
 			header.innerHTML = `
@@ -1416,7 +1418,7 @@
 				</div>
 				<div class="folder-actions">
 					<button class="btn-icon" onclick="event.stopPropagation(); openAddMenu('${folderPath}')" title="Add File/Folder"><i data-lucide="plus" style="width:12px;height:12px;"></i></button>
-					<button class="btn-icon" onclick="event.stopPropagation(); renameFolder('${folderPath}')" title="Rename Folder"><i data-lucide="edit-2" style="width:12px;height:12px;"></i></button>
+					${renameBtn}
 					${deleteBtn}
 				</div>
 			`;
@@ -1949,7 +1951,7 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 				if (fObj.type === 'asset') {
 					if (fObj.subtype === 'svg' && fObj.content === null) continue;
 					blobMap[fname] = fObj.subtype === 'svg' ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(fObj.content) : fObj.src;
-				} else {
+				} else if (fObj.type === 'css' || fObj.type === 'js' || fObj.type === 'react') {
 					let mime = (fname.endsWith('.js') || fname.endsWith('.jsx')) ? 'application/javascript' : 'text/css';
 					let fContent = fObj.content;
 					if (fname.endsWith('.jsx') && window.Babel) {
@@ -1968,11 +1970,13 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 				if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:') || path.startsWith('#')) return match;
 				
 				let resolved = resolveVirtualPath(targetFile, path);
+				const fileObj = fileSystem[resolved];
+				
+				if (fileObj && (fileObj.type === 'html' || fileObj.type === 'text' || fileObj.type === 'python')) return match;
 				
 				if (blobMap[resolved]) return `${attr}="${blobMap[resolved]}"`;
 				
 				// Lazy load URL fallback injection for bundling
-				const fileObj = fileSystem[resolved];
 				if (fileObj && fileObj.ghUrl) return `${attr}="${fileObj.ghUrl}"`;
 
 				return match; 
@@ -2803,6 +2807,7 @@ window.onload=function(){
 	}
 
 	async function renameFolder(oldPath) {
+		if (oldPath === 'DeepBlue') return;
 		const parts = oldPath.split('/');
 		const oldName = parts.pop();
 		const parentPath = parts.join('/');
