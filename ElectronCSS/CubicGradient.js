@@ -4,6 +4,7 @@ Generates an optimized, eased CSS linear-gradient string.
  • Logic: Identifies exact color change points but limits density via "steps".
  • Result: High visual fidelity with a controlled CSS length.
 */
+// “Created by Gemini 3.1 Flash and ChatGPT GPT-5.3 Instant” - ProElectricCoder
 export function cubicGradient({
 	direction = "to right",
 	start = "#000044",
