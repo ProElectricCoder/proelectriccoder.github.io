@@ -1,8 +1,8 @@
 /*
 Generates an optimized, eased CSS linear-gradient string.
  • Supports Hex (6/8 digit) and Alpha.
- • Logic: Identifies exact color change points but limits density via "steps".
- • Result: High visual fidelity with a controlled CSS length.
+ • Logic: Single-pass generation that only commits stops when the curve deviates from a linear path.
+ • Result: Clean, minimal CSS payload with maximum performance.
 */
 // “Created by Gemini 3.1 Flash and ChatGPT GPT-5.3 Instant” - ProElectricCoder
 export function cubicGradient({
@@ -28,10 +28,6 @@ export function cubicGradient({
 	const c1 = parseHex(start);
 	const c2 = parseHex(end);
 
-	/*
-	 • Finds the 't' value (0-1) for a specific eased value.
-	 • Inverse of Math.pow(t, power)
-	*/
 	const getTFromEased = (eased) => Math.pow(eased, 1 / power);
 
 	const transitionPoints = new Set([0, 1]); 
@@ -43,41 +39,56 @@ export function cubicGradient({
 		const diff = Math.abs(endVal - startVal);
 
 		if (diff > 0) {
-			// We find how many color steps we actually want to show.
-			// If the color delta is 255 but steps is 10, we only sample 10 points.
 			const colorSteps = Math.min(diff > 1 ? diff : 255, steps);
-			
 			for (let i = 1; i < colorSteps; i++) {
-				const eased = i / colorSteps;
-				transitionPoints.add(getTFromEased(eased));
+				transitionPoints.add(getTFromEased(i / colorSteps));
 			}
 		}
 	});
 
-	// Sort the points and generate the CSS stops
-	const sortedPoints = Array.from(transitionPoints).sort((a, b) => a - b);
+	const sortedT = Array.from(transitionPoints).sort((a, b) => a - b);
 
-	const stops = [];
-	const seenColors = new Set();
-
-	sortedPoints.forEach(t => {
+	// Helper to calculate state at a specific T
+	const getStop = (t) => {
 		const eased = Math.pow(t, power);
-		
-		const r = Math.round(c1.r + (c2.r - c1.r) * eased);
-		const g = Math.round(c1.g + (c2.g - c1.g) * eased);
-		const b = Math.round(c1.b + (c2.b - c1.b) * eased);
-		const a = (c1.a + (c2.a - c1.a) * eased);
+		return {
+			t,
+			r: Math.round(c1.r + (c2.r - c1.r) * eased),
+			g: Math.round(c1.g + (c2.g - c1.g) * eased),
+			b: Math.round(c1.b + (c2.b - c1.b) * eased),
+			a: parseFloat((c1.a + (c2.a - c1.a) * eased).toFixed(3))
+		};
+	};
 
-		// Round alpha for string comparison to prevent tiny float jitter
-		const aFixed = parseFloat(a.toFixed(3));
-		const colorKey = `${r},${g},${b},${aFixed}`;
+	// --- Optimized Single-Pass Generation ---
+	const optimized = [getStop(sortedT[0])];
+
+	for (let i = 1; i < sortedT.length - 1; i++) {
+		const prev = optimized[optimized.length - 1];
+		const curr = getStop(sortedT[i]);
+		const next = getStop(sortedT[i + 1]);
+
+		// Calculate the linear intersection for current point relative to prev and next
+		const segmentT = (curr.t - prev.t) / (next.t - prev.t);
 		
-		if (!seenColors.has(colorKey)) {
-			const colorStr = `rgba(${r}, ${g}, ${b}, ${aFixed})`;
-			const position = (t * 100).toFixed(2);
-			stops.push(`${colorStr} ${position}%`);
-			seenColors.add(colorKey);
+		const isLinear = ['r', 'g', 'b', 'a'].every(ch => {
+			const interp = prev[ch] + (next[ch] - prev[ch]) * segmentT;
+			return Math.abs(curr[ch] - interp) < 0.5; // Threshold for color change
+		});
+
+		// Only push if the current point isn't just a straight line between the points we're actually keeping
+		if (!isLinear) {
+			optimized.push(curr);
 		}
+	}
+	
+	// Always add the final stop
+	optimized.push(getStop(sortedT[sortedT.length - 1]));
+
+	// Final string construction
+	const stops = optimized.map(s => {
+		const colorStr = `rgba(${s.r}, ${s.g}, ${s.b}, ${s.a})`;
+		return `${colorStr} ${(s.t * 100).toFixed(2)}%`;
 	});
 
 	return `linear-gradient(${direction}, ${stops.join(', ')})`;
