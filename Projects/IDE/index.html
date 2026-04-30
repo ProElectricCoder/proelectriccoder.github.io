@@ -33,9 +33,28 @@
 
 	<!-- Load Babel for JSX Compilation (Removed - Now Lazy Loaded) -->
 
-	<!-- Load Ace Editor -->
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ace.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ext-language_tools.min.js"></script>
+	<!-- Load CodeMirror Editor -->
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/cobalt.min.css">
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+
+	<!-- CodeMirror Languages -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/xml/xml.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/css/css.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/htmlmixed/htmlmixed.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/python/python.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/markdown/markdown.min.js"></script>
+
+	<!-- CodeMirror Addons (Folding, Brackets & Search) -->
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldgutter.min.css">
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldcode.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldgutter.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/brace-fold.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/xml-fold.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closebrackets.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/matchbrackets.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/searchcursor.min.js"></script>
 	
 	<!-- Load Lucide Icons -->
 	<script src="https://unpkg.com/lucide@latest"></script>
@@ -251,19 +270,61 @@
 			position: relative;
 		}
 
-		.ace_scrollbar::-webkit-scrollbar {
-			width: 10px;
-			height: 10px;
+		.CodeMirror {
+			height: 100%;
+			font-size: 15px; 
+			font-family: 'Consolas', 'Monaco', monospace;
+			background-color: #000000 !important; /* Forces true black */
+		}
+		.CodeMirror-gutters {
+			background-color: #000000 !important;
+			border-right: 1px solid var(--border) !important;
+		}
+		.CodeMirror-lines {
+			padding-top: 20px; /* Gives the code breathing room at the top */
+			padding-bottom: 20px; /* Gives breathing room at the bottom */
 		}
 
-		.ace_scrollbar::-webkit-scrollbar-thumb {
-			background: #1e293b;
-			border-radius: 10px;
-			border: 2px solid transparent;
-			background-clip: content-box;
+		/* Custom Text Selection Highlight */
+		.CodeMirror-focused .CodeMirror-selected {
+			background: rgba(0, 229, 255, 0.25) !important;
+		}
+		.CodeMirror-selected {
+			background: rgba(0, 229, 255, 0.15) !important;
 		}
 
-		.ace_scrollbar::-webkit-scrollbar-track { background-color: #0d1b2a; }
+		/* Width and height of the scrollbars */
+		.CodeMirror-vscrollbar::-webkit-scrollbar,
+		.CodeMirror-hscrollbar::-webkit-scrollbar {
+			width: 12px;
+			height: 12px;
+		}
+
+		/* The track (background) of the scrollbar */
+		.CodeMirror-vscrollbar::-webkit-scrollbar-track,
+		.CodeMirror-hscrollbar::-webkit-scrollbar-track {
+			background: #000000; 
+		}
+
+		/* The draggable thumb */
+		.CodeMirror-vscrollbar::-webkit-scrollbar-thumb,
+		.CodeMirror-hscrollbar::-webkit-scrollbar-thumb {
+			background-color: #1e293b;
+			border-radius: 6px;
+			border: 3px solid #000000; /* Creates a nice padded look */
+		}
+
+		/* Thumb hover state */
+		.CodeMirror-vscrollbar::-webkit-scrollbar-thumb:hover,
+		.CodeMirror-hscrollbar::-webkit-scrollbar-thumb:hover {
+			background-color: #334155;
+		}
+
+		/* Fix for the white squares in the corners of the scrollbars */
+		.CodeMirror-scrollbar-filler, 
+		.CodeMirror-gutter-filler {
+			background-color: #000000 !important;
+		}
 
 		.editor-wrapper {
 			flex: 1;
@@ -1147,25 +1208,24 @@
 		if (bar) bar.style.display = state ? 'block' : 'none';
 	}
 
-	// --- Init Ace Editor ---
+	// --- Init Editor ---
 	window.addEventListener('load', async function() {
-		ace.config.set('basePath', 'https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/');
-
-		// Main Editor
-		aceEditor = ace.edit("code-editor");
-		aceEditor.setTheme("ace/theme/chaos");
-		aceEditor.session.setMode("ace/mode/html");
-		aceEditor.setOptions({
-			fontSize: "14px", fontFamily: "'Consolas', 'Monaco', monospace", showPrintMargin: false, wrap: false,
-			useWorker: true, tabSize: 4, useSoftTabs: false, showLineNumbers: true, showGutter: true,
-			highlightActiveLine: true, enableBasicAutocompletion: true, enableLiveAutocompletion: true, enableSnippets: true
+		document.getElementById("code-editor").innerHTML = ""; // Clear div
+		aceEditor = CodeMirror(document.getElementById("code-editor"), {
+			theme: "cobalt",
+			mode: "htmlmixed",
+			lineNumbers: true,
+			indentUnit: 4,
+			tabSize: 4,
+			lineWrapping: false,
+			autoCloseBrackets: true,
+			matchBrackets: true,
+			foldGutter: true,
+			gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]
 		});
-		
-		// Add breathing room at the top
-		aceEditor.renderer.setScrollMargin(20, 0);
 
-		// Sync Logic
-		aceEditor.session.on('change', function() {
+		// Sync Logic (Change Listener)
+		aceEditor.on('change', function() {
 			if (isSwitchingFile) return;
 			unsavedChanges = true;
 			if (activeFile) {
@@ -1184,14 +1244,18 @@
 				}
 			}
 		});
-		
-		// Sync Selection/Cursor (Optional status bar update)
-		aceEditor.selection.on('changeCursor', () => {
-			const pos = aceEditor.getCursorPosition();
-			document.getElementById('cursor-pos').innerText = `Ln ${pos.row + 1}, Col ${pos.column + 1}`;
+
+		// Cursor Position Listener
+		aceEditor.on('cursorActivity', () => {
+			const pos = aceEditor.getCursor();
+			document.getElementById('cursor-pos').innerText = `Ln ${pos.line + 1}, Col ${pos.ch + 1}`;
 		});
 
-		aceEditor.commands.addCommand({ name: "openSearch", bindKey: {win: "Ctrl-F", mac: "Command-F"}, exec: toggleSearch });
+		// Add CodeMirror native keybindings for Search
+		aceEditor.setOption("extraKeys", {
+			"Ctrl-F": toggleSearch,
+			"Cmd-F": toggleSearch
+		});
 
 		// Init Features
 		initAutoSave();
@@ -1596,7 +1660,7 @@
 			
 			// Lazy load missing contents from GitHub
 			if (target.content === null && target.ghUrl) {
-				aceEditor.setValue("Loading...", -1);
+				aceEditor.setValue("Loading...");
 				try {
 					target.content = await fetchWithProgress(target.ghUrl);
 				} catch(e) {
@@ -1604,21 +1668,20 @@
 				}
 			}
 
-			aceEditor.setValue(target.content || "", -1); 
+			aceEditor.setValue(target.content || ""); 
 			
 			if (target.type === 'asset' && target.subtype === 'svg') {
 				label.innerText = 'SVG';
-				aceEditor.session.setMode('ace/mode/xml');
+				aceEditor.setOption('mode', 'xml');
 			} else {
 				label.innerText = target.type.toUpperCase() || 'TEXT';
-				let mode = 'ace/mode/text'; 
-				if (filename.endsWith('.html')) mode = 'ace/mode/html'; 
-				else if (filename.endsWith('.css')) mode = 'ace/mode/css'; 
-				else if (filename.endsWith('.js') || filename.endsWith('.jsx')) mode = 'ace/mode/javascript';
-				else if (filename.endsWith('.json')) mode = 'ace/mode/json';
-				else if (filename.endsWith('.md')) mode = 'ace/mode/markdown';
-				else if (filename.endsWith('.py')) mode = 'ace/mode/python';
-				aceEditor.session.setMode(mode);
+				let mode = 'text/plain'; 
+				if (filename.endsWith('.html')) mode = 'htmlmixed'; 
+				else if (filename.endsWith('.css')) mode = 'css'; 
+				else if (filename.endsWith('.js') || filename.endsWith('.jsx') || filename.endsWith('.json')) mode = 'javascript';
+				else if (filename.endsWith('.md')) mode = 'markdown';
+				else if (filename.endsWith('.py')) mode = 'python';
+				aceEditor.setOption("mode", mode);
 			}
 		}
 		isSwitchingFile = false;
@@ -2222,13 +2285,13 @@ window.onload=function(){
 			header.innerHTML = `<span>Code</span><div class="code-block-actions"><button class="insert-btn">Insert</button><button class="replace-btn">Replace</button></div>`;
 			header.querySelector('.insert-btn').onclick = () => {
 				if (aceEditor) {
-					aceEditor.session.insert(aceEditor.getCursorPosition(), rawCode);
+					aceEditor.replaceRange(rawCode, aceEditor.getCursor());
 					aceEditor.focus();
 				}
 			};
 			header.querySelector('.replace-btn').onclick = () => {
 				if (aceEditor) {
-					aceEditor.setValue(rawCode, -1);
+					aceEditor.setValue(rawCode);
 					aceEditor.focus();
 				}
 			};
@@ -2273,7 +2336,7 @@ window.onload=function(){
 		
 		let context = `Current File: ${activeFile}\nCode:\n\`\`\`\n${aceEditor.getValue()}\n\`\`\``;
 		
-		const selectedCode = aceEditor.getSelectedText();
+		const selectedCode = aceEditor.getSelection();
 		if (selectedCode) {
 			context += `\nSelected Code Focus:\n\`\`\`\n${selectedCode}\n\`\`\``;
 		}
@@ -2311,12 +2374,107 @@ window.onload=function(){
 	}
 
 	// --- SEARCH & FORMAT ---
-	function toggleSearch() { const tb = document.getElementById('search-toolbar'); const input = document.getElementById('search-input'); if (tb.classList.contains('visible')) { tb.classList.remove('visible'); aceEditor.focus(); } else { tb.classList.add('visible'); input.focus(); input.select(); } }
-	function findNext() { const val = document.getElementById('search-input').value; if(!val) return; aceEditor.find(val, { backwards: false, wrap: true, caseSensitive: false, wholeWord: false, regExp: false, skipCurrent: false }); }
-	function findPrev() { const val = document.getElementById('search-input').value; if(!val) return; aceEditor.find(val, { backwards: true, wrap: true, caseSensitive: false, wholeWord: false, regExp: false, skipCurrent: false }); }
-	function replaceOne() { const findVal = document.getElementById('search-input').value; const repVal = document.getElementById('replace-input').value; if(!findVal) return; aceEditor.find(findVal, { backwards: false, wrap: true, skipCurrent: false }); aceEditor.replace(repVal); }
-	function replaceAll() { const findVal = document.getElementById('search-input').value; const repVal = document.getElementById('replace-input').value; if(!findVal) return; aceEditor.replaceAll(repVal, { needle: findVal, backwards: false, wrap: true, caseSensitive: false, wholeWord: false, regExp: false }); }
-	async function formatCurrentFile() { if (!fileSystem[activeFile]) return; const content = aceEditor.getValue(); let parser = null; if (activeFile.endsWith('.html')) parser = 'html'; else if (activeFile.endsWith('.css')) parser = 'css'; else if (activeFile.endsWith('.js')) parser = 'babel'; if (parser) { try { const formatted = prettier.format(content, { parser: parser, plugins: prettierPlugins, tabWidth: 4, useTabs: true }); isSwitchingFile = true; aceEditor.setValue(formatted, -1); isSwitchingFile = false; fileSystem[activeFile].content = formatted; fileSystem[activeFile].modified = true; unsavedChanges = true; renderSidebar(); } catch (e) { await customAlert("Format Error: " + e.message, "Error"); } } else { await customAlert("Formatting not supported for this file type.", "Notice"); } }
+	let lastSearchQuery = null;
+	let searchCursor = null;
+
+	function toggleSearch() { 
+		const tb = document.getElementById('search-toolbar'); 
+		const input = document.getElementById('search-input'); 
+		if (tb.classList.contains('visible')) { 
+			tb.classList.remove('visible'); 
+			aceEditor.focus(); 
+		} else { 
+			tb.classList.add('visible'); 
+			input.focus(); 
+			input.select(); 
+		} 
+	}
+	
+	function findNext() { 
+		const val = document.getElementById('search-input').value; 
+		if(!val) return; 
+		if (lastSearchQuery !== val || !searchCursor) {
+			searchCursor = aceEditor.getSearchCursor(val, aceEditor.getCursor(), { caseFold: true });
+			lastSearchQuery = val;
+		}
+		if (searchCursor.findNext()) {
+			aceEditor.setSelection(searchCursor.from(), searchCursor.to());
+			aceEditor.scrollIntoView({from: searchCursor.from(), to: searchCursor.to()});
+		} else {
+			searchCursor = aceEditor.getSearchCursor(val, {line: 0, ch: 0}, { caseFold: true });
+			if (searchCursor.findNext()) {
+				aceEditor.setSelection(searchCursor.from(), searchCursor.to());
+				aceEditor.scrollIntoView({from: searchCursor.from(), to: searchCursor.to()});
+			}
+		}
+	}
+
+	function findPrev() { 
+		const val = document.getElementById('search-input').value; 
+		if(!val) return; 
+		if (lastSearchQuery !== val || !searchCursor) {
+			searchCursor = aceEditor.getSearchCursor(val, aceEditor.getCursor(), { caseFold: true });
+			lastSearchQuery = val;
+		}
+		if (searchCursor.findPrevious()) {
+			aceEditor.setSelection(searchCursor.from(), searchCursor.to());
+			aceEditor.scrollIntoView({from: searchCursor.from(), to: searchCursor.to()});
+		} else {
+			searchCursor = aceEditor.getSearchCursor(val, {line: aceEditor.lineCount(), ch: 0}, { caseFold: true });
+			if (searchCursor.findPrevious()) {
+				aceEditor.setSelection(searchCursor.from(), searchCursor.to());
+				aceEditor.scrollIntoView({from: searchCursor.from(), to: searchCursor.to()});
+			}
+		}
+	}
+
+	function replaceOne() { 
+		const findVal = document.getElementById('search-input').value; 
+		const repVal = document.getElementById('replace-input').value; 
+		if(!findVal) return; 
+		if (aceEditor.getSelection().toLowerCase() === findVal.toLowerCase()) {
+			aceEditor.replaceSelection(repVal);
+			findNext();
+		} else {
+			findNext();
+		}
+	}
+
+	function replaceAll() { 
+		const findVal = document.getElementById('search-input').value; 
+		const repVal = document.getElementById('replace-input').value; 
+		if(!findVal) return; 
+		let cursor = aceEditor.getSearchCursor(findVal, {line: 0, ch: 0}, {caseFold: true});
+		while (cursor.findNext()) {
+			cursor.replace(repVal);
+		}
+	}
+
+	async function formatCurrentFile() { 
+		if (!fileSystem[activeFile]) return; 
+		const content = aceEditor.getValue(); 
+		let parser = null; 
+		if (activeFile.endsWith('.html')) parser = 'html'; 
+		else if (activeFile.endsWith('.css')) parser = 'css'; 
+		else if (activeFile.endsWith('.js')) parser = 'babel'; 
+		
+		if (parser) { 
+			try { 
+				const formatted = prettier.format(content, { parser: parser, plugins: prettierPlugins, tabWidth: 4, useTabs: true }); 
+				isSwitchingFile = true; 
+				aceEditor.setValue(formatted); 
+				isSwitchingFile = false; 
+				fileSystem[activeFile].content = formatted; 
+				fileSystem[activeFile].modified = true; 
+				unsavedChanges = true; 
+				renderSidebar(); 
+			} catch (e) { 
+				await customAlert("Format Error: " + e.message, "Error"); 
+			} 
+		} else { 
+			await customAlert("Formatting not supported for this file type.", "Notice"); 
+		} 
+	}
 	
 	function updateZoom(value) { const iframe = document.getElementById(`iframe-${activeTabId}`); if(!iframe) return; if (viewMode === 'responsive') { const percent = 100 / value; iframe.style.width = `${percent}%`; iframe.style.height = `${percent}%`; iframe.style.transform = `scale(${value})`; } else { iframe.style.transform = `scale(${value})`; } document.getElementById('zoom-val').innerText = Math.round(value * 100) + '%'; }
 	function setPresetSize(mode) { if(!activeTabId || activeTabId.includes("Terminal")) return; const iframe = document.getElementById(`iframe-${activeTabId}`); if(!iframe) return; iframe.style.width = ''; iframe.style.height = ''; iframe.style.borderLeft = 'none'; iframe.style.borderRight = 'none'; iframe.classList.remove('responsive', 'fixed'); if (mode === 'desktop') { viewMode = 'responsive'; iframe.classList.add('responsive'); } else { viewMode = mode; iframe.classList.add('fixed'); if (mode === 'tablet') { iframe.style.width = '768px'; iframe.style.height = '1024px'; } else if (mode === 'mobile') { iframe.style.width = '375px'; iframe.style.height = '667px'; } iframe.style.borderLeft = '1px solid #333'; iframe.style.borderRight = '1px solid #333'; } updateZoom(document.getElementById('zoom-slider').value); document.querySelectorAll('.device-btn').forEach(btn => btn.classList.remove('active')); if(event.currentTarget) event.currentTarget.classList.add('active'); }
@@ -2770,9 +2928,9 @@ window.onload=function(){
 		unsavedChanges = true; 
 		
 		setTimeout(() => {
-			if (name.endsWith('.html')) aceEditor.gotoLine(8, 1);
-			else if (name.endsWith('.json')) aceEditor.gotoLine(2, 1);
-			else aceEditor.gotoLine(aceEditor.session.getLength(), 0);
+			if (name.endsWith('.html')) aceEditor.setCursor({line: 7, ch: 0});
+			else if (name.endsWith('.json')) aceEditor.setCursor({line: 1, ch: 0});
+			else aceEditor.setCursor({line: aceEditor.lineCount(), ch: 0});
 			aceEditor.focus();
 		}, 50);
 	}
@@ -3002,8 +3160,8 @@ window.onload=function(){
 		const resizerLeft = document.getElementById('resizer-left'); const resizerRight = document.getElementById('resizer-right'); const sidebar = document.getElementById('sidebar-panel'); const editor = document.getElementById('editor-panel'); const output = document.getElementById('output-container'); const container = document.getElementById('main-container');
 		let isResizing = false; let currentResizer = null;
 		const onMouseDown = (e, resizer) => { isResizing = true; currentResizer = resizer; resizer.classList.add('resizing'); document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none'; document.querySelectorAll('iframe').forEach(iframe => iframe.style.pointerEvents = 'none'); if (resizer === resizerRight) { const width = output.getBoundingClientRect().width; output.style.flex = 'none'; output.style.width = width + 'px'; } };
-		const onMouseMove = (e) => { if (!isResizing) return; const containerRect = container.getBoundingClientRect(); if (currentResizer === resizerLeft) { let newWidth = e.clientX - containerRect.left; if (newWidth < 150) newWidth = 150; if (newWidth > containerRect.width * 0.4) newWidth = containerRect.width * 0.4; sidebar.style.width = newWidth + 'px'; } else if (currentResizer === resizerRight) { let newWidth = containerRect.right - e.clientX; if (newWidth < 200) newWidth = 200; if (newWidth > containerRect.width * 0.5) newWidth = containerRect.width * 0.5; output.style.width = newWidth + 'px'; } if(aceEditor) aceEditor.resize(); };
-		const onMouseUp = () => { if (isResizing) { isResizing = false; if (currentResizer) currentResizer.classList.remove('resizing'); currentResizer = null; document.body.style.cursor = ''; document.body.style.userSelect = ''; document.querySelectorAll('iframe').forEach(iframe => iframe.style.pointerEvents = ''); if(aceEditor) aceEditor.resize(); } };
+		const onMouseMove = (e) => { if (!isResizing) return; const containerRect = container.getBoundingClientRect(); if (currentResizer === resizerLeft) { let newWidth = e.clientX - containerRect.left; if (newWidth < 150) newWidth = 150; if (newWidth > containerRect.width * 0.4) newWidth = containerRect.width * 0.4; sidebar.style.width = newWidth + 'px'; } else if (currentResizer === resizerRight) { let newWidth = containerRect.right - e.clientX; if (newWidth < 200) newWidth = 200; if (newWidth > containerRect.width * 0.5) newWidth = containerRect.width * 0.5; output.style.width = newWidth + 'px'; } if(aceEditor) aceEditor.refresh(); };
+		const onMouseUp = () => { if (isResizing) { isResizing = false; if (currentResizer) currentResizer.classList.remove('resizing'); currentResizer = null; document.body.style.cursor = ''; document.body.style.userSelect = ''; document.querySelectorAll('iframe').forEach(iframe => iframe.style.pointerEvents = ''); if(aceEditor) aceEditor.refresh(); } };
 		resizerLeft.addEventListener('mousedown', (e) => onMouseDown(e, resizerLeft)); resizerRight.addEventListener('mousedown', (e) => onMouseDown(e, resizerRight)); document.addEventListener('mousemove', onMouseMove); document.addEventListener('mouseup', onMouseUp);
 	}
 
