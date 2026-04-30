@@ -570,6 +570,18 @@
 		#dialog-input { width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border); color: white; border-radius: 4px; margin-bottom: 15px; display: none; font-family: inherit;}
 		#dialog-input:focus { border-color: var(--accent); outline: none; }
 
+		/* --- GitHub Commit Modal --- */
+		#commit-modal-overlay {
+			position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7);
+			z-index: 2100; display: none; justify-content: center; align-items: center; backdrop-filter: blur(2px);
+		}
+		#commit-modal-overlay .modal {
+			background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius-lg);
+			width: 400px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); transform: translateY(20px);
+			opacity: 0; transition: all 0.2s ease;
+		}
+		#commit-modal-overlay.open .modal { transform: translateY(0); opacity: 1; }
+
 		/* --- Empty State Additions & GitHub Loader --- */
 		.empty-tabs-msg {
 			color: var(--text-muted); font-size: 0.8rem; font-style: italic;
@@ -683,7 +695,7 @@
 		<button class="btn btn-secondary btn-icon" onclick="confirmGithubAuth()" title="GitHub Authentication">
 			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
 		</button>
-		<button class="btn btn-secondary btn-icon" onclick="openGithubCommit()" title="Commit to GitHub" id="gh-commit-btn" style="display:none;">
+		<button class="btn btn-secondary btn-icon" onclick="openGithubCommitModal()" title="Commit to GitHub" id="gh-commit-btn" style="display:none;">
 			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v14"></path><polyline points="7 12 12 17 17 12"></polyline><path d="M21 21H3"></path></svg>
 		</button>
 
@@ -886,6 +898,19 @@
 			<button class="btn btn-secondary" id="dialog-btn-extra" style="display:none;"></button>
 			<button class="btn btn-secondary" id="dialog-btn-cancel">Cancel</button>
 			<button class="btn" id="dialog-btn-ok">OK</button>
+		</div>
+	</div>
+</div>
+
+<!-- GitHub Commit Modal -->
+<div id="commit-modal-overlay">
+	<div class="modal">
+		<div class="modal-title">Commit to GitHub</div>
+		<input type="text" id="commit-title-input" class="ai-input" placeholder="Commit message (Title)" style="width: 100%; margin-bottom: 10px; height: 36px; background: var(--bg-input); border: 1px solid var(--border); color: white; border-radius: 4px; padding: 8px;">
+		<textarea id="commit-desc-input" class="ai-input" placeholder="Extended description (Optional)" style="width: 100%; height: 80px; margin-bottom: 15px; background: var(--bg-input); border: 1px solid var(--border); color: white; border-radius: 4px; padding: 8px; resize: none;"></textarea>
+		<div style="display:flex; gap:10px; justify-content:flex-end;">
+			<button class="btn btn-secondary" onclick="closeCommitModal()">Cancel</button>
+			<button class="btn" onclick="executeGithubCommit()" id="commit-confirm-btn">Commit</button>
 		</div>
 	</div>
 </div>
@@ -1178,8 +1203,13 @@
 
 		renderSidebar();
 		
+		// Grab parameters correctly for initial load
 		const urlParams = new URLSearchParams(window.location.search);
 		const fileFromUrl = urlParams.get('file');
+		
+		urlParams.delete('file');
+		const remainingParams = urlParams.toString();
+		const queryParamsToPass = remainingParams ? '?' + remainingParams : '';
 		
 		if (fileFromUrl && fileSystem[fileFromUrl]) {
 			await switchFile(fileFromUrl);
@@ -1187,7 +1217,8 @@
 			await switchFile('DeepBlue/index.html'); 
 		}
 		
-		await runWeb();
+		// Now pass those parameters explicitly to the web runner
+		await runWeb(null, queryParamsToPass);
 		initResizers();
 
 		window.addEventListener('message', (e) => {
@@ -1202,6 +1233,11 @@
 				let resolvedPath = resolveVirtualPath(activeFile, targetPath);
 				
 				if (fileSystem[resolvedPath]) {
+					// Update IDE URL to include the new query params before switching file state
+					const newUrl = new URL(window.location);
+					newUrl.search = queryParams; 
+					window.history.replaceState(null, '', newUrl);
+
 					// Switch the editor visually and then execute it with the passed parameters
 					switchFile(resolvedPath).then(() => {
 						runWeb(resolvedPath, queryParams);
@@ -1853,12 +1889,18 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 		
 		const btn = document.querySelector('.btn'); btn.style.transform = 'scale(0.95)'; setTimeout(() => btn.style.transform = 'translateY(0)', 150);
 		
+		// Grab any attached URL query parameters explicitly so the web runner can mock them for scripts
+		const urlParams = new URLSearchParams(window.location.search);
+		urlParams.delete('file');
+		const remainingParams = urlParams.toString();
+		const queryParamsToPass = remainingParams ? '?' + remainingParams : '';
+
 		if (fileSystem[activeFile]?.type === 'asset') { 
 			renderAssetPreview(activeFile); 
 		} else if (activeFile.endsWith('.py')) {
 			await runPython(activeFile);
 		} else {
-			await runWeb();
+			await runWeb(null, queryParamsToPass);
 		}
 	}
 
@@ -1964,7 +2006,22 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 
 			const consoleScript = `<script>(function(){function send(type,args){const msg=args.map(a=>{if(typeof a==='object'){try{return JSON.stringify(a);}catch(e){return String(a);}}return String(a);}).join(' ');window.parent.postMessage({type:'console',level:type,msg:msg},'*');}const methods=['log','warn','error','info'];methods.forEach(m=>{const original=console[m];console[m]=(...args)=>{original.apply(console,args);send(m,args);};});console.hack=async function(target){try{const res=await fetch('https://get.geojs.io/v1/ip/geo.json');const data=await res.json();console.log("IP Address to hack: "+data.ip);console.log("(It's yours tho 😏)");}catch(e){console.log("IP Address to hack: 127.0.0.1");console.log("(It's yours tho 😏)");}};console.destroy=async function(target){console.log("Acquiring target coordinates...");try{const res=await fetch('https://get.geojs.io/v1/ip/geo.json');const data=await res.json();console.warn('Target locked: '+data.ip);console.error('Airstriking '+(data.city||'Unknown')+', '+(data.region||'Unknown')+' instead of '+target+'... 🚀💥');}catch(e){console.error("Satellite uplink failed. Airstrike aborted. (API Blocked)");}};window.onerror=function(msg,url,line){send('error',["Runtime Error: "+msg+" (Line "+line+")"]);};window.addEventListener('unhandledrejection',function(event){send('error',["Unhandled Promise Rejection: "+(event.reason?event.reason.toString():'Unknown')]);});})();<\/script>`;
 			const navScript = `<script>(function(){document.addEventListener('click',function(e){const a=e.target.closest('a');if(a){const href=a.getAttribute('href');if(href&&!href.startsWith('http')&&!href.startsWith('data:')&&!href.startsWith('blob:')&&!href.startsWith('#')){e.preventDefault();window.parent.postMessage({type:'navigate',path:href},'*');}}});document.addEventListener('submit',function(e){const form=e.target;const action=form.getAttribute('action')||'';if(!action.startsWith('http')&&!action.startsWith('data:')&&!action.startsWith('blob:')){e.preventDefault();const formData=new FormData(form);const params=new URLSearchParams(formData).toString();const sep=action.includes('?')?'&':'?';window.parent.postMessage({type:'navigate',path:action+(params?sep+params:'')},'*');}});const oAssign=window.location.assign;window.location.assign=function(url){if(url&&!url.startsWith('http')&&!url.startsWith('data:')&&!url.startsWith('blob:')){window.parent.postMessage({type:'navigate',path:url},'*');}else{oAssign.call(window.location,url);}};const oReplace=window.location.replace;window.location.replace=function(url){if(url&&!url.startsWith('http')&&!url.startsWith('data:')&&!url.startsWith('blob:')){window.parent.postMessage({type:'navigate',path:url},'*');}else{oReplace.call(window.location,url);}};const oPushState=window.history.pushState;window.history.pushState=function(s,t,u){if(u&&!u.toString().startsWith('http')&&!u.toString().startsWith('blob:')&&!u.toString().startsWith('#')){window.parent.postMessage({type:'navigate',path:u.toString()},'*');}else{try{oPushState.call(window.history,s,t,u);}catch(e){}}};const oReplaceState=window.history.replaceState;window.history.replaceState=function(s,t,u){if(u&&!u.toString().startsWith('http')&&!u.toString().startsWith('blob:')&&!u.toString().startsWith('#')){window.parent.postMessage({type:'navigate',path:u.toString()},'*');}else{try{oReplaceState.call(window.history,s,t,u);}catch(e){}}};})();<\/script>`;
-			const injectedScripts = consoleScript + navScript;
+			
+			// Mocking URLSearchParams context inside blob to guarantee standard web environment logic functions
+			const queryParamPolyfill = queryParams ? `<script>
+				(function(){
+					const _search = "${queryParams}";
+					if (window.location.search === "" || !window.location.search) {
+						Object.defineProperty(window, '_mock_search', { value: _search });
+						const _OldURLSearchParams = window.URLSearchParams;
+						window.URLSearchParams = class extends _OldURLSearchParams {
+							constructor(init) { super((init === window.location.search && !init) ? window._mock_search : init); }
+						};
+					}
+				})();
+			<\/script>` : '';
+
+			const injectedScripts = consoleScript + navScript + queryParamPolyfill;
 			
 			let processedHTML = htmlContent.replace(/(href|src)\s*=\s*["']([^"']+)["']/g, (match, attr, path) => { 
 				if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:') || path.startsWith('#')) return match;
@@ -2440,8 +2497,16 @@ window.onload=function(){
 		if (githubToken) headers['Authorization'] = `token ${githubToken}`;
 		const opts = { method, headers };
 		if (body) opts.body = JSON.stringify(body);
+		
 		const res = await fetch(`https://api.github.com${endpoint}`, opts);
-		if (!res.ok) throw new Error(`GitHub API Error: ${res.statusText}`);
+		if (!res.ok) {
+			let errMessage = res.statusText;
+			try {
+				const errData = await res.json();
+				if (errData.message) errMessage = errData.message;
+			} catch(e) {}
+			throw new Error(errMessage);
+		}
 		return res.json();
 	}
 
@@ -2558,20 +2623,48 @@ window.onload=function(){
 		}, 250);
 	}
 
-	async function openGithubCommit() {
-		if (!currentGithubRepo) { await customAlert("You must import a GitHub repository first.", "Not Connected"); return; }
+	function openGithubCommitModal() {
+		if (!currentGithubRepo) { customAlert("You must import a GitHub repository first.", "Not Connected"); return; }
 		if (!githubToken) { openGithubAuth(); return; }
 		
-		const msgTitle = await customPrompt("Enter commit message (Title):", "", "Commit to GitHub (1/2)");
-		if (!msgTitle) return;
+		document.getElementById('commit-title-input').value = '';
+		document.getElementById('commit-desc-input').value = '';
 		
-		const msgBody = await customPrompt("Enter extended commit description (Optional):", "", "Commit to GitHub (2/2)");
-		const finalMessage = msgBody ? `${msgTitle}\n\n${msgBody}` : msgTitle;
+		const overlay = document.getElementById('commit-modal-overlay');
+		overlay.style.display = 'flex';
+		setTimeout(() => { 
+			overlay.classList.add('open'); 
+			document.getElementById('commit-title-input').focus(); 
+		}, 10);
+	}
+
+	function closeCommitModal() {
+		const overlay = document.getElementById('commit-modal-overlay');
+		overlay.classList.remove('open');
+		setTimeout(() => overlay.style.display = 'none', 200);
+	}
+
+	async function executeGithubCommit() {
+		const titleInput = document.getElementById('commit-title-input').value.trim();
+		const descInput = document.getElementById('commit-desc-input').value.trim();
+		
+		if (!titleInput) { await customAlert("Please enter a commit message title.", "Required Field"); return; }
+		
+		const finalMessage = descInput ? `${titleInput}\n\n${descInput}` : titleInput;
+		const btn = document.getElementById('commit-confirm-btn');
+		
+		btn.innerText = "Committing...";
+		btn.disabled = true;
+		
+		console.log("[GitHub Commit] Starting commit process...");
+		console.log("[GitHub Commit] Repo:", currentGithubRepo, "Branch:", currentGithubBranch);
 		
 		try {
 			// 1. Get latest commit SHA
+			console.log("[GitHub Commit] Fetching latest commit SHA...");
 			const refData = await ghApi(`/repos/${currentGithubRepo}/git/ref/heads/${currentGithubBranch}`);
 			const latestCommitSha = refData.object.sha;
+			console.log("[GitHub Commit] Latest SHA:", latestCommitSha);
 			
 			// 2. Create Tree (Text Blobs & SVGs only for simplicity)
 			const treeObj = [];
@@ -2582,7 +2675,11 @@ window.onload=function(){
 				const repoPath = path.substring(repoFolderName.length + 1);
 				
 				if (file.type !== 'asset' || file.subtype === 'svg') {
-					if (file.modified || file.modified === undefined) treeObj.push({ path: repoPath, mode: '100644', type: 'blob', content: file.content });
+					// BUG FIX: Ensure file.content isn't null before committing. 
+					// Null means it was imported from GitHub but never edited/loaded into memory.
+					if ((file.modified || file.modified === undefined) && file.content !== null) { 
+						treeObj.push({ path: repoPath, mode: '100644', type: 'blob', content: String(file.content) });
+					}
 				}
 			}
 
@@ -2593,32 +2690,44 @@ window.onload=function(){
 			}
 
 			if (treeObj.length === 0) {
+				closeCommitModal();
+				btn.innerText = "Commit"; btn.disabled = false;
 				await customAlert("No unsaved changes to commit.", "Up to date");
 				return;
 			}
 			
+			console.log("[GitHub Commit] Pushing new tree with items:", treeObj.length);
 			const newTree = await ghApi(`/repos/${currentGithubRepo}/git/trees`, 'POST', {
 				base_tree: latestCommitSha,
 				tree: treeObj
 			});
+			console.log("[GitHub Commit] New tree created:", newTree.sha);
 
 			// 3. Create Commit
+			console.log("[GitHub Commit] Binding new commit object...");
 			const newCommit = await ghApi(`/repos/${currentGithubRepo}/git/commits`, 'POST', {
 				message: finalMessage,
 				tree: newTree.sha,
 				parents: [latestCommitSha]
 			});
+			console.log("[GitHub Commit] New commit created:", newCommit.sha);
 
 			// 4. Update Reference
+			console.log("[GitHub Commit] Updating branch head reference...");
 			await ghApi(`/repos/${currentGithubRepo}/git/refs/heads/${currentGithubBranch}`, 'PATCH', {
 				sha: newCommit.sha
 			});
 
+			console.log("[GitHub Commit] Process fully completed successfully.");
 			clearModifiedFlags();
+			closeCommitModal();
+			btn.innerText = "Commit"; btn.disabled = false;
 			await customAlert("Successfully committed to GitHub!", "Success");
+			
 		} catch (err) {
-			await customAlert("Commit failed: " + err.message, "Error");
-			console.error(err);
+			console.error("[GitHub Commit] CRITICAL FAILURE:", err);
+			btn.innerText = "Commit"; btn.disabled = false;
+			await customAlert("Commit failed: " + err.message, "GitHub API Error");
 		}
 	}
 
@@ -2943,7 +3052,16 @@ window.onload=function(){
 		}
 	}
 
-	document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { const container = document.getElementById('output-container'); const modal = document.getElementById('modal-overlay'); if (container.classList.contains('expanded')) toggleFullscreen(); if (modal.style.display === 'flex') closeAddMenu(); } });
+	document.addEventListener('keydown', (e) => { 
+		if (e.key === 'Escape') { 
+			const container = document.getElementById('output-container'); 
+			const modal = document.getElementById('modal-overlay'); 
+			const commitModal = document.getElementById('commit-modal-overlay');
+			if (container.classList.contains('expanded')) toggleFullscreen(); 
+			if (modal.style.display === 'flex') closeAddMenu(); 
+			if (commitModal && commitModal.style.display === 'flex') closeCommitModal();
+		} 
+	});
 	window.addEventListener('beforeunload', (event) => { if (unsavedChanges) { event.preventDefault(); event.returnValue = ''; } });
 </script>
 </body>
