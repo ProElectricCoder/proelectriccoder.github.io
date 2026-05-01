@@ -292,6 +292,76 @@
 			position: relative;
 		}
 
+		/* --- Editor Tabs --- */
+		.editor-tabs {
+			display: flex;
+			background-color: rgba(30, 41, 59, 0.9); /* Matched to preview header background */
+			border-bottom: 1px solid #000000; /* Merges seamlessly with the black editor */
+			overflow-x: auto;
+			flex-shrink: 0;
+			height: 42px; /* Matched to preview header height */
+			padding: 8px 10px 0 10px; /* Adjusted to keep tabs 34px tall */
+			gap: 6px;
+		}
+		.editor-tabs::-webkit-scrollbar { height: 0; }
+		
+		.editor-tab {
+			padding: 0 15px;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			color: var(--text-muted);
+			cursor: pointer;
+			border-radius: 8px 8px 0 0;
+			background: transparent;
+			font-size: 0.85rem;
+			min-width: 120px;
+			max-width: 200px;
+			user-select: none;
+			transition: background 0.2s, color 0.2s;
+			position: relative;
+		}
+		.editor-tab:hover:not(.active) { 
+			background: rgba(255,255,255,0.06); /* Matched to preview tabs hover */
+			color: var(--text-main); 
+		}
+		
+		.editor-tab.active { 
+			background: #000000; 
+			color: var(--text-main); 
+			box-shadow: inset 0 2px 0 0 var(--accent); /* Neon cyan top accent */
+			z-index: 10;
+		}
+		
+		/* Chrome-style Left Flare */
+		.editor-tab.active::before {
+			content: '';
+			position: absolute;
+			bottom: 0;
+			left: -10px;
+			width: 10px;
+			height: 10px;
+			background: radial-gradient(circle at 0 0, transparent 10px, #000000 10.5px); /* 10.5px adds smooth anti-aliasing */
+			pointer-events: none;
+		}
+		
+		/* Chrome-style Right Flare */
+		.editor-tab.active::after {
+			content: '';
+			position: absolute;
+			bottom: 0;
+			right: -10px;
+			width: 10px;
+			height: 10px;
+			background: radial-gradient(circle at 100% 0, transparent 10px, #000000 10.5px);
+			pointer-events: none;
+		}
+		
+		.editor-tab-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; direction: rtl; text-align: left; z-index: 1; }
+		.editor-tab-close { opacity: 0.5; font-size: 12px; display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 4px; z-index: 1; }
+		.editor-tab-close:hover { opacity: 1; background: rgba(255,255,255,0.1); color: #ef4444; }
+		.editor-tab .mod-dot { color: var(--accent); font-weight: bold; margin-left: 4px; }
+
 		.CodeMirror {
 			height: 100%;
 			font-size: 15px; 
@@ -363,9 +433,8 @@
 		}
 
 		#binary-overlay {
-			position: absolute;
-			top: 0; left: 0; width: 100%; height: 100%;
-			background: rgba(15, 23, 42, 0.9);
+			flex: 1;
+			background: #0f172a;
 			display: none;
 			flex-direction: column;
 			align-items: center;
@@ -731,7 +800,7 @@
 
 		/* --- Search Toolbar --- */
 		#search-toolbar {
-			position: absolute; top: 10px; right: 20px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius-md);
+			position: absolute; top: 50px; right: 20px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius-md);
 			padding: 8px; z-index: 50; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: none; flex-direction: column; gap: 8px; width: 280px;
 		}
 		#search-toolbar.visible { display: flex; }
@@ -811,6 +880,9 @@
 	<!-- Code Input Area -->
 	<div class="editor-container" id="editor-panel">
 		
+		<!-- Editor Tabs -->
+		<div class="editor-tabs" id="editor-tabs"></div>
+
 		<!-- Search Toolbar -->
 		<div id="search-toolbar">
 			<div class="search-row">
@@ -1120,6 +1192,10 @@
 	let deletedFiles = [];
 	let isSwitchingFile = false;
 
+	// Editor State Management
+	let openEditorTabs = [];
+	let editorDocs = {}; // Map of filename -> CodeMirror.Doc
+
 	// System state for Python input
 	let pythonPollFn = null;
 
@@ -1255,6 +1331,15 @@
 		if (bar) bar.style.display = state ? 'block' : 'none';
 	}
 
+	// Helper to push all isolated doc texts back into the central fileSystem object for saving/exporting
+	function syncDocsToContent() {
+		Object.keys(editorDocs).forEach(filename => {
+			if (fileSystem[filename]) {
+				fileSystem[filename].content = editorDocs[filename].getValue();
+			}
+		});
+	}
+
 	// --- Init Editor ---
 	window.addEventListener('load', async function() {
 		document.getElementById("code-editor").innerHTML = ""; // Clear div
@@ -1279,15 +1364,8 @@
 				const target = fileSystem[activeFile];
 				if (target && !target.modified) {
 					target.modified = true;
-					const tabNameEl = document.querySelector(`.tab.active .tab-name`);
-					if (tabNameEl && !tabNameEl.querySelector('.mod-dot')) {
-						const dot = document.createElement('span');
-						dot.className = 'mod-dot';
-						dot.innerHTML = ' •';
-						dot.style.color = 'var(--accent)';
-						dot.style.fontWeight = 'bold';
-						tabNameEl.appendChild(dot);
-					}
+					renderSidebar();
+					renderEditorTabs();
 				}
 			}
 		});
@@ -1374,11 +1452,7 @@
 
 		setInterval(() => {
 			if (unsavedChanges) {
-				if (activeFile && fileSystem[activeFile]) {
-					if (fileSystem[activeFile].type !== 'asset' || fileSystem[activeFile].subtype === 'svg') {
-						fileSystem[activeFile].content = aceEditor.getValue();
-					}
-				}
+				syncDocsToContent();
 				localStorage.setItem('deepBlueFS', JSON.stringify(fileSystem));
 				localStorage.setItem('deepBlueFolders', JSON.stringify(explicitFolders));
 				localStorage.setItem('deepBlueDeleted', JSON.stringify(deletedFiles));
@@ -1463,7 +1537,7 @@
 		});
 	}
 
-	// --- Tab Management System ---
+	// --- Tab Management System (Preview) ---
 	const openTabs = [];
 	let activeTabId = null;
 	let viewMode = 'responsive';
@@ -1529,6 +1603,68 @@
 				setTabsEmptyState(true);
 			}
 		}
+	}
+
+	// --- Tab Management System (Editor) ---
+	function renderEditorTabs() {
+		const container = document.getElementById('editor-tabs');
+		container.innerHTML = '';
+		openEditorTabs.forEach(filename => {
+			const fObj = fileSystem[filename];
+			if (!fObj) return; 
+			const name = filename.split('/').pop();
+			const isMod = fObj.modified;
+			const modDot = isMod ? `<span class="mod-dot">•</span>` : '';
+			
+			const tab = document.createElement('div');
+			tab.className = `editor-tab ${activeFile === filename ? 'active' : ''}`;
+			tab.onclick = (e) => { if(!e.target.closest('.editor-tab-close')) switchFile(filename); };
+			tab.innerHTML = `<span class="editor-tab-name" title="${filename}">&lrm;${name}${modDot}</span><span class="editor-tab-close" onclick="event.stopPropagation(); closeEditorTab('${filename}')">✕</span>`;
+			container.appendChild(tab);
+		});
+	}
+
+	function closeEditorTab(filename) {
+		const idx = openEditorTabs.indexOf(filename);
+		if (idx > -1) openEditorTabs.splice(idx, 1);
+		
+		const fObj = fileSystem[filename];
+		if (fObj && editorDocs[filename]) {
+			fObj.content = editorDocs[filename].getValue();
+			if (fObj.ghUrl && !fObj.modified && fObj.subtype !== 'image') {
+				fObj.content = null;
+			}
+			delete editorDocs[filename];
+		}
+
+		if (activeFile === filename) {
+			const nextFile = openEditorTabs[idx - 1] || openEditorTabs[0] || null;
+			if (nextFile) {
+				switchFile(nextFile);
+			} else {
+				activeFile = null;
+				document.querySelector('.editor-wrapper').style.display = 'none';
+				document.getElementById('binary-overlay').style.display = 'flex';
+				document.getElementById('binary-info').innerText = 'No File Selected';
+				document.getElementById('editor-lang-label').innerText = 'NONE';
+				const url = new URL(window.location);
+				url.searchParams.delete('file');
+				window.history.replaceState(null, '', url);
+				renderEditorTabs();
+				renderSidebar();
+			}
+		} else {
+			renderEditorTabs();
+		}
+	}
+
+	function getModeForFile(filename) {
+		if (filename.endsWith('.html')) return 'htmlmixed'; 
+		if (filename.endsWith('.css')) return 'css'; 
+		if (filename.endsWith('.js') || filename.endsWith('.jsx') || filename.endsWith('.json')) return 'javascript';
+		if (filename.endsWith('.md')) return 'markdown';
+		if (filename.endsWith('.py')) return 'python';
+		return 'text/plain';
 	}
 
 	// --- Core UI Functions ---
@@ -1675,18 +1811,14 @@
 
 	async function switchFile(filename) {
 		isSwitchingFile = true;
-		if (activeFile && fileSystem[activeFile]) {
-			if (fileSystem[activeFile].type !== 'asset' || fileSystem[activeFile].subtype === 'svg') {
-				fileSystem[activeFile].content = aceEditor.getValue();
-			}
-			
-			// RAM saving logic: clear unedited repo files from memory when not viewed
-			if (fileSystem[activeFile].ghUrl && !fileSystem[activeFile].modified && fileSystem[activeFile].subtype !== 'image') {
-				fileSystem[activeFile].content = null;
-			}
-		}
 		
-		activeFile = filename; renderSidebar();
+		activeFile = filename; 
+		if (!openEditorTabs.includes(filename)) {
+			openEditorTabs.push(filename);
+		}
+
+		renderSidebar();
+		renderEditorTabs();
 		
 		// Update URL silently
 		const url = new URL(window.location);
@@ -1705,30 +1837,34 @@
 		} else {
 			overlay.style.display = 'none'; editorDiv.style.display = 'flex';
 			
-			// Lazy load missing contents from GitHub
+			// 1. Determine mode
+			const mode = target.type === 'asset' && target.subtype === 'svg' ? 'xml' : getModeForFile(filename);
+			
+			// 2. Create the document if it doesn't exist, using "Loading..." if we need to fetch
+			if (!editorDocs[filename]) {
+				let initialContent = target.content;
+				if (initialContent === null && target.ghUrl) initialContent = "Loading...";
+				editorDocs[filename] = new CodeMirror.Doc(initialContent || "", mode);
+			}
+			
+			// 3. Swap immediately so "Loading..." doesn't bleed into the previous file
+			aceEditor.swapDoc(editorDocs[filename]);
+			
+			// 4. Lazy load missing contents from GitHub
 			if (target.content === null && target.ghUrl) {
-				aceEditor.setValue("Loading...");
 				try {
 					target.content = await fetchWithProgress(target.ghUrl);
 				} catch(e) {
 					target.content = target.subtype === 'svg' ? "<!-- Error loading SVG -->" : "Error loading: " + e.message;
 				}
+				// 5. Update the specific document object (even if the user switched tabs while fetching)
+				editorDocs[filename].setValue(target.content || "");
 			}
-
-			aceEditor.setValue(target.content || ""); 
 			
 			if (target.type === 'asset' && target.subtype === 'svg') {
 				label.innerText = 'SVG';
-				aceEditor.setOption('mode', 'xml');
 			} else {
 				label.innerText = target.type.toUpperCase() || 'TEXT';
-				let mode = 'text/plain'; 
-				if (filename.endsWith('.html')) mode = 'htmlmixed'; 
-				else if (filename.endsWith('.css')) mode = 'css'; 
-				else if (filename.endsWith('.js') || filename.endsWith('.jsx') || filename.endsWith('.json')) mode = 'javascript';
-				else if (filename.endsWith('.md')) mode = 'markdown';
-				else if (filename.endsWith('.py')) mode = 'python';
-				aceEditor.setOption("mode", mode);
 			}
 		}
 		isSwitchingFile = false;
@@ -1993,12 +2129,7 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 
 	async function runCode() {
 		if (!activeFile) { await runWeb(); return; }
-		
-		if (fileSystem[activeFile]) {
-			if (fileSystem[activeFile].type !== 'asset' || fileSystem[activeFile].subtype === 'svg') {
-				fileSystem[activeFile].content = aceEditor.getValue();
-			}
-		}
+		syncDocsToContent();
 		
 		const btn = document.querySelector('.btn'); btn.style.transform = 'scale(0.95)'; setTimeout(() => btn.style.transform = 'translateY(0)', 150);
 		
@@ -2019,6 +2150,7 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 
 	async function runWeb(overrideFile = null, queryParams = '') {
 		setExecLoading(true);
+		syncDocsToContent();
 		try {
 			let targetFile = overrideFile || activeFile;
 
@@ -2121,18 +2253,24 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 			const navScript = `<script>(function(){document.addEventListener('click',function(e){const a=e.target.closest('a');if(a){const href=a.getAttribute('href');if(href&&!href.startsWith('http')&&!href.startsWith('data:')&&!href.startsWith('blob:')&&!href.startsWith('#')){e.preventDefault();window.parent.postMessage({type:'navigate',path:href},'*');}}});document.addEventListener('submit',function(e){const form=e.target;const action=form.getAttribute('action')||'';if(!action.startsWith('http')&&!action.startsWith('data:')&&!action.startsWith('blob:')){e.preventDefault();const formData=new FormData(form);const params=new URLSearchParams(formData).toString();const sep=action.includes('?')?'&':'?';window.parent.postMessage({type:'navigate',path:action+(params?sep+params:'')},'*');}});const oAssign=window.location.assign;window.location.assign=function(url){if(url&&!url.startsWith('http')&&!url.startsWith('data:')&&!url.startsWith('blob:')){window.parent.postMessage({type:'navigate',path:url},'*');}else{oAssign.call(window.location,url);}};const oReplace=window.location.replace;window.location.replace=function(url){if(url&&!url.startsWith('http')&&!url.startsWith('data:')&&!url.startsWith('blob:')){window.parent.postMessage({type:'navigate',path:url},'*');}else{oReplace.call(window.location,url);}};const oPushState=window.history.pushState;window.history.pushState=function(s,t,u){if(u&&!u.toString().startsWith('http')&&!u.toString().startsWith('blob:')&&!u.toString().startsWith('#')){window.parent.postMessage({type:'navigate',path:u.toString()},'*');}else{try{oPushState.call(window.history,s,t,u);}catch(e){}}};const oReplaceState=window.history.replaceState;window.history.replaceState=function(s,t,u){if(u&&!u.toString().startsWith('http')&&!u.toString().startsWith('blob:')&&!u.toString().startsWith('#')){window.parent.postMessage({type:'navigate',path:u.toString()},'*');}else{try{oReplaceState.call(window.history,s,t,u);}catch(e){}}};})();<\/script>`;
 			
 			// Mocking URLSearchParams context inside blob to guarantee standard web environment logic functions
-			const queryParamPolyfill = queryParams ? `<script>
+			const queryParamPolyfill = `<script>
 				(function(){
 					const _search = "${queryParams}";
-					if (window.location.search === "" || !window.location.search) {
-						Object.defineProperty(window, '_mock_search', { value: _search });
+					Object.defineProperty(window, '_mock_search', { value: _search, writable: true });
+					if (_search) {
 						const _OldURLSearchParams = window.URLSearchParams;
 						window.URLSearchParams = class extends _OldURLSearchParams {
-							constructor(init) { super((init === window.location.search && !init) ? window._mock_search : init); }
+							constructor(init) {
+								let val = init;
+								if (val === undefined || val === null || val === window.location || val === document.location || val === window.location.href || val === window.location.search) {
+									val = _search;
+								}
+								super(val);
+							}
 						};
 					}
 				})();
-			<\/script>` : '';
+			<\/script>`;
 
 			const injectedScripts = consoleScript + navScript + queryParamPolyfill;
 			
@@ -2151,6 +2289,12 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 
 				return match; 
 			});
+
+			// Route native location.search calls to our mock property
+			processedHTML = processedHTML.replace(/window\.location\.search/g, 'window._mock_search');
+			processedHTML = processedHTML.replace(/document\.location\.search/g, 'window._mock_search');
+			processedHTML = processedHTML.replace(/(^|[^\w.])location\.search/g, '$1window._mock_search');
+
 			processedHTML = processedHTML.replace(/type\s*=\s*["']text\/babel["']/g, 'type="application/javascript"');
 			if (processedHTML.includes('<head>')) processedHTML = processedHTML.replace('<head>', '<head>' + injectedScripts); else processedHTML = injectedScripts + processedHTML;
 			
@@ -2206,12 +2350,7 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 			else { await customAlert("Open an HTML file to share.", "Notice"); return; }
 		}
 		
-		// Ensure current editor content is saved to memory
-		if (fileSystem[activeFile]) {
-			if (fileSystem[activeFile].type !== 'asset' || fileSystem[activeFile].subtype === 'svg') {
-				fileSystem[activeFile].content = aceEditor.getValue();
-			}
-		}
+		syncDocsToContent();
 
 		if (!isVirtualJSX) {
 			htmlContent = fileSystem[targetFile].content;
@@ -2534,14 +2673,11 @@ window.onload=function(){
 		deletedFiles = [];
 		unsavedChanges = true;
 		renderSidebar();
+		renderEditorTabs();
 	}
 
 	async function saveProject(isAutoSave = false) { 
-		if (activeFile && fileSystem[activeFile]) {
-			if (fileSystem[activeFile].type !== 'asset' || fileSystem[activeFile].subtype === 'svg') {
-				fileSystem[activeFile].content = aceEditor.getValue(); 
-			}
-		} 
+		syncDocsToContent();
 		const btn = document.getElementById('save-btn'); 
 		const originalText = "Save"; 
 		if (!isAutoSave) btn.innerText = "Saving..."; 
@@ -2878,6 +3014,7 @@ window.onload=function(){
 	}
 
 	async function executeGithubCommit() {
+		syncDocsToContent();
 		const selectedFolder = document.getElementById('commit-repo-select').value;
 		const repoConfig = githubRepos[selectedFolder];
 		
@@ -3123,34 +3260,63 @@ window.onload=function(){
 		event.target.value = '';
 	}
 
-	async function renameFile(oldName) { const newName = await customPrompt("Rename to:", oldName, "Rename File"); if (!newName || newName === oldName) return; if (fileSystem[newName]) { await customAlert("Name already taken!", "Error"); return; } if (fileSystem[oldName]) { fileSystem[newName] = { ...fileSystem[oldName], modified: true }; delete fileSystem[oldName]; deletedFiles.push(oldName); } if (activeFile === oldName) activeFile = newName; renderSidebar(); unsavedChanges = true; }
+	async function renameFile(oldName) { 
+		const newName = await customPrompt("Rename to:", oldName, "Rename File"); 
+		if (!newName || newName === oldName) return; 
+		if (fileSystem[newName]) { await customAlert("Name already taken!", "Error"); return; } 
+		
+		if (fileSystem[oldName]) { 
+			fileSystem[newName] = { ...fileSystem[oldName], modified: true }; 
+			delete fileSystem[oldName]; 
+			deletedFiles.push(oldName); 
+		}
+		
+		if (editorDocs[oldName]) {
+			editorDocs[newName] = editorDocs[oldName];
+			delete editorDocs[oldName];
+		}
+
+		const tabIdx = openEditorTabs.indexOf(oldName);
+		if (tabIdx > -1) openEditorTabs[tabIdx] = newName;
+
+		if (activeFile === oldName) activeFile = newName; 
+		
+		renderSidebar(); 
+		renderEditorTabs();
+		unsavedChanges = true; 
+	}
 	
 	async function deleteFile(name) { 
 		const ok = await customConfirm(`Delete '${name}'?`, "Confirm Deletion"); 
 		if (!ok) return; 
 		
-		let nextFile = activeFile;
-		if (activeFile === name) {
-			activeFile = null; // Prevent switchFile from saving deleted content
-			nextFile = Object.keys(fileSystem).find(f => f !== name) || null;
+		if (fileSystem[name]) { delete fileSystem[name]; deletedFiles.push(name); } 
+		if (editorDocs[name]) { delete editorDocs[name]; }
+		
+		const idx = openEditorTabs.indexOf(name);
+		if (idx > -1) {
+			openEditorTabs.splice(idx, 1);
+			if (activeFile === name) {
+				activeFile = null;
+				const nextFile = openEditorTabs[idx - 1] || openEditorTabs[0] || null;
+				if (nextFile) {
+					await switchFile(nextFile);
+				} else {
+					document.querySelector('.editor-wrapper').style.display = 'none'; 
+					document.getElementById('binary-overlay').style.display = 'flex';
+					document.getElementById('binary-info').innerText = 'No File Selected';
+					document.getElementById('editor-lang-label').innerText = 'NONE';
+					const url = new URL(window.location);
+					url.searchParams.delete('file');
+					window.history.replaceState(null, '', url);
+					renderEditorTabs();
+				}
+			} else {
+				renderEditorTabs();
+			}
 		}
 
-		if (fileSystem[name]) { delete fileSystem[name]; deletedFiles.push(name); } 
-
 		renderSidebar(); 
-		
-		if (nextFile && nextFile !== name) {
-			await switchFile(nextFile); 
-		} else if (!nextFile) { 
-			document.querySelector('.editor-wrapper').style.display = 'none'; 
-			document.getElementById('binary-overlay').style.display = 'flex';
-			document.getElementById('binary-info').innerText = 'No File Selected';
-			document.getElementById('editor-lang-label').innerText = 'NONE';
-			
-			const url = new URL(window.location);
-			url.searchParams.delete('file');
-			window.history.replaceState(null, '', url);
-		} 
 		unsavedChanges = true; 
 	}
 
@@ -3192,6 +3358,21 @@ window.onload=function(){
 			}
 		});
 
+		Object.keys(editorDocs).forEach(p => {
+			if (p.startsWith(oldPath + '/')) {
+				const newFilePath = newPath + p.substring(oldPath.length);
+				editorDocs[newFilePath] = editorDocs[p];
+				delete editorDocs[p];
+			}
+		});
+
+		openEditorTabs = openEditorTabs.map(p => {
+			if (p.startsWith(oldPath + '/')) {
+				return newPath + p.substring(oldPath.length);
+			}
+			return p;
+		});
+
 		const newStates = {};
 		Object.keys(folderStates).forEach(p => {
 			if (p === oldPath) newStates[newPath] = folderStates[p];
@@ -3202,6 +3383,7 @@ window.onload=function(){
 
 		unsavedChanges = true;
 		renderSidebar();
+		renderEditorTabs();
 		if (activeFile) await switchFile(activeFile);
 	}
 
@@ -3227,9 +3409,15 @@ window.onload=function(){
 			}
 		});
 
+		Object.keys(editorDocs).forEach(p => {
+			if (p.startsWith(folderPath + '/')) delete editorDocs[p];
+		});
+
+		openEditorTabs = openEditorTabs.filter(p => !p.startsWith(folderPath + '/'));
+
 		if (activeDeleted) {
 			activeFile = null; // Prevent saving old content
-			const nextFile = Object.keys(fileSystem)[0] || null;
+			const nextFile = openEditorTabs.length > 0 ? openEditorTabs[openEditorTabs.length - 1] : (Object.keys(fileSystem)[0] || null);
 			if (nextFile) await switchFile(nextFile);
 			else { 
 				document.querySelector('.editor-wrapper').style.display = 'none'; 
@@ -3240,7 +3428,10 @@ window.onload=function(){
 				const url = new URL(window.location);
 				url.searchParams.delete('file');
 				window.history.replaceState(null, '', url);
+				renderEditorTabs();
 			}
+		} else {
+			renderEditorTabs();
 		}
 		
 		unsavedChanges = true;
