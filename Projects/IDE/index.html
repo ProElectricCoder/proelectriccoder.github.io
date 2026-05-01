@@ -967,8 +967,14 @@
 <div id="commit-modal-overlay">
 	<div class="modal">
 		<div class="modal-title">Commit to GitHub</div>
-		<input type="text" id="commit-title-input" class="ai-input" placeholder="Commit message (Title)" style="width: 100%; margin-bottom: 10px; height: 36px; background: var(--bg-input); border: 1px solid var(--border); color: white; border-radius: 4px; padding: 8px;">
-		<textarea id="commit-desc-input" class="ai-input" placeholder="Extended description (Optional)" style="width: 100%; height: 80px; margin-bottom: 15px; background: var(--bg-input); border: 1px solid var(--border); color: white; border-radius: 4px; padding: 8px; resize: none;"></textarea>
+		<div style="margin-bottom: 15px;">
+			<label for="commit-title-input" style="display: block; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 5px;">Commit Message (Title)</label>
+			<input type="text" id="commit-title-input" class="ai-input" style="width: 100%; height: 36px;">
+		</div>
+		<div style="margin-bottom: 20px;">
+			<label for="commit-desc-input" style="display: block; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 5px;">Extended Description (Optional)</label>
+			<textarea id="commit-desc-input" class="ai-input" style="width: 100%; height: 80px;"></textarea>
+		</div>
 		<div style="display:flex; gap:10px; justify-content:flex-end;">
 			<button class="btn btn-secondary" onclick="closeCommitModal()">Cancel</button>
 			<button class="btn" onclick="executeGithubCommit()" id="commit-confirm-btn">Commit</button>
