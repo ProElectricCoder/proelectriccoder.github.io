@@ -968,6 +968,10 @@
 	<div class="modal">
 		<div class="modal-title">Commit to GitHub</div>
 		<div style="margin-bottom: 15px;">
+			<label for="commit-repo-select" style="display: block; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 5px;">Repository</label>
+			<select id="commit-repo-select" class="ai-input" style="width: 100%; height: 36px; padding: 0 8px; cursor: pointer;"></select>
+		</div>
+		<div style="margin-bottom: 15px;">
 			<label for="commit-title-input" style="display: block; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 5px;">Commit Message (Title)</label>
 			<input type="text" id="commit-title-input" class="ai-input" style="width: 100%; height: 36px;">
 		</div>
@@ -1077,8 +1081,20 @@
 	let importedRepoFolders = [];
 
 	let githubToken = localStorage.getItem('deepBlue_gh_token') || '';
-	let currentGithubRepo = null;
-	let currentGithubBranch = 'main';
+	let githubRepos = JSON.parse(localStorage.getItem('deepBlue_gh_repos') || '{}');
+	
+	// Migrate old config if exists
+	const oldRepo = localStorage.getItem('deepBlue_gh_repo');
+	const oldBranch = localStorage.getItem('deepBlue_gh_branch');
+	if (oldRepo && oldBranch) {
+		const folder = oldRepo.split('/').pop();
+		githubRepos[folder] = { repo: oldRepo, branch: oldBranch };
+		localStorage.removeItem('deepBlue_gh_repo');
+		localStorage.removeItem('deepBlue_gh_branch');
+		localStorage.setItem('deepBlue_gh_repos', JSON.stringify(githubRepos));
+		if (!importedRepoFolders.includes(folder)) importedRepoFolders.push(folder);
+	}
+
 	let deletedFiles = [];
 	let isSwitchingFile = false;
 
@@ -2689,8 +2705,6 @@ window.onload=function(){
 				const defaultBranch = repoInfo.default_branch || "main";
 				
 				const branch = await customPrompt("Enter branch name:", defaultBranch, "Branch Details") || defaultBranch;
-				currentGithubRepo = repoInput;
-				currentGithubBranch = branch;
 				
 				const loadingBar = document.getElementById('gh-loading-bar');
 				loadingBar.style.opacity = '1';
@@ -2700,6 +2714,11 @@ window.onload=function(){
 				loadingBar.style.width = '30%';
 				
 				const repoFolderName = repoInput.split('/').pop();
+				
+				// Save Repo Configuration Locally
+				githubRepos[repoFolderName] = { repo: repoInput, branch: branch };
+				localStorage.setItem('deepBlue_gh_repos', JSON.stringify(githubRepos));
+
 				if (!explicitFolders.includes(repoFolderName)) explicitFolders.push(repoFolderName);
 				if (!importedRepoFolders.includes(repoFolderName)) importedRepoFolders.push(repoFolderName);
 				
@@ -2788,9 +2807,31 @@ window.onload=function(){
 	}
 
 	function openGithubCommitModal() {
-		if (!currentGithubRepo) { customAlert("You must import a GitHub repository first.", "Not Connected"); return; }
+		if (importedRepoFolders.length === 0) { customAlert("You must import a GitHub repository first.", "Not Connected"); return; }
 		if (!githubToken) { openGithubAuth(); return; }
 		
+		const selectEl = document.getElementById('commit-repo-select');
+		selectEl.innerHTML = '';
+		
+		// Populate the dropdown with imported repositories
+		importedRepoFolders.forEach(folder => {
+			const conf = githubRepos[folder];
+			if (conf) {
+				const opt = document.createElement('option');
+				opt.value = folder;
+				opt.innerText = `${folder} (${conf.branch})`;
+				selectEl.appendChild(opt);
+			}
+		});
+
+		// Auto-select the repository based on the active file
+		if (activeFile) {
+			const activeFolder = activeFile.split('/')[0];
+			if (importedRepoFolders.includes(activeFolder)) {
+				selectEl.value = activeFolder;
+			}
+		}
+
 		document.getElementById('commit-title-input').value = '';
 		document.getElementById('commit-desc-input').value = '';
 		
@@ -2809,6 +2850,15 @@ window.onload=function(){
 	}
 
 	async function executeGithubCommit() {
+		const selectedFolder = document.getElementById('commit-repo-select').value;
+		const repoConfig = githubRepos[selectedFolder];
+		
+		if (!repoConfig) { await customAlert("Repository configuration missing.", "Error"); return; }
+		
+		const currentGithubRepo = repoConfig.repo;
+		const currentGithubBranch = repoConfig.branch;
+		const repoFolderName = selectedFolder;
+
 		const titleInput = document.getElementById('commit-title-input').value.trim();
 		const descInput = document.getElementById('commit-desc-input').value.trim();
 		
@@ -2832,15 +2882,12 @@ window.onload=function(){
 			
 			// 2. Create Tree (Text Blobs & SVGs only for simplicity)
 			const treeObj = [];
-			const repoFolderName = currentGithubRepo.split('/').pop();
 			
 			for (const [path, file] of Object.entries(fileSystem)) {
 				if (!path.startsWith(repoFolderName + '/')) continue;
 				const repoPath = path.substring(repoFolderName.length + 1);
 				
 				if (file.type !== 'asset' || file.subtype === 'svg') {
-					// BUG FIX: Ensure file.content isn't null before committing. 
-					// Null means it was imported from GitHub but never edited/loaded into memory.
 					if ((file.modified || file.modified === undefined) && file.content !== null) { 
 						treeObj.push({ path: repoPath, mode: '100644', type: 'blob', content: String(file.content) });
 					}
@@ -3100,6 +3147,11 @@ window.onload=function(){
 
 		if (importedRepoFolders.includes(oldPath)) {
 			importedRepoFolders = importedRepoFolders.map(f => f === oldPath ? newPath : f);
+			if (githubRepos[oldPath]) {
+				githubRepos[newPath] = githubRepos[oldPath];
+				delete githubRepos[oldPath];
+				localStorage.setItem('deepBlue_gh_repos', JSON.stringify(githubRepos));
+			}
 		}
 
 		Object.keys(fileSystem).forEach(p => {
@@ -3129,6 +3181,11 @@ window.onload=function(){
 		if (folderPath === 'DeepBlue') return;
 		const ok = await customConfirm(`Delete folder '${folderPath}' and all its contents?`, "Confirm Deletion");
 		if (!ok) return;
+
+		if (importedRepoFolders.includes(folderPath)) {
+			delete githubRepos[folderPath];
+			localStorage.setItem('deepBlue_gh_repos', JSON.stringify(githubRepos));
+		}
 
 		explicitFolders = explicitFolders.filter(f => f !== folderPath && !f.startsWith(folderPath + '/'));
 		importedRepoFolders = importedRepoFolders.filter(f => f !== folderPath);
