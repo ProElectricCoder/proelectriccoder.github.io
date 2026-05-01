@@ -734,7 +734,7 @@
 <header>
 	<div class="brand">
 		<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-		<span>DeepBlue Editor</span>
+		<span>DeepEditor</span>
 	</div>
 	<div class="controls">
 		<button class="btn btn-secondary btn-icon" onclick="toggleSearch()" title="Find & Replace (Ctrl+F)">
@@ -1104,13 +1104,16 @@
 	// --- Path Resolution Logic ---
 	function resolveVirtualPath(baseFile, relativePath) {
 		if (!relativePath) return baseFile;
+		
+		let parts = baseFile ? baseFile.split('/') : [];
+		let projectRoot = parts.length > 0 ? parts[0] : '';
+
 		if (relativePath.startsWith('/')) {
 			relativePath = relativePath.substring(1);
-			baseFile = '';
+			parts = projectRoot ? [projectRoot] : [];
+		} else {
+			if (parts.length > 0) parts.pop(); // remove file name
 		}
-
-		let parts = baseFile ? baseFile.split('/') : [];
-		if (parts.length > 0) parts.pop(); // remove file name
 
 		let relParts = relativePath.split('/');
 		for (let i = 0; i < relParts.length; i++) {
@@ -1825,15 +1828,18 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 		let isRunning = await attemptRun();
 		setExecLoading(false);
 
-		// Bumped to v3 to force users to redownload the runner to fix input echoing
-		const hasSetup = localStorage.getItem('deepBlue_python_setup_v3');
+		// Clean up old versioned keys and standardize
+		localStorage.removeItem('deepBlue_python_setup_v2');
+		localStorage.removeItem('deepBlue_python_setup_v3');
+		const hasSetup = localStorage.getItem('deepBlue_python_setup');
+		
 		if (!isRunning || !hasSetup) {
 			const action = await showCustomDialog('confirm', 'Python Execution Required', 'Run DeepBluePython.py', '', 'Run File', 'Cancel', 'Download Python Runner');
 			
 			if (action === 'extra') {
 				const blob = new Blob([pyCode], {type: 'text/plain'});
 				saveAs(blob, "DeepBluePython.py");
-				localStorage.setItem('deepBlue_python_setup_v3', 'true');
+				localStorage.setItem('deepBlue_python_setup', 'true');
 				return;
 			} else if (action === true) {
 				setExecLoading(true);
@@ -1843,7 +1849,7 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 					await customAlert("Run DeepBluePython.py", "Execution Failed");
 					return;
 				} else {
-					localStorage.setItem('deepBlue_python_setup_v3', 'true');
+					localStorage.setItem('deepBlue_python_setup', 'true');
 				}
 			} else {
 				return;
