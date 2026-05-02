@@ -825,7 +825,7 @@
 <header>
 	<div class="brand">
 		<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-		<span>DeepEditor</span>
+		<span>DeepBlue Editor</span>
 	</div>
 	<div class="controls">
 		<button class="btn btn-secondary btn-icon" onclick="toggleSearch()" title="Find & Replace (Ctrl+F)">
@@ -1128,7 +1128,7 @@
 	let fileSystem = {
 		'DeepBlue/player.png': { 
 			type: 'asset', subtype: 'image', 
-			src: 'https://placehold.co/100x100/00e5ff/white?text=Player', content: null 
+			src: 'https://placehold.co/100/001122/cyan/png?text=DeepBlue', content: null 
 		},
 		'DeepBlue/logo.svg': { 
 			type: 'asset', subtype: 'svg', 
@@ -1168,7 +1168,7 @@
 	let unsavedChanges = false;
 	let targetFolderForAdd = '';
 	let projectHandle = null;
-	let aceEditor = null;
+	let cmEditor = null;
 	let autoSaveInterval = null;
 	let explicitFolders = ['DeepBlue'];
 	let folderStates = { 'DeepBlue': true };
@@ -1343,7 +1343,7 @@
 	// --- Init Editor ---
 	window.addEventListener('load', async function() {
 		document.getElementById("code-editor").innerHTML = ""; // Clear div
-		aceEditor = CodeMirror(document.getElementById("code-editor"), {
+		cmEditor = CodeMirror(document.getElementById("code-editor"), {
 			theme: "cobalt",
 			mode: "htmlmixed",
 			lineNumbers: true,
@@ -1357,7 +1357,7 @@
 		});
 
 		// Sync Logic (Change Listener)
-		aceEditor.on('change', function() {
+		cmEditor.on('change', function() {
 			if (isSwitchingFile) return;
 			unsavedChanges = true;
 			if (activeFile) {
@@ -1371,13 +1371,13 @@
 		});
 
 		// Cursor Position Listener
-		aceEditor.on('cursorActivity', () => {
-			const pos = aceEditor.getCursor();
+		cmEditor.on('cursorActivity', () => {
+			const pos = cmEditor.getCursor();
 			document.getElementById('cursor-pos').innerText = `Ln ${pos.line + 1}, Col ${pos.ch + 1}`;
 		});
 
 		// Add CodeMirror native keybindings for Search
-		aceEditor.setOption("extraKeys", {
+		cmEditor.setOption("extraKeys", {
 			"Ctrl-F": toggleSearch,
 			"Cmd-F": toggleSearch
 		});
@@ -1848,7 +1848,7 @@
 			}
 			
 			// 3. Swap immediately so "Loading..." doesn't bleed into the previous file
-			aceEditor.swapDoc(editorDocs[filename]);
+			cmEditor.swapDoc(editorDocs[filename]);
 			
 			// 4. Lazy load missing contents from GitHub
 			if (target.content === null && target.ghUrl) {
@@ -2473,15 +2473,15 @@ window.onload=function(){
 			header.className = 'code-block-header';
 			header.innerHTML = `<span>Code</span><div class="code-block-actions"><button class="insert-btn">Insert</button><button class="replace-btn">Replace</button></div>`;
 			header.querySelector('.insert-btn').onclick = () => {
-				if (aceEditor) {
-					aceEditor.replaceRange(rawCode, aceEditor.getCursor());
-					aceEditor.focus();
+				if (cmEditor) {
+					cmEditor.replaceRange(rawCode, cmEditor.getCursor());
+					cmEditor.focus();
 				}
 			};
 			header.querySelector('.replace-btn').onclick = () => {
-				if (aceEditor) {
-					aceEditor.setValue(rawCode);
-					aceEditor.focus();
+				if (cmEditor) {
+					cmEditor.setValue(rawCode);
+					cmEditor.focus();
 				}
 			};
 			
@@ -2523,9 +2523,9 @@ window.onload=function(){
 			}
 		}
 		
-		let context = `Current File: ${activeFile}\nCode:\n\`\`\`\n${aceEditor.getValue()}\n\`\`\``;
+		let context = `Current File: ${activeFile}\nCode:\n\`\`\`\n${cmEditor.getValue()}\n\`\`\``;
 		
-		const selectedCode = aceEditor.getSelection();
+		const selectedCode = cmEditor.getSelection();
 		if (selectedCode) {
 			context += `\nSelected Code Focus:\n\`\`\`\n${selectedCode}\n\`\`\``;
 		}
@@ -2571,7 +2571,7 @@ window.onload=function(){
 		const input = document.getElementById('search-input'); 
 		if (tb.classList.contains('visible')) { 
 			tb.classList.remove('visible'); 
-			aceEditor.focus(); 
+			cmEditor.focus(); 
 		} else { 
 			tb.classList.add('visible'); 
 			input.focus(); 
@@ -2583,17 +2583,17 @@ window.onload=function(){
 		const val = document.getElementById('search-input').value; 
 		if(!val) return; 
 		if (lastSearchQuery !== val || !searchCursor) {
-			searchCursor = aceEditor.getSearchCursor(val, aceEditor.getCursor(), { caseFold: true });
+			searchCursor = cmEditor.getSearchCursor(val, cmEditor.getCursor(), { caseFold: true });
 			lastSearchQuery = val;
 		}
 		if (searchCursor.findNext()) {
-			aceEditor.setSelection(searchCursor.from(), searchCursor.to());
-			aceEditor.scrollIntoView({from: searchCursor.from(), to: searchCursor.to()});
+			cmEditor.setSelection(searchCursor.from(), searchCursor.to());
+			cmEditor.scrollIntoView({from: searchCursor.from(), to: searchCursor.to()});
 		} else {
-			searchCursor = aceEditor.getSearchCursor(val, {line: 0, ch: 0}, { caseFold: true });
+			searchCursor = cmEditor.getSearchCursor(val, {line: 0, ch: 0}, { caseFold: true });
 			if (searchCursor.findNext()) {
-				aceEditor.setSelection(searchCursor.from(), searchCursor.to());
-				aceEditor.scrollIntoView({from: searchCursor.from(), to: searchCursor.to()});
+				cmEditor.setSelection(searchCursor.from(), searchCursor.to());
+				cmEditor.scrollIntoView({from: searchCursor.from(), to: searchCursor.to()});
 			}
 		}
 	}
@@ -2602,17 +2602,17 @@ window.onload=function(){
 		const val = document.getElementById('search-input').value; 
 		if(!val) return; 
 		if (lastSearchQuery !== val || !searchCursor) {
-			searchCursor = aceEditor.getSearchCursor(val, aceEditor.getCursor(), { caseFold: true });
+			searchCursor = cmEditor.getSearchCursor(val, cmEditor.getCursor(), { caseFold: true });
 			lastSearchQuery = val;
 		}
 		if (searchCursor.findPrevious()) {
-			aceEditor.setSelection(searchCursor.from(), searchCursor.to());
-			aceEditor.scrollIntoView({from: searchCursor.from(), to: searchCursor.to()});
+			cmEditor.setSelection(searchCursor.from(), searchCursor.to());
+			cmEditor.scrollIntoView({from: searchCursor.from(), to: searchCursor.to()});
 		} else {
-			searchCursor = aceEditor.getSearchCursor(val, {line: aceEditor.lineCount(), ch: 0}, { caseFold: true });
+			searchCursor = cmEditor.getSearchCursor(val, {line: cmEditor.lineCount(), ch: 0}, { caseFold: true });
 			if (searchCursor.findPrevious()) {
-				aceEditor.setSelection(searchCursor.from(), searchCursor.to());
-				aceEditor.scrollIntoView({from: searchCursor.from(), to: searchCursor.to()});
+				cmEditor.setSelection(searchCursor.from(), searchCursor.to());
+				cmEditor.scrollIntoView({from: searchCursor.from(), to: searchCursor.to()});
 			}
 		}
 	}
@@ -2621,8 +2621,8 @@ window.onload=function(){
 		const findVal = document.getElementById('search-input').value; 
 		const repVal = document.getElementById('replace-input').value; 
 		if(!findVal) return; 
-		if (aceEditor.getSelection().toLowerCase() === findVal.toLowerCase()) {
-			aceEditor.replaceSelection(repVal);
+		if (cmEditor.getSelection().toLowerCase() === findVal.toLowerCase()) {
+			cmEditor.replaceSelection(repVal);
 			findNext();
 		} else {
 			findNext();
@@ -2633,7 +2633,7 @@ window.onload=function(){
 		const findVal = document.getElementById('search-input').value; 
 		const repVal = document.getElementById('replace-input').value; 
 		if(!findVal) return; 
-		let cursor = aceEditor.getSearchCursor(findVal, {line: 0, ch: 0}, {caseFold: true});
+		let cursor = cmEditor.getSearchCursor(findVal, {line: 0, ch: 0}, {caseFold: true});
 		while (cursor.findNext()) {
 			cursor.replace(repVal);
 		}
@@ -2641,7 +2641,7 @@ window.onload=function(){
 
 	async function formatCurrentFile() { 
 		if (!fileSystem[activeFile]) return; 
-		const content = aceEditor.getValue(); 
+		const content = cmEditor.getValue(); 
 		let parser = null; 
 		if (activeFile.endsWith('.html')) parser = 'html'; 
 		else if (activeFile.endsWith('.css')) parser = 'css'; 
@@ -2651,7 +2651,7 @@ window.onload=function(){
 			try { 
 				const formatted = prettier.format(content, { parser: parser, plugins: prettierPlugins, tabWidth: 4, useTabs: true }); 
 				isSwitchingFile = true; 
-				aceEditor.setValue(formatted); 
+				cmEditor.setValue(formatted); 
 				isSwitchingFile = false; 
 				fileSystem[activeFile].content = formatted; 
 				fileSystem[activeFile].modified = true; 
@@ -3146,10 +3146,10 @@ window.onload=function(){
 		unsavedChanges = true; 
 		
 		setTimeout(() => {
-			if (name.endsWith('.html')) aceEditor.setCursor({line: 7, ch: 0});
-			else if (name.endsWith('.json')) aceEditor.setCursor({line: 1, ch: 0});
-			else aceEditor.setCursor({line: aceEditor.lineCount(), ch: 0});
-			aceEditor.focus();
+			if (name.endsWith('.html')) cmEditor.setCursor({line: 7, ch: 0});
+			else if (name.endsWith('.json')) cmEditor.setCursor({line: 1, ch: 0});
+			else cmEditor.setCursor({line: cmEditor.lineCount(), ch: 0});
+			cmEditor.focus();
 		}, 50);
 	}
 	
@@ -3442,8 +3442,8 @@ window.onload=function(){
 		const resizerLeft = document.getElementById('resizer-left'); const resizerRight = document.getElementById('resizer-right'); const sidebar = document.getElementById('sidebar-panel'); const editor = document.getElementById('editor-panel'); const output = document.getElementById('output-container'); const container = document.getElementById('main-container');
 		let isResizing = false; let currentResizer = null;
 		const onMouseDown = (e, resizer) => { isResizing = true; currentResizer = resizer; resizer.classList.add('resizing'); document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none'; document.querySelectorAll('iframe').forEach(iframe => iframe.style.pointerEvents = 'none'); if (resizer === resizerRight) { const width = output.getBoundingClientRect().width; output.style.flex = 'none'; output.style.width = width + 'px'; } };
-		const onMouseMove = (e) => { if (!isResizing) return; const containerRect = container.getBoundingClientRect(); if (currentResizer === resizerLeft) { let newWidth = e.clientX - containerRect.left; if (newWidth < 150) newWidth = 150; if (newWidth > containerRect.width * 0.4) newWidth = containerRect.width * 0.4; sidebar.style.width = newWidth + 'px'; } else if (currentResizer === resizerRight) { let newWidth = containerRect.right - e.clientX; if (newWidth < 200) newWidth = 200; if (newWidth > containerRect.width * 0.5) newWidth = containerRect.width * 0.5; output.style.width = newWidth + 'px'; } if(aceEditor) aceEditor.refresh(); };
-		const onMouseUp = () => { if (isResizing) { isResizing = false; if (currentResizer) currentResizer.classList.remove('resizing'); currentResizer = null; document.body.style.cursor = ''; document.body.style.userSelect = ''; document.querySelectorAll('iframe').forEach(iframe => iframe.style.pointerEvents = ''); if(aceEditor) aceEditor.refresh(); } };
+		const onMouseMove = (e) => { if (!isResizing) return; const containerRect = container.getBoundingClientRect(); if (currentResizer === resizerLeft) { let newWidth = e.clientX - containerRect.left; if (newWidth < 150) newWidth = 150; if (newWidth > containerRect.width * 0.4) newWidth = containerRect.width * 0.4; sidebar.style.width = newWidth + 'px'; } else if (currentResizer === resizerRight) { let newWidth = containerRect.right - e.clientX; if (newWidth < 200) newWidth = 200; if (newWidth > containerRect.width * 0.5) newWidth = containerRect.width * 0.5; output.style.width = newWidth + 'px'; } if(cmEditor) cmEditor.refresh(); };
+		const onMouseUp = () => { if (isResizing) { isResizing = false; if (currentResizer) currentResizer.classList.remove('resizing'); currentResizer = null; document.body.style.cursor = ''; document.body.style.userSelect = ''; document.querySelectorAll('iframe').forEach(iframe => iframe.style.pointerEvents = ''); if(cmEditor) cmEditor.refresh(); } };
 		resizerLeft.addEventListener('mousedown', (e) => onMouseDown(e, resizerLeft)); resizerRight.addEventListener('mousedown', (e) => onMouseDown(e, resizerRight)); document.addEventListener('mousemove', onMouseMove); document.addEventListener('mouseup', onMouseUp);
 	}
 
