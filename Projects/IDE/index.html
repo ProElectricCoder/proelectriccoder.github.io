@@ -1067,18 +1067,25 @@
 		<div style="margin-bottom: 15px;">
 			<label style="display: block; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 5px;">Strategy</label>
 			<select id="crypto-strategy" class="ai-input" style="width:100%; height:36px; padding:0 8px;">
-				<option value="double_pass">Double Layer: SEP + AES (Password)</option>
+				<option value="double_pass_key">Double Layer: SEP + AES (Password & Key)</option>
+				<option value="double_pass">Double Layer: SEP + AES (Password Only)</option>
+				<option value="sep_key">SEP Layer Only (Key File)</option>
 				<option value="sep_pass">SEP Layer Only (Password)</option>
 				<option value="aes_pass">AES Layer Only (Password)</option>
 			</select>
 		</div>
-		<div style="margin-bottom: 20px;">
+		<div id="crypto-key-container" style="margin-bottom: 15px; display: none;">
+			<label style="display: block; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 5px;">Key File (.sep)</label>
+			<select id="crypto-key-select" class="ai-input" style="width:100%; height:36px; padding:0 8px;">
+			</select>
+		</div>
+		<div id="crypto-pass-container" style="margin-bottom: 20px;">
 			<label style="display: block; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 5px;">Password</label>
 			<input type="password" id="crypto-pass" class="ai-input" style="width:100%; height:36px;">
 		</div>
 		<div style="display:flex; gap:10px; justify-content:flex-end;">
-			<button class="btn btn-secondary" onclick="closeCryptoModal()">Cancel</button>
-			<button class="btn" id="crypto-confirm-btn" onclick="executeCrypto()">Encrypt</button>
+			<button class="btn btn-secondary" id="crypto-cancel-btn">Cancel</button>
+			<button class="btn" id="crypto-confirm-btn">Encrypt</button>
 		</div>
 	</div>
 </div>
@@ -1124,6 +1131,7 @@
 <!-- Hidden Input for Upload (Universal Accept) -->
 <input type="file" id="file-upload" style="display:none" onchange="processUpload(event)">
 <input type="file" id="folder-upload" style="display:none" webkitdirectory directory onchange="processFolderUpload(event)">
+<input type="file" id="crypto-key-upload" accept=".sep" style="display:none">
 
 <script>
 	// --- IDE EASTER EGG ---
@@ -1397,18 +1405,24 @@
 			if (fileSystem[filename]) {
 				const plainText = editorDocs[filename].getValue();
 				if (filename.endsWith('.enc')) {
-					const password = unlockedKeys[filename];
-					if (password) {
+					const unlockData = unlockedKeys[filename];
+					if (unlockData) {
 						try {
 							const cryptoLib = await loadCryptoLib();
 							const ext = fileSystem[filename].originalExt || '.txt';
 							const strategy = fileSystem[filename].strategy || 'double_pass';
 							const bytes = new TextEncoder().encode(plainText);
 							
+							let keyContent = "";
+							if (unlockData.keyPath && fileSystem[unlockData.keyPath]) {
+								keyContent = editorDocs[unlockData.keyPath] ? editorDocs[unlockData.keyPath].getValue() : fileSystem[unlockData.keyPath].content;
+							}
+							const finalSecret = (unlockData.password || "") + keyContent;
+							
 							let encBytes;
-							if (strategy === 'double_pass') encBytes = await cryptoLib.encryptFile(bytes, ext, password);
-							else if (strategy === 'sep_pass') encBytes = await cryptoLib.encryptSEP(bytes, ext, password);
-							else if (strategy === 'aes_pass') encBytes = await cryptoLib.encryptAES(bytes, password);
+							if (strategy.includes('double')) encBytes = await cryptoLib.encryptFile(bytes, ext, finalSecret);
+							else if (strategy.includes('sep')) encBytes = await cryptoLib.encryptSEP(bytes, ext, finalSecret);
+							else if (strategy.includes('aes')) encBytes = await cryptoLib.encryptAES(bytes, finalSecret);
 							
 							fileSystem[filename].content = bytesToBase64Safe(encBytes);
 						} catch(e) {
@@ -1463,13 +1477,19 @@
 			if (ctxType === 'file') deleteFile(ctxTarget);
 			else deleteFolder(ctxTarget);
 		};
-		document.getElementById('ctx-encrypt').onclick = () => {
+		document.getElementById('ctx-encrypt').onclick = async () => {
 			document.getElementById('ctx-menu').classList.remove('active');
-			openCryptoModal('encrypt', ctxTarget, ctxType);
+			const res = await openCryptoModalAsync('encrypt', `Encrypt ${ctxType}`);
+			if (res) executeCrypto('encrypt', ctxTarget, ctxType, res.password, res.strategy, res.keyPath);
 		};
-		document.getElementById('ctx-decrypt').onclick = () => {
+		document.getElementById('ctx-decrypt').onclick = async () => {
 			document.getElementById('ctx-menu').classList.remove('active');
-			openCryptoModal('decrypt', ctxTarget, ctxType);
+			let defStrat = 'double_pass';
+			if (ctxType === 'file' && fileSystem[ctxTarget]) {
+				defStrat = fileSystem[ctxTarget].strategy || 'double_pass';
+			}
+			const res = await openCryptoModalAsync('decrypt', `Decrypt ${ctxType}`, defStrat);
+			if (res) executeCrypto('decrypt', ctxTarget, ctxType, res.password, res.strategy, res.keyPath);
 		};
 
 		// Cursor Position Listener
@@ -1925,26 +1945,35 @@
 		let decResult = null;
 
 		if (filename.endsWith('.enc')) {
-			let password = unlockedKeys[filename];
-			if (!password) {
-				password = await customPrompt("This file is encrypted. Enter password:", "", "Unlock File");
-				if (!password) return; // Silent cancel without corrupting active UI state
+			let unlockData = unlockedKeys[filename];
+			let strat = target.strategy || 'double_pass';
+			if (!unlockData) {
+				const res = await openCryptoModalAsync('unlock', "Unlock File", strat);
+				if (!res) return; // Silent cancel without corrupting active UI state
+				unlockData = { password: res.password, keyPath: res.keyPath };
+				strat = res.strategy;
 			}
 			
 			try {
 				const cryptoLib = await loadCryptoLib();
 				const encryptedBytes = base64ToBytes(target.content);
-				const strat = target.strategy || 'double_pass';
 				
-				if (strat === 'double_pass') decResult = await cryptoLib.decryptFile(encryptedBytes, password);
-				else if (strat === 'sep_pass') decResult = await cryptoLib.decryptSEP(encryptedBytes, password);
-				else if (strat === 'aes_pass') decResult = { data: await cryptoLib.decryptAES(encryptedBytes, password), ext: target.originalExt || '.txt' };
+				let keyContent = "";
+				if (unlockData.keyPath && fileSystem[unlockData.keyPath]) {
+					keyContent = editorDocs[unlockData.keyPath] ? editorDocs[unlockData.keyPath].getValue() : fileSystem[unlockData.keyPath].content;
+				}
+				const finalSecret = (unlockData.password || "") + keyContent;
 				
-				unlockedKeys[filename] = password;
+				if (strat.includes('double')) decResult = await cryptoLib.decryptFile(encryptedBytes, finalSecret);
+				else if (strat.includes('sep')) decResult = await cryptoLib.decryptSEP(encryptedBytes, finalSecret);
+				else if (strat.includes('aes')) decResult = { data: await cryptoLib.decryptAES(encryptedBytes, finalSecret), ext: target.originalExt || '.txt' };
+				
+				unlockedKeys[filename] = unlockData;
 				isUnwrappedEnc = true;
 				target.originalExt = decResult.ext; // Sync state
+				target.strategy = strat; // Sync user overridden strategy
 			} catch(e) {
-				await customAlert("Decryption failed. Incorrect password or corrupted file.", "Error");
+				await customAlert("Decryption failed. Incorrect password, key, or corrupted file.", "Error");
 				delete unlockedKeys[filename];
 				return; // Abort switch safely
 			}
@@ -2395,15 +2424,30 @@
 		const asset = fileSystem[filename]; 
 
 		if (filename.endsWith('.enc')) {
-			const password = unlockedKeys[filename];
-			if (!password) return;
+			let unlockData = unlockedKeys[filename];
+			let strat = asset.strategy || 'double_pass';
+			if (!unlockData) {
+				const res = await openCryptoModalAsync('unlock', "Unlock Media", strat);
+				if (!res) return;
+				unlockData = { password: res.password, keyPath: res.keyPath };
+				strat = res.strategy;
+				unlockedKeys[filename] = unlockData;
+				asset.strategy = strat;
+			}
+
 			const cryptoLib = await loadCryptoLib();
 			const encryptedBytes = base64ToBytes(asset.content);
-			const strat = asset.strategy || 'double_pass';
+			
+			let keyContent = "";
+			if (unlockData.keyPath && fileSystem[unlockData.keyPath]) {
+				keyContent = editorDocs[unlockData.keyPath] ? editorDocs[unlockData.keyPath].getValue() : fileSystem[unlockData.keyPath].content;
+			}
+			const finalSecret = (unlockData.password || "") + keyContent;
+			
 			let decResult;
-			if (strat === 'double_pass') decResult = await cryptoLib.decryptFile(encryptedBytes, password);
-			else if (strat === 'sep_pass') decResult = await cryptoLib.decryptSEP(encryptedBytes, password);
-			else if (strat === 'aes_pass') decResult = { data: await cryptoLib.decryptAES(encryptedBytes, password), ext: asset.originalExt || '.bin' };
+			if (strat.includes('double')) decResult = await cryptoLib.decryptFile(encryptedBytes, finalSecret);
+			else if (strat.includes('sep')) decResult = await cryptoLib.decryptSEP(encryptedBytes, finalSecret);
+			else if (strat.includes('aes')) decResult = { data: await cryptoLib.decryptAES(encryptedBytes, finalSecret), ext: asset.originalExt || '.bin' };
 			
 			let mime = 'application/octet-stream';
 			const ext = decResult.ext.toLowerCase().replace('.', '');
@@ -3628,24 +3672,113 @@ window.onload=function(){
 		return cryptoLibCache;
 	}
 
-	let currentCryptoMode = null;
-	let currentCryptoTarget = null;
-	let currentCryptoType = null;
-
-	function openCryptoModal(action, target, type) {
-		currentCryptoMode = action;
-		currentCryptoTarget = target;
-		currentCryptoType = type;
-		
-		document.getElementById('crypto-title').innerText = action === 'encrypt' ? `Encrypt ${type}` : `Decrypt ${type}`;
-		document.getElementById('crypto-confirm-btn').innerText = action === 'encrypt' ? 'Encrypt' : 'Decrypt';
-		document.getElementById('crypto-pass').value = '';
-		
-		const overlay = document.getElementById('crypto-modal-overlay');
-		overlay.style.display = 'flex';
-	}
+	let activeCryptoResolver = null;
 	function closeCryptoModal() {
 		document.getElementById('crypto-modal-overlay').style.display = 'none';
+		if (activeCryptoResolver) {
+			activeCryptoResolver(null);
+			activeCryptoResolver = null;
+		}
+	}
+
+	function populateKeySelect(defaultSelected = '') {
+		const select = document.getElementById('crypto-key-select');
+		select.innerHTML = '<option value="">-- No Key Selected --</option><option value="UPLOAD">Upload from Computer...</option>';
+		Object.keys(fileSystem).forEach(path => {
+			if (path.endsWith('.sep')) {
+				const opt = document.createElement('option');
+				opt.value = path;
+				opt.innerText = path;
+				select.appendChild(opt);
+			}
+		});
+		if (defaultSelected && fileSystem[defaultSelected]) select.value = defaultSelected;
+	}
+
+	function openCryptoModalAsync(action, title, defaultStrategy = 'double_pass') {
+		return new Promise(resolve => {
+			const overlay = document.getElementById('crypto-modal-overlay');
+			document.getElementById('crypto-title').innerText = title;
+			document.getElementById('crypto-confirm-btn').innerText = action === 'encrypt' ? 'Encrypt' : (action === 'decrypt' ? 'Decrypt' : 'Unlock');
+			document.getElementById('crypto-pass').value = '';
+			
+			const stratSelect = document.getElementById('crypto-strategy');
+			stratSelect.value = defaultStrategy;
+			
+			populateKeySelect();
+			
+			const passContainer = document.getElementById('crypto-pass-container');
+			const keyContainer = document.getElementById('crypto-key-container');
+			
+			const updateVisibility = () => {
+				const val = stratSelect.value;
+				passContainer.style.display = val.includes('pass') ? 'block' : 'none';
+				keyContainer.style.display = val.includes('key') ? 'block' : 'none';
+			};
+			stratSelect.onchange = updateVisibility;
+			updateVisibility();
+			
+			const keySelect = document.getElementById('crypto-key-select');
+			const keyUpload = document.getElementById('crypto-key-upload');
+			
+			keySelect.onchange = (e) => {
+				if (e.target.value === 'UPLOAD') keyUpload.click();
+			};
+			
+			keyUpload.onchange = (e) => {
+				const file = e.target.files[0];
+				if (!file) { keySelect.value = ''; return; }
+				const reader = new FileReader();
+				reader.onload = (ev) => {
+					const content = ev.target.result;
+					const path = 'DeepBlue/' + file.name;
+					fileSystem[path] = { type: 'text', content: content, modified: true };
+					renderSidebar();
+					populateKeySelect(path);
+				};
+				reader.readAsText(file);
+				e.target.value = ''; // reset
+			};
+			
+			overlay.style.display = 'flex';
+			activeCryptoResolver = resolve;
+			
+			const confirmBtn = document.getElementById('crypto-confirm-btn');
+			const cancelBtn = document.getElementById('crypto-cancel-btn');
+			const passInput = document.getElementById('crypto-pass');
+			
+			const handleConfirm = () => {
+				const pass = passInput.value;
+				const strat = stratSelect.value;
+				const keyPath = keySelect.value;
+				
+				if (strat.includes('pass') && !pass) { customAlert("Password is required."); return; }
+				if (strat.includes('key') && (!keyPath || keyPath === 'UPLOAD')) { customAlert("Key file is required."); return; }
+				
+				overlay.style.display = 'none';
+				activeCryptoResolver = null;
+				confirmBtn.onclick = null;
+				cancelBtn.onclick = null;
+				passInput.onkeydown = null;
+				resolve({ password: pass, strategy: strat, keyPath: keyPath });
+			};
+
+			const handleCancel = () => {
+				closeCryptoModal(); // Resolves with null via closeCryptoModal
+				confirmBtn.onclick = null;
+				cancelBtn.onclick = null;
+				passInput.onkeydown = null;
+			};
+			
+			confirmBtn.onclick = handleConfirm;
+			cancelBtn.onclick = handleCancel;
+			passInput.onkeydown = (e) => {
+				if (e.key === 'Enter') handleConfirm();
+				if (e.key === 'Escape') handleCancel();
+			};
+			
+			setTimeout(() => { if(stratSelect.value.includes('pass')) passInput.focus(); }, 50);
+		});
 	}
 
 	function getFileBytes(path) {
@@ -3677,33 +3810,34 @@ window.onload=function(){
 	}
 
 	function saveBytesToVirtualFile(fullPath, bytes, ext) {
-		if (['png','jpg','jpeg','gif','webp','mp3','wav','ogg','mp4','webm','pdf'].includes(ext)) {
-			let subtype = 'image';
-			if (['mp3','wav','ogg'].includes(ext)) subtype = 'audio';
-			else if (['mp4','webm'].includes(ext)) subtype = 'video';
-			else if (ext === 'pdf') subtype = 'pdf';
-			
-			const b64 = bytesToBase64Safe(bytes);
-			let mime = 'application/octet-stream';
-			if (ext === 'png') mime = 'image/png';
-			if (ext === 'jpg' || ext === 'jpeg') mime = 'image/jpeg';
-			if (ext === 'gif') mime = 'image/gif';
-			if (ext === 'webp') mime = 'image/webp';
-			if (ext === 'mp3') mime = 'audio/mpeg';
-			if (ext === 'wav') mime = 'audio/wav';
-			if (ext === 'mp4') mime = 'video/mp4';
-			
-			fileSystem[fullPath] = { type: 'asset', subtype: subtype, src: `data:${mime};base64,${b64}`, content: null, modified: true };
+		ext = ext.toLowerCase();
+		const textExts = ['html','css','js','jsx','json','md','txt','py','csv','xml','ini','env','sh','bat','yaml','yml','ts','tsx'];
+		
+		if (textExts.includes(ext)) {
+			const text = new TextDecoder().decode(bytes);
+			let type = 'text';
+			if (ext === 'html') type = 'html';
+			else if (ext === 'css') type = 'css';
+			else if (ext === 'js' || ext === 'jsx') type = 'js';
+			else if (ext === 'py') type = 'python';
+			fileSystem[fullPath] = { type: type, content: text, modified: true };
 		} else if (ext === 'svg') {
 			const text = new TextDecoder().decode(bytes);
 			fileSystem[fullPath] = { type: 'asset', subtype: 'svg', content: text, modified: true };
 		} else {
-			const text = new TextDecoder().decode(bytes);
-			let type = 'html';
-			if (ext === 'js' || ext === 'jsx') type = 'js';
-			else if (ext === 'css') type = 'css';
-			else if (ext === 'json' || ext === 'md' || ext === 'txt' || ext === 'py') type = 'text';
-			fileSystem[fullPath] = { type: type, content: text, modified: true };
+			const b64 = bytesToBase64Safe(bytes);
+			let subtype = 'image';
+			let mime = 'application/octet-stream';
+			if (ext === 'png') mime = 'image/png';
+			else if (ext === 'jpg' || ext === 'jpeg') mime = 'image/jpeg';
+			else if (ext === 'gif') mime = 'image/gif';
+			else if (ext === 'webp') mime = 'image/webp';
+			else if (['mp3','wav','ogg'].includes(ext)) { subtype = 'audio'; mime = 'audio/mpeg'; }
+			else if (['mp4','webm'].includes(ext)) { subtype = 'video'; mime = 'video/mp4'; }
+			else if (ext === 'pdf') { subtype = 'pdf'; mime = 'application/pdf'; }
+			else subtype = 'binary';
+			
+			fileSystem[fullPath] = { type: 'asset', subtype: subtype, src: `data:${mime};base64,${b64}`, content: null, modified: true };
 		}
 	}
 
@@ -3744,56 +3878,69 @@ window.onload=function(){
 		openEditorTabs = openEditorTabs.filter(p => !p.startsWith(folderPath + '/'));
 	}
 
-	async function executeCrypto() {
-		const password = document.getElementById('crypto-pass').value;
-		const strategy = document.getElementById('crypto-strategy').value;
-		if(!password) { customAlert("Password is required."); return; }
-		
-		const btn = document.getElementById('crypto-confirm-btn');
-		btn.disabled = true; btn.innerText = "Processing...";
+	async function executeCrypto(mode, targetPath, targetType, password, strategy, keyPath) {
+		setExecLoading(true);
 		
 		try {
 			const cryptoLib = await loadCryptoLib();
 			
-			if (currentCryptoMode === 'encrypt') {
+			let keyContent = "";
+			if (keyPath && fileSystem[keyPath]) {
+				keyContent = editorDocs[keyPath] ? editorDocs[keyPath].getValue() : fileSystem[keyPath].content;
+			}
+			const finalSecret = (password || "") + keyContent;
+			
+			if (mode === 'encrypt') {
 				let bytes, ext;
-				if (currentCryptoType === 'folder') {
-					bytes = await folderToZipBytes(currentCryptoTarget);
+				if (targetType === 'folder') {
+					bytes = await folderToZipBytes(targetPath);
 					ext = '.zip';
 				} else {
-					bytes = getFileBytes(currentCryptoTarget);
-					ext = '.' + currentCryptoTarget.split('.').pop();
+					bytes = getFileBytes(targetPath);
+					ext = '.' + targetPath.split('.').pop();
 				}
 				
 				let encBytes;
-				if (strategy === 'double_pass') encBytes = await cryptoLib.encryptFile(bytes, ext, password);
-				else if (strategy === 'sep_pass') encBytes = await cryptoLib.encryptSEP(bytes, ext, password);
-				else if (strategy === 'aes_pass') encBytes = await cryptoLib.encryptAES(bytes, password);
+				if (strategy.includes('double')) encBytes = await cryptoLib.encryptFile(bytes, ext, finalSecret);
+				else if (strategy.includes('sep')) encBytes = await cryptoLib.encryptSEP(bytes, ext, finalSecret);
+				else if (strategy.includes('aes')) encBytes = await cryptoLib.encryptAES(bytes, finalSecret);
 				
 				const b64 = bytesToBase64Safe(encBytes);
-				const newPath = currentCryptoTarget + '.enc';
 				
-				if (currentCryptoType === 'folder') deleteFolderDirect(currentCryptoTarget);
-				else deleteFileDirect(currentCryptoTarget);
+				let newPath;
+				if (targetType === 'folder') {
+					newPath = targetPath + '.enc';
+				} else {
+					const lastDotIndex = targetPath.lastIndexOf('.');
+					const lastSlashIndex = targetPath.lastIndexOf('/');
+					if (lastDotIndex > lastSlashIndex) {
+						newPath = targetPath.substring(0, lastDotIndex) + '.enc';
+					} else {
+						newPath = targetPath + '.enc';
+					}
+				}
+				
+				if (targetType === 'folder') deleteFolderDirect(targetPath);
+				else deleteFileDirect(targetPath);
 				
 				fileSystem[newPath] = { type: 'enc', content: b64, modified: true, strategy: strategy, originalExt: ext };
 				
 			} else {
 				// Decrypt
-				const b64 = fileSystem[currentCryptoTarget].content;
+				const b64 = fileSystem[targetPath].content;
 				const encBytes = base64ToBytes(b64);
-				const savedStrat = fileSystem[currentCryptoTarget].strategy || strategy;
-				const savedExt = fileSystem[currentCryptoTarget].originalExt || '.txt';
+				const savedStrat = fileSystem[targetPath].strategy || strategy;
+				const savedExt = fileSystem[targetPath].originalExt || '.txt';
 				
 				let decResult;
-				if (savedStrat === 'double_pass') decResult = await cryptoLib.decryptFile(encBytes, password);
-				else if (savedStrat === 'sep_pass') decResult = await cryptoLib.decryptSEP(encBytes, password);
-				else if (savedStrat === 'aes_pass') {
-					const data = await cryptoLib.decryptAES(encBytes, password);
+				if (savedStrat.includes('double')) decResult = await cryptoLib.decryptFile(encBytes, finalSecret);
+				else if (savedStrat.includes('sep')) decResult = await cryptoLib.decryptSEP(encBytes, finalSecret);
+				else if (savedStrat.includes('aes')) {
+					const data = await cryptoLib.decryptAES(encBytes, finalSecret);
 					decResult = { data: data, ext: savedExt };
 				}
 				
-				const baseName = currentCryptoTarget.replace(/\.enc$/i, '');
+				const baseName = targetPath.replace(/\.enc$/i, '');
 				
 				if (decResult.ext === '.zip') {
 					await extractZipToFolder(decResult.data, baseName);
@@ -3801,10 +3948,9 @@ window.onload=function(){
 					const finalPath = baseName + decResult.ext;
 					saveBytesToVirtualFile(finalPath, decResult.data, decResult.ext.replace('.',''));
 				}
-				deleteFileDirect(currentCryptoTarget);
+				deleteFileDirect(targetPath);
 			}
 			
-			closeCryptoModal();
 			renderSidebar();
 			renderEditorTabs();
 			unsavedChanges = true;
@@ -3814,7 +3960,7 @@ window.onload=function(){
 			customAlert("Crypto operation failed: " + err.message);
 		}
 		
-		btn.disabled = false; btn.innerText = "Confirm";
+		setExecLoading(false);
 	}
 
 	// Setup Global Context Menu Interception
