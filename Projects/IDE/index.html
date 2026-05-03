@@ -362,6 +362,15 @@
 		.editor-tab-close:hover { opacity: 1; background: rgba(255,255,255,0.1); color: #ef4444; }
 		.editor-tab .mod-dot { color: var(--accent); font-weight: bold; margin-left: 4px; }
 
+		/* Context Menu CSS */
+		.ctx-menu { display: none; position: absolute; z-index: 9999; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: 0 10px 25px rgba(0,0,0,0.5); padding: 6px; flex-direction: column; min-width: 160px; }
+		.ctx-menu.active { display: flex; }
+		.ctx-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; color: var(--text-main); font-size: 0.85rem; border-radius: var(--radius-sm); transition: 0.2s; }
+		.ctx-item:hover { background: rgba(0, 229, 255, 0.1); color: var(--accent); }
+		.ctx-item.danger:hover { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+		.ctx-item svg { width: 14px; height: 14px; }
+		.ctx-sep { height: 1px; background: var(--border); margin: 4px 0; }
+
 		.CodeMirror {
 			height: 100%;
 			font-size: 15px; 
@@ -1007,6 +1016,15 @@
 	<p>Supports code, md, json, py, images, audio, video & pdfs</p>
 </div>
 
+<!-- Context Menu -->
+<div class="ctx-menu" id="ctx-menu">
+	<div class="ctx-item" id="ctx-rename"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Rename</div>
+	<div class="ctx-item" id="ctx-encrypt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Encrypt</div>
+	<div class="ctx-item" id="ctx-decrypt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg> Decrypt</div>
+	<div class="ctx-sep"></div>
+	<div class="ctx-item danger" id="ctx-delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> Delete</div>
+</div>
+
 <!-- Add File Modal -->
 <div id="modal-overlay">
 	<div class="modal">
@@ -1039,6 +1057,29 @@
 		</div>
 
 		<button class="modal-close" onclick="closeAddMenu()">Cancel</button>
+	</div>
+</div>
+
+<!-- Crypto Action Modal -->
+<div id="crypto-modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:2100; justify-content:center; align-items:center; backdrop-filter:blur(2px);">
+	<div class="modal" style="background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius-lg); width:350px; padding:20px; box-shadow:0 10px 25px rgba(0,0,0,0.5); opacity: 1; transform: translateY(0);">
+		<div class="modal-title" id="crypto-title">Encrypt File</div>
+		<div style="margin-bottom: 15px;">
+			<label style="display: block; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 5px;">Strategy</label>
+			<select id="crypto-strategy" class="ai-input" style="width:100%; height:36px; padding:0 8px;">
+				<option value="double_pass">Double Layer: SEP + AES (Password)</option>
+				<option value="sep_pass">SEP Layer Only (Password)</option>
+				<option value="aes_pass">AES Layer Only (Password)</option>
+			</select>
+		</div>
+		<div style="margin-bottom: 20px;">
+			<label style="display: block; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 5px;">Password</label>
+			<input type="password" id="crypto-pass" class="ai-input" style="width:100%; height:36px;">
+		</div>
+		<div style="display:flex; gap:10px; justify-content:flex-end;">
+			<button class="btn btn-secondary" onclick="closeCryptoModal()">Cancel</button>
+			<button class="btn" id="crypto-confirm-btn" onclick="executeCrypto()">Encrypt</button>
+		</div>
 	</div>
 </div>
 
@@ -1080,8 +1121,8 @@
 	</div>
 </div>
 
-<!-- Hidden Input for Upload (Updated accepted types) -->
-<input type="file" id="file-upload" style="display:none" onchange="processUpload(event)" accept=".html,.css,.js,.py,.png,.jpg,.jpeg,.gif,.svg,.webp,.txt,.md,.json,.pdf,.mp3,.mp4,.wav,.webm">
+<!-- Hidden Input for Upload (Universal Accept) -->
+<input type="file" id="file-upload" style="display:none" onchange="processUpload(event)">
 <input type="file" id="folder-upload" style="display:none" webkitdirectory directory onchange="processFolderUpload(event)">
 
 <script>
@@ -1195,6 +1236,7 @@
 	// Editor State Management
 	let openEditorTabs = [];
 	let editorDocs = {}; // Map of filename -> CodeMirror.Doc
+	let unlockedKeys = {}; // Smart Keyring for in-memory passwords
 
 	// System state for Python input
 	let pythonPollFn = null;
@@ -1331,13 +1373,53 @@
 		if (bar) bar.style.display = state ? 'block' : 'none';
 	}
 
+	// Base64 Bridgework for Crypto
+	function base64ToBytes(b64) {
+		const binString = atob(b64);
+		const bytes = new Uint8Array(binString.length);
+		for (let i = 0; i < binString.length; i++) {
+			bytes[i] = binString.charCodeAt(i);
+		}
+		return bytes;
+	}
+	function bytesToBase64Safe(bytes) {
+		let binary = '';
+		const chunkSize = 8192;
+		for (let i = 0; i < bytes.length; i += chunkSize) {
+			binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+		}
+		return btoa(binary);
+	}
+
 	// Helper to push all isolated doc texts back into the central fileSystem object for saving/exporting
-	function syncDocsToContent() {
-		Object.keys(editorDocs).forEach(filename => {
+	async function syncDocsToContent() {
+		for (const filename of Object.keys(editorDocs)) {
 			if (fileSystem[filename]) {
-				fileSystem[filename].content = editorDocs[filename].getValue();
+				const plainText = editorDocs[filename].getValue();
+				if (filename.endsWith('.enc')) {
+					const password = unlockedKeys[filename];
+					if (password) {
+						try {
+							const cryptoLib = await loadCryptoLib();
+							const ext = fileSystem[filename].originalExt || '.txt';
+							const strategy = fileSystem[filename].strategy || 'double_pass';
+							const bytes = new TextEncoder().encode(plainText);
+							
+							let encBytes;
+							if (strategy === 'double_pass') encBytes = await cryptoLib.encryptFile(bytes, ext, password);
+							else if (strategy === 'sep_pass') encBytes = await cryptoLib.encryptSEP(bytes, ext, password);
+							else if (strategy === 'aes_pass') encBytes = await cryptoLib.encryptAES(bytes, password);
+							
+							fileSystem[filename].content = bytesToBase64Safe(encBytes);
+						} catch(e) {
+							console.error("Auto-encrypt failed:", e);
+						}
+					}
+				} else {
+					fileSystem[filename].content = plainText;
+				}
 			}
-		});
+		}
 	}
 
 	// --- Init Editor ---
@@ -1369,6 +1451,26 @@
 				}
 			}
 		});
+
+		// Bind Context Menu Actions
+		document.getElementById('ctx-rename').onclick = () => {
+			document.getElementById('ctx-menu').classList.remove('active');
+			if (ctxType === 'file') renameFile(ctxTarget);
+			else renameFolder(ctxTarget);
+		};
+		document.getElementById('ctx-delete').onclick = () => {
+			document.getElementById('ctx-menu').classList.remove('active');
+			if (ctxType === 'file') deleteFile(ctxTarget);
+			else deleteFolder(ctxTarget);
+		};
+		document.getElementById('ctx-encrypt').onclick = () => {
+			document.getElementById('ctx-menu').classList.remove('active');
+			openCryptoModal('encrypt', ctxTarget, ctxType);
+		};
+		document.getElementById('ctx-decrypt').onclick = () => {
+			document.getElementById('ctx-menu').classList.remove('active');
+			openCryptoModal('decrypt', ctxTarget, ctxType);
+		};
 
 		// Cursor Position Listener
 		cmEditor.on('cursorActivity', () => {
@@ -1450,9 +1552,9 @@
 		if (savedDeleted) { try { deletedFiles = JSON.parse(savedDeleted); } catch(e) {} }
 		if (savedRepoFolders) { try { importedRepoFolders = JSON.parse(savedRepoFolders); } catch(e) {} }
 
-		setInterval(() => {
+		setInterval(async () => {
 			if (unsavedChanges) {
-				syncDocsToContent();
+				await syncDocsToContent();
 				localStorage.setItem('deepBlueFS', JSON.stringify(fileSystem));
 				localStorage.setItem('deepBlueFolders', JSON.stringify(explicitFolders));
 				localStorage.setItem('deepBlueDeleted', JSON.stringify(deletedFiles));
@@ -1630,11 +1732,14 @@
 		
 		const fObj = fileSystem[filename];
 		if (fObj && editorDocs[filename]) {
-			fObj.content = editorDocs[filename].getValue();
+			if (!filename.endsWith('.enc')) {
+				fObj.content = editorDocs[filename].getValue();
+			}
 			if (fObj.ghUrl && !fObj.modified && fObj.subtype !== 'image') {
 				fObj.content = null;
 			}
 			delete editorDocs[filename];
+			delete unlockedKeys[filename];
 		}
 
 		if (activeFile === filename) {
@@ -1685,6 +1790,7 @@
 			const header = document.createElement('div');
 			header.className = `folder-header ${isOpen ? 'open' : ''}`;
 			header.style.paddingLeft = `${15 + depth * 15}px`;
+			header.setAttribute('data-path', folderPath);
 			
 			const folderIconHtml = isRepo 
 				? `<svg class="${iconClass}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>`
@@ -1734,6 +1840,7 @@
 			const div = document.createElement('div');
 			div.className = `tab ${file.path === activeFile ? 'active' : ''}`;
 			div.style.paddingLeft = `${15 + depth * 15}px`;
+			div.setAttribute('data-path', file.path);
 			div.onclick = async (e) => { if(!e.target.closest('.btn-icon')) await switchFile(file.path); };
 			
 			let iconName = 'file';
@@ -1810,8 +1917,40 @@
 	}
 
 	async function switchFile(filename) {
+		const target = fileSystem[filename];
+		if (!target) return;
+
+		// ENCRYPTION PRE-CHECK & DECRYPTION
+		let isUnwrappedEnc = false;
+		let decResult = null;
+
+		if (filename.endsWith('.enc')) {
+			let password = unlockedKeys[filename];
+			if (!password) {
+				password = await customPrompt("This file is encrypted. Enter password:", "", "Unlock File");
+				if (!password) return; // Silent cancel without corrupting active UI state
+			}
+			
+			try {
+				const cryptoLib = await loadCryptoLib();
+				const encryptedBytes = base64ToBytes(target.content);
+				const strat = target.strategy || 'double_pass';
+				
+				if (strat === 'double_pass') decResult = await cryptoLib.decryptFile(encryptedBytes, password);
+				else if (strat === 'sep_pass') decResult = await cryptoLib.decryptSEP(encryptedBytes, password);
+				else if (strat === 'aes_pass') decResult = { data: await cryptoLib.decryptAES(encryptedBytes, password), ext: target.originalExt || '.txt' };
+				
+				unlockedKeys[filename] = password;
+				isUnwrappedEnc = true;
+				target.originalExt = decResult.ext; // Sync state
+			} catch(e) {
+				await customAlert("Decryption failed. Incorrect password or corrupted file.", "Error");
+				delete unlockedKeys[filename];
+				return; // Abort switch safely
+			}
+		}
+
 		isSwitchingFile = true;
-		
 		activeFile = filename; 
 		if (!openEditorTabs.includes(filename)) {
 			openEditorTabs.push(filename);
@@ -1824,143 +1963,74 @@
 		const url = new URL(window.location);
 		url.searchParams.set('file', filename);
 		window.history.replaceState(null, '', url);
-		
-		const target = fileSystem[filename];
-		if (!target) { isSwitchingFile = false; return; }
 
-		const overlay = document.getElementById('binary-overlay'); const editorDiv = document.querySelector('.editor-wrapper'); const label = document.getElementById('editor-lang-label');
+		const overlay = document.getElementById('binary-overlay'); 
+		const editorDiv = document.querySelector('.editor-wrapper'); 
+		const label = document.getElementById('editor-lang-label');
 		
-		if (target.type === 'asset' && target.subtype !== 'svg') {
+		let ext = filename.split('.').pop().toLowerCase();
+		let contentToLoad = target.content;
+		let isAsset = target.type === 'asset';
+		let subtype = target.subtype;
+		let labelText = target.type ? target.type.toUpperCase() : 'TEXT';
+
+		if (isUnwrappedEnc) {
+			if (decResult.ext === '.zip') {
+				editorDiv.style.display = 'none'; overlay.style.display = 'flex';
+				document.getElementById('binary-info').innerText = "Encrypted Folder (Right-click -> Decrypt to extract)";
+				label.innerText = 'ENC (ZIP)';
+				isSwitchingFile = false;
+				return;
+			}
+
+			ext = decResult.ext.replace('.', '').toLowerCase();
+			const textExts = ['html','css','js','jsx','json','md','txt','py','csv','xml','ini','env','sh','bat','yaml','yml','ts','tsx'];
+			
+			if (textExts.includes(ext)) {
+				isAsset = false;
+				contentToLoad = new TextDecoder().decode(decResult.data);
+			} else if (ext === 'svg') {
+				isAsset = true; subtype = 'svg';
+				contentToLoad = new TextDecoder().decode(decResult.data);
+			} else {
+				isAsset = true; subtype = 'image'; // Treat all raw unwrapped binary files as generic assets
+			}
+			labelText = `ENC (${ext.toUpperCase()})`;
+		}
+
+		if (isAsset && subtype !== 'svg') {
 			editorDiv.style.display = 'none'; overlay.style.display = 'flex'; 
-			document.getElementById('binary-info').innerText = filename + " (" + target.subtype + ")"; 
-			label.innerText = 'MEDIA';
+			document.getElementById('binary-info').innerText = isUnwrappedEnc ? "Encrypted Media (Click Run to view)" : filename + " (" + subtype + ")"; 
+			label.innerText = labelText !== 'ASSET' ? labelText : 'MEDIA';
 		} else {
 			overlay.style.display = 'none'; editorDiv.style.display = 'flex';
 			
-			// 1. Determine mode
-			const mode = target.type === 'asset' && target.subtype === 'svg' ? 'xml' : getModeForFile(filename);
+			const mode = (isAsset && subtype === 'svg') ? 'xml' : getModeForFile('dummy.' + ext);
 			
-			// 2. Create the document if it doesn't exist, using "Loading..." if we need to fetch
 			if (!editorDocs[filename]) {
-				let initialContent = target.content;
-				if (initialContent === null && target.ghUrl) initialContent = "Loading...";
-				editorDocs[filename] = new CodeMirror.Doc(initialContent || "", mode);
+				let initial = contentToLoad;
+				if (initial === null && target.ghUrl) initial = "Loading...";
+				editorDocs[filename] = new CodeMirror.Doc(initial || "", mode);
 			}
 			
-			// 3. Swap immediately so "Loading..." doesn't bleed into the previous file
 			cmEditor.swapDoc(editorDocs[filename]);
 			
-			// 4. Lazy load missing contents from GitHub
-			if (target.content === null && target.ghUrl) {
+			if (contentToLoad === null && target.ghUrl && !isUnwrappedEnc) {
 				try {
 					target.content = await fetchWithProgress(target.ghUrl);
 				} catch(e) {
-					target.content = target.subtype === 'svg' ? "<!-- Error loading SVG -->" : "Error loading: " + e.message;
+					target.content = subtype === 'svg' ? "<!-- Error loading SVG -->" : "Error loading: " + e.message;
 				}
-				// 5. Update the specific document object (even if the user switched tabs while fetching)
 				editorDocs[filename].setValue(target.content || "");
 			}
 			
-			if (target.type === 'asset' && target.subtype === 'svg') {
-				label.innerText = 'SVG';
-			} else {
-				label.innerText = target.type.toUpperCase() || 'TEXT';
-			}
+			label.innerText = (isAsset && subtype === 'svg') ? 'SVG' : labelText;
 		}
 		isSwitchingFile = false;
 	}
 
 	async function runPython(targetFile) {
-		const pyCode = `import http.server, json, sys, io, threading
-class ExecutionState:
-\tdef __init__(self):
-\t\tself.stdout_buf = io.StringIO()
-\t\tself.stderr_buf = io.StringIO()
-\t\tself.status = "idle"
-\t\tself.input_value = None
-\t\tself.input_event = threading.Event()
-\t\tself.lock = threading.Lock()
-state = ExecutionState()
-def custom_input(prompt=""):
-\tprint(prompt, end="", flush=True)
-\twith state.lock:
-\t\tstate.status = "waiting_input"
-\t\tstate.input_event.clear()
-\tstate.input_event.wait()
-\twith state.lock:
-\t\tval = state.input_value
-\t\tstate.status = "running"
-\treturn val
-def run_code(code):
-\tglobal state
-\tenv = {"input": custom_input}
-\tclass StreamCatcher(io.StringIO):
-\t\tdef __init__(self, target_buf):
-\t\t\tsuper().__init__()
-\t\t\tself.target_buf = target_buf
-\t\tdef write(self, s):
-\t\t\twith state.lock:
-\t\t\t\tself.target_buf.write(s)
-\t\tdef flush(self):
-\t\t\tpass
-\told_stdout, old_stderr = sys.stdout, sys.stderr
-\tsys.stdout = StreamCatcher(state.stdout_buf)
-\tsys.stderr = StreamCatcher(state.stderr_buf)
-\twith state.lock:
-\t\tstate.status = "running"
-\ttry:
-\t\texec(code, env)
-\texcept Exception as e:
-\t\tprint(e, file=sys.stderr)
-\tfinally:
-\t\tsys.stdout, sys.stderr = old_stdout, old_stderr
-\t\twith state.lock:
-\t\t\tstate.status = "finished"
-class Handler(http.server.SimpleHTTPRequestHandler):
-\tdef log_message(self, format, *args):
-\t\tpass
-\tdef do_OPTIONS(self):
-\t\tself.send_response(200)
-\t\tself.send_header('Access-Control-Allow-Origin', '*')
-\t\tself.send_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
-\t\tself.send_header('Access-Control-Allow-Headers', 'Content-Type')
-\t\tself.end_headers()
-\tdef send_json(self, data):
-\t\tself.send_response(200)
-\t\tself.send_header('Access-Control-Allow-Origin', '*')
-\t\tself.send_header('Content-Type', 'application/json')
-\t\tself.end_headers()
-\t\tself.wfile.write(json.dumps(data).encode())
-\tdef do_POST(self):
-\t\tlength = int(self.headers.get('Content-Length', 0))
-\t\tdata = json.loads(self.rfile.read(length)) if length > 0 else {}
-\t\tif self.path == '/execute':
-\t\t\tcode = data.get('code', '')
-\t\t\twith state.lock:
-\t\t\t\tstate.stdout_buf = io.StringIO()
-\t\t\t\tstate.stderr_buf = io.StringIO()
-\t\t\tthreading.Thread(target=run_code, args=(code,), daemon=True).start()
-\t\t\tself.send_json({"success": True})
-\t\telif self.path == '/input':
-\t\t\tval = data.get('input', '')
-\t\t\twith state.lock:
-\t\t\t\tstate.input_value = val
-\t\t\t\tstate.input_event.set()
-\t\t\tself.send_json({"success": True})
-\tdef do_GET(self):
-\t\tif self.path == '/poll':
-\t\t\twith state.lock:
-\t\t\t\tout = state.stdout_buf.getvalue()
-\t\t\t\terr = state.stderr_buf.getvalue()
-\t\t\t\tstate.stdout_buf.seek(0); state.stdout_buf.truncate(0)
-\t\t\t\tstate.stderr_buf.seek(0); state.stderr_buf.truncate(0)
-\t\t\t\tself.send_json({
-\t\t\t\t\t"status": state.status,
-\t\t\t\t\t"stdout": out,
-\t\t\t\t\t"stderr": err
-\t\t\t\t})
-print("DeepBlue Python Server running on http://127.0.0.1:8765...")
-http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
+		const pyCode = "import http.server, json, sys, io, threading\nclass ExecutionState:\n\tdef __init__(self): self.stdout_buf, self.stderr_buf, self.status, self.input_value, self.input_event, self.lock = io.StringIO(), io.StringIO(), 'idle', None, threading.Event(), threading.Lock()\nstate = ExecutionState()\ndef custom_input(prompt=''):\n\tprint(prompt, end='', flush=True)\n\twith state.lock: state.status, _ = 'waiting_input', state.input_event.clear()\n\tstate.input_event.wait()\n\twith state.lock: state.status = 'running'; return state.input_value\ndef run_code(code):\n\tglobal state; env = {'input': custom_input}\n\tclass StreamCatcher(io.StringIO):\n\t\tdef __init__(self, target_buf): super().__init__(); self.target_buf = target_buf\n\t\tdef write(self, s): \n\t\t\twith state.lock: self.target_buf.write(s)\n\t\tdef flush(self): pass\n\told_stdout, old_stderr = sys.stdout, sys.stderr; sys.stdout, sys.stderr = StreamCatcher(state.stdout_buf), StreamCatcher(state.stderr_buf)\n\twith state.lock: state.status = 'running'\n\ttry: exec(code, env)\n\texcept Exception as e: print(e, file=sys.stderr)\n\tfinally:\n\t\tsys.stdout, sys.stderr = old_stdout, old_stderr\n\t\twith state.lock: state.status = 'finished'\nclass Handler(http.server.SimpleHTTPRequestHandler):\n\tdef log_message(self, format, *args): pass\n\tdef do_OPTIONS(self): self.send_response(200); self.send_header('Access-Control-Allow-Origin', '*'); self.send_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS'); self.send_header('Access-Control-Allow-Headers', 'Content-Type'); self.end_headers()\n\tdef send_json(self, data): self.send_response(200); self.send_header('Access-Control-Allow-Origin', '*'); self.send_header('Content-Type', 'application/json'); self.end_headers(); self.wfile.write(json.dumps(data).encode())\n\tdef do_POST(self):\n\t\tlength = int(self.headers.get('Content-Length', 0)); data = json.loads(self.rfile.read(length)) if length > 0 else {}\n\t\tif self.path == '/execute':\n\t\t\twith state.lock: state.stdout_buf, state.stderr_buf = io.StringIO(), io.StringIO()\n\t\t\tthreading.Thread(target=run_code, args=(data.get('code', ''),), daemon=True).start()\n\t\telif self.path == '/input':\n\t\t\twith state.lock: state.input_value = data.get('input', ''); state.input_event.set()\n\t\tself.send_json({'success': True})\n\tdef do_GET(self):\n\t\tif self.path == '/poll':\n\t\t\twith state.lock:\n\t\t\t\tout, err = state.stdout_buf.getvalue(), state.stderr_buf.getvalue(); state.stdout_buf.seek(0); state.stdout_buf.truncate(0); state.stderr_buf.seek(0); state.stderr_buf.truncate(0)\n\t\t\t\tself.send_json({'status': state.status, 'stdout': out, 'stderr': err})\nprint('DeepBlue Python Server running...'); http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()";
 
 		let codeContent = fileSystem[targetFile].content;
 		if (codeContent === null && fileSystem[targetFile].ghUrl) {
@@ -2129,7 +2199,7 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 
 	async function runCode() {
 		if (!activeFile) { await runWeb(); return; }
-		syncDocsToContent();
+		await syncDocsToContent();
 		
 		const btn = document.querySelector('.btn'); btn.style.transform = 'scale(0.95)'; setTimeout(() => btn.style.transform = 'translateY(0)', 150);
 		
@@ -2139,9 +2209,13 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 		const remainingParams = urlParams.toString();
 		const queryParamsToPass = remainingParams ? '?' + remainingParams : '';
 
-		if (fileSystem[activeFile]?.type === 'asset') { 
+		const fObj = fileSystem[activeFile];
+		const isEnc = activeFile.endsWith('.enc');
+		const trueExt = isEnc ? (fObj.originalExt || '.txt').toLowerCase() : '.' + activeFile.split('.').pop().toLowerCase();
+		
+		if (fObj?.type === 'asset' || (isEnc && !['.html','.css','.js','.jsx','.json','.md','.txt','.py'].includes(trueExt))) {
 			renderAssetPreview(activeFile); 
-		} else if (activeFile.endsWith('.py')) {
+		} else if (trueExt === '.py') {
 			await runPython(activeFile);
 		} else {
 			await runWeb(null, queryParamsToPass);
@@ -2150,7 +2224,7 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 
 	async function runWeb(overrideFile = null, queryParams = '') {
 		setExecLoading(true);
-		syncDocsToContent();
+		await syncDocsToContent();
 		try {
 			let targetFile = overrideFile || activeFile;
 
@@ -2314,11 +2388,38 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 		}
 	}
 
-	function renderAssetPreview(filename) { 
+	async function renderAssetPreview(filename) { 
 		createTab(filename, 'web'); 
 		const iframe = document.getElementById(`iframe-${filename}`); 
 		if (!iframe) return; 
 		const asset = fileSystem[filename]; 
+
+		if (filename.endsWith('.enc')) {
+			const password = unlockedKeys[filename];
+			if (!password) return;
+			const cryptoLib = await loadCryptoLib();
+			const encryptedBytes = base64ToBytes(asset.content);
+			const strat = asset.strategy || 'double_pass';
+			let decResult;
+			if (strat === 'double_pass') decResult = await cryptoLib.decryptFile(encryptedBytes, password);
+			else if (strat === 'sep_pass') decResult = await cryptoLib.decryptSEP(encryptedBytes, password);
+			else if (strat === 'aes_pass') decResult = { data: await cryptoLib.decryptAES(encryptedBytes, password), ext: asset.originalExt || '.bin' };
+			
+			let mime = 'application/octet-stream';
+			const ext = decResult.ext.toLowerCase().replace('.', '');
+			if (ext === 'svg') mime = 'image/svg+xml';
+			else if (ext === 'png') mime = 'image/png';
+			else if (ext === 'jpg' || ext === 'jpeg') mime = 'image/jpeg';
+			else if (ext === 'gif') mime = 'image/gif';
+			else if (ext === 'webp') mime = 'image/webp';
+			else if (ext === 'pdf') mime = 'application/pdf';
+			else if (['mp3','wav','ogg'].includes(ext)) mime = 'audio/mpeg';
+			else if (['mp4','webm'].includes(ext)) mime = 'video/mp4';
+
+			const blob = new Blob([decResult.data], { type: mime });
+			iframe.src = URL.createObjectURL(blob);
+			return;
+		}
 
 		// Assign the media blob/URL directly to the iframe source.
 		// The browser's native text/image/video viewer will render it natively!
@@ -2350,7 +2451,7 @@ http.server.HTTPServer(('127.0.0.1', 8765), Handler).serve_forever()`;
 			else { await customAlert("Open an HTML file to share.", "Notice"); return; }
 		}
 		
-		syncDocsToContent();
+		await syncDocsToContent();
 
 		if (!isVirtualJSX) {
 			htmlContent = fileSystem[targetFile].content;
@@ -2677,7 +2778,7 @@ window.onload=function(){
 	}
 
 	async function saveProject(isAutoSave = false) { 
-		syncDocsToContent();
+		await syncDocsToContent();
 		const btn = document.getElementById('save-btn'); 
 		const originalText = "Save"; 
 		if (!isAutoSave) btn.innerText = "Saving..."; 
@@ -3014,7 +3115,7 @@ window.onload=function(){
 	}
 
 	async function executeGithubCommit() {
-		syncDocsToContent();
+		await syncDocsToContent();
 		const selectedFolder = document.getElementById('commit-repo-select').value;
 		const repoConfig = githubRepos[selectedFolder];
 		
@@ -3166,31 +3267,42 @@ window.onload=function(){
 		if (!file) return; 
 		const name = targetFolderForAdd ? `${targetFolderForAdd}/${file.name}` : file.name; 
 		if (fileSystem[name]) { const ok = await customConfirm(`Overwrite '${name}'?`, "File Exists"); if (!ok) { event.target.value = ''; return;} } 
-		const reader = new FileReader(); 
-		const isMedia = /\.(png|jpe?g|gif|webp|pdf|mp3|mp4|wav|webm|ogg)$/i.test(name); 
-		const isSVG = /\.svg$/i.test(name);
 		
-		if (isMedia && !isSVG) reader.readAsDataURL(file);
-		else reader.readAsText(file);
+		const ext = name.split('.').pop().toLowerCase();
+		const textExts = ['html','css','js','jsx','json','md','txt','py','csv','xml','ini','env','sh','bat','yaml','yml','ts','tsx'];
+		const isText = textExts.includes(ext);
+		const isSVG = ext === 'svg';
+		
+		const reader = new FileReader(); 
+		if (isText || isSVG) reader.readAsText(file);
+		else reader.readAsDataURL(file);
 		
 		reader.onload = async (e) => {
 			const content = e.target.result;
-			if (isMedia || isSVG) {
-				if (isMedia && !isSVG) {
-					let subtype = 'image';
-					if (/\.(mp3|wav|ogg)$/i.test(name)) subtype = 'audio';
-					else if (/\.(mp4|webm)$/i.test(name)) subtype = 'video';
-					else if (/\.pdf$/i.test(name)) subtype = 'pdf';
-					fileSystem[name] = { type: 'asset', subtype: subtype, src: content, content: null, modified: false };
-				} else if (isSVG) {
-					fileSystem[name] = { type: 'asset', subtype: 'svg', content: content, modified: false };
+			if (isText || isSVG) {
+				if (isSVG) {
+					fileSystem[name] = { type: 'asset', subtype: 'svg', content: content, modified: true };
+				} else {
+					let type = 'text';
+					if (ext === 'html') type = 'html';
+					else if (ext === 'css') type = 'css';
+					else if (ext === 'js' || ext === 'jsx') type = 'js';
+					else if (ext === 'py') type = 'python';
+					fileSystem[name] = { type, content, modified: true };
 				}
 			} else {
-				let type = 'html';
-				if (name.endsWith('.js') || name.endsWith('.jsx')) type = 'js';
-				else if (name.endsWith('.css')) type = 'css';
-				else if (name.endsWith('.json') || name.endsWith('.md') || name.endsWith('.txt') || name.endsWith('.py')) type = 'text';
-				fileSystem[name] = { type, content, modified: false };
+				if (ext === 'enc') {
+					// Extract pure base64 from the native generic data URL
+					const b64 = content.split(',')[1];
+					fileSystem[name] = { type: 'enc', content: b64, modified: true, strategy: 'double_pass', originalExt: '.txt' }; 
+				} else {
+					let subtype = 'image';
+					if (['mp3','wav','ogg'].includes(ext)) subtype = 'audio';
+					else if (['mp4','webm'].includes(ext)) subtype = 'video';
+					else if (ext === 'pdf') subtype = 'pdf';
+					else subtype = 'binary';
+					fileSystem[name] = { type: 'asset', subtype: subtype, src: content, content: null, modified: true };
+				}
 			}
 			renderSidebar();
 			unsavedChanges = true;
@@ -3220,29 +3332,40 @@ window.onload=function(){
 			}
 			
 			promises.push(new Promise(resolve => {
+				const ext = path.split('.').pop().toLowerCase();
+				const textExts = ['html','css','js','jsx','json','md','txt','py','csv','xml','ini','env','sh','bat','yaml','yml','ts','tsx'];
+				const isText = textExts.includes(ext);
+				const isSVG = ext === 'svg';
+
 				const reader = new FileReader();
-				const isMedia = /\.(png|jpe?g|gif|webp|pdf|mp3|mp4|wav|webm|ogg)$/i.test(path);
-				const isSVG = /\.svg$/i.test(path);
-				
-				if (isMedia && !isSVG) reader.readAsDataURL(file);
-				else reader.readAsText(file);
+				if (isText || isSVG) reader.readAsText(file);
+				else reader.readAsDataURL(file);
 				
 				reader.onload = (e) => {
 					const content = e.target.result;
-					if (isMedia || isSVG) {
-						if (isMedia && !isSVG) {
-							let subtype = 'image';
-							if (/\.(mp3|wav|ogg)$/i.test(path)) subtype = 'audio';
-							else if (/\.(mp4|webm)$/i.test(path)) subtype = 'video';
-							else if (/\.pdf$/i.test(path)) subtype = 'pdf';
-							fileSystem[path] = { type: 'asset', subtype: subtype, src: content, content: null, modified: false };
-						} else if (isSVG) fileSystem[path] = { type: 'asset', subtype: 'svg', content: content, modified: false };
+					if (isText || isSVG) {
+						if (isSVG) {
+							fileSystem[path] = { type: 'asset', subtype: 'svg', content: content, modified: true };
+						} else {
+							let type = 'text';
+							if (ext === 'html') type = 'html';
+							else if (ext === 'css') type = 'css';
+							else if (ext === 'js' || ext === 'jsx') type = 'js';
+							else if (ext === 'py') type = 'python';
+							fileSystem[path] = { type, content, modified: true };
+						}
 					} else {
-						let type = 'html';
-						if (path.endsWith('.js') || path.endsWith('.jsx')) type = 'js';
-						else if (path.endsWith('.css')) type = 'css';
-						else if (path.endsWith('.json') || path.endsWith('.md') || path.endsWith('.txt') || path.endsWith('.py')) type = 'text';
-						fileSystem[path] = { type, content, modified: false };
+						if (ext === 'enc') {
+							const b64 = content.split(',')[1];
+							fileSystem[path] = { type: 'enc', content: b64, modified: true, strategy: 'double_pass', originalExt: '.txt' }; 
+						} else {
+							let subtype = 'image';
+							if (['mp3','wav','ogg'].includes(ext)) subtype = 'audio';
+							else if (['mp4','webm'].includes(ext)) subtype = 'video';
+							else if (ext === 'pdf') subtype = 'pdf';
+							else subtype = 'binary';
+							fileSystem[path] = { type: 'asset', subtype: subtype, src: content, content: null, modified: true };
+						}
 					}
 					resolve();
 				};
@@ -3492,14 +3615,251 @@ window.onload=function(){
 		}
 	}
 
+	// --- CRYPTO LOGIC & CONTEXT MENU ---
+	let cryptoLibCache = null;
+	async function loadCryptoLib() {
+		if (cryptoLibCache) return cryptoLibCache;
+		try {
+			cryptoLibCache = await import('https://proelectriccoder.github.io/Projects/SEP/sep-crypto.js');
+		} catch(e) {
+			console.error("Could not load remote crypto, falling back to relative...", e);
+			cryptoLibCache = await import('../SEP/sep-crypto.js');
+		}
+		return cryptoLibCache;
+	}
+
+	let currentCryptoMode = null;
+	let currentCryptoTarget = null;
+	let currentCryptoType = null;
+
+	function openCryptoModal(action, target, type) {
+		currentCryptoMode = action;
+		currentCryptoTarget = target;
+		currentCryptoType = type;
+		
+		document.getElementById('crypto-title').innerText = action === 'encrypt' ? `Encrypt ${type}` : `Decrypt ${type}`;
+		document.getElementById('crypto-confirm-btn').innerText = action === 'encrypt' ? 'Encrypt' : 'Decrypt';
+		document.getElementById('crypto-pass').value = '';
+		
+		const overlay = document.getElementById('crypto-modal-overlay');
+		overlay.style.display = 'flex';
+	}
+	function closeCryptoModal() {
+		document.getElementById('crypto-modal-overlay').style.display = 'none';
+	}
+
+	function getFileBytes(path) {
+		const fObj = fileSystem[path];
+		if (fObj.type === 'asset' && fObj.subtype !== 'svg') {
+			const dataStr = fObj.src.split(',')[1];
+			return base64ToBytes(dataStr);
+		} else {
+			const content = editorDocs[path] ? editorDocs[path].getValue() : fObj.content;
+			return new TextEncoder().encode(content || '');
+		}
+	}
+
+	async function folderToZipBytes(folderPath) {
+		await syncDocsToContent();
+		const zip = new JSZip();
+		for (const [path, fObj] of Object.entries(fileSystem)) {
+			if (path.startsWith(folderPath + '/')) {
+				const relPath = path.substring(folderPath.length + 1);
+				if (fObj.type === 'asset' && fObj.subtype !== 'svg') {
+					const dataStr = fObj.src.split(',')[1];
+					zip.file(relPath, dataStr, {base64: true});
+				} else {
+					zip.file(relPath, fObj.content || '');
+				}
+			}
+		}
+		return await zip.generateAsync({ type: "uint8array" });
+	}
+
+	function saveBytesToVirtualFile(fullPath, bytes, ext) {
+		if (['png','jpg','jpeg','gif','webp','mp3','wav','ogg','mp4','webm','pdf'].includes(ext)) {
+			let subtype = 'image';
+			if (['mp3','wav','ogg'].includes(ext)) subtype = 'audio';
+			else if (['mp4','webm'].includes(ext)) subtype = 'video';
+			else if (ext === 'pdf') subtype = 'pdf';
+			
+			const b64 = bytesToBase64Safe(bytes);
+			let mime = 'application/octet-stream';
+			if (ext === 'png') mime = 'image/png';
+			if (ext === 'jpg' || ext === 'jpeg') mime = 'image/jpeg';
+			if (ext === 'gif') mime = 'image/gif';
+			if (ext === 'webp') mime = 'image/webp';
+			if (ext === 'mp3') mime = 'audio/mpeg';
+			if (ext === 'wav') mime = 'audio/wav';
+			if (ext === 'mp4') mime = 'video/mp4';
+			
+			fileSystem[fullPath] = { type: 'asset', subtype: subtype, src: `data:${mime};base64,${b64}`, content: null, modified: true };
+		} else if (ext === 'svg') {
+			const text = new TextDecoder().decode(bytes);
+			fileSystem[fullPath] = { type: 'asset', subtype: 'svg', content: text, modified: true };
+		} else {
+			const text = new TextDecoder().decode(bytes);
+			let type = 'html';
+			if (ext === 'js' || ext === 'jsx') type = 'js';
+			else if (ext === 'css') type = 'css';
+			else if (ext === 'json' || ext === 'md' || ext === 'txt' || ext === 'py') type = 'text';
+			fileSystem[fullPath] = { type: type, content: text, modified: true };
+		}
+	}
+
+	async function extractZipToFolder(zipBytes, folderPath) {
+		const zip = await JSZip.loadAsync(zipBytes);
+		if (!explicitFolders.includes(folderPath)) explicitFolders.push(folderPath);
+		
+		for (const relativePath of Object.keys(zip.files)) {
+			const zipEntry = zip.files[relativePath];
+			if (!zipEntry.dir) {
+				const fileData = await zipEntry.async("uint8array");
+				const ext = relativePath.split('.').pop().toLowerCase();
+				const fullPath = `${folderPath}/${relativePath}`;
+				saveBytesToVirtualFile(fullPath, fileData, ext);
+			} else {
+				const subFolder = `${folderPath}/${relativePath}`.replace(/\/$/, '');
+				if (!explicitFolders.includes(subFolder)) explicitFolders.push(subFolder);
+			}
+		}
+	}
+
+	function deleteFileDirect(name) {
+		if (fileSystem[name]) { delete fileSystem[name]; deletedFiles.push(name); } 
+		if (editorDocs[name]) { delete editorDocs[name]; }
+		const idx = openEditorTabs.indexOf(name);
+		if (idx > -1) openEditorTabs.splice(idx, 1);
+		if (activeFile === name) activeFile = null;
+	}
+
+	function deleteFolderDirect(folderPath) {
+		explicitFolders = explicitFolders.filter(f => f !== folderPath && !f.startsWith(folderPath + '/'));
+		Object.keys(fileSystem).forEach(p => {
+			if (p.startsWith(folderPath + '/')) { delete fileSystem[p]; deletedFiles.push(p); }
+		});
+		Object.keys(editorDocs).forEach(p => {
+			if (p.startsWith(folderPath + '/')) delete editorDocs[p];
+		});
+		openEditorTabs = openEditorTabs.filter(p => !p.startsWith(folderPath + '/'));
+	}
+
+	async function executeCrypto() {
+		const password = document.getElementById('crypto-pass').value;
+		const strategy = document.getElementById('crypto-strategy').value;
+		if(!password) { customAlert("Password is required."); return; }
+		
+		const btn = document.getElementById('crypto-confirm-btn');
+		btn.disabled = true; btn.innerText = "Processing...";
+		
+		try {
+			const cryptoLib = await loadCryptoLib();
+			
+			if (currentCryptoMode === 'encrypt') {
+				let bytes, ext;
+				if (currentCryptoType === 'folder') {
+					bytes = await folderToZipBytes(currentCryptoTarget);
+					ext = '.zip';
+				} else {
+					bytes = getFileBytes(currentCryptoTarget);
+					ext = '.' + currentCryptoTarget.split('.').pop();
+				}
+				
+				let encBytes;
+				if (strategy === 'double_pass') encBytes = await cryptoLib.encryptFile(bytes, ext, password);
+				else if (strategy === 'sep_pass') encBytes = await cryptoLib.encryptSEP(bytes, ext, password);
+				else if (strategy === 'aes_pass') encBytes = await cryptoLib.encryptAES(bytes, password);
+				
+				const b64 = bytesToBase64Safe(encBytes);
+				const newPath = currentCryptoTarget + '.enc';
+				
+				if (currentCryptoType === 'folder') deleteFolderDirect(currentCryptoTarget);
+				else deleteFileDirect(currentCryptoTarget);
+				
+				fileSystem[newPath] = { type: 'enc', content: b64, modified: true, strategy: strategy, originalExt: ext };
+				
+			} else {
+				// Decrypt
+				const b64 = fileSystem[currentCryptoTarget].content;
+				const encBytes = base64ToBytes(b64);
+				const savedStrat = fileSystem[currentCryptoTarget].strategy || strategy;
+				const savedExt = fileSystem[currentCryptoTarget].originalExt || '.txt';
+				
+				let decResult;
+				if (savedStrat === 'double_pass') decResult = await cryptoLib.decryptFile(encBytes, password);
+				else if (savedStrat === 'sep_pass') decResult = await cryptoLib.decryptSEP(encBytes, password);
+				else if (savedStrat === 'aes_pass') {
+					const data = await cryptoLib.decryptAES(encBytes, password);
+					decResult = { data: data, ext: savedExt };
+				}
+				
+				const baseName = currentCryptoTarget.replace(/\.enc$/i, '');
+				
+				if (decResult.ext === '.zip') {
+					await extractZipToFolder(decResult.data, baseName);
+				} else {
+					const finalPath = baseName + decResult.ext;
+					saveBytesToVirtualFile(finalPath, decResult.data, decResult.ext.replace('.',''));
+				}
+				deleteFileDirect(currentCryptoTarget);
+			}
+			
+			closeCryptoModal();
+			renderSidebar();
+			renderEditorTabs();
+			unsavedChanges = true;
+			
+		} catch(err) {
+			console.error(err);
+			customAlert("Crypto operation failed: " + err.message);
+		}
+		
+		btn.disabled = false; btn.innerText = "Confirm";
+	}
+
+	// Setup Global Context Menu Interception
+	let ctxTarget = null;
+	let ctxType = null;
+	document.addEventListener('contextmenu', (e) => {
+		const tab = e.target.closest('.tab');
+		const folder = e.target.closest('.folder-header');
+		if (tab || folder) {
+			e.preventDefault();
+			ctxTarget = (tab || folder).getAttribute('data-path');
+			ctxType = tab ? 'file' : 'folder';
+			
+			const menu = document.getElementById('ctx-menu');
+			menu.classList.add('active');
+			menu.style.left = `${e.pageX}px`;
+			menu.style.top = `${e.pageY}px`;
+
+			const isEnc = ctxTarget.endsWith('.enc');
+			document.getElementById('ctx-encrypt').style.display = isEnc ? 'none' : 'flex';
+			document.getElementById('ctx-decrypt').style.display = isEnc ? 'flex' : 'none';
+			
+			const isRoot = ctxTarget === 'DeepBlue' || importedRepoFolders.includes(ctxTarget);
+			document.getElementById('ctx-rename').style.display = isRoot ? 'none' : 'flex';
+			document.getElementById('ctx-delete').style.display = isRoot ? 'none' : 'flex';
+			document.querySelector('.ctx-sep').style.display = isRoot ? 'none' : 'block';
+		}
+	});
+	document.addEventListener('click', (e) => {
+		if (!e.target.closest('#ctx-menu')) {
+			const m = document.getElementById('ctx-menu');
+			if(m) m.classList.remove('active');
+		}
+	});
+
 	document.addEventListener('keydown', (e) => { 
 		if (e.key === 'Escape') { 
 			const container = document.getElementById('output-container'); 
 			const modal = document.getElementById('modal-overlay'); 
 			const commitModal = document.getElementById('commit-modal-overlay');
+			const cryptoModal = document.getElementById('crypto-modal-overlay');
 			if (container.classList.contains('expanded')) toggleFullscreen(); 
 			if (modal.style.display === 'flex') closeAddMenu(); 
 			if (commitModal && commitModal.style.display === 'flex') closeCommitModal();
+			if (cryptoModal && cryptoModal.style.display === 'flex') closeCryptoModal();
 		} 
 	});
 	window.addEventListener('beforeunload', (event) => { if (unsavedChanges) { event.preventDefault(); event.returnValue = ''; } });
