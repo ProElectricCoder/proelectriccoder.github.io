@@ -91,8 +91,8 @@ export class TourManager {
             .db-tour-spotlight {
                 position: absolute;
                 border-radius: var(--radius-md, 8px);
-                /* The massive box-shadow creates the dark overlay with a transparent hole */
-                box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75), 0 0 15px 2px rgba(0, 229, 255, 0.4);
+                /* Using 100vmax ensures it covers the screen without breaking GPU texture limits */
+                box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.75), 0 0 15px 2px rgba(0, 229, 255, 0.4);
                 transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
                 pointer-events: none;
                 z-index: 9999;
