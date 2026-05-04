@@ -18,8 +18,8 @@
 	<meta property="og:url" content="https://proelectriccoder.github.io/Projects/IDE/">
 	<meta property="og:image" content="https://proelectriccoder.github.io/Preview.png">
 	<meta property="og:site_name" content="ProElectricCoder">
-	
-	<meta name="twitter:card" content="summary_large_image">
+    
+    <meta name="twitter:card" content="summary_large_image">
 	<meta name="twitter:title" content="DeepBlue IDE - ProElectricCoder">
 	<meta name="twitter:description" content="A powerful, completely web-based IDE featuring seamless GitHub integration, AI assistance, in-browser Python execution, and zero-knowledge encryption.">
 	<meta name="twitter:url" content="https://proelectriccoder.github.io/Projects/IDE/">
@@ -65,11 +65,20 @@
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/matchbrackets.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/searchcursor.min.js"></script>
 	
+	<!-- CodeMirror Autocomplete & Tag Closing Addons -->
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/show-hint.min.css">
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/show-hint.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/javascript-hint.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/html-hint.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/css-hint.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/anyword-hint.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closetag.min.js"></script>
+
 	<!-- Load Lucide Icons -->
 	<script src="https://unpkg.com/lucide@latest"></script>
-	
-	<script type="module">
-		import tour from 'https://proelectriccoder.github.io/Projects/IDE/DeepBlueTour.js';
+    
+    <script type="module">
+		import tour from './DeepBlueTour.js';
 		tour.init();
 	</script>
 
@@ -439,6 +448,27 @@
 		.CodeMirror-scrollbar-filler, 
 		.CodeMirror-gutter-filler {
 			background-color: #000000 !important;
+		}
+
+		/* --- Autocomplete Dropdown Styles --- */
+		.CodeMirror-hints {
+			background-color: var(--bg-panel);
+			border: 1px solid var(--border);
+			box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+			border-radius: var(--radius-sm);
+			color: var(--text-main);
+			font-family: 'Consolas', 'Monaco', monospace;
+			font-size: 14px;
+			padding: 4px 0;
+			z-index: 1000;
+		}
+		.CodeMirror-hint {
+			padding: 2px 10px;
+			color: var(--text-main);
+		}
+		.CodeMirror-hint-active {
+			background-color: var(--accent);
+			color: #000;
 		}
 
 		.editor-wrapper {
@@ -1464,6 +1494,7 @@
 			tabSize: 4,
 			lineWrapping: false,
 			autoCloseBrackets: true,
+			autoCloseTags: true,
 			matchBrackets: true,
 			foldGutter: true,
 			gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]
@@ -1515,10 +1546,21 @@
 			document.getElementById('cursor-pos').innerText = `Ln ${pos.line + 1}, Col ${pos.ch + 1}`;
 		});
 
-		// Add CodeMirror native keybindings for Search
+		// Add CodeMirror native keybindings for Search and Autocomplete
 		cmEditor.setOption("extraKeys", {
+			"Ctrl-Space": "autocomplete",
 			"Ctrl-F": toggleSearch,
 			"Cmd-F": toggleSearch
+		});
+
+		// Auto-show autocomplete hints as you type
+		cmEditor.on("inputRead", function(editor, change) {
+			if (isSwitchingFile || editor.state.completionActive) return;
+			const text = change.text[0];
+			// Trigger on alphabet, numbers, and dot (for object properties/methods)
+			if (text && /[\w\.]/.test(text)) {
+				CodeMirror.commands.autocomplete(editor, null, { completeSingle: false });
+			}
 		});
 
 		// Init Features
@@ -2318,7 +2360,8 @@
 			// 3. JSX Virtual Environment Shell
 			if (ext === 'jsx') {
 				isVirtualJSX = true;
-				htmlContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>body { margin: 0; background: #0a0e14; color: #fff; font-family: system-ui, sans-serif; }</style><script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin><\/script><script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin><\/script></head><body><div id="react-root"></div><script src="${targetFile}"><\/script><script>console.warn("JSX isn’t executed directly, it’s transpiled and rendered in an HTML context; this preview shows the compiled output, not the raw JSX.")<\/script></body></html>`;
+				// Upgraded to type="module" so native ES imports work out-of-the-box in the JSX shell
+				htmlContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>body { margin: 0; background: #0a0e14; color: #fff; font-family: system-ui, sans-serif; }</style><script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin><\/script><script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin><\/script></head><body><div id="react-root"></div><script type="module" src="${targetFile}"><\/script><script>console.warn("JSX isn’t executed directly, it’s transpiled and rendered in an HTML context; this preview shows the compiled output, not the raw JSX.")<\/script></body></html>`;
 			}
 			// 4. If it's code (JS, CSS, etc.) that requires an HTML shell to execute, fallback to index.html
 			else if (!fileSystem[targetFile] || fileSystem[targetFile].type !== 'html') {
@@ -2348,25 +2391,69 @@
 				}
 			}
 
-			const blobMap = {}; const createBlob = (content, mime) => URL.createObjectURL(new Blob([content], { type: mime }));
+			// --- RECURSIVE DEPENDENCY RESOLVER & BLOB GENERATOR ---
+			const blobMap = {}; 
+			const visiting = new Set();
 			
-			for (const fname of Object.keys(fileSystem)) {
-				const fObj = fileSystem[fname];
-				if (!isVirtualJSX && fname === targetFile) continue;
-				if (fObj.content === null && fObj.type !== 'asset') continue;
-				
+			function getBlobUrl(filePath) {
+				if (blobMap[filePath]) return blobMap[filePath];
+				if (visiting.has(filePath)) {
+					console.warn('Circular dependency detected:', filePath);
+					return filePath; 
+				}
+
+				let fObj = fileSystem[filePath];
+				if (!fObj) return null;
+				if (fObj.content === null && fObj.type !== 'asset') return null;
+
+				visiting.add(filePath);
+
+				let url = null;
 				if (fObj.type === 'asset') {
-					if (fObj.subtype === 'svg' && fObj.content === null) continue;
-					blobMap[fname] = fObj.subtype === 'svg' ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(fObj.content) : fObj.src;
-				} else if (fObj.type === 'css' || fObj.type === 'js' || fObj.type === 'react') {
-					let mime = (fname.endsWith('.js') || fname.endsWith('.jsx')) ? 'application/javascript' : 'text/css';
-					let fContent = fObj.content;
-					if (fname.endsWith('.jsx') && window.Babel) {
+					if (fObj.subtype === 'svg' && fObj.content === null) { /* skip */ }
+					else if (fObj.subtype === 'svg') url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(fObj.content);
+					else url = fObj.src;
+				} else if (fObj.type === 'css' || fObj.type === 'js' || fObj.type === 'react' || filePath.endsWith('.enc')) {
+					let fContent = editorDocs[filePath] ? editorDocs[filePath].getValue() : fObj.content;
+					let trueExt = filePath.endsWith('.enc') ? (fObj.originalExt || '.txt').toLowerCase() : '.' + filePath.split('.').pop().toLowerCase();
+					
+					let mime = (trueExt === '.js' || trueExt === '.jsx') ? 'application/javascript' : 'text/css';
+					
+					if (trueExt === '.jsx' && window.Babel && fContent) {
 						try { fContent = window.Babel.transform(fContent, { presets: ['react'] }).code; }
 						catch(e) { console.error('JSX Error:', e); }
 					}
-					blobMap[fname] = createBlob(fContent, mime);
+
+					// Intercept and Rewrite ES6 Imports dynamically
+					if ((trueExt === '.js' || trueExt === '.jsx') && fContent) {
+						fContent = fContent.replace(/(import\s+.*?from\s+|import\s+|export\s+.*?from\s+|export\s+\*\s+from\s+|import\s*\(\s*)(["'])(.*?)\2/g, (match, prefix, quote, path) => {
+							if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:')) return match;
+							let resolved = resolveVirtualPath(filePath, path);
+							
+							// Auto-append .js or .jsx if omitted (standard React/ES6 developer behavior)
+							if (!fileSystem[resolved]) {
+								if (fileSystem[resolved + '.js']) resolved += '.js';
+								else if (fileSystem[resolved + '.jsx']) resolved += '.jsx';
+							}
+							
+							let depBlobUrl = getBlobUrl(resolved);
+							if (depBlobUrl) return `${prefix}${quote}${depBlobUrl}${quote}`;
+							return match;
+						});
+					}
+
+					url = URL.createObjectURL(new Blob([fContent], { type: mime }));
 				}
+
+				visiting.delete(filePath);
+				if (url) blobMap[filePath] = url;
+				return url;
+			}
+
+			// Initialize the dependency graph for all files
+			for (const fname of Object.keys(fileSystem)) {
+				if (!isVirtualJSX && fname === targetFile) continue;
+				getBlobUrl(fname);
 			}
 
 			const consoleScript = `<script>(function(){function send(type,args){const msg=args.map(a=>{if(typeof a==='object'){try{return JSON.stringify(a);}catch(e){return String(a);}}return String(a);}).join(' ');window.parent.postMessage({type:'console',level:type,msg:msg},'*');}const methods=['log','warn','error','info'];methods.forEach(m=>{const original=console[m];console[m]=(...args)=>{original.apply(console,args);send(m,args);};});console.hack=async function(target){try{const res=await fetch('https://get.geojs.io/v1/ip/geo.json');const data=await res.json();console.log("IP Address to hack: "+data.ip);console.log("(It's yours tho 😏)");}catch(e){console.log("IP Address to hack: 127.0.0.1");console.log("(It's yours tho 😏)");}};console.destroy=async function(target){console.log("Acquiring target coordinates...");try{const res=await fetch('https://get.geojs.io/v1/ip/geo.json');const data=await res.json();console.warn('Target locked: '+data.ip);console.error('Airstriking '+(data.city||'Unknown')+', '+(data.region||'Unknown')+' instead of '+target+'... 🚀💥');}catch(e){console.error("Satellite uplink failed. Airstrike aborted. (API Blocked)");}};window.onerror=function(msg,url,line){send('error',["Runtime Error: "+msg+" (Line "+line+")"]);};window.addEventListener('unhandledrejection',function(event){send('error',["Unhandled Promise Rejection: "+(event.reason?event.reason.toString():'Unknown')]);});})();<\/script>`;
@@ -2408,6 +2495,25 @@
 				if (fileObj && fileObj.ghUrl) return `${attr}="${fileObj.ghUrl}"`;
 
 				return match; 
+			});
+
+			// Fix Inline Scripts containing native imports!
+			processedHTML = processedHTML.replace(/(<script[^>]*>)([\s\S]*?)(<\/script>)/gi, (match, openTag, scriptContent, closeTag) => {
+				if (openTag.includes('src=')) return match; // Handled by src replacement
+				
+				let newContent = scriptContent.replace(/(import\s+.*?from\s+|import\s+|export\s+.*?from\s+|export\s+\*\s+from\s+|import\s*\(\s*)(["'])(.*?)\2/g, (m, prefix, quote, path) => {
+					if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:')) return m;
+					let resolved = resolveVirtualPath(targetFile, path);
+					if (!fileSystem[resolved]) {
+						if (fileSystem[resolved + '.js']) resolved += '.js';
+						else if (fileSystem[resolved + '.jsx']) resolved += '.jsx';
+					}
+					let depBlobUrl = getBlobUrl(resolved);
+					if (depBlobUrl) return `${prefix}${quote}${depBlobUrl}${quote}`;
+					return m;
+				});
+				
+				return `${openTag}${newContent}${closeTag}`;
 			});
 
 			// Route native location.search calls to our mock property
@@ -3218,16 +3324,32 @@ window.onload=function(){
 			const latestCommitSha = refData.object.sha;
 			console.log("[GitHub Commit] Latest SHA:", latestCommitSha);
 			
-			// 2. Create Tree (Text Blobs & SVGs only for simplicity)
+			// 2. Create Tree
 			const treeObj = [];
 			
 			for (const [path, file] of Object.entries(fileSystem)) {
 				if (!path.startsWith(repoFolderName + '/')) continue;
 				const repoPath = path.substring(repoFolderName.length + 1);
 				
-				if (file.type !== 'asset' || file.subtype === 'svg') {
-					if ((file.modified || file.modified === undefined) && file.content !== null) { 
-						treeObj.push({ path: repoPath, mode: '100644', type: 'blob', content: String(file.content) });
+				if (file.modified || file.modified === undefined) {
+					if (file.type !== 'asset' || file.subtype === 'svg') {
+						if (file.content !== null) { 
+							treeObj.push({ path: repoPath, mode: '100644', type: 'blob', content: String(file.content) });
+						}
+					} else {
+						// Handle Binary Files via GitHub Blobs API
+						if (file.src) {
+							const b64Data = file.src.split(',')[1];
+							if (b64Data) {
+								console.log(`[GitHub Commit] Uploading blob for ${repoPath}...`);
+								btn.innerText = `Uploading binary...`;
+								const blobRes = await ghApi(`/repos/${currentGithubRepo}/git/blobs`, 'POST', {
+									content: b64Data,
+									encoding: "base64"
+								});
+								treeObj.push({ path: repoPath, mode: '100644', type: 'blob', sha: blobRes.sha });
+							}
+						}
 					}
 				}
 			}
@@ -3244,6 +3366,8 @@ window.onload=function(){
 				await customAlert("No unsaved changes to commit.", "Up to date");
 				return;
 			}
+			
+			btn.innerText = "Committing...";
 			
 			console.log("[GitHub Commit] Pushing new tree with items:", treeObj.length);
 			const newTree = await ghApi(`/repos/${currentGithubRepo}/git/trees`, 'POST', {
