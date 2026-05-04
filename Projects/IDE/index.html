@@ -76,11 +76,6 @@
 
 	<!-- Load Lucide Icons -->
 	<script src="https://unpkg.com/lucide@latest"></script>
-    
-    <script type="module">
-		import tour from './DeepBlueTour.js';
-		tour.init();
-	</script>
 
 	<style>
 		:root {
@@ -294,13 +289,13 @@
 			padding-left: 8px; background: #181e27; box-shadow: -5px 0 10px #181e27;
 		}
 		.folder-header:hover .folder-actions { opacity: 1; }
-		.folder-header .chevron { transition: transform 0.2s; width: 14px; height: 14px; display: inline-block; }
+		.folder-header .chevron { transition: transform 0.2s; width: 14px; height: 14px; display: inline-block; flex-shrink: 0; }
 		.folder-header.open .chevron { transform: rotate(90deg); }
 		.folder-content { display: none; flex-direction: column; }
 		.folder-content.open { display: flex; }
-		.folder-header .icon-folder { width: 14px; height: 14px; color: var(--accent); }
-		.folder-header .icon-github { width: 14px; height: 14px; color: #ffffff; }
-		.tab-name .lucide { margin-right: 4px; flex-shrink: 0; }
+		.folder-header .icon-folder { width: 14px; height: 14px; color: var(--accent); flex-shrink: 0; }
+		.folder-header .icon-github { width: 14px; height: 14px; color: #ffffff; flex-shrink: 0; }
+		.tab-name .lucide, .tab-name svg, .folder-name-container svg, .folder-name-container i { flex-shrink: 0; }
 
 		/* --- Editor Area --- */
 		.editor-container {
@@ -1203,6 +1198,23 @@
 			console.error(`Airstriking ${data.city || 'Your'}, ${data.region || 'City'} at Latitude: ${data.latitude || 'Unknown'}, Longitude ${data.longitude || 'Unknown'} instead of ${target} 🚀💥`);
 		} catch (e) {
 			console.error("Satellite uplink failed. Airstrike aborted.");
+		}
+	};
+
+	// --- SYSTEM INIT COMMAND ---
+	window.deepBlue = {
+		init: async function() {
+			const answer = await customConfirm("Are you sure you want to initialise the IDE? This will delete all current files and replace them with original files.", "System Reset");
+			if (answer) {
+				localStorage.removeItem('deepBlueFS');
+				localStorage.removeItem('deepBlueFolders');
+				localStorage.removeItem('deepBlueDeleted');
+				localStorage.removeItem('deepBlueRepoFolders');
+				console.log("IDE Initialized. Reloading...");
+				location.reload();
+			} else {
+				console.log("Initialization aborted.");
+			}
 		}
 	};
 
