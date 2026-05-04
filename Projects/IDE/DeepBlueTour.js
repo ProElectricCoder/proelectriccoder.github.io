@@ -1,6 +1,6 @@
 /**
  * DeepBlue IDE - Onboarding Tour Manager
- * A zero-dependency, lightweight guided tour system.
+ * A zero-dependency, lightweight guided tour system with smart targeting.
  */
 
 export class TourManager {
@@ -13,37 +13,41 @@ export class TourManager {
                 placement: "center"
             },
             {
-                target: '#sidebar-panel', // Adjust selector if your ID is different
+                // Tries the main panel, then falls back to any sidebar container
+                target: ['#sidebar-panel', '.sidebar-container', '.sidebar'], 
                 title: "Your Virtual Workspace",
                 message: "This is where your project lives. Create files, organize folders, and import content directly from your computer by dragging and dropping it into the editor.<br><br><span style='color: var(--accent); font-size: 0.85rem;'>💡 <b>Pro-Tip:</b> Right-click a file for actions like rename, delete, and Encrypt (using Zero-Knowledge cryptography).</span>",
                 placement: "right"
             },
             {
-                target: '#editor-panel',
+                target: ['#editor-panel', '.editor-wrapper', '.CodeMirror'],
                 title: "The Command Center",
                 message: "This is where you write and edit code. DeepBlue supports multi-tab editing, syntax highlighting, and formatting tools. Try pressing <code>Ctrl+Space</code> while typing for smart suggestions, or <code>Ctrl+F</code> to search.",
                 placement: "bottom"
             },
             {
-                target: '.header-actions, .actions', // Targets the wrapper containing Run, Save, Format
+                // Smart Targeting: Hunts for the Run button, then the Save button, then any Python file in the sidebar!
+                target: ['[onclick*="runCode" i]', '#save-btn', '[onclick*="saveProject" i]', 'div[data-path$=".py"]', '.editor-tabs'],
                 title: "Build Faster",
                 message: "Use Run to preview your work, Save to securely store your project, and Format to clean up code instantly. DeepBlue natively renders Web apps and spins up a local execution server for <code>.py</code> files!",
                 placement: "bottom"
             },
             {
-                target: '#output-container',
+                target: ['#output-container', 'iframe', '.preview-panel'],
                 title: "Live Preview & Debugging",
                 message: "See your app in real-time in the preview area. Use the device controls above to test different screen sizes, and check the Console below for logs, errors, and quick JavaScript input.",
                 placement: "left"
             },
             {
-                target: '#ai-assist-btn, .ai-btn', 
+                // Smart Targeting: Hunts for any button with "ai" or "gemini" in its click handler
+                target: ['[onclick*="AI" i]', '[onclick*="Gemini" i]', '#ai-assist-btn', '.ai-btn'], 
                 title: "Your Coding Co-Pilot",
                 message: "Open Gemini AI for help with bugs, explanations, and code generation. It automatically uses your currently active file as context so the suggestions stay highly relevant.",
                 placement: "bottom"
             },
             {
-                target: '#github-connect-btn, .github-btn-group',
+                // Smart Targeting: Hunts for GitHub connect or commit buttons
+                target: ['[onclick*="Github" i]', '[onclick*="Commit" i]', '#github-connect-btn'],
                 title: "Connect and Ship",
                 message: "Link your GitHub account to import repositories and commit changes directly from DeepBlue. It is the fastest path from editing to publishing.",
                 placement: "bottom"
@@ -230,7 +234,24 @@ export class TourManager {
         const step = this.steps[this.currentStep];
         if (!step) return;
 
-        let targetEl = step.target ? document.querySelector(step.target) : null;
+        let targetEl = null;
+
+        // Smart Targeting: Iterate through fallback selectors to find a valid, visible element
+        if (step.target) {
+            const selectors = Array.isArray(step.target) ? step.target : [step.target];
+            for (const selector of selectors) {
+                try {
+                    const el = document.querySelector(selector);
+                    if (el && el.getBoundingClientRect().width > 0) {
+                        targetEl = el;
+                        break;
+                    }
+                } catch (e) {
+                    // Ignore invalid CSS selectors safely
+                }
+            }
+        }
+
         const padding = 10;
 
         if (targetEl) {
@@ -249,7 +270,7 @@ export class TourManager {
             // Calculate Tooltip Position
             this.positionTooltip(rect, step.placement);
         } else {
-            // Center screen placement (for Welcome/Finish steps)
+            // Center screen placement (for Welcome/Finish steps, or if element isn't found)
             this.spotlight.style.opacity = '0'; // Hide spotlight hole
             
             this.tooltip.style.top = '50%';
