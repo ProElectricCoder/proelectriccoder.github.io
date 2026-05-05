@@ -23,10 +23,14 @@
 			display: flex;
 			flex-direction: column;
 			font-family: system-ui, -apple-system, sans-serif;
+			/* Added overflow: clip and border-collapse logic to ensure radius visibility */
 			overflow: hidden;
 			box-shadow: 0 30px 60px rgba(0,0,0,0.6);
-			border: 1px solid #2a3241;
+			/* Updated: Cyan Border and visible 24px radius */
+			border: 4px solid #00e5ff;
+			border-radius: 15px;
 			box-sizing: border-box;
+			position: relative;
 		}
 
 		/* --- SKELETON LINE BASE --- */
@@ -51,12 +55,13 @@
 		.header {
 			height: 56px;
 			background: #0a0e14;
-			border-bottom: 1px solid #2a3241;
+			border-bottom: 3px solid #00e5ff;
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
 			padding: 0 24px;
 			flex-shrink: 0;
+			box-sizing: border-box;
 		}
 
 		.header-left {
@@ -65,7 +70,6 @@
 			gap: 12px;
 		}
 		
-		/* Updated: Logo dot and title line now share same height, dot width matches height */
 		.header-logo-dot { width: 16px; height: 16px; background: #00e5ff; border-radius: 50%; box-shadow: 0 0 10px rgba(0, 229, 255, 0.4); flex-shrink: 0; }
 		.header-left .sl { width: 140px; height: 16px; background: #00e5ff; opacity: 0.9; }
 
@@ -87,7 +91,6 @@
 			gap: 12px;
 		}
 
-		/* Dots used only in Sidebar, Header Icons, and Console */
 		.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 		.dot.folder { background: #9aa2b1; }
 		.dot.html { background: #e34f26; }
@@ -128,21 +131,23 @@
 
 		.panel {
 			background: #0a0e14;
-			border: 1px solid #2a3241;
+			border: 3px solid #00e5ff;
 			border-radius: 12px;
 			display: flex;
 			flex-direction: column;
 			overflow: hidden;
 			box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+			box-sizing: border-box;
 		}
 
 		.panel-tabs {
 			height: 44px;
 			background: #181e27;
-			border-bottom: 1px solid #2a3241;
+			border-bottom: 3px solid #00e5ff;
 			display: flex;
 			align-items: center;
 			padding-right: 12px;
+			position: relative;
 		}
 
 		.tab {
@@ -154,11 +159,18 @@
 			border-right: 1px solid #2a3241;
 			background: #181e27;
 			border-top: 2px solid transparent;
+			box-sizing: border-box;
 		}
 		
 		.tab.active {
 			background: #0a0e14;
-			border-top: 2px solid #4facfe;
+			border: 2px solid #00e5ff;
+			border-bottom: 3px solid #0a0e14; 
+			border-radius: 8px 8px 0 0;
+			margin-top: 2px;
+			margin-bottom: -3px; 
+			position: relative;
+			z-index: 10;
 		}
 
 		.tab .sl { height: 8px; width: 75px; background: #9aa2b1; }
@@ -215,7 +227,6 @@
 		.indent-2 { padding-left: 48px; }
 		.indent-3 { padding-left: 72px; }
 
-		/* Cobalt Syntax Highlighting */
 		.tag { background: #9effff !important; }
 		.attr { background: #ff80e1 !important; }
 		.str { background: #3ad900 !important; }
@@ -227,6 +238,8 @@
 			flex: 1;
 			display: flex;
 			flex-direction: column;
+			border: 3px solid #00e5ff;
+			border-radius: 12px;
 		}
 
 		.preview-section {
@@ -280,13 +293,12 @@
 		.sk-title { width: 160px; height: 16px; }
 		.sk-subtitle { width: 100px; height: 10px; }
 
-		/* Console Section */
 		.console-section {
 			height: 150px;
 			flex-shrink: 0;
 			display: flex;
 			flex-direction: column;
-			border-top: 1px solid #2a3241;
+			border-top: 3px solid #00e5ff;
 			background: #0a0e14;
 		}
 
@@ -404,28 +416,24 @@
 				</div>
 
 				<div class="editor-body">
-					<!-- Line 1: <!DOCTYPE html> -->
 					<div class="line">
 						<div class="num-sl"></div>
 						<div class="code-wrap">
 							<div class="sl tag" style="width: 100px;"></div>
 						</div>
 					</div>
-					<!-- Line 2: <html> -->
 					<div class="line">
 						<div class="num-sl"></div>
 						<div class="code-wrap">
 							<div class="sl tag" style="width: 45px;"></div>
 						</div>
 					</div>
-					<!-- Line 3: <head> -->
 					<div class="line">
 						<div class="num-sl"></div>
 						<div class="code-wrap indent-1">
 							<div class="sl tag" style="width: 45px;"></div>
 						</div>
 					</div>
-					<!-- Line 4: <link rel="stylesheet" href="style.css" /> -->
 					<div class="line">
 						<div class="num-sl"></div>
 						<div class="code-wrap indent-2">
@@ -436,21 +444,18 @@
 							<div class="sl str" style="width: 65px;"></div>
 						</div>
 					</div>
-					<!-- Line 5: </head> -->
-					<div class="line">
-						<div class="num-sl"></div>
-						<div class="code-wrap indent-1">
-							<div class="sl tag" style="width: 50px;"></div>
-						</div>
-					</div>
-					<!-- Line 6: <body> -->
 					<div class="line">
 						<div class="num-sl"></div>
 						<div class="code-wrap indent-1">
 							<div class="sl tag" style="width: 45px;"></div>
 						</div>
 					</div>
-					<!-- Line 7: <div class="card"> -->
+					<div class="line">
+						<div class="num-sl"></div>
+						<div class="code-wrap indent-1">
+							<div class="sl tag" style="width: 45px;"></div>
+						</div>
+					</div>
 					<div class="line">
 						<div class="num-sl"></div>
 						<div class="code-wrap indent-2">
@@ -459,7 +464,6 @@
 							<div class="sl str" style="width: 40px;"></div>
 						</div>
 					</div>
-					<!-- Line 8: <div class="icon-container"><img src="logo.svg" /></div> -->
 					<div class="line">
 						<div class="num-sl"></div>
 						<div class="code-wrap indent-3">
@@ -471,7 +475,6 @@
 							<div class="sl tag" style="width: 35px;"></div>
 						</div>
 					</div>
-					<!-- Line 9: <h2 class="card-title">Deep Blue</h2> -->
 					<div class="line">
 						<div class="num-sl"></div>
 						<div class="code-wrap indent-3">
@@ -481,7 +484,6 @@
 							<div class="sl tag" style="width: 25px;"></div>
 						</div>
 					</div>
-					<!-- Line 10: <p class="card-subtitle">Code comfortably</p> -->
 					<div class="line">
 						<div class="num-sl"></div>
 						<div class="code-wrap indent-3">
@@ -491,14 +493,12 @@
 							<div class="sl tag" style="width: 15px;"></div>
 						</div>
 					</div>
-					<!-- Line 11: </div> -->
 					<div class="line">
 						<div class="num-sl"></div>
 						<div class="code-wrap indent-2">
 							<div class="sl tag" style="width: 35px;"></div>
 						</div>
 					</div>
-					<!-- Line 12: <div class="brand-watermark">DeepBlue - World Class IDE</div> -->
 					<div class="line">
 						<div class="num-sl"></div>
 						<div class="code-wrap indent-2">
@@ -508,7 +508,6 @@
 							<div class="sl tag" style="width: 35px;"></div>
 						</div>
 					</div>
-					<!-- Line 13: <script src="script.js"></script> -->
 					<div class="line">
 						<div class="num-sl"></div>
 						<div class="code-wrap indent-2">
@@ -518,14 +517,12 @@
 							<div class="sl tag" style="width: 60px;"></div>
 						</div>
 					</div>
-					<!-- Line 14: </body> -->
 					<div class="line">
 						<div class="num-sl"></div>
 						<div class="code-wrap indent-1">
 							<div class="sl tag" style="width: 55px;"></div>
 						</div>
 					</div>
-					<!-- Line 15: </html> -->
 					<div class="line">
 						<div class="num-sl"></div>
 						<div class="code-wrap">
