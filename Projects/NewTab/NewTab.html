@@ -1,0 +1,826 @@
+<!DOCTYPE html> 
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>New Tab</title>
+	
+	<!-- Custom SVG Favicon -->
+	<link rel="icon" type="image/svg+xml" href="Unknown9856-logo-website-1.svg">
+
+	<link rel="stylesheet" href="NewTabCSS.css" />
+	<style>
+body {
+	background: #000000;
+	height: 100vh;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	color: white;
+	overflow: hidden;
+}
+
+.search-container {
+	width: 100%;
+	max-width: 600px;
+	text-align: center;
+	padding: 20px;
+	position: relative; 
+	z-index: 10;
+}
+
+.logo {
+	width: 120px;
+	height: auto;
+	margin: 0 auto 20px auto;
+	display: block;
+}
+
+.clock {
+	font-size: 3rem;
+	font-weight: 300;
+	margin-bottom: 5px; 
+	letter-spacing: 2px;
+	font-family: monospace; 
+	text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.date {
+	font-size: 1rem;
+	font-weight: 300;
+	color: rgba(255, 255, 255, 0.6); 
+	margin-bottom: 30px;
+	font-family: monospace;
+	text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.settings-btn {
+	position: absolute;
+	top: 20px;
+	right: 20px;
+	width: 40px;
+	height: 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: rgba(255, 255, 255, 0.6);
+	transition: color 0.2s, transform 0.3s ease;
+	cursor: pointer;
+	z-index: 200;
+}
+.settings-btn:hover {
+	color: white;
+	transform: rotate(90deg);
+}
+.settings-btn svg {
+	width: 24px;
+	height: 24px;
+}
+
+.sidebar {
+	position: fixed;
+	top: 0;
+	right: -320px; 
+	width: 300px;
+	height: 100%;
+	background: rgba(0, 0, 0, 0.85);
+	backdrop-filter: blur(15px);
+	border-left: 1px solid rgba(255, 255, 255, 0.1);
+	transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	z-index: 300;
+	padding: 30px;
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	box-shadow: -5px 0 30px rgba(0,0,0,0.5);
+	overflow-y: auto;
+}
+
+.sidebar.open {
+	right: 0;
+}
+
+.sidebar-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 20px;
+	border-bottom: 1px solid rgba(255,255,255,0.1);
+	padding-bottom: 15px;
+}
+
+.sidebar-header h2 {
+	margin: 0;
+	font-size: 1.5rem;
+	font-weight: 300;
+}
+
+.close-sidebar-btn {
+	background: none;
+	border: none;
+	color: white;
+	font-size: 1.5rem;
+	cursor: pointer;
+	padding: 0;
+	line-height: 1;
+	transition: color 0.2s;
+}
+.close-sidebar-btn:hover {
+	color: #ff6b6b;
+}
+
+.setting-item {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.setting-label {
+	font-size: 0.9rem;
+	color: #ccc;
+}
+
+/* Range slider */
+.range-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+input[type="range"] {
+	flex: 1;
+	-webkit-appearance: none;
+	height: 4px;
+	border-radius: 2px;
+	background: rgba(255,255,255,0.2);
+	outline: none;
+	cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	background: white;
+	cursor: pointer;
+}
+.range-value {
+	font-size: 0.85rem;
+	color: #ccc;
+	min-width: 20px;
+	text-align: right;
+}
+
+/* Select */
+select.setting-select {
+	width: 100%;
+	padding: 8px 10px;
+	background: rgba(255,255,255,0.07);
+	border: 1px solid rgba(255,255,255,0.2);
+	border-radius: 5px;
+	color: white;
+	font-size: 0.9rem;
+	cursor: pointer;
+	outline: none;
+	appearance: none;
+	-webkit-appearance: none;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23aaa' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 10px center;
+}
+select.setting-select option {
+	background: #1a1a1a;
+	color: white;
+}
+
+input[type="color"] {
+	-webkit-appearance: none;
+	border: none;
+	width: 100%;
+	height: 40px;
+	border-radius: 5px;
+	cursor: pointer;
+	background: none;
+	padding: 0;
+}
+input[type="color"]::-webkit-color-swatch-wrapper {
+	padding: 0;
+}
+input[type="color"]::-webkit-color-swatch {
+	border: 1px solid rgba(255,255,255,0.2);
+	border-radius: 5px;
+}
+
+.settings-section-title {
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+	color: rgba(255,255,255,0.35);
+	margin-bottom: -8px;
+}
+
+.reset-btn {
+	margin-top: 10px;
+	padding: 10px;
+	background: rgba(255, 255, 255, 0.1);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	color: white;
+	border-radius: 5px;
+	cursor: pointer;
+	transition: background 0.2s;
+}
+.reset-btn:hover {
+	background: rgba(255, 255, 255, 0.2);
+}
+
+.input-group {
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	position: relative; 
+}
+
+input[type="text"] {
+	width: 100%;
+	background: transparent;
+	border: 2px solid rgba(255, 255, 255, 0.5); 
+	border-radius: 10px;
+	box-sizing: border-box;
+	color: white;
+	font-size: 1rem;
+	font-family: monospace;
+	text-align: left;
+	padding: 10px 50px 10px 15px; 
+	outline: none;
+	transition: border-color 0.3s ease;
+}
+
+.input-underline {
+	height: 2px;
+	width: 100%;
+	background-color: rgba(255, 255, 255, 0.5);
+	margin-top: 2px;
+	transition: background-color 0.3s ease;
+}
+
+input[type="text"]:focus {
+	border-color: #ffffff;
+}
+
+input[type="text"]:focus + .input-underline {
+	background-color: #ffffff;
+}
+
+input[type="text"]::placeholder {
+	color: rgba(255, 255, 255, 0.3);
+}
+
+button[type="submit"] {
+	display: none;
+}
+
+.engine-switcher {
+	position: absolute;
+	top: 0;
+	right: 0;
+	height: 44px; 
+	width: 44px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	opacity: 0.8;
+	transition: opacity 0.2s;
+}
+.engine-switcher:hover {
+	opacity: 1;
+}
+
+.engine-icon-wrapper {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+}
+
+.engine-icon-wrapper svg {
+	width: 20px;
+	height: 20px;
+}
+
+.dropdown-menu {
+	background: rgba(0, 0, 0, 0.9);
+	border: 1px solid rgba(255, 255, 255, 0.3);
+	border-radius: 8px;
+	overflow: hidden;
+	display: none; 
+	flex-direction: column;
+	min-width: 140px;
+	box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+	backdrop-filter: blur(10px);
+	z-index: 100;
+}
+
+.dropdown-menu.show {
+	display: flex;
+}
+
+.dropdown-item {
+	padding: 12px;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	cursor: pointer;
+	font-size: 0.9rem;
+	color: rgba(255,255,255,0.8);
+	transition: background 0.2s;
+}
+
+.dropdown-item:hover {
+	background: rgba(255,255,255,0.1);
+	color: white;
+}
+
+#engineDropdown {
+	position: absolute;
+	top: 50px;
+	right: 0;
+}
+
+#shortcutContextMenu {
+	position: fixed; 
+}
+
+.shortcuts-grid {
+	margin-top: 40px;
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 20px;
+	width: 100%;
+	max-width: 1200px;
+	max-height: 40vh;
+	overflow-y: auto;
+}
+
+.shortcut-item, .add-shortcut-btn {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+	width: 80px;
+	transition: transform 0.2s;
+	text-decoration: none;
+	color: white;
+	position: relative;
+	margin-top: 5px;
+}
+
+.shortcut-item:hover, .add-shortcut-btn:hover {
+	transform: translateY(-5px);
+}
+
+.shortcut-icon-wrapper {
+	width: 48px;
+	height: 48px;
+	min-width: 48px;
+	min-height: 48px;
+	aspect-ratio: 1 / 1;
+	background: rgba(255,255,255,0.1);
+	border-radius: 12px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 24px;
+	overflow: hidden;
+	position: relative;
+	line-height: 0;
+	box-sizing: border-box;
+}
+
+.shortcut-icon {
+	width: 100%;
+	height: 100%;
+	object-fit: contain; 
+	padding: 8px; 
+	box-sizing: border-box;
+}
+
+.shortcut-label {
+	font-size: 0.8rem;
+	color: rgba(255,255,255,0.7);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	overflow: hidden;
+	width: 100%;
+	text-align: center;
+}
+
+.option-btn {
+	position: absolute;
+	top: 0;
+	right: 0;
+	background: transparent;
+	color: rgba(255, 255, 255, 0.7);
+	border-radius: 50%;
+	width: 25px;
+	height: 25px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	opacity: 0;
+	transition: opacity 0.2s, background-color 0.2s, color 0.2s;
+	z-index: 5;
+	margin: 2px;
+}
+
+.option-btn:hover {
+	background-color: rgba(255, 255, 255, 0.2);
+	color: white;
+}
+
+.shortcut-item:hover .option-btn {
+	opacity: 1;
+}
+
+dialog {
+	background: #1a1a1a;
+	color: white;
+	border: 1px solid rgba(255,255,255,0.2);
+	border-radius: 10px;
+	padding: 20px;
+	width: 320px;
+	box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+dialog::backdrop {
+	background: rgba(0, 0, 0, 0.6);
+	backdrop-filter: blur(2px);
+}
+
+.modal-title {
+	margin-top: 0;
+	margin-bottom: 15px;
+	font-size: 1.2rem;
+	text-align: center;
+}
+
+.modal-label {
+	display: block;
+	margin-bottom: 5px;
+	font-size: 0.8rem;
+	color: #aaa;
+}
+
+.modal-input {
+	width: 100%;
+	padding: 8px;
+	margin-bottom: 15px;
+	background: rgba(0,0,0,0.3);
+	border: 1px solid rgba(255,255,255,0.3);
+	border-radius: 5px;
+	color: white;
+	box-sizing: border-box;
+	font-family: inherit;
+}
+
+.modal-buttons {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+}
+
+.btn {
+	padding: 8px 16px;
+	border: none;
+	border-radius: 5px;
+	cursor: pointer;
+	font-weight: bold;
+}
+
+.btn-cancel { background: transparent; color: #aaa; }
+.btn-save { background: white; color: black; }
+
+.helper-text {
+	font-size: 0.7rem;
+	color: rgba(255,255,255,0.4);
+	margin-top: -10px;
+	margin-bottom: 15px;
+	text-align: right;
+	cursor: pointer;
+}
+
+.shortcut-item.dragging {
+	opacity: 0.6;
+	transform: scale(1.08);
+	z-index: 50;
+	box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+}
+
+.shortcut-item.drag-over {
+	transform: translateY(-10px) scale(1.03);
+}
+	</style>
+</head>
+<body>
+
+	<div id="settingsBtn" class="settings-btn">
+		<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"></path>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"></path>
+		</svg>
+	</div>
+
+	<div id="settingsSidebar" class="sidebar">
+		<div class="sidebar-header">
+			<h2>Settings</h2>
+			<button id="closeSidebarBtn" class="close-sidebar-btn">&times;</button>
+		</div>
+
+		<span class="settings-section-title">Background Gradient</span>
+
+		<div class="setting-item">
+			<span class="setting-label">Start Color</span>
+			<input type="color" id="bgTopInput" value="#000055">
+		</div>
+		<div class="setting-item">
+			<span class="setting-label">End Color</span>
+			<input type="color" id="bgBottomInput" value="#000000">
+		</div>
+		<div class="setting-item">
+			<span class="setting-label">Direction</span>
+			<select id="bgDirectionInput" class="setting-select">
+				<option value="to bottom">↓ Top → Bottom</option>
+				<option value="to top">↑ Bottom → Top</option>
+				<option value="to right">→ Left → Right</option>
+				<option value="to left">← Right → Left</option>
+				<option value="to bottom right">↘ Top-Left → Bottom-Right</option>
+				<option value="to bottom left">↙ Top-Right → Bottom-Left</option>
+				<option value="to top right">↗ Bottom-Left → Top-Right</option>
+				<option value="to top left">↖ Bottom-Right → Top-Left</option>
+			</select>
+		</div>
+		<div class="setting-item">
+			<span class="setting-label">Power (curve intensity)</span>
+			<div class="range-row">
+				<input type="range" id="bgPowerInput" min="1" max="10" step="0.5" value="3">
+				<span class="range-value" id="bgPowerValue">3</span>
+			</div>
+		</div>
+		<div class="setting-item">
+			<span class="setting-label">Steps (gradient smoothness)</span>
+			<div class="range-row">
+				<input type="range" id="bgStepsInput" min="4" max="32" step="2" value="20">
+				<span class="range-value" id="bgStepsValue">20</span>
+			</div>
+		</div>
+
+		<button class="reset-btn">Reset to Default</button>
+	</div>
+
+	<div class="search-container">
+		<img src="Unknown9856-logo-website-2.svg" alt="Logo" class="logo">
+		<div id="clock" class="clock"></div>
+		<div id="date" class="date"></div>
+		<form id="searchForm" action="https://www.google.com/search" method="GET">
+			<div class="input-group">
+				<input type="text" name="q" id="userQuery" placeholder="Search Google..." autofocus autocomplete="off" required>
+				<div class="engine-switcher">
+					<div id="currentEngineIconWrapper" class="engine-icon-wrapper"></div>
+				</div>
+				<!-- SVG icons injected by JS from the single source-of-truth below -->
+				<div id="engineDropdown" class="dropdown-menu">
+					<div class="dropdown-item" id="engineGoogle">
+						<span id="engineGoogleIcon"></span> Google
+					</div>
+					<div class="dropdown-item" id="engineBing">
+						<span id="engineBingIcon"></span> Bing
+					</div>
+				</div>
+				<div class="input-underline"></div>
+			</div>
+			<input type="hidden" name="ie" value="UTF-8">
+			<input type="hidden" name="oq" id="hiddenOq" value="">
+			<button type="submit">Search</button>
+		</form>
+	</div>
+
+	<div class="shortcuts-grid" id="shortcutsGrid"></div>
+
+	<div id="shortcutContextMenu" class="dropdown-menu">
+		<div class="dropdown-item" id="menuEditBtn">Edit</div>
+		<div class="dropdown-item" id="menuDeleteBtn" style="color: #ff6b6b;">Delete</div>
+	</div>
+
+	<dialog id="addShortcutModal">
+		<h3 class="modal-title" id="modalTitle">Add Shortcut</h3>
+		<input type="hidden" id="editShortcutIndex" value="">
+		<label class="modal-label">Name</label>
+		<input type="text" id="shortcutName" class="modal-input" placeholder="e.g. YouTube">
+		<label class="modal-label">Website URL</label>
+		<input type="text" id="shortcutUrl" class="modal-input" placeholder="e.g. youtube.com">
+		<label class="modal-label">Icon URL (Optional)</label>
+		<input type="text" id="shortcutIcon" class="modal-input" placeholder="Auto-generated...">
+		<div class="modal-buttons">
+			<button class="btn btn-cancel">Cancel</button>
+			<button class="btn btn-save">Save</button>
+		</div>
+	</dialog>
+
+	<script type="module">
+		import { cubicGradient } from 'https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js';
+
+		// ─── Single source of truth for engine SVGs ───────────────────────────────
+		const engineSvgs = {
+			google: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 16 16"><g fill="none" fill-rule="evenodd" clip-rule="evenodd"><path fill="#F44336" d="M7.209 1.061c.725-.081 1.154-.081 1.933 0a6.57 6.57 0 0 1 3.65 1.82a100 100 0 0 0-1.986 1.93q-1.876-1.59-4.188-.734q-1.696.78-2.362 2.528a78 78 0 0 1-2.148-1.658a.26.26 0 0 0-.16-.027q1.683-3.245 5.26-3.86" opacity=".987"/><path fill="#FFC107" d="M1.946 4.92q.085-.013.161.027a78 78 0 0 0 2.148 1.658A7.6 7.6 0 0 0 4.04 7.99q.037.678.215 1.331L2 11.116Q.527 8.038 1.946 4.92" opacity=".997"/><path fill="#448AFF" d="M12.685 13.29a26 26 0 0 0-2.202-1.74q1.15-.812 1.396-2.228H8.122V6.713q3.25-.027 6.497.055q.616 3.345-1.423 6.032a7 7 0 0 1-.51.49" opacity=".999"/><path fill="#43A047" d="M4.255 9.322q1.23 3.057 4.51 2.854a3.94 3.94 0 0 0 1.718-.626q1.148.812 2.202 1.74a6.62 6.62 0 0 1-4.027 1.684a6.4 6.4 0 0 1-1.02 0Q3.82 14.524 2 11.116z" opacity=".993"/></g></svg>`,
+			bing: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 256 388"><defs><radialGradient id="logosBing0" cx="93.717%" cy="77.818%" r="143.121%" fx="93.717%" fy="77.818%"><stop offset="0%" stop-color="#00CACC"/><stop offset="100%" stop-color="#048FCE"/></radialGradient><radialGradient id="logosBing1" cx="13.893%" cy="71.448%" r="150.086%" fx="13.893%" fy="71.448%"><stop offset="0%" stop-color="#00BBEC"/><stop offset="100%" stop-color="#2756A9"/></radialGradient><linearGradient id="logosBing2" x1="50%" x2="50%" y1="0%" y2="100%"><stop offset="0%" stop-color="#00BBEC"/><stop offset="100%" stop-color="#2756A9"/></linearGradient></defs><path fill="url(#logosBing0)" d="M129.424 122.047c-7.133.829-12.573 6.622-13.079 13.928c-.218 3.147-.15 3.36 6.986 21.722c16.233 41.774 20.166 51.828 20.827 53.243c1.603 3.427 3.856 6.65 6.672 9.544c2.16 2.22 3.585 3.414 5.994 5.024c4.236 2.829 6.337 3.61 22.818 8.49c16.053 4.754 24.824 7.913 32.381 11.664c9.791 4.86 16.623 10.387 20.944 16.946c3.1 4.706 5.846 13.145 7.04 21.64c.468 3.321.47 10.661.006 13.663c-1.008 6.516-3.021 11.976-6.101 16.545c-1.638 2.43-1.068 2.023 1.313-.939c6.74-8.379 13.605-22.7 17.108-35.687c4.24-15.718 4.817-32.596 1.66-48.57c-6.147-31.108-25.786-57.955-53.444-73.06c-1.738-.95-8.357-4.42-17.331-9.085a1633.23 1633.23 0 0 1-4.127-2.154c-.907-.477-2.764-1.447-4.126-2.154c-1.362-.708-5.282-2.75-8.711-4.539l-8.528-4.446a6021.14 6021.14 0 0 1-8.344-4.357c-8.893-4.655-12.657-6.537-13.73-6.863c-1.125-.343-3.984-.782-4.701-.723c-.152.012-.838.088-1.527.168Z"/><path fill="url(#logosBing1)" d="M148.81 277.994c-.493.292-1.184.714-1.537.938c-.354.225-1.137.712-1.743 1.083a8315.383 8315.383 0 0 0-13.204 8.137a2847.83 2847.83 0 0 0-8.07 4.997a388.04 388.04 0 0 1-3.576 2.198c-.454.271-2.393 1.465-4.31 2.654a2651.466 2651.466 0 0 1-7.427 4.586a3958.037 3958.037 0 0 0-8.62 5.316a3011.146 3011.146 0 0 1-7.518 4.637c-1.564.959-3.008 1.885-3.21 2.058c-.3.257-14.205 8.87-21.182 13.121c-5.3 3.228-11.43 5.387-17.705 6.235c-2.921.395-8.45.396-11.363.003c-7.9-1.067-15.176-4.013-21.409-8.666c-2.444-1.826-7.047-6.425-8.806-8.8c-4.147-5.598-6.829-11.602-8.218-18.396c-.32-1.564-.622-2.884-.672-2.935c-.13-.13.105 2.231.528 5.319c.44 3.211 1.377 7.856 2.387 11.829c7.814 30.743 30.05 55.749 60.15 67.646c8.668 3.424 17.415 5.582 26.932 6.64c3.576.4 13.699.56 17.43.276c17.117-1.296 32.02-6.334 47.308-15.996c1.362-.86 3.92-2.474 5.685-3.585a877.227 877.227 0 0 0 4.952-3.14c.958-.615 2.114-1.341 2.567-1.614a91.312 91.312 0 0 0 2.018-1.268c.656-.424 3.461-2.2 6.235-3.944l11.092-7.006l3.809-2.406l.137-.086l.42-.265l.199-.126l2.804-1.771l9.69-6.121c12.348-7.759 16.03-10.483 21.766-16.102c2.392-2.342 5.997-6.34 6.176-6.848c.037-.104.678-1.092 1.424-2.197c3.036-4.492 5.06-9.995 6.064-16.484c.465-3.002.462-10.342-.005-13.663c-.903-6.42-2.955-13.702-5.167-18.339c-3.627-7.603-11.353-14.512-22.453-20.076c-3.065-1.537-6.23-2.943-6.583-2.924c-.168.009-10.497 6.322-22.954 14.03c-12.457 7.71-23.268 14.4-24.025 14.87a289.98 289.98 0 0 1-2.888 1.764l-7.128 4.42Z"/><path fill="url(#logosBing2)" d="m.053 241.013l.054 53.689l.695 3.118c2.172 9.747 5.937 16.775 12.482 23.302c3.078 3.07 5.432 4.922 8.768 6.896c7.06 4.177 14.657 6.238 22.978 6.235c8.716-.005 16.256-2.179 24.025-6.928c1.311-.801 6.449-3.964 11.416-7.029l9.032-5.572v-127.4l-.002-58.273c-.002-37.177-.07-59.256-.188-60.988c-.74-10.885-5.293-20.892-12.948-28.461c-2.349-2.323-4.356-3.875-10.336-7.99a25160.08 25160.08 0 0 1-12.104-8.336A186532.885 186532.885 0 0 0 28.617 5.835C22.838 1.85 22.386 1.574 20.639.949C18.367.136 15.959-.163 13.67.084C6.998.804 1.657 5.622.269 12.171C.053 13.191.013 26.751.01 100.35l-.003 86.975H0l.053 53.688Z"/></svg>`
+		};
+
+		// Inject SVGs into dropdown items (single reference point)
+		document.getElementById('engineGoogleIcon').innerHTML = engineSvgs.google;
+		document.getElementById('engineBingIcon').innerHTML = engineSvgs.bing;
+
+		// ─── Engine config uses engineSvgs ────────────────────────────────────────
+		const engines = {
+			google: { action: 'https://www.google.com/search', placeholder: 'Search Google...', svg: engineSvgs.google },
+			bing:   { action: 'https://www.bing.com/search',   placeholder: 'Search Bing...',   svg: engineSvgs.bing  }
+		};
+
+		let activeShortcutIndex = -1;
+		let draggedIndex = null;
+
+		// ─── Clock ────────────────────────────────────────────────────────────────
+		function updateClock() {
+			const now = new Date();
+			let hours = now.getHours();
+			const minutes = String(now.getMinutes()).padStart(2, '0');
+			const seconds = String(now.getSeconds()).padStart(2, '0');
+			const ampm = hours >= 12 ? 'PM' : 'AM';
+			hours = hours % 12 || 12;
+			document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds} ${ampm}`;
+			document.getElementById('date').textContent = now.toLocaleDateString('default', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
+		}
+
+		// ─── Engine ───────────────────────────────────────────────────────────────
+		function setEngine(engineKey) {
+			const engine = engines[engineKey];
+			document.getElementById('searchForm').action = engine.action;
+			document.getElementById('userQuery').placeholder = engine.placeholder;
+			document.getElementById('currentEngineIconWrapper').innerHTML = engine.svg;
+			localStorage.setItem('preferredEngine', engineKey);
+		}
+
+		// ─── Background / cubicGradient ───────────────────────────────────────────
+		function applyGradient() {
+			const start	 = document.getElementById('bgTopInput').value;
+			const end	   = document.getElementById('bgBottomInput').value;
+			const direction = document.getElementById('bgDirectionInput').value;
+			const power	 = parseFloat(document.getElementById('bgPowerInput').value);
+			const steps	 = parseInt(document.getElementById('bgStepsInput').value, 10);
+
+			document.body.style.background = cubicGradient({ direction, start, end, steps, power });
+
+			localStorage.setItem('bgTop',	   start);
+			localStorage.setItem('bgBottom',	end);
+			localStorage.setItem('bgDirection', direction);
+			localStorage.setItem('bgPower',	 power);
+			localStorage.setItem('bgSteps',	 steps);
+		}
+
+		function loadBackground() {
+			const start	 = localStorage.getItem('bgTop')	   || '#000055';
+			const end	   = localStorage.getItem('bgBottom')	|| '#000000';
+			const direction = localStorage.getItem('bgDirection') || 'to bottom';
+			const power	 = localStorage.getItem('bgPower')	 || '3';
+			const steps	 = localStorage.getItem('bgSteps')	 || '20';
+
+			document.getElementById('bgTopInput').value	   = start;
+			document.getElementById('bgBottomInput').value	= end;
+			document.getElementById('bgDirectionInput').value = direction;
+			document.getElementById('bgPowerInput').value	 = power;
+			document.getElementById('bgStepsInput').value	 = steps;
+			document.getElementById('bgPowerValue').textContent = power;
+			document.getElementById('bgStepsValue').textContent = steps;
+
+			applyGradient();
+		}
+
+		function resetBackground() {
+			document.getElementById('bgTopInput').value	   = '#000055';
+			document.getElementById('bgBottomInput').value	= '#000000';
+			document.getElementById('bgDirectionInput').value = 'to bottom';
+			document.getElementById('bgPowerInput').value	 = '3';
+			document.getElementById('bgStepsInput').value	 = '20';
+			document.getElementById('bgPowerValue').textContent = '3';
+			document.getElementById('bgStepsValue').textContent = '20';
+			applyGradient();
+		}
+
+		// ─── Shortcuts ────────────────────────────────────────────────────────────
+		function renderShortcuts() {
+			const grid = document.getElementById('shortcutsGrid');
+			grid.innerHTML = '';
+			const shortcuts = JSON.parse(localStorage.getItem('shortcuts') || '[]');
+
+			shortcuts.forEach((s, i) => {
+				const item = document.createElement('div');
+				item.className = 'shortcut-item';
+				item.draggable = true;
+				item.innerHTML = `
+					<div class="shortcut-icon-wrapper"><img class="shortcut-icon" src="${s.icon || 'https://icons.duckduckgo.com/ip3/'+s.url.replace(/^https?:\/\//,'').split('/')[0]+'.ico'}" alt=""></div>
+					<span class="shortcut-label">${s.name}</span>
+					<div class="option-btn" onclick="this.parentElement.dispatchEvent(new Event('context'))">...</div>
+				`;
+				item.onclick = () => window.open(s.url);
+				item.addEventListener('dragstart', () => draggedIndex = i);
+				item.addEventListener('dragover', (e) => e.preventDefault());
+				item.addEventListener('drop', () => {
+					const sc = JSON.parse(localStorage.getItem('shortcuts') || '[]');
+					const moved = sc.splice(draggedIndex, 1)[0];
+					sc.splice(i, 0, moved);
+					localStorage.setItem('shortcuts', JSON.stringify(sc));
+					renderShortcuts();
+				});
+				item.addEventListener('context', (e) => {
+					activeShortcutIndex = i;
+					const menu = document.getElementById('shortcutContextMenu');
+					menu.style.display = 'flex';
+					menu.style.top = e.clientY + 'px';
+					menu.style.left = e.clientX + 'px';
+				});
+				grid.appendChild(item);
+			});
+
+			const add = document.createElement('div');
+			add.className = 'add-shortcut-btn';
+			add.innerHTML = '<div class="shortcut-icon-wrapper">+</div><span class="shortcut-label">Add</span>';
+			add.onclick = () => document.getElementById('addShortcutModal').showModal();
+			grid.appendChild(add);
+		}
+
+		// ─── Init ─────────────────────────────────────────────────────────────────
+		updateClock();
+		setInterval(updateClock, 1000);
+		loadBackground();
+		setEngine(localStorage.getItem('preferredEngine') || 'google');
+		renderShortcuts();
+
+		// ─── Event bindings ───────────────────────────────────────────────────────
+		document.getElementById('settingsBtn').onclick	= () => document.getElementById('settingsSidebar').classList.add('open');
+		document.getElementById('closeSidebarBtn').onclick = () => document.getElementById('settingsSidebar').classList.remove('open');
+
+		document.getElementById('bgTopInput').onchange	   = applyGradient;
+		document.getElementById('bgBottomInput').onchange	= applyGradient;
+		document.getElementById('bgDirectionInput').onchange = applyGradient;
+
+		document.getElementById('bgPowerInput').oninput = (e) => {
+			document.getElementById('bgPowerValue').textContent = e.target.value;
+			applyGradient();
+		};
+		document.getElementById('bgStepsInput').oninput = (e) => {
+			document.getElementById('bgStepsValue').textContent = e.target.value;
+			applyGradient();
+		};
+
+		document.querySelector('.reset-btn').onclick = resetBackground;
+
+		document.querySelector('.engine-switcher').onclick = () => document.getElementById('engineDropdown').classList.toggle('show');
+		document.getElementById('engineGoogle').onclick = () => { setEngine('google'); document.getElementById('engineDropdown').classList.remove('show'); };
+		document.getElementById('engineBing').onclick   = () => { setEngine('bing');   document.getElementById('engineDropdown').classList.remove('show'); };
+
+		document.querySelector('.btn-cancel').onclick = () => document.getElementById('addShortcutModal').close();
+		document.querySelector('.btn-save').onclick = () => {
+			const sc = JSON.parse(localStorage.getItem('shortcuts') || '[]');
+			sc.push({ name: document.getElementById('shortcutName').value, url: document.getElementById('shortcutUrl').value, icon: document.getElementById('shortcutIcon').value });
+			localStorage.setItem('shortcuts', JSON.stringify(sc));
+			renderShortcuts();
+			document.getElementById('addShortcutModal').close();
+		};
+
+		window.onclick = () => {
+			document.getElementById('engineDropdown').classList.remove('show');
+			document.getElementById('shortcutContextMenu').style.display = 'none';
+		};
+
+		document.getElementById('menuDeleteBtn').onclick = () => {
+			const sc = JSON.parse(localStorage.getItem('shortcuts') || '[]');
+			sc.splice(activeShortcutIndex, 1);
+			localStorage.setItem('shortcuts', JSON.stringify(sc));
+			renderShortcuts();
+		};
+
+		document.getElementById('searchForm').onsubmit = (e) => {
+			const q = document.getElementById('userQuery').value;
+			if (q.includes('.') && !q.includes(' ')) {
+				e.preventDefault();
+				window.location.href = q.startsWith('http') ? q : 'https://' + q;
+			}
+		};
+	</script>
+</body>
+</html>
