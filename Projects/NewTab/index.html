@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>New Tab — ProElectricCoder</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+	<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+	--accent:	   #3d6eff;
+	--accent-glow:  rgba(61, 110, 255, 0.18);
+	--accent-dim:   rgba(61, 110, 255, 0.10);
+	--border:	   rgba(255,255,255,0.08);
+	--border-hi:	rgba(255,255,255,0.15);
+	--card:		 rgba(255,255,255,0.035);
+	--card-hi:	  rgba(255,255,255,0.06);
+	--text:		 #ffffff;
+	--text-dim:	 rgba(255,255,255,0.50);
+	--text-faint:   rgba(255,255,255,0.28);
+	--green:		#2ecc71;
+	--red:		  #e74c3c;
+	--yellow:	   #f1c40f;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+	background: #000000;
+	color: var(--text);
+	font-family: 'DM Sans', sans-serif;
+	font-weight: 400;
+	min-height: 100vh;
+	overflow-x: hidden;
+}
+
+/* ─── NOISE OVERLAY ───────────────────────────────────────────────────── */
+body::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+	opacity: 0.025;
+	pointer-events: none;
+	z-index: 0;
+}
+
+/* ─── NAV ─────────────────────────────────────────────────────────────── */
+nav {
+	position: fixed;
+	top: 0; left: 0; right: 0;
+	z-index: 100;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 40px;
+	height: 60px;
+	background: rgba(0,0,0,0.6);
+	backdrop-filter: blur(20px);
+	border-bottom: 1px solid var(--border);
+}
+
+.nav-left { display: flex; align-items: center; gap: 14px; }
+
+.nav-logo {
+	width: 28px; height: 28px;
+	opacity: 0.9;
+}
+
+.nav-title {
+	font-family: 'Syne', sans-serif;
+	font-weight: 700;
+	font-size: 0.95rem;
+	letter-spacing: 0.02em;
+}
+
+.nav-version {
+	font-family: 'JetBrains Mono', monospace;
+	font-size: 0.7rem;
+	color: var(--accent);
+	background: var(--accent-dim);
+	border: 1px solid rgba(61,110,255,0.25);
+	padding: 2px 8px;
+	border-radius: 20px;
+}
+
+.nav-right { display: flex; gap: 28px; align-items: center; }
+
+.nav-link {
+	font-size: 0.82rem;
+	color: var(--text-dim);
+	text-decoration: none;
+	transition: color 0.2s;
+}
+.nav-link:hover { color: var(--text); }
+
+/* ─── HERO ────────────────────────────────────────────────────────────── */
+.hero {
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	padding: 100px 24px 80px;
+	position: relative;
+	z-index: 1;
+}
+
+.hero-eyebrow {
+	font-family: 'JetBrains Mono', monospace;
+	font-size: 0.72rem;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	color: var(--accent);
+	margin-bottom: 24px;
+	opacity: 0;
+	animation: fadeUp 0.6s ease 0.1s forwards;
+}
+
+.hero-title {
+	font-family: 'Syne', sans-serif;
+	font-size: clamp(3rem, 8vw, 6rem);
+	font-weight: 800;
+	line-height: 1.05;
+	letter-spacing: -0.03em;
+	margin-bottom: 24px;
+	opacity: 0;
+	animation: fadeUp 0.6s ease 0.2s forwards;
+}
+
+.hero-title span {
+	background: linear-gradient(135deg, #ffffff 30%, rgba(61,110,255,0.7));
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+}
+
+.hero-sub {
+	font-size: clamp(1rem, 2vw, 1.15rem);
+	font-weight: 300;
+	color: var(--text-dim);
+	max-width: 520px;
+	line-height: 1.7;
+	margin-bottom: 48px;
+	opacity: 0;
+	animation: fadeUp 0.6s ease 0.3s forwards;
+}
+
+.hero-actions {
+	display: flex;
+	gap: 14px;
+	flex-wrap: wrap;
+	justify-content: center;
+	opacity: 0;
+	animation: fadeUp 0.6s ease 0.4s forwards;
+}
+
+/* ─── BUTTONS ─────────────────────────────────────────────────────────── */
+.btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 9px;
+	padding: 13px 26px;
+	border-radius: 10px;
+	font-family: 'DM Sans', sans-serif;
+	font-size: 0.9rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	border: none;
+	text-decoration: none;
+}
+
+.btn-primary {
+	background: var(--accent);
+	color: white;
+	box-shadow: 0 0 30px rgba(61,110,255,0.3);
+}
+.btn-primary:hover {
+	background: #5580ff;
+	box-shadow: 0 0 40px rgba(61,110,255,0.5);
+	transform: translateY(-2px);
+}
+
+.btn-secondary {
+	background: var(--card);
+	color: var(--text-dim);
+	border: 1px solid var(--border);
+}
+.btn-secondary:hover {
+	background: var(--card-hi);
+	color: var(--text);
+	border-color: var(--border-hi);
+	transform: translateY(-2px);
+}
+
+.btn:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+	transform: none !important;
+}
+
+.btn svg { width: 17px; height: 17px; flex-shrink: 0; }
+
+/* ─── SECTION WRAPPER ─────────────────────────────────────────────────── */
+section {
+	position: relative;
+	z-index: 1;
+	padding: 100px 24px;
+	max-width: 1100px;
+	margin: 0 auto;
+}
+
+.section-label {
+	font-family: 'JetBrains Mono', monospace;
+	font-size: 0.68rem;
+	letter-spacing: 0.2em;
+	text-transform: uppercase;
+	color: var(--accent);
+	margin-bottom: 14px;
+}
+
+.section-title {
+	font-family: 'Syne', sans-serif;
+	font-size: clamp(1.8rem, 4vw, 2.6rem);
+	font-weight: 700;
+	letter-spacing: -0.025em;
+	margin-bottom: 16px;
+}
+
+.section-sub {
+	font-size: 0.95rem;
+	color: var(--text-dim);
+	line-height: 1.65;
+	max-width: 500px;
+	margin-bottom: 56px;
+}
+
+/* ─── FEATURES ────────────────────────────────────────────────────────── */
+.features-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	gap: 16px;
+}
+
+.feature-card {
+	background: var(--card);
+	border: 1px solid var(--border);
+	border-radius: 14px;
+	padding: 28px;
+	transition: background 0.25s, border-color 0.25s, transform 0.25s;
+}
+.feature-card:hover {
+	background: var(--card-hi);
+	border-color: var(--border-hi);
+	transform: translateY(-4px);
+}
+
+.feature-icon {
+	width: 42px; height: 42px;
+	background: var(--accent-dim);
+	border: 1px solid rgba(61,110,255,0.2);
+	border-radius: 10px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: 18px;
+	font-size: 1.2rem;
+}
+
+.feature-name {
+	font-family: 'Syne', sans-serif;
+	font-weight: 600;
+	font-size: 1rem;
+	margin-bottom: 8px;
+}
+
+.feature-desc {
+	font-size: 0.85rem;
+	color: var(--text-dim);
+	line-height: 1.6;
+}
+
+/* ─── DOWNLOAD SECTION ────────────────────────────────────────────────── */
+.download-cards {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 20px;
+	margin-bottom: 48px;
+}
+
+@media (max-width: 640px) {
+	.download-cards { grid-template-columns: 1fr; }
+}
+
+.dl-card {
+	background: var(--card);
+	border: 1px solid var(--border);
+	border-radius: 16px;
+	padding: 32px;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	transition: border-color 0.2s;
+	position: relative;
+	overflow: hidden;
+}
+.dl-card.recommended {
+	border-color: rgba(61,110,255,0.35);
+	background: linear-gradient(145deg, rgba(61,110,255,0.06), var(--card));
+}
+.dl-card.recommended::before {
+	content: 'RECOMMENDED';
+	position: absolute;
+	top: 18px; right: -26px;
+	background: var(--accent);
+	color: white;
+	font-family: 'JetBrains Mono', monospace;
+	font-size: 0.58rem;
+	letter-spacing: 0.1em;
+	padding: 4px 36px;
+	transform: rotate(35deg);
+}
+
+.dl-card-icon {
+	font-size: 2rem;
+	line-height: 1;
+}
+
+.dl-card-title {
+	font-family: 'Syne', sans-serif;
+	font-weight: 700;
+	font-size: 1.15rem;
+}
+
+.dl-card-desc {
+	font-size: 0.83rem;
+	color: var(--text-dim);
+	line-height: 1.55;
+	flex: 1;
+}
+
+.dl-status {
+	font-family: 'JetBrains Mono', monospace;
+	font-size: 0.72rem;
+	color: var(--text-faint);
+	min-height: 18px;
+	transition: color 0.2s;
+}
+.dl-status.ok  { color: var(--green); }
+.dl-status.err { color: var(--red); }
+.dl-status.loading { color: var(--yellow); }
+
+/* ─── INSTALL STEPS ───────────────────────────────────────────────────── */
+.steps { display: flex; flex-direction: column; gap: 0; }
+
+.step {
+	display: flex;
+	gap: 24px;
+	padding: 28px 0;
+	border-bottom: 1px solid var(--border);
+}
+.step:last-child { border-bottom: none; }
+
+.step-num {
+	font-family: 'Syne', sans-serif;
+	font-size: 2.5rem;
+	font-weight: 800;
+	color: var(--accent);
+	opacity: 0.25;
+	line-height: 1;
+	flex-shrink: 0;
+	width: 52px;
+	text-align: right;
+}
+
+.step-body { flex: 1; }
+
+.step-title {
+	font-family: 'Syne', sans-serif;
+	font-weight: 600;
+	font-size: 1rem;
+	margin-bottom: 8px;
+}
+
+.step-desc {
+	font-size: 0.85rem;
+	color: var(--text-dim);
+	line-height: 1.6;
+	margin-bottom: 12px;
+}
+
+.code-block {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	background: rgba(0,0,0,0.45);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 9px 14px;
+	font-family: 'JetBrains Mono', monospace;
+	font-size: 0.78rem;
+	color: rgba(255,255,255,0.75);
+	cursor: pointer;
+	transition: border-color 0.2s, background 0.2s;
+	user-select: none;
+}
+.code-block:hover { border-color: var(--border-hi); background: rgba(0,0,0,0.6); }
+.code-block .copy-icon { opacity: 0.4; transition: opacity 0.2s; }
+.code-block:hover .copy-icon { opacity: 0.8; }
+
+/* ─── AUTO-UPDATE ─────────────────────────────────────────────────────── */
+.update-panel {
+	background: var(--card);
+	border: 1px solid var(--border);
+	border-radius: 16px;
+	padding: 32px;
+	display: flex;
+	flex-direction: column;
+	gap: 24px;
+}
+
+.update-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 20px;
+	flex-wrap: wrap;
+}
+
+.update-label-group { display: flex; flex-direction: column; gap: 4px; }
+.update-label { font-weight: 500; font-size: 0.95rem; }
+.update-sublabel { font-size: 0.8rem; color: var(--text-dim); }
+
+/* Toggle */
+.toggle-wrap { display: flex; align-items: center; gap: 10px; }
+.toggle-text { font-size: 0.82rem; color: var(--text-dim); }
+.toggle {
+	position: relative;
+	width: 44px; height: 24px;
+	cursor: pointer;
+}
+.toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle-track {
+	position: absolute;
+	inset: 0;
+	background: rgba(255,255,255,0.1);
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	transition: background 0.2s, border-color 0.2s;
+}
+.toggle input:checked ~ .toggle-track {
+	background: var(--accent);
+	border-color: var(--accent);
+}
+.toggle-thumb {
+	position: absolute;
+	top: 3px; left: 3px;
+	width: 16px; height: 16px;
+	background: white;
+	border-radius: 50%;
+	transition: transform 0.2s;
+}
+.toggle input:checked ~ .toggle-thumb { transform: translateX(20px); }
+
+.version-info {
+	display: flex;
+	gap: 32px;
+	flex-wrap: wrap;
+}
+
+.vinfo {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+.vinfo-label {
+	font-family: 'JetBrains Mono', monospace;
+	font-size: 0.65rem;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--text-faint);
+}
+.vinfo-val {
+	font-family: 'JetBrains Mono', monospace;
+	font-size: 1.1rem;
+	font-weight: 500;
+}
+.vinfo-val.up-to-date { color: var(--green); }
+.vinfo-val.outdated   { color: var(--yellow); }
+.vinfo-val.unknown	{ color: var(--text-faint); }
+
+.divider { height: 1px; background: var(--border); }
+
+/* ─── UPDATE BANNER ───────────────────────────────────────────────────── */
+#updateBanner {
+	position: fixed;
+	bottom: 24px; right: 24px;
+	background: rgba(10,10,20,0.95);
+	border: 1px solid rgba(61,110,255,0.4);
+	border-radius: 14px;
+	padding: 20px 24px;
+	max-width: 340px;
+	box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(61,110,255,0.1);
+	backdrop-filter: blur(16px);
+	z-index: 200;
+	display: none;
+	flex-direction: column;
+	gap: 12px;
+	animation: slideIn 0.3s ease;
+}
+#updateBanner.show { display: flex; }
+.banner-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.95rem; }
+.banner-body  { font-size: 0.8rem; color: var(--text-dim); line-height: 1.5; }
+.banner-actions { display: flex; gap: 10px; }
+
+/* ─── FOOTER ──────────────────────────────────────────────────────────── */
+footer {
+	position: relative;
+	z-index: 1;
+	text-align: center;
+	padding: 48px 24px;
+	border-top: 1px solid var(--border);
+	color: var(--text-faint);
+	font-size: 0.8rem;
+	font-family: 'JetBrains Mono', monospace;
+}
+
+/* ─── ANIMATIONS ──────────────────────────────────────────────────────── */
+@keyframes fadeUp {
+	from { opacity: 0; transform: translateY(18px); }
+	to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideIn {
+	from { opacity: 0; transform: translateX(20px); }
+	to   { opacity: 1; transform: translateX(0); }
+}
+
+.reveal {
+	opacity: 0;
+	transform: translateY(20px);
+	transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.reveal.visible { opacity: 1; transform: none; }
+
+/* ─── SCROLLBAR ───────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+	</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+	<div class="nav-left">
+		<img src="ProElectricCoder-logo-website-1.svg" alt="Logo" class="nav-logo" onerror="this.style.display='none'">
+		<span class="nav-title">ProElectricCoder New Tab</span>
+		<span class="nav-version" id="navVersion">v1.3.4</span>
+	</div>
+	<div class="nav-right">
+		<a class="nav-link" href="#features">Features</a>
+		<a class="nav-link" href="#download">Download</a>
+		<a class="nav-link" href="#install">Install</a>
+		<a class="nav-link" href="#update">Auto-Update</a>
+	</div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+	<p class="hero-eyebrow">Chrome Extension · Manifest V3</p>
+	<h1 class="hero-title"><span>A new tab worth<br>opening.</span></h1>
+	<p class="hero-sub">
+		Replaces Chrome's default new tab with a focused, customisable page —
+		live clock, gradient background, multi-engine search, and quick-access shortcuts.
+		No sign-in. No telemetry. Just yours.
+	</p>
+	<div class="hero-actions">
+		<button class="btn btn-primary" onclick="scrollToDownload()">
+			<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+			Download Extension
+		</button>
+		<a class="btn btn-secondary" href="#features">
+			<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+			See Features
+		</a>
+	</div>
+</div>
+
+<!-- FEATURES -->
+<section id="features">
+	<p class="section-label reveal">What's inside</p>
+	<h2 class="section-title reveal">Everything you need.<br>Nothing you don't.</h2>
+	<p class="section-sub reveal">Built to replace Chrome's blank new tab with something that actually works for you.</p>
+	<div class="features-grid">
+		<div class="feature-card reveal">
+			<div class="feature-icon">🎨</div>
+			<div class="feature-name">Cubic Gradient Background</div>
+			<div class="feature-desc">Powered by ElectronCSS's cubicGradient — tune direction, power curve, and step count for a perfectly smooth gradient every time.</div>
+		</div>
+		<div class="feature-card reveal">
+			<div class="feature-icon">🔍</div>
+			<div class="feature-name">Multi-Engine Search</div>
+			<div class="feature-desc">Switch between Google and Bing with one click. Smart URL detection navigates directly when you type a domain.</div>
+		</div>
+		<div class="feature-card reveal">
+			<div class="feature-icon">⚡</div>
+			<div class="feature-name">Quick Shortcuts</div>
+			<div class="feature-desc">Add, edit, delete, and reorder shortcuts with drag-and-drop. Icons are fetched automatically from each site's favicon.</div>
+		</div>
+		<div class="feature-card reveal">
+			<div class="feature-icon">🕐</div>
+			<div class="feature-name">Live Clock &amp; Date</div>
+			<div class="feature-desc">12-hour monospace clock with AM/PM indicator and a full date line. Always centred, always sharp.</div>
+		</div>
+		<div class="feature-card reveal">
+			<div class="feature-icon">⚙️</div>
+			<div class="feature-name">Settings Sidebar</div>
+			<div class="feature-desc">Slide-out panel gives you full control over gradient colours, direction, curve intensity, and smoothness — all live-previewed.</div>
+		</div>
+		<div class="feature-card reveal">
+			<div class="feature-icon">🔒</div>
+			<div class="feature-name">Fully Local</div>
+			<div class="feature-desc">Zero network requests beyond search and favicons. All settings stored in localStorage. No accounts, no tracking.</div>
+		</div>
+	</div>
+</section>
+
+<!-- DOWNLOAD -->
+<section id="download">
+	<p class="section-label reveal">Get it</p>
+	<h2 class="section-title reveal">Download</h2>
+	<p class="section-sub reveal">Choose how you'd like to receive the extension files.</p>
+
+	<div class="download-cards reveal">
+		<!-- FOLDER -->
+		<div class="dl-card recommended">
+			<div class="dl-card-icon">📂</div>
+			<div class="dl-card-title">Select a Folder</div>
+			<div class="dl-card-desc">
+				Uses the File System Access API to write all extension files directly into a folder you choose on your machine. No extraction needed — just point Chrome straight at it.
+			</div>
+			<p class="dl-status" id="folderStatus"></p>
+			<button class="btn btn-primary" id="btnFolder" onclick="downloadToFolder()">
+				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v8.25m19.5 0v.75a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25v-.75"/></svg>
+				Choose Folder
+			</button>
+		</div>
+
+		<!-- ZIP -->
+		<div class="dl-card">
+			<div class="dl-card-icon">🗜️</div>
+			<div class="dl-card-title">Download as ZIP</div>
+			<div class="dl-card-desc">
+				Downloads a <code style="font-family:'JetBrains Mono',monospace;font-size:0.8em;color:var(--accent)">NewTab-extension.zip</code> containing all files. Unzip it somewhere permanent, then load that folder in Chrome.
+			</div>
+			<p class="dl-status" id="zipStatus"></p>
+			<button class="btn btn-secondary" id="btnZip" onclick="downloadZip()">
+				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+				Download ZIP
+			</button>
+		</div>
+	</div>
+</section>
+
+<!-- INSTALL -->
+<section id="install">
+	<p class="section-label reveal">Set it up</p>
+	<h2 class="section-title reveal">Installation</h2>
+	<p class="section-sub reveal">Four steps and you're done. Takes under a minute.</p>
+
+	<div class="steps">
+		<div class="step reveal">
+			<div class="step-num">01</div>
+			<div class="step-body">
+				<div class="step-title">Download the extension files</div>
+				<div class="step-desc">Use the "Choose Folder" option above (recommended) or download and unzip the ZIP file into a permanent location on your machine. Don't move the folder after loading it.</div>
+			</div>
+		</div>
+		<div class="step reveal">
+			<div class="step-num">02</div>
+			<div class="step-body">
+				<div class="step-title">Open Chrome Extensions</div>
+				<div class="step-desc">Navigate to the extensions management page in your browser.</div>
+				<div class="code-block" onclick="copyToClipboard('chrome://extensions', this)">
+					<span>chrome://extensions</span>
+					<svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75"/></svg>
+				</div>
+			</div>
+		</div>
+		<div class="step reveal">
+			<div class="step-num">03</div>
+			<div class="step-body">
+				<div class="step-title">Enable Developer Mode</div>
+				<div class="step-desc">In the top-right corner of the extensions page, toggle on <strong>Developer mode</strong>. Three new buttons will appear in the top-left.</div>
+			</div>
+		</div>
+		<div class="step reveal">
+			<div class="step-num">04</div>
+			<div class="step-body">
+				<div class="step-title">Load the extension</div>
+				<div class="step-desc">Click <strong>Load unpacked</strong> and select the folder containing the extension files. Open a new tab — you're done.</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- AUTO-UPDATE -->
+<section id="update">
+	<p class="section-label reveal">Stay current</p>
+	<h2 class="section-title reveal">Auto-Update</h2>
+	<p class="section-sub reveal">When you visit this page, it checks the hosted manifest for the latest version and can update your files automatically.</p>
+
+	<div class="update-panel reveal">
+		<div class="update-row">
+			<div class="update-label-group">
+				<span class="update-label">Auto-Update</span>
+				<span class="update-sublabel">Automatically download new files when this page detects a newer version</span>
+			</div>
+			<label class="toggle">
+				<input type="checkbox" id="autoUpdateToggle" onchange="saveAutoUpdatePref()">
+				<div class="toggle-track"></div>
+				<div class="toggle-thumb"></div>
+			</label>
+		</div>
+
+		<div class="divider"></div>
+
+		<div class="version-info">
+			<div class="vinfo">
+				<span class="vinfo-label">Installed</span>
+				<span class="vinfo-val unknown" id="installedVer">—</span>
+			</div>
+			<div class="vinfo">
+				<span class="vinfo-label">Latest</span>
+				<span class="vinfo-val unknown" id="latestVer">checking…</span>
+			</div>
+			<div class="vinfo">
+				<span class="vinfo-label">Status</span>
+				<span class="vinfo-val unknown" id="updateStatus">—</span>
+			</div>
+		</div>
+
+		<div class="update-row">
+			<span class="update-sublabel" id="lastChecked">Never checked</span>
+			<div style="display:flex;gap:10px;flex-wrap:wrap">
+				<button class="btn btn-secondary" onclick="checkForUpdates()">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" width="17" height="17"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+					Check Now
+				</button>
+				<button class="btn btn-primary" id="btnUpdate" style="display:none" onclick="triggerUpdate()">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" width="17" height="17"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+					Update Now
+				</button>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+	ProElectricCoder New Tab · <span id="footerVersion">v1.3.4</span> · Built with ElectronCSS
+</footer>
+
+<!-- UPDATE BANNER -->
+<div id="updateBanner">
+	<div class="banner-title">🆕 Update Available</div>
+	<div class="banner-body" id="bannerBody">A new version is ready. Update your extension files to get the latest features and fixes.</div>
+	<div class="banner-actions">
+		<button class="btn btn-primary" style="font-size:0.82rem;padding:9px 16px" onclick="triggerUpdate()">Update</button>
+		<button class="btn btn-secondary" style="font-size:0.82rem;padding:9px 16px" onclick="dismissBanner()">Later</button>
+	</div>
+</div>
+
+<script type="module">
+import { cubicGradient } from 'https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js';
+
+// ─── Background ────────────────────────────────────────────────────────────
+document.body.style.background = cubicGradient({
+	direction: 'to bottom right',
+	start: '#000000',
+	end: '#000066',
+	steps: 20,
+	power: 3
+});
+
+// ─── Extension files list ──────────────────────────────────────────────────
+const EXTENSION_FILES = [
+	'manifest.json',
+	'NewTab.html',
+	'NewTabJS.js',
+	'CubicGradient.js',
+	'ProElectricCoder-logo-website-1.svg',
+	'ProElectricCoder-logo-website-2.svg'
+];
+const BASE_URL = './';
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+function setStatus(id, msg, type = '') {
+	const el = document.getElementById(id);
+	el.textContent = msg;
+	el.className = 'dl-status' + (type ? ' ' + type : '');
+}
+
+function compareVersions(a, b) {
+	// returns 1 if a > b, -1 if a < b, 0 if equal
+	const pa = a.split('.').map(Number);
+	const pb = b.split('.').map(Number);
+	for (let i = 0; i < 3; i++) {
+		if ((pa[i] || 0) > (pb[i] || 0)) return 1;
+		if ((pa[i] || 0) < (pb[i] || 0)) return -1;
+	}
+	return 0;
+}
+
+async function fetchAllFiles() {
+	const results = {};
+	await Promise.all(EXTENSION_FILES.map(async (name) => {
+		const res = await fetch(BASE_URL + name);
+		if (!res.ok) throw new Error(`Failed to fetch ${name} (${res.status})`);
+		results[name] = await res.blob();
+	}));
+	return results;
+}
+
+// ─── Download: Folder ──────────────────────────────────────────────────────
+window.downloadToFolder = async function () {
+	if (!('showDirectoryPicker' in window)) {
+		setStatus('folderStatus', '✗ File System Access API not supported in this browser.', 'err');
+		return;
+	}
+	const btn = document.getElementById('btnFolder');
+	btn.disabled = true;
+	setStatus('folderStatus', 'Waiting for folder selection…', 'loading');
+	try {
+		const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+		setStatus('folderStatus', 'Fetching files…', 'loading');
+		const files = await fetchAllFiles();
+		for (const [name, blob] of Object.entries(files)) {
+			const fileHandle = await dirHandle.getFileHandle(name, { create: true });
+			const writable   = await fileHandle.createWritable();
+			await writable.write(blob);
+			await writable.close();
+		}
+		// Read version from fetched manifest and mark installed
+		const manifest = JSON.parse(await files['manifest.json'].text());
+		markInstalled(manifest.version, 'folder');
+		setStatus('folderStatus', `✓ All files written — v${manifest.version} installed.`, 'ok');
+		refreshUpdateUI();
+	} catch (err) {
+		if (err.name === 'AbortError') {
+			setStatus('folderStatus', 'Cancelled.', '');
+		} else {
+			setStatus('folderStatus', `✗ ${err.message}`, 'err');
+		}
+	}
+	btn.disabled = false;
+};
+
+// ─── Download: ZIP ─────────────────────────────────────────────────────────
+window.downloadZip = async function () {
+	const btn = document.getElementById('btnZip');
+	btn.disabled = true;
+	setStatus('zipStatus', 'Fetching files…', 'loading');
+	try {
+		const files = await fetchAllFiles();
+		const zip   = new JSZip();
+		const folder = zip.folder('NewTab-extension');
+		for (const [name, blob] of Object.entries(files)) {
+			folder.file(name, blob);
+		}
+		const manifest = JSON.parse(await files['manifest.json'].text());
+		const content  = await zip.generateAsync({ type: 'blob' });
+		const url  = URL.createObjectURL(content);
+		const link = document.createElement('a');
+		link.href	 = url;
+		link.download = `NewTab-extension-v${manifest.version}.zip`;
+		link.click();
+		URL.revokeObjectURL(url);
+		markInstalled(manifest.version, 'zip');
+		setStatus('zipStatus', `✓ ZIP downloaded — v${manifest.version}.`, 'ok');
+		refreshUpdateUI();
+	} catch (err) {
+		setStatus('zipStatus', `✗ ${err.message}`, 'err');
+	}
+	btn.disabled = false;
+};
+
+// ─── Installed version tracking ────────────────────────────────────────────
+function markInstalled(version, method) {
+	localStorage.setItem('nt_installed_version', version);
+	localStorage.setItem('nt_download_method', method);
+}
+
+function getInstalledVersion() {
+	return localStorage.getItem('nt_installed_version') || null;
+}
+
+function getDownloadMethod() {
+	return localStorage.getItem('nt_download_method') || 'zip';
+}
+
+// ─── Auto-update preference ────────────────────────────────────────────────
+window.saveAutoUpdatePref = function () {
+	const on = document.getElementById('autoUpdateToggle').checked;
+	localStorage.setItem('nt_auto_update', on ? '1' : '0');
+};
+
+function loadAutoUpdatePref() {
+	const val = localStorage.getItem('nt_auto_update');
+	document.getElementById('autoUpdateToggle').checked = val === '1';
+}
+
+// ─── Check for updates ──────────────────────────────────────────────────────
+let latestVersion = null;
+
+window.checkForUpdates = async function () {
+	document.getElementById('latestVer').textContent = 'checking…';
+	document.getElementById('latestVer').className = 'vinfo-val unknown';
+	try {
+		const res	  = await fetch(BASE_URL + 'manifest.json?_=' + Date.now());
+		const manifest = await res.json();
+		latestVersion  = manifest.version;
+
+		document.getElementById('navVersion').textContent	= `v${latestVersion}`;
+		document.getElementById('footerVersion').textContent = `v${latestVersion}`;
+		document.getElementById('latestVer').textContent	 = `v${latestVersion}`;
+		document.getElementById('lastChecked').textContent   = 'Last checked: just now';
+
+		refreshUpdateUI();
+
+		const installed = getInstalledVersion();
+		const autoOn	= localStorage.getItem('nt_auto_update') === '1';
+
+		if (installed && compareVersions(latestVersion, installed) > 0) {
+			if (autoOn) {
+				showBanner(`v${installed} → v${latestVersion} — downloading automatically…`);
+				await triggerUpdate();
+			} else {
+				showBanner(`v${installed} → v${latestVersion} available.`);
+			}
+		}
+	} catch (e) {
+		document.getElementById('latestVer').textContent   = 'unreachable';
+		document.getElementById('updateStatus').textContent = '—';
+	}
+};
+
+function refreshUpdateUI() {
+	const installed  = getInstalledVersion();
+	const installedEl = document.getElementById('installedVer');
+	const statusEl	= document.getElementById('updateStatus');
+	const updateBtn   = document.getElementById('btnUpdate');
+
+	if (installed) {
+		installedEl.textContent = `v${installed}`;
+		installedEl.className   = 'vinfo-val';
+	} else {
+		installedEl.textContent = 'not installed';
+		installedEl.className   = 'vinfo-val unknown';
+	}
+
+	if (latestVersion && installed) {
+		const cmp = compareVersions(latestVersion, installed);
+		if (cmp > 0) {
+			statusEl.textContent = 'Update available';
+			statusEl.className   = 'vinfo-val outdated';
+			updateBtn.style.display = '';
+		} else {
+			statusEl.textContent = 'Up to date';
+			statusEl.className   = 'vinfo-val up-to-date';
+			updateBtn.style.display = 'none';
+		}
+	} else if (!installed) {
+		statusEl.textContent = 'Not installed';
+		statusEl.className   = 'vinfo-val unknown';
+		updateBtn.style.display = 'none';
+	}
+}
+
+window.triggerUpdate = async function () {
+	const method = getDownloadMethod();
+	dismissBanner();
+	if (method === 'folder') {
+		await window.downloadToFolder();
+	} else {
+		await window.downloadZip();
+	}
+};
+
+// ─── Banner ────────────────────────────────────────────────────────────────
+function showBanner(msg) {
+	document.getElementById('bannerBody').textContent = msg;
+	document.getElementById('updateBanner').classList.add('show');
+}
+
+window.dismissBanner = function () {
+	document.getElementById('updateBanner').classList.remove('show');
+};
+
+// ─── Scroll reveal ─────────────────────────────────────────────────────────
+const observer = new IntersectionObserver((entries) => {
+	entries.forEach((e, i) => {
+		if (e.isIntersecting) {
+			setTimeout(() => e.target.classList.add('visible'), i * 60);
+			observer.unobserve(e.target);
+		}
+	});
+}, { threshold: 0.12 });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// ─── Copy to clipboard ─────────────────────────────────────────────────────
+window.copyToClipboard = function (text, el) {
+	navigator.clipboard.writeText(text).then(() => {
+		const orig = el.querySelector('span').textContent;
+		el.querySelector('span').textContent = 'Copied!';
+		setTimeout(() => el.querySelector('span').textContent = orig, 1500);
+	});
+};
+
+window.scrollToDownload = function () {
+	document.getElementById('download').scrollIntoView({ behavior: 'smooth' });
+};
+
+// ─── Init ──────────────────────────────────────────────────────────────────
+loadAutoUpdatePref();
+refreshUpdateUI();
+checkForUpdates(); // silent check on page load
+</script>
+</body>
+</html>
