@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Custom New Tab",
-  "version": "1.0",
-  "description": "Custom NewTab Page.",
+  "name": "ProElectricCoder New Tab",
+  "version": "1.3.4",
+  "description": "Custom NewTab Page by ProElectricCoder",
   "chrome_url_overrides": {
     "newtab": "NewTab.html"
   },
