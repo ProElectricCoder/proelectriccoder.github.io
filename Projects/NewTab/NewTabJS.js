@@ -6,7 +6,6 @@ const engineSvgs = {
 	bing: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 256 388"><defs><radialGradient id="logosBing0" cx="93.717%" cy="77.818%" r="143.121%" fx="93.717%" fy="77.818%"><stop offset="0%" stop-color="#00CACC"/><stop offset="100%" stop-color="#048FCE"/></radialGradient><radialGradient id="logosBing1" cx="13.893%" cy="71.448%" r="150.086%" fx="13.893%" fy="71.448%"><stop offset="0%" stop-color="#00BBEC"/><stop offset="100%" stop-color="#2756A9"/></radialGradient><linearGradient id="logosBing2" x1="50%" x2="50%" y1="0%" y2="100%"><stop offset="0%" stop-color="#00BBEC"/><stop offset="100%" stop-color="#2756A9"/></linearGradient></defs><path fill="url(#logosBing0)" d="M129.424 122.047c-7.133.829-12.573 6.622-13.079 13.928c-.218 3.147-.15 3.36 6.986 21.722c16.233 41.774 20.166 51.828 20.827 53.243c1.603 3.427 3.856 6.65 6.672 9.544c2.16 2.22 3.585 3.414 5.994 5.024c4.236 2.829 6.337 3.61 22.818 8.49c16.053 4.754 24.824 7.913 32.381 11.664c9.791 4.86 16.623 10.387 20.944 16.946c3.1 4.706 5.846 13.145 7.04 21.64c.468 3.321.47 10.661.006 13.663c-1.008 6.516-3.021 11.976-6.101 16.545c-1.638 2.43-1.068 2.023 1.313-.939c6.74-8.379 13.605-22.7 17.108-35.687c4.24-15.718 4.817-32.596 1.66-48.57c-6.147-31.108-25.786-57.955-53.444-73.06c-1.738-.95-8.357-4.42-17.331-9.085a1633.23 1633.23 0 0 1-4.127-2.154c-.907-.477-2.764-1.447-4.126-2.154c-1.362-.708-5.282-2.75-8.711-4.539l-8.528-4.446a6021.14 6021.14 0 0 1-8.344-4.357c-8.893-4.655-12.657-6.537-13.73-6.863c-1.125-.343-3.984-.782-4.701-.723c-.152.012-.838.088-1.527.168Z"/><path fill="url(#logosBing1)" d="M148.81 277.994c-.493.292-1.184.714-1.537.938c-.354.225-1.137.712-1.743 1.083a8315.383 8315.383 0 0 0-13.204 8.137a2847.83 2847.83 0 0 0-8.07 4.997a388.04 388.04 0 0 1-3.576 2.198c-.454.271-2.393 1.465-4.31 2.654a2651.466 2651.466 0 0 1-7.427 4.586a3958.037 3958.037 0 0 0-8.62 5.316a3011.146 3011.146 0 0 1-7.518 4.637c-1.564.959-3.008 1.885-3.21 2.058c-.3.257-14.205 8.87-21.182 13.121c-5.3 3.228-11.43 5.387-17.705 6.235c-2.921.395-8.45.396-11.363.003c-7.9-1.067-15.176-4.013-21.409-8.666c-2.444-1.826-7.047-6.425-8.806-8.8c-4.147-5.598-6.829-11.602-8.218-18.396c-.32-1.564-.622-2.884-.672-2.935c-.13-.13.105 2.231.528 5.319c.44 3.211 1.377 7.856 2.387 11.829c7.814 30.743 30.05 55.749 60.15 67.646c8.668 3.424 17.415 5.582 26.932 6.64c3.576.4 13.699.56 17.43.276c17.117-1.296 32.02-6.334 47.308-15.996c1.362-.86 3.92-2.474 5.685-3.585a877.227 877.227 0 0 0 4.952-3.14c.958-.615 2.114-1.341 2.567-1.614a91.312 91.312 0 0 0 2.018-1.268c.656-.424 3.461-2.2 6.235-3.944l11.092-7.006l3.809-2.406l.137-.086l.42-.265l.199-.126l2.804-1.771l9.69-6.121c12.348-7.759 16.03-10.483 21.766-16.102c2.392-2.342 5.997-6.34 6.176-6.848c.037-.104.678-1.092 1.424-2.197c3.036-4.492 5.06-9.995 6.064-16.484c.465-3.002.462-10.342-.005-13.663c-.903-6.42-2.955-13.702-5.167-18.339c-3.627-7.603-11.353-14.512-22.453-20.076c-3.065-1.537-6.23-2.943-6.583-2.924c-.168.009-10.497 6.322-22.954 14.03c-12.457 7.71-23.268 14.4-24.025 14.87a289.98 289.98 0 0 1-2.888 1.764l-7.128 4.42Z"/><path fill="url(#logosBing2)" d="m.053 241.013l.054 53.689l.695 3.118c2.172 9.747 5.937 16.775 12.482 23.302c3.078 3.07 5.432 4.922 8.768 6.896c7.06 4.177 14.657 6.238 22.978 6.235c8.716-.005 16.256-2.179 24.025-6.928c1.311-.801 6.449-3.964 11.416-7.029l9.032-5.572v-127.4l-.002-58.273c-.002-37.177-.07-59.256-.188-60.988c-.74-10.885-5.293-20.892-12.948-28.461c-2.349-2.323-4.356-3.875-10.336-7.99a25160.08 25160.08 0 0 1-12.104-8.336A186532.885 186532.885 0 0 0 28.617 5.835C22.838 1.85 22.386 1.574 20.639.949C18.367.136 15.959-.163 13.67.084C6.998.804 1.657 5.622.269 12.171C.053 13.191.013 26.751.01 100.35l-.003 86.975H0l.053 53.688Z"/></svg>`
 };
 
-// Inject SVGs into dropdown items (single reference point)
 document.getElementById('engineGoogleIcon').innerHTML = engineSvgs.google;
 document.getElementById('engineBingIcon').innerHTML = engineSvgs.bing;
 
@@ -57,9 +56,7 @@ function applyGradient() {
 	const direction = document.getElementById('bgDirectionInput').value;
 	const power     = parseFloat(document.getElementById('bgPowerInput').value);
 	const steps     = parseInt(document.getElementById('bgStepsInput').value, 10);
-
 	document.body.style.background = cubicGradient({ direction, start, end, steps, power });
-
 	localStorage.setItem('bgTop',       start);
 	localStorage.setItem('bgBottom',    end);
 	localStorage.setItem('bgDirection', direction);
@@ -73,7 +70,6 @@ function loadBackground() {
 	const direction = localStorage.getItem('bgDirection') || 'to bottom right';
 	const power     = localStorage.getItem('bgPower')     || '3';
 	const steps     = localStorage.getItem('bgSteps')     || '20';
-
 	document.getElementById('bgTopInput').value          = start;
 	document.getElementById('bgBottomInput').value       = end;
 	document.getElementById('bgDirectionInput').value    = direction;
@@ -81,7 +77,6 @@ function loadBackground() {
 	document.getElementById('bgStepsInput').value        = steps;
 	document.getElementById('bgPowerValue').textContent  = power;
 	document.getElementById('bgStepsValue').textContent  = steps;
-
 	applyGradient();
 }
 
@@ -129,7 +124,6 @@ function renderShortcuts() {
 			menu.style.top = e.clientY + 'px';
 			menu.style.left = e.clientX + 'px';
 		});
-
 		grid.appendChild(item);
 	});
 
@@ -146,14 +140,24 @@ function renderShortcuts() {
 	grid.appendChild(add);
 }
 
-// ─── Init ─────────────────────────────────────────────────────────────────
-updateClock();
-setInterval(updateClock, 1000);
-loadBackground();
-setEngine(localStorage.getItem('preferredEngine') || 'google');
-renderShortcuts();
+// ─── Toast notification ────────────────────────────────────────────────────
+function showUpdateToast(message) {
+	const existing = document.querySelector('.update-toast');
+	if (existing) existing.remove();
+	const toast = document.createElement('div');
+	toast.className = 'update-toast';
+	toast.textContent = '✓ ' + message;
+	document.body.appendChild(toast);
+	requestAnimationFrame(() => {
+		requestAnimationFrame(() => toast.classList.add('show'));
+	});
+	setTimeout(() => {
+		toast.classList.remove('show');
+		toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+	}, 5000);
+}
 
-// ─── FILE SYSTEM API & IDB FOR EXTENSION UPDATES ────────────────────────
+// ─── IndexedDB for folder handle ──────────────────────────────────────────
 const DB_NAME = 'NewTabExtDB';
 const STORE_NAME = 'handles';
 let extDirHandle = null;
@@ -181,80 +185,166 @@ async function getHandle() {
 	return new Promise((resolve) => {
 		const tx = db.transaction(STORE_NAME, 'readonly');
 		const req = tx.objectStore(STORE_NAME).get('extFolder');
-		req.onsuccess = () => resolve(req.result);
+		req.onsuccess = () => resolve(req.result || null);
 		req.onerror = () => resolve(null);
 	});
 }
 
-async function checkFolderAccess() {
-	if (!extDirHandle) extDirHandle = await getHandle();
-	
-	if (extDirHandle) {
-		// Verify permission quietly
-		const opts = { mode: 'readwrite' };
-		if (await extDirHandle.queryPermission(opts) === 'granted') {
-			document.getElementById('linkFolderRow').style.display = 'none';
-			document.getElementById('autoUpdateRow').style.display = 'block';
-			readUpdatesFile();
-			return;
-		}
-	}
-	
-	// Needs linking
-	document.getElementById('linkFolderRow').style.display = 'flex';
-	document.getElementById('autoUpdateRow').style.display = 'none';
+// ─── Updates.txt helpers ──────────────────────────────────────────────────
+function parseLastLine(text) {
+	if (!text) return false;
+	const lines = text.trim().split('\n');
+	return lines[lines.length - 1].trim() === 'AUTO_UPDATE=ON';
 }
 
-async function linkExtensionFolder() {
-	try {
-		extDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-		await saveHandle(extDirHandle);
-		checkFolderAccess();
-	} catch (e) {
-		console.error("Folder link failed", e);
+async function writeUpdatesFile(text) {
+	const fh = await extDirHandle.getFileHandle('Updates.txt', { create: true });
+	const writable = await fh.createWritable();
+	await writable.write(text);
+	await writable.close();
+}
+
+// ─── Folder access ────────────────────────────────────────────────────────
+async function checkFolderAccess() {
+	if (!extDirHandle) extDirHandle = await getHandle();
+	if (!extDirHandle) {
+		showFolderUI('unlinked');
+		return;
+	}
+	const perm = await extDirHandle.queryPermission({ mode: 'readwrite' });
+	if (perm === 'granted') {
+		showFolderUI('linked');
+		await readUpdatesFile();
+	} else {
+		// Permission is 'prompt' or 'denied' — show reconnect (user gesture needed)
+		showFolderUI('reconnect');
+	}
+}
+
+function showFolderUI(state) {
+	const linkRow = document.getElementById('linkFolderRow');
+	const updateRow = document.getElementById('autoUpdateRow');
+	const btn = document.getElementById('btnLinkFolder');
+	if (state === 'linked') {
+		linkRow.style.display = 'none';
+		updateRow.style.display = 'block';
+	} else if (state === 'reconnect') {
+		linkRow.style.display = 'flex';
+		updateRow.style.display = 'none';
+		btn.textContent = 'Reconnect Folder';
+	} else {
+		linkRow.style.display = 'flex';
+		updateRow.style.display = 'none';
+		btn.textContent = 'Link Folder';
 	}
 }
 
 async function readUpdatesFile() {
+	const infoEl = document.getElementById('autoUpdateFolderInfo');
 	try {
+		// Read version from manifest.json
+		const mfh = await extDirHandle.getFileHandle('manifest.json');
+		const mf = JSON.parse(await (await mfh.getFile()).text());
+		infoEl.textContent = `v${mf.version} · linked`;
+
+		// Read Updates.txt
 		const fh = await extDirHandle.getFileHandle('Updates.txt');
-		const file = await fh.getFile();
-		const text = await file.text();
-		
+		const text = await (await fh.getFile()).text();
 		const lines = text.trim().split('\n');
-		const lastLine = lines[lines.length - 1] || '';
-		document.getElementById('extUpdateToggle').checked = (lastLine === 'AUTO_UPDATE=ON');
+
+		// Check for pending [NOTIFY] lines and show toast
+		const notifyLines = lines.filter(l => l.startsWith('[NOTIFY]'));
+		if (notifyLines.length > 0) {
+			notifyLines.forEach(l => {
+				const msg = l.replace('[NOTIFY]', '').trim();
+				showUpdateToast(msg);
+			});
+			// Remove all [NOTIFY] lines and write back
+			const cleaned = lines.filter(l => !l.startsWith('[NOTIFY]')).join('\n');
+			await writeUpdatesFile(cleaned);
+		}
+
+		// Set toggle state from last line
+		document.getElementById('extUpdateToggle').checked = parseLastLine(text);
+
 	} catch (e) {
-		console.log("Updates.txt not found or unreadable yet.");
+		infoEl.textContent = 'linked · Updates.txt missing';
 		document.getElementById('extUpdateToggle').checked = false;
+	}
+}
+
+async function linkExtensionFolder() {
+	const btn = document.getElementById('btnLinkFolder');
+	try {
+		if (extDirHandle && btn.textContent === 'Reconnect Folder') {
+			// Try to re-request permission on the existing handle (user gesture available here)
+			const perm = await extDirHandle.requestPermission({ mode: 'readwrite' });
+			if (perm === 'granted') {
+				showFolderUI('linked');
+				await readUpdatesFile();
+				return;
+			}
+		}
+		// New folder selection
+		extDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+		await saveHandle(extDirHandle);
+		showFolderUI('linked');
+		await readUpdatesFile();
+	} catch (e) {
+		if (e.name !== 'AbortError') console.error('Folder link failed:', e);
 	}
 }
 
 async function toggleAutoUpdate() {
 	const isOn = document.getElementById('extUpdateToggle').checked;
+	if (!extDirHandle) return;
 	try {
-		const fh = await extDirHandle.getFileHandle('Updates.txt', {create: true});
-		const file = await fh.getFile();
-		const text = await file.text();
-		
+		let text = '';
+		try {
+			const fh = await extDirHandle.getFileHandle('Updates.txt');
+			text = await (await fh.getFile()).text();
+		} catch { /* file missing, will create */ }
+
 		let lines = text ? text.trim().split('\n') : [];
-		
-		// Remove old toggle status if it exists
+		// Remove old AUTO_UPDATE line
 		if (lines.length > 0 && lines[lines.length - 1].startsWith('AUTO_UPDATE=')) {
 			lines.pop();
 		}
-		
 		lines.push(`AUTO_UPDATE=${isOn ? 'ON' : 'OFF'}`);
-		
-		// Write back
-		const writable = await fh.createWritable();
-		await writable.write(lines.join('\n'));
-		await writable.close();
-		
+		await writeUpdatesFile(lines.join('\n'));
 	} catch (e) {
-		console.error("Failed to write to Updates.txt", e);
+		console.error('Failed to write Updates.txt:', e);
 	}
 }
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+updateClock();
+setInterval(updateClock, 1000);
+loadBackground();
+setEngine(localStorage.getItem('preferredEngine') || 'google');
+renderShortcuts();
+
+// Silently check for notifications on load (no UI needed, just reads the file)
+getHandle().then(async (handle) => {
+	if (!handle) return;
+	const perm = await handle.queryPermission({ mode: 'readwrite' });
+	if (perm !== 'granted') return;
+	extDirHandle = handle;
+	try {
+		const fh = await handle.getFileHandle('Updates.txt');
+		const text = await (await fh.getFile()).text();
+		const lines = text.trim().split('\n');
+		const notifyLines = lines.filter(l => l.startsWith('[NOTIFY]'));
+		if (notifyLines.length > 0) {
+			notifyLines.forEach(l => showUpdateToast(l.replace('[NOTIFY]', '').trim()));
+			const cleaned = lines.filter(l => !l.startsWith('[NOTIFY]')).join('\n');
+			const wfh = await handle.getFileHandle('Updates.txt', { create: true });
+			const writable = await wfh.createWritable();
+			await writable.write(cleaned);
+			await writable.close();
+		}
+	} catch { /* Updates.txt missing, nothing to do */ }
+}).catch(() => {});
 
 // ─── Event bindings ───────────────────────────────────────────────────────
 document.getElementById('settingsBtn').onclick = () => {
@@ -277,11 +367,10 @@ document.getElementById('bgStepsInput').oninput = (e) => {
 };
 
 document.querySelector('.reset-btn').onclick = resetBackground;
-
 document.getElementById('btnLinkFolder').onclick = linkExtensionFolder;
 document.getElementById('extUpdateToggle').onchange = toggleAutoUpdate;
 
-document.querySelector('.engine-switcher').onclick  = () => document.getElementById('engineDropdown').classList.toggle('show');
+document.querySelector('.engine-switcher').onclick = () => document.getElementById('engineDropdown').classList.toggle('show');
 document.getElementById('engineGoogle').onclick = () => { setEngine('google'); document.getElementById('engineDropdown').classList.remove('show'); };
 document.getElementById('engineBing').onclick   = () => { setEngine('bing');   document.getElementById('engineDropdown').classList.remove('show'); };
 

@@ -4,8 +4,6 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>New Tab</title>
-	
-	<!-- Custom SVG Favicon -->
 	<link rel="icon" type="image/svg+xml" href="ProElectricCoder-logo-website-1.svg">
 	<style>
 body {
@@ -26,7 +24,7 @@ body {
 	max-width: 600px;
 	text-align: center;
 	padding: 20px;
-	position: relative; 
+	position: relative;
 	z-index: 10;
 }
 
@@ -40,16 +38,16 @@ body {
 .clock {
 	font-size: 3rem;
 	font-weight: 300;
-	margin-bottom: 5px; 
+	margin-bottom: 5px;
 	letter-spacing: 2px;
-	font-family: monospace; 
+	font-family: monospace;
 	text-shadow: 0 2px 4px rgba(0,0,0,0.5);
 }
 
 .date {
 	font-size: 1rem;
 	font-weight: 300;
-	color: rgba(255, 255, 255, 0.6); 
+	color: rgba(255, 255, 255, 0.6);
 	margin-bottom: 30px;
 	font-family: monospace;
 	text-shadow: 0 2px 4px rgba(0,0,0,0.5);
@@ -69,19 +67,13 @@ body {
 	cursor: pointer;
 	z-index: 200;
 }
-.settings-btn:hover {
-	color: white;
-	transform: rotate(90deg);
-}
-.settings-btn svg {
-	width: 24px;
-	height: 24px;
-}
+.settings-btn:hover { color: white; transform: rotate(90deg); }
+.settings-btn svg { width: 24px; height: 24px; }
 
 .sidebar {
 	position: fixed;
 	top: 0;
-	right: -320px; 
+	right: -320px;
 	width: 300px;
 	height: 100%;
 	background: rgba(0, 0, 0, 0.85);
@@ -109,426 +101,224 @@ body {
 	padding-bottom: 15px;
 }
 
-.sidebar-header h2 {
-	margin: 0;
-	font-size: 1.5rem;
-	font-weight: 300;
-}
+.sidebar-header h2 { margin: 0; font-size: 1.5rem; font-weight: 300; }
 
 .close-sidebar-btn {
-	background: none;
-	border: none;
-	color: white;
-	font-size: 1.5rem;
-	cursor: pointer;
-	padding: 0;
-	line-height: 1;
-	transition: color 0.2s;
+	background: none; border: none; color: white;
+	font-size: 1.5rem; cursor: pointer; padding: 0;
+	line-height: 1; transition: color 0.2s;
 }
 .close-sidebar-btn:hover { color: #ff6b6b; }
 
-.setting-item {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-}
+.setting-item { display: flex; flex-direction: column; gap: 8px; }
+.setting-label { font-size: 0.9rem; color: #ccc; }
 
-.setting-label {
-	font-size: 0.9rem;
-	color: #ccc;
-}
-
-/* Range slider */
-.range-row {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-}
+.range-row { display: flex; align-items: center; gap: 10px; }
 input[type="range"] {
-	flex: 1;
-	-webkit-appearance: none;
-	height: 4px;
-	border-radius: 2px;
-	background: rgba(255,255,255,0.2);
-	outline: none;
-	cursor: pointer;
+	flex: 1; -webkit-appearance: none; height: 4px;
+	border-radius: 2px; background: rgba(255,255,255,0.2);
+	outline: none; cursor: pointer;
 }
 input[type="range"]::-webkit-slider-thumb {
-	-webkit-appearance: none;
-	width: 16px;
-	height: 16px;
-	border-radius: 50%;
-	background: white;
-	cursor: pointer;
+	-webkit-appearance: none; width: 16px; height: 16px;
+	border-radius: 50%; background: white; cursor: pointer;
 }
-.range-value {
-	font-size: 0.85rem;
-	color: #ccc;
-	min-width: 20px;
-	text-align: right;
-}
+.range-value { font-size: 0.85rem; color: #ccc; min-width: 20px; text-align: right; }
 
-/* Select */
 select.setting-select {
-	width: 100%;
-	padding: 8px 10px;
+	width: 100%; padding: 8px 10px;
 	background: rgba(255,255,255,0.07);
 	border: 1px solid rgba(255,255,255,0.2);
-	border-radius: 5px;
-	color: white;
-	font-size: 0.9rem;
-	cursor: pointer;
-	outline: none;
-	appearance: none;
-	-webkit-appearance: none;
+	border-radius: 5px; color: white; font-size: 0.9rem;
+	cursor: pointer; outline: none;
+	appearance: none; -webkit-appearance: none;
 	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23aaa' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-	background-repeat: no-repeat;
-	background-position: right 10px center;
+	background-repeat: no-repeat; background-position: right 10px center;
 }
-select.setting-select option {
-	background: #1a1a1a;
-	color: white;
-}
+select.setting-select option { background: #1a1a1a; color: white; }
 
 input[type="color"] {
-	-webkit-appearance: none;
-	border: none;
-	width: 100%;
-	height: 40px;
-	border-radius: 5px;
-	cursor: pointer;
-	background: none;
-	padding: 0;
+	-webkit-appearance: none; border: none; width: 100%;
+	height: 40px; border-radius: 5px; cursor: pointer;
+	background: none; padding: 0;
 }
 input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
 input[type="color"]::-webkit-color-swatch {
-	border: 1px solid rgba(255,255,255,0.2);
-	border-radius: 5px;
+	border: 1px solid rgba(255,255,255,0.2); border-radius: 5px;
 }
 
 .settings-section-title {
-	font-size: 0.75rem;
-	text-transform: uppercase;
-	letter-spacing: 1px;
-	color: rgba(255,255,255,0.35);
-	margin-bottom: -8px;
-	margin-top: -12px;
+	font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;
+	color: rgba(255,255,255,0.35); margin-bottom: -8px; margin-top: -12px;
 }
 
 .reset-btn {
-	margin-top: 10px;
-	padding: 10px;
+	margin-top: 10px; padding: 10px;
 	background: rgba(255, 255, 255, 0.1);
 	border: 1px solid rgba(255, 255, 255, 0.2);
-	color: white;
-	border-radius: 5px;
-	cursor: pointer;
-	transition: background 0.2s;
+	color: white; border-radius: 5px; cursor: pointer; transition: background 0.2s;
 }
 .reset-btn:hover { background: rgba(255, 255, 255, 0.2); }
 
-.input-group {
-	width: 100%;
-	display: flex;
-	flex-direction: column;
-	position: relative; 
-}
+.input-group { width: 100%; display: flex; flex-direction: column; position: relative; }
 
 input[type="text"] {
-	width: 100%;
-	background: transparent;
-	border: 2px solid rgba(255, 255, 255, 0.5); 
-	border-radius: 10px;
-	box-sizing: border-box;
-	color: white;
-	font-size: 1rem;
-	font-family: monospace;
-	text-align: left;
-	padding: 10px 50px 10px 15px; 
-	outline: none;
+	width: 100%; background: transparent;
+	border: 2px solid rgba(255, 255, 255, 0.5);
+	border-radius: 10px; box-sizing: border-box; color: white;
+	font-size: 1rem; font-family: monospace; text-align: left;
+	padding: 10px 50px 10px 15px; outline: none;
 	transition: border-color 0.3s ease;
 }
 
 .input-underline {
-	height: 2px;
-	width: 100%;
+	height: 2px; width: 100%;
 	background-color: rgba(255, 255, 255, 0.5);
-	margin-top: 2px;
-	transition: background-color 0.3s ease;
+	margin-top: 2px; transition: background-color 0.3s ease;
 }
-
 input[type="text"]:focus { border-color: #ffffff; }
-
 input[type="text"]:focus ~ .input-underline { background-color: #ffffff; }
-
 input[type="text"]::placeholder { color: rgba(255, 255, 255, 0.3); }
-
 button[type="submit"] { display: none; }
 
 .engine-switcher {
-	position: absolute;
-	top: 0;
-	right: 0;
-	height: 44px; 
-	width: 44px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	cursor: pointer;
-	opacity: 0.8;
-	transition: opacity 0.2s;
+	position: absolute; top: 0; right: 0; height: 44px; width: 44px;
+	display: flex; align-items: center; justify-content: center;
+	cursor: pointer; opacity: 0.8; transition: opacity 0.2s;
 }
 .engine-switcher:hover { opacity: 1; }
-
-.engine-icon-wrapper {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 100%;
-	height: 100%;
-}
-
-.engine-icon-wrapper svg {
-	width: 20px;
-	height: 20px;
-}
+.engine-icon-wrapper { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+.engine-icon-wrapper svg { width: 20px; height: 20px; }
 
 .dropdown-menu {
-	background: rgba(0, 0, 0, 0.9);
-	border: 1px solid rgba(255, 255, 255, 0.3);
-	border-radius: 8px;
-	overflow: hidden;
-	display: none; 
-	flex-direction: column;
-	min-width: 140px;
-	box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-	backdrop-filter: blur(10px);
-	z-index: 100;
+	background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.3);
+	border-radius: 8px; overflow: hidden; display: none; flex-direction: column;
+	min-width: 140px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+	backdrop-filter: blur(10px); z-index: 100;
 }
-
 .dropdown-menu.show { display: flex; }
 
 .dropdown-item {
-	padding: 12px;
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	cursor: pointer;
-	font-size: 0.9rem;
-	color: rgba(255,255,255,0.8);
-	transition: background 0.2s;
+	padding: 12px; display: flex; align-items: center; gap: 12px;
+	cursor: pointer; font-size: 0.9rem; color: rgba(255,255,255,0.8); transition: background 0.2s;
 }
+.dropdown-item:hover { background: rgba(255,255,255,0.1); color: white; }
 
-.dropdown-item:hover {
-	background: rgba(255,255,255,0.1);
-	color: white;
-}
-
-#engineDropdown {
-	position: absolute;
-	top: 50px;
-	right: 0;
-}
-
-#shortcutContextMenu {
-	position: fixed; 
-}
+#engineDropdown { position: absolute; top: 50px; right: 0; }
+#shortcutContextMenu { position: fixed; }
 
 .shortcuts-grid {
-	margin-top: 40px;
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: center;
-	gap: 20px;
-	width: 100%;
-	max-width: 1200px;
-	max-height: 40vh;
-	overflow-y: auto;
+	margin-top: 40px; display: flex; flex-wrap: wrap;
+	justify-content: center; gap: 20px; width: 100%;
+	max-width: 1200px; max-height: 40vh; overflow-y: auto;
 }
 
 .shortcut-item, .add-shortcut-btn {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 8px;
-	cursor: pointer;
-	width: 80px;
-	transition: transform 0.2s;
-	text-decoration: none;
-	color: white;
-	position: relative;
-	margin-top: 5px;
+	display: flex; flex-direction: column; align-items: center;
+	gap: 8px; cursor: pointer; width: 80px; transition: transform 0.2s;
+	text-decoration: none; color: white; position: relative; margin-top: 5px;
 }
-
 .shortcut-item:hover, .add-shortcut-btn:hover { transform: translateY(-5px); }
 
 .shortcut-icon-wrapper {
-	width: 48px;
-	height: 48px;
-	min-width: 48px;
-	min-height: 48px;
-	aspect-ratio: 1 / 1;
-	background: rgba(255,255,255,0.1);
-	border-radius: 12px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 24px;
-	overflow: hidden;
-	position: relative;
-	line-height: 0;
-	box-sizing: border-box;
+	width: 48px; height: 48px; min-width: 48px; min-height: 48px;
+	aspect-ratio: 1 / 1; background: rgba(255,255,255,0.1);
+	border-radius: 12px; display: flex; align-items: center;
+	justify-content: center; font-size: 24px; overflow: hidden;
+	position: relative; line-height: 0; box-sizing: border-box;
 }
-
-.shortcut-icon {
-	width: 100%;
-	height: 100%;
-	object-fit: contain; 
-	padding: 8px; 
-	box-sizing: border-box;
-}
-
+.shortcut-icon { width: 100%; height: 100%; object-fit: contain; padding: 8px; box-sizing: border-box; }
 .shortcut-label {
-	font-size: 0.8rem;
-	color: rgba(255,255,255,0.7);
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	overflow: hidden;
-	width: 100%;
-	text-align: center;
+	font-size: 0.8rem; color: rgba(255,255,255,0.7); text-overflow: ellipsis;
+	white-space: nowrap; overflow: hidden; width: 100%; text-align: center;
 }
 
 .option-btn {
-	position: absolute;
-	top: 0;
-	right: 0;
-	background: transparent;
-	color: rgba(255, 255, 255, 0.7);
-	border-radius: 50%;
-	width: 25px;
-	height: 25px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	opacity: 0;
-	transition: opacity 0.2s, background-color 0.2s, color 0.2s;
-	z-index: 5;
-	margin: 2px;
+	position: absolute; top: 0; right: 0; background: transparent;
+	color: rgba(255, 255, 255, 0.7); border-radius: 50%;
+	width: 25px; height: 25px; display: flex; align-items: center;
+	justify-content: center; opacity: 0;
+	transition: opacity 0.2s, background-color 0.2s, color 0.2s; z-index: 5; margin: 2px;
 }
-
-.option-btn:hover {
-	background-color: rgba(255, 255, 255, 0.2);
-	color: white;
-}
-
+.option-btn:hover { background-color: rgba(255, 255, 255, 0.2); color: white; }
 .shortcut-item:hover .option-btn { opacity: 1; }
 
 dialog {
-	background: #1a1a1a;
-	color: white;
+	background: #1a1a1a; color: white;
 	border: 1px solid rgba(255,255,255,0.2);
-	border-radius: 10px;
-	padding: 20px;
-	width: 320px;
+	border-radius: 10px; padding: 20px; width: 320px;
 	box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
+dialog::backdrop { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); }
 
-dialog::backdrop {
-	background: rgba(0, 0, 0, 0.6);
-	backdrop-filter: blur(2px);
-}
-
-.modal-title {
-	margin-top: 0;
-	margin-bottom: 15px;
-	font-size: 1.2rem;
-	text-align: center;
-}
-
-.modal-label {
-	display: block;
-	margin-bottom: 5px;
-	font-size: 0.8rem;
-	color: #aaa;
-}
-
+.modal-title { margin-top: 0; margin-bottom: 15px; font-size: 1.2rem; text-align: center; }
+.modal-label { display: block; margin-bottom: 5px; font-size: 0.8rem; color: #aaa; }
 .modal-input {
-	width: 100%;
-	padding: 8px;
-	margin-bottom: 15px;
-	background: rgba(0,0,0,0.3);
-	border: 1px solid rgba(255,255,255,0.3);
-	border-radius: 5px;
-	color: white;
-	box-sizing: border-box;
-	font-family: inherit;
+	width: 100%; padding: 8px; margin-bottom: 15px;
+	background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.3);
+	border-radius: 5px; color: white; box-sizing: border-box; font-family: inherit;
 }
-
-.modal-buttons {
-	display: flex;
-	justify-content: flex-end;
-	gap: 10px;
-}
-
-.btn {
-	padding: 8px 16px;
-	border: none;
-	border-radius: 5px;
-	cursor: pointer;
-	font-weight: bold;
-}
-
+.modal-buttons { display: flex; justify-content: flex-end; gap: 10px; }
+.btn { padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
 .btn-cancel { background: transparent; color: #aaa; }
 .btn-save { background: white; color: black; }
 
-.helper-text {
-	font-size: 0.7rem;
-	color: rgba(255,255,255,0.4);
-	margin-top: -10px;
-	margin-bottom: 15px;
-	text-align: right;
-	cursor: pointer;
-}
-
-.shortcut-item.dragging {
-	opacity: 0.6;
-	transform: scale(1.08);
-	z-index: 50;
-	box-shadow: 0 15px 35px rgba(0,0,0,0.6);
-}
-
+.shortcut-item.dragging { opacity: 0.6; transform: scale(1.08); z-index: 50; box-shadow: 0 15px 35px rgba(0,0,0,0.6); }
 .shortcut-item.drag-over { transform: translateY(-10px) scale(1.03); }
 
-/* Toggle Switch */
+/* ─── Toggle Switch ───────────────────────────────────────────────────── */
 .toggle {
-	position: relative;
-	width: 40px; height: 22px;
-	cursor: pointer;
-	display: inline-block;
+	position: relative; width: 40px; height: 22px;
+	cursor: pointer; display: inline-block;
 }
 .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
 .toggle-track {
 	position: absolute; inset: 0;
-	background: rgba(255,255,255,0.2);
-	border-radius: 11px; transition: 0.2s;
+	background: rgba(255,255,255,0.2); border-radius: 11px; transition: 0.2s;
 }
 .toggle input:checked ~ .toggle-track { background: #4CAF50; }
 .toggle-thumb {
 	position: absolute; top: 2px; left: 2px;
-	width: 18px; height: 18px;
-	background: white; border-radius: 50%;
-	transition: 0.2s;
+	width: 18px; height: 18px; background: white;
+	border-radius: 50%; transition: 0.2s;
 }
 .toggle input:checked ~ .toggle-thumb { transform: translateX(18px); }
 
 .btn-link {
-	background: rgba(255,255,255,0.1);
-	color: white; border: 1px solid rgba(255,255,255,0.3);
+	background: rgba(255,255,255,0.1); color: white;
+	border: 1px solid rgba(255,255,255,0.3);
 	padding: 6px 12px; border-radius: 5px;
 	cursor: pointer; font-size: 0.85rem; transition: background 0.2s;
 }
 .btn-link:hover { background: rgba(255,255,255,0.2); }
-.setting-row { display: flex; justify-content: space-between; align-items: center; margin-top: 5px;}
+.setting-row { display: flex; justify-content: space-between; align-items: center; margin-top: 5px; }
+
+/* ─── Update Toast ────────────────────────────────────────────────────── */
+.update-toast {
+	position: fixed;
+	bottom: 30px;
+	left: 50%;
+	transform: translateX(-50%) translateY(16px);
+	background: rgba(5, 18, 8, 0.92);
+	border: 1px solid rgba(46, 204, 113, 0.45);
+	color: white;
+	padding: 11px 22px;
+	border-radius: 10px;
+	font-size: 0.82rem;
+	font-family: monospace;
+	letter-spacing: 0.02em;
+	backdrop-filter: blur(12px);
+	box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+	transition: opacity 0.3s ease, transform 0.3s ease;
+	z-index: 9999;
+	opacity: 0;
+	pointer-events: none;
+	white-space: nowrap;
+}
+.update-toast.show {
+	opacity: 1;
+	transform: translateX(-50%) translateY(0);
+}
 	</style>
 </head>
 <body>
@@ -586,23 +376,24 @@ dialog::backdrop {
 
 		<button class="reset-btn">Reset to Default</button>
 
-		<span class="settings-section-title" style="margin-top: 15px;">Auto-Updates</span>
-		
+		<span class="settings-section-title" style="margin-top:15px">Auto-Updates</span>
+
 		<div class="setting-item" id="linkFolderRow">
-			<span class="setting-label" style="margin-bottom: 5px;">Link extension folder to manage updates</span>
+			<span class="setting-label" style="margin-bottom:5px">Link extension folder to manage updates</span>
 			<button class="btn-link" id="btnLinkFolder">Link Folder</button>
 		</div>
-		
-		<div class="setting-item" id="autoUpdateRow" style="display: none;">
+
+		<div class="setting-item" id="autoUpdateRow" style="display:none">
 			<div class="setting-row">
-				<span class="setting-label">Enable Auto-Update</span>
+				<span class="setting-label">Auto-Update</span>
 				<label class="toggle">
 					<input type="checkbox" id="extUpdateToggle">
 					<div class="toggle-track"></div>
 					<div class="toggle-thumb"></div>
 				</label>
 			</div>
-			<span class="setting-label" style="font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: 5px;">Linked to Updates.txt</span>
+			<!-- Shows installed version once folder is read, e.g. "v1.4.0 · linked" -->
+			<span id="autoUpdateFolderInfo" style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin-top:4px">Reading…</span>
 		</div>
 	</div>
 
@@ -616,7 +407,6 @@ dialog::backdrop {
 				<div class="engine-switcher">
 					<div id="currentEngineIconWrapper" class="engine-icon-wrapper"></div>
 				</div>
-				<!-- SVG icons injected by JS from the single source-of-truth below -->
 				<div id="engineDropdown" class="dropdown-menu">
 					<div class="dropdown-item" id="engineGoogle">
 						<span id="engineGoogleIcon"></span> Google
@@ -637,7 +427,7 @@ dialog::backdrop {
 
 	<div id="shortcutContextMenu" class="dropdown-menu">
 		<div class="dropdown-item" id="menuEditBtn">Edit</div>
-		<div class="dropdown-item" id="menuDeleteBtn" style="color: #ff6b6b;">Delete</div>
+		<div class="dropdown-item" id="menuDeleteBtn" style="color:#ff6b6b">Delete</div>
 	</div>
 
 	<dialog id="addShortcutModal">
