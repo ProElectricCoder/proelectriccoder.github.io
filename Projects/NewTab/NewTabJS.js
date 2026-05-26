@@ -130,7 +130,7 @@ function renderShortcuts() {
 			menu.style.left = e.clientX + 'px';
 		});
 
-		grid.appendChild(item); // ← was missing
+		grid.appendChild(item);
 	});
 
 	const add = document.createElement('div');
@@ -153,8 +153,114 @@ loadBackground();
 setEngine(localStorage.getItem('preferredEngine') || 'google');
 renderShortcuts();
 
+// ─── FILE SYSTEM API & IDB FOR EXTENSION UPDATES ────────────────────────
+const DB_NAME = 'NewTabExtDB';
+const STORE_NAME = 'handles';
+let extDirHandle = null;
+
+function initDB() {
+	return new Promise((resolve, reject) => {
+		const req = indexedDB.open(DB_NAME, 1);
+		req.onupgradeneeded = (e) => e.target.result.createObjectStore(STORE_NAME);
+		req.onsuccess = () => resolve(req.result);
+		req.onerror = () => reject(req.error);
+	});
+}
+
+async function saveHandle(handle) {
+	const db = await initDB();
+	return new Promise((resolve) => {
+		const tx = db.transaction(STORE_NAME, 'readwrite');
+		tx.objectStore(STORE_NAME).put(handle, 'extFolder');
+		tx.oncomplete = resolve;
+	});
+}
+
+async function getHandle() {
+	const db = await initDB();
+	return new Promise((resolve) => {
+		const tx = db.transaction(STORE_NAME, 'readonly');
+		const req = tx.objectStore(STORE_NAME).get('extFolder');
+		req.onsuccess = () => resolve(req.result);
+		req.onerror = () => resolve(null);
+	});
+}
+
+async function checkFolderAccess() {
+	if (!extDirHandle) extDirHandle = await getHandle();
+	
+	if (extDirHandle) {
+		// Verify permission quietly
+		const opts = { mode: 'readwrite' };
+		if (await extDirHandle.queryPermission(opts) === 'granted') {
+			document.getElementById('linkFolderRow').style.display = 'none';
+			document.getElementById('autoUpdateRow').style.display = 'block';
+			readUpdatesFile();
+			return;
+		}
+	}
+	
+	// Needs linking
+	document.getElementById('linkFolderRow').style.display = 'flex';
+	document.getElementById('autoUpdateRow').style.display = 'none';
+}
+
+async function linkExtensionFolder() {
+	try {
+		extDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+		await saveHandle(extDirHandle);
+		checkFolderAccess();
+	} catch (e) {
+		console.error("Folder link failed", e);
+	}
+}
+
+async function readUpdatesFile() {
+	try {
+		const fh = await extDirHandle.getFileHandle('Updates.txt');
+		const file = await fh.getFile();
+		const text = await file.text();
+		
+		const lines = text.trim().split('\n');
+		const lastLine = lines[lines.length - 1] || '';
+		document.getElementById('extUpdateToggle').checked = (lastLine === 'AUTO_UPDATE=ON');
+	} catch (e) {
+		console.log("Updates.txt not found or unreadable yet.");
+		document.getElementById('extUpdateToggle').checked = false;
+	}
+}
+
+async function toggleAutoUpdate() {
+	const isOn = document.getElementById('extUpdateToggle').checked;
+	try {
+		const fh = await extDirHandle.getFileHandle('Updates.txt', {create: true});
+		const file = await fh.getFile();
+		const text = await file.text();
+		
+		let lines = text ? text.trim().split('\n') : [];
+		
+		// Remove old toggle status if it exists
+		if (lines.length > 0 && lines[lines.length - 1].startsWith('AUTO_UPDATE=')) {
+			lines.pop();
+		}
+		
+		lines.push(`AUTO_UPDATE=${isOn ? 'ON' : 'OFF'}`);
+		
+		// Write back
+		const writable = await fh.createWritable();
+		await writable.write(lines.join('\n'));
+		await writable.close();
+		
+	} catch (e) {
+		console.error("Failed to write to Updates.txt", e);
+	}
+}
+
 // ─── Event bindings ───────────────────────────────────────────────────────
-document.getElementById('settingsBtn').onclick     = () => document.getElementById('settingsSidebar').classList.add('open');
+document.getElementById('settingsBtn').onclick = () => {
+	document.getElementById('settingsSidebar').classList.add('open');
+	checkFolderAccess();
+};
 document.getElementById('closeSidebarBtn').onclick = () => document.getElementById('settingsSidebar').classList.remove('open');
 
 document.getElementById('bgTopInput').onchange       = applyGradient;
@@ -171,6 +277,9 @@ document.getElementById('bgStepsInput').oninput = (e) => {
 };
 
 document.querySelector('.reset-btn').onclick = resetBackground;
+
+document.getElementById('btnLinkFolder').onclick = linkExtensionFolder;
+document.getElementById('extUpdateToggle').onchange = toggleAutoUpdate;
 
 document.querySelector('.engine-switcher').onclick  = () => document.getElementById('engineDropdown').classList.toggle('show');
 document.getElementById('engineGoogle').onclick = () => { setEngine('google'); document.getElementById('engineDropdown').classList.remove('show'); };

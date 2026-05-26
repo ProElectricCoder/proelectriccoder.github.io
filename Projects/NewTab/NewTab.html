@@ -498,6 +498,37 @@ dialog::backdrop {
 }
 
 .shortcut-item.drag-over { transform: translateY(-10px) scale(1.03); }
+
+/* Toggle Switch */
+.toggle {
+	position: relative;
+	width: 40px; height: 22px;
+	cursor: pointer;
+	display: inline-block;
+}
+.toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle-track {
+	position: absolute; inset: 0;
+	background: rgba(255,255,255,0.2);
+	border-radius: 11px; transition: 0.2s;
+}
+.toggle input:checked ~ .toggle-track { background: #4CAF50; }
+.toggle-thumb {
+	position: absolute; top: 2px; left: 2px;
+	width: 18px; height: 18px;
+	background: white; border-radius: 50%;
+	transition: 0.2s;
+}
+.toggle input:checked ~ .toggle-thumb { transform: translateX(18px); }
+
+.btn-link {
+	background: rgba(255,255,255,0.1);
+	color: white; border: 1px solid rgba(255,255,255,0.3);
+	padding: 6px 12px; border-radius: 5px;
+	cursor: pointer; font-size: 0.85rem; transition: background 0.2s;
+}
+.btn-link:hover { background: rgba(255,255,255,0.2); }
+.setting-row { display: flex; justify-content: space-between; align-items: center; margin-top: 5px;}
 	</style>
 </head>
 <body>
@@ -554,6 +585,25 @@ dialog::backdrop {
 		</div>
 
 		<button class="reset-btn">Reset to Default</button>
+
+		<span class="settings-section-title" style="margin-top: 15px;">Auto-Updates</span>
+		
+		<div class="setting-item" id="linkFolderRow">
+			<span class="setting-label" style="margin-bottom: 5px;">Link extension folder to manage updates</span>
+			<button class="btn-link" id="btnLinkFolder">Link Folder</button>
+		</div>
+		
+		<div class="setting-item" id="autoUpdateRow" style="display: none;">
+			<div class="setting-row">
+				<span class="setting-label">Enable Auto-Update</span>
+				<label class="toggle">
+					<input type="checkbox" id="extUpdateToggle">
+					<div class="toggle-track"></div>
+					<div class="toggle-thumb"></div>
+				</label>
+			</div>
+			<span class="setting-label" style="font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: 5px;">Linked to Updates.txt</span>
+		</div>
 	</div>
 
 	<div class="search-container">

@@ -750,6 +750,10 @@ footer {
 		<div class="update-row">
 			<span class="update-sublabel" id="lastChecked">Never checked</span>
 			<div style="display:flex;gap:10px;flex-wrap:wrap">
+				<button class="btn btn-secondary" onclick="reconnectFolder()" id="btnReconnect" style="display:none">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" width="17" height="17"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"/></svg>
+					Link Folder
+				</button>
 				<button class="btn btn-secondary" onclick="checkForUpdates()">
 					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" width="17" height="17"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
 					Check Now
@@ -804,6 +808,85 @@ const EXTENSION_FILES = [
 ];
 const BASE_URL = './';
 
+// ─── IndexedDB Wrapper (For Directory Handles) ─────────────────────────────
+const DB_NAME = 'NewTabDB';
+const STORE_NAME = 'handles';
+
+function initDB() {
+	return new Promise((resolve, reject) => {
+		const req = indexedDB.open(DB_NAME, 1);
+		req.onupgradeneeded = (e) => e.target.result.createObjectStore(STORE_NAME);
+		req.onsuccess = () => resolve(req.result);
+		req.onerror = () => reject(req.error);
+	});
+}
+
+async function saveHandle(handle) {
+	const db = await initDB();
+	return new Promise((resolve, reject) => {
+		const tx = db.transaction(STORE_NAME, 'readwrite');
+		tx.objectStore(STORE_NAME).put(handle, 'extensionFolder');
+		tx.oncomplete = resolve;
+		tx.onerror = () => reject(tx.error);
+	});
+}
+
+async function getHandle() {
+	const db = await initDB();
+	return new Promise((resolve, reject) => {
+		const tx = db.transaction(STORE_NAME, 'readonly');
+		const req = tx.objectStore(STORE_NAME).get('extensionFolder');
+		req.onsuccess = () => resolve(req.result);
+		req.onerror = () => reject(tx.error);
+	});
+}
+
+async function verifyPermission(fileHandle) {
+	const options = { mode: 'readwrite' };
+	if ((await fileHandle.queryPermission(options)) === 'granted') return true;
+	if ((await fileHandle.requestPermission(options)) === 'granted') return true;
+	return false;
+}
+
+// ─── Updates.txt Helpers ───────────────────────────────────────────────────
+async function readUpdatesTxt(dirHandle) {
+	try {
+		const fh = await dirHandle.getFileHandle('Updates.txt');
+		const file = await fh.getFile();
+		return await file.text();
+	} catch (e) {
+		return null; // File doesn't exist yet
+	}
+}
+
+async function writeUpdatesTxt(dirHandle, content) {
+	const fh = await dirHandle.getFileHandle('Updates.txt', { create: true });
+	const writable = await fh.createWritable();
+	await writable.write(content);
+	await writable.close();
+}
+
+function parseAutoUpdateStatus(updatesText) {
+	if (!updatesText) return false;
+	const lines = updatesText.trim().split('\n');
+	const lastLine = lines[lines.length - 1];
+	return lastLine === 'AUTO_UPDATE=ON';
+}
+
+function generateNewUpdatesLog(oldText, newVersion, newAutoUpdateStatus) {
+	const now = new Date().toLocaleString();
+	let lines = oldText ? oldText.trim().split('\n') : [];
+	
+	// Remove the old AUTO_UPDATE line if it exists
+	if (lines.length > 0 && lines[lines.length - 1].startsWith('AUTO_UPDATE=')) {
+		lines.pop();
+	}
+	
+	lines.push(`[${now}] Updated to v${newVersion}`);
+	lines.push(`AUTO_UPDATE=${newAutoUpdateStatus ? 'ON' : 'OFF'}`);
+	return lines.join('\n');
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────────
 function setStatus(id, msg, type = '') {
 	const el = document.getElementById(id);
@@ -812,7 +895,6 @@ function setStatus(id, msg, type = '') {
 }
 
 function compareVersions(a, b) {
-	// returns 1 if a > b, -1 if a < b, 0 if equal
 	const pa = a.split('.').map(Number);
 	const pb = b.split('.').map(Number);
 	for (let i = 0; i < 3; i++) {
@@ -832,7 +914,21 @@ async function fetchAllFiles() {
 	return results;
 }
 
-// ─── Download: Folder ──────────────────────────────────────────────────────
+// ─── File System Access Logic ──────────────────────────────────────────────
+let globalDirHandle = null;
+let localManifestVersion = null;
+
+window.reconnectFolder = async function() {
+	try {
+		const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+		await saveHandle(handle);
+		globalDirHandle = handle;
+		await checkForUpdates();
+	} catch (e) {
+		console.error("Folder link cancelled or failed.");
+	}
+};
+
 window.downloadToFolder = async function () {
 	if (!('showDirectoryPicker' in window)) {
 		setStatus('folderStatus', '✗ File System Access API not supported in this browser.', 'err');
@@ -844,81 +940,72 @@ window.downloadToFolder = async function () {
 	try {
 		const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
 		setStatus('folderStatus', 'Fetching files…', 'loading');
+		
 		const files = await fetchAllFiles();
 		for (const [name, blob] of Object.entries(files)) {
 			const fileHandle = await dirHandle.getFileHandle(name, { create: true });
-			const writable   = await fileHandle.createWritable();
+			const writable = await fileHandle.createWritable();
 			await writable.write(blob);
 			await writable.close();
 		}
-		// Read version from fetched manifest and mark installed
+		
 		const manifest = JSON.parse(await files['manifest.json'].text());
-		markInstalled(manifest.version, 'folder');
+		
+		// Create Updates.txt
+		const now = new Date().toLocaleString();
+		const initLog = `[${now}] Initial Install v${manifest.version}\nAUTO_UPDATE=ON`;
+		await writeUpdatesTxt(dirHandle, initLog);
+		
+		await saveHandle(dirHandle);
+		globalDirHandle = dirHandle;
+		
 		setStatus('folderStatus', `✓ All files written — v${manifest.version} installed.`, 'ok');
-		refreshUpdateUI();
+		await checkForUpdates(); // Refresh UI
 	} catch (err) {
-		if (err.name === 'AbortError') {
-			setStatus('folderStatus', 'Cancelled.', '');
-		} else {
-			setStatus('folderStatus', `✗ ${err.message}`, 'err');
-		}
+		setStatus('folderStatus', err.name === 'AbortError' ? 'Cancelled.' : `✗ ${err.message}`, 'err');
 	}
 	btn.disabled = false;
 };
 
-// ─── Download: ZIP ─────────────────────────────────────────────────────────
+// ─── Download: ZIP (Fallback) ──────────────────────────────────────────────
 window.downloadZip = async function () {
 	const btn = document.getElementById('btnZip');
 	btn.disabled = true;
 	setStatus('zipStatus', 'Fetching files…', 'loading');
 	try {
 		const files = await fetchAllFiles();
-		const zip   = new JSZip();
+		const zip = new JSZip();
 		const folder = zip.folder('NewTab-extension');
 		for (const [name, blob] of Object.entries(files)) {
 			folder.file(name, blob);
 		}
 		const manifest = JSON.parse(await files['manifest.json'].text());
-		const content  = await zip.generateAsync({ type: 'blob' });
-		const url  = URL.createObjectURL(content);
+		const content = await zip.generateAsync({ type: 'blob' });
+		const url = URL.createObjectURL(content);
 		const link = document.createElement('a');
-		link.href	 = url;
+		link.href = url;
 		link.download = `NewTab-extension-v${manifest.version}.zip`;
 		link.click();
 		URL.revokeObjectURL(url);
-		markInstalled(manifest.version, 'zip');
 		setStatus('zipStatus', `✓ ZIP downloaded — v${manifest.version}.`, 'ok');
-		refreshUpdateUI();
 	} catch (err) {
 		setStatus('zipStatus', `✗ ${err.message}`, 'err');
 	}
 	btn.disabled = false;
 };
 
-// ─── Installed version tracking ────────────────────────────────────────────
-function markInstalled(version, method) {
-	localStorage.setItem('nt_installed_version', version);
-	localStorage.setItem('nt_download_method', method);
-}
-
-function getInstalledVersion() {
-	return localStorage.getItem('nt_installed_version') || null;
-}
-
-function getDownloadMethod() {
-	return localStorage.getItem('nt_download_method') || 'zip';
-}
-
 // ─── Auto-update preference ────────────────────────────────────────────────
-window.saveAutoUpdatePref = function () {
-	const on = document.getElementById('autoUpdateToggle').checked;
-	localStorage.setItem('nt_auto_update', on ? '1' : '0');
+window.saveAutoUpdatePref = async function () {
+	if (!globalDirHandle) return;
+	const isChecked = document.getElementById('autoUpdateToggle').checked;
+	try {
+		const currentText = await readUpdatesTxt(globalDirHandle);
+		const newText = generateNewUpdatesLog(currentText, localManifestVersion || 'Unknown', isChecked);
+		await writeUpdatesTxt(globalDirHandle, newText);
+	} catch (e) {
+		console.error("Failed to write toggle preference to Updates.txt", e);
+	}
 };
-
-function loadAutoUpdatePref() {
-	const val = localStorage.getItem('nt_auto_update');
-	document.getElementById('autoUpdateToggle').checked = val === '1';
-}
 
 // ─── Check for updates ──────────────────────────────────────────────────────
 let latestVersion = null;
@@ -926,73 +1013,120 @@ let latestVersion = null;
 window.checkForUpdates = async function () {
 	document.getElementById('latestVer').textContent = 'checking…';
 	document.getElementById('latestVer').className = 'vinfo-val unknown';
+	
+	// 1. Fetch Latest Version
 	try {
-		const res	  = await fetch(BASE_URL + 'manifest.json?_=' + Date.now());
+		const res = await fetch(BASE_URL + 'manifest.json?_=' + Date.now());
 		const manifest = await res.json();
-		latestVersion  = manifest.version;
-
-		document.getElementById('navVersion').textContent	= `v${latestVersion}`;
+		latestVersion = manifest.version;
+		document.getElementById('navVersion').textContent = `v${latestVersion}`;
 		document.getElementById('footerVersion').textContent = `v${latestVersion}`;
-		document.getElementById('latestVer').textContent	 = `v${latestVersion}`;
-		document.getElementById('lastChecked').textContent   = 'Last checked: just now';
-
-		refreshUpdateUI();
-
-		const installed = getInstalledVersion();
-		const autoOn	= localStorage.getItem('nt_auto_update') === '1';
-
-		if (installed && compareVersions(latestVersion, installed) > 0) {
-			if (autoOn) {
-				showBanner(`v${installed} → v${latestVersion} — downloading automatically…`);
-				await triggerUpdate();
-			} else {
-				showBanner(`v${installed} → v${latestVersion} available.`);
-			}
-		}
+		document.getElementById('latestVer').textContent = `v${latestVersion}`;
+		document.getElementById('lastChecked').textContent = 'Last checked: just now';
 	} catch (e) {
-		document.getElementById('latestVer').textContent   = 'unreachable';
-		document.getElementById('updateStatus').textContent = '—';
+		document.getElementById('latestVer').textContent = 'unreachable';
+	}
+
+	// 2. Fetch Installed Version & Settings from Folder
+	localManifestVersion = null;
+	let autoUpdateOn = false;
+
+	if (!globalDirHandle) {
+		globalDirHandle = await getHandle();
+	}
+
+	if (globalDirHandle) {
+		try {
+			if (await verifyPermission(globalDirHandle)) {
+				const fh = await globalDirHandle.getFileHandle('manifest.json');
+				const file = await fh.getFile();
+				const localManifest = JSON.parse(await file.text());
+				localManifestVersion = localManifest.version;
+				
+				const updatesTxt = await readUpdatesTxt(globalDirHandle);
+				autoUpdateOn = parseAutoUpdateStatus(updatesText);
+				document.getElementById('autoUpdateToggle').checked = autoUpdateOn;
+			}
+		} catch (e) {
+			console.warn("Folder access lost or manifest missing.");
+			globalDirHandle = null; // Reset if broken
+		}
+	}
+
+	refreshUpdateUI();
+
+	if (localManifestVersion && latestVersion && compareVersions(latestVersion, localManifestVersion) > 0) {
+		if (autoUpdateOn) {
+			showBanner(`v${localManifestVersion} → v${latestVersion} — updating files automatically…`);
+			await triggerUpdate();
+		} else {
+			showBanner(`v${localManifestVersion} → v${latestVersion} available.`);
+		}
 	}
 };
 
 function refreshUpdateUI() {
-	const installed  = getInstalledVersion();
 	const installedEl = document.getElementById('installedVer');
-	const statusEl	= document.getElementById('updateStatus');
-	const updateBtn   = document.getElementById('btnUpdate');
+	const statusEl = document.getElementById('updateStatus');
+	const updateBtn = document.getElementById('btnUpdate');
+	const reconnectBtn = document.getElementById('btnReconnect');
 
-	if (installed) {
-		installedEl.textContent = `v${installed}`;
-		installedEl.className   = 'vinfo-val';
+	if (globalDirHandle) {
+		reconnectBtn.style.display = 'none';
 	} else {
-		installedEl.textContent = 'not installed';
-		installedEl.className   = 'vinfo-val unknown';
+		reconnectBtn.style.display = '';
 	}
 
-	if (latestVersion && installed) {
-		const cmp = compareVersions(latestVersion, installed);
+	if (localManifestVersion) {
+		installedEl.textContent = `v${localManifestVersion}`;
+		installedEl.className = 'vinfo-val';
+	} else {
+		installedEl.textContent = 'unlinked / zip';
+		installedEl.className = 'vinfo-val unknown';
+	}
+
+	if (latestVersion && localManifestVersion) {
+		const cmp = compareVersions(latestVersion, localManifestVersion);
 		if (cmp > 0) {
 			statusEl.textContent = 'Update available';
-			statusEl.className   = 'vinfo-val outdated';
+			statusEl.className = 'vinfo-val outdated';
 			updateBtn.style.display = '';
 		} else {
 			statusEl.textContent = 'Up to date';
-			statusEl.className   = 'vinfo-val up-to-date';
+			statusEl.className = 'vinfo-val up-to-date';
 			updateBtn.style.display = 'none';
 		}
-	} else if (!installed) {
-		statusEl.textContent = 'Not installed';
-		statusEl.className   = 'vinfo-val unknown';
+	} else {
+		statusEl.textContent = '—';
+		statusEl.className = 'vinfo-val unknown';
 		updateBtn.style.display = 'none';
 	}
 }
 
 window.triggerUpdate = async function () {
-	const method = getDownloadMethod();
 	dismissBanner();
-	if (method === 'folder') {
-		await window.downloadToFolder();
+	if (globalDirHandle && await verifyPermission(globalDirHandle)) {
+		try {
+			const files = await fetchAllFiles();
+			for (const [name, blob] of Object.entries(files)) {
+				const fileHandle = await globalDirHandle.getFileHandle(name, { create: true });
+				const writable = await fileHandle.createWritable();
+				await writable.write(blob);
+				await writable.close();
+			}
+			
+			// Update the Updates.txt log
+			const isChecked = document.getElementById('autoUpdateToggle').checked;
+			const currentText = await readUpdatesTxt(globalDirHandle);
+			const newText = generateNewUpdatesLog(currentText, latestVersion, isChecked);
+			await writeUpdatesTxt(globalDirHandle, newText);
+			
+			await checkForUpdates();
+		} catch (e) {
+			console.error("Auto-update failed", e);
+		}
 	} else {
+		// Fallback if folder isn't linked
 		await window.downloadZip();
 	}
 };
@@ -1016,7 +1150,6 @@ const observer = new IntersectionObserver((entries) => {
 		}
 	});
 }, { threshold: 0.12 });
-
 document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
 // ─── Copy to clipboard ─────────────────────────────────────────────────────
@@ -1033,9 +1166,7 @@ window.scrollToDownload = function () {
 };
 
 // ─── Init ──────────────────────────────────────────────────────────────────
-loadAutoUpdatePref();
-refreshUpdateUI();
-checkForUpdates(); // silent check on page load
+checkForUpdates();
 </script>
 </body>
 </html>
