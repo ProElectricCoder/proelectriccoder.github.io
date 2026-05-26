@@ -21,7 +21,7 @@ let draggedIndex = null;
 // ─── Safe JSON parse for shortcuts ───────────────────────────────────────
 function safeParseShortcuts() {
 	try {
-		return JSON.parse(localStorage.getItem('shortcuts') || '[]');
+		return JSON.parse(localStorage.getItem('shortcuts') || '[{"name": "ProElectricCoder","url": "https://proelectriccoder.github.io/","icon": "https://proelectriccoder.github.io/Favicon.svg"},{"name": "DeepBlue IDE","url": "https://proelectriccoder.github.io/Projects/IDE/","icon": "https://proelectriccoder.github.io/Favicon.svg"},{"name": "SEP Encryptor","url": "https://proelectriccoder.github.io/Projects/SEP/","icon": "https://proelectriccoder.github.io/Favicon.svg"},{"name": "Update","url": "https://proelectriccoder.github.io/Projects/NewTab/","icon": "https://proelectriccoder.github.io/Projects/NewTab/ProElectricCoder-logo-website-1.svg"},{"name": "GitHub","url": "https://github.com","icon": "https://github.com/fluidicon.png"}]');
 	} catch {
 		localStorage.removeItem('shortcuts');
 		return [];
@@ -51,41 +51,41 @@ function setEngine(engineKey) {
 
 // ─── Background / cubicGradient ───────────────────────────────────────────
 function applyGradient() {
-	const start     = document.getElementById('bgTopInput').value;
-	const end       = document.getElementById('bgBottomInput').value;
+	const start	 = document.getElementById('bgTopInput').value;
+	const end	   = document.getElementById('bgBottomInput').value;
 	const direction = document.getElementById('bgDirectionInput').value;
-	const power     = parseFloat(document.getElementById('bgPowerInput').value);
-	const steps     = parseInt(document.getElementById('bgStepsInput').value, 10);
+	const power	 = parseFloat(document.getElementById('bgPowerInput').value);
+	const steps	 = parseInt(document.getElementById('bgStepsInput').value, 10);
 	document.body.style.background = cubicGradient({ direction, start, end, steps, power });
-	localStorage.setItem('bgTop',       start);
-	localStorage.setItem('bgBottom',    end);
+	localStorage.setItem('bgTop',	   start);
+	localStorage.setItem('bgBottom',	end);
 	localStorage.setItem('bgDirection', direction);
-	localStorage.setItem('bgPower',     power);
-	localStorage.setItem('bgSteps',     steps);
+	localStorage.setItem('bgPower',	 power);
+	localStorage.setItem('bgSteps',	 steps);
 }
 
 function loadBackground() {
-	const start     = localStorage.getItem('bgTop')       || '#000000';
-	const end       = localStorage.getItem('bgBottom')    || '#000066';
+	const start	 = localStorage.getItem('bgTop')	   || '#000000';
+	const end	   = localStorage.getItem('bgBottom')	|| '#000066';
 	const direction = localStorage.getItem('bgDirection') || 'to bottom right';
-	const power     = localStorage.getItem('bgPower')     || '3';
-	const steps     = localStorage.getItem('bgSteps')     || '20';
-	document.getElementById('bgTopInput').value          = start;
-	document.getElementById('bgBottomInput').value       = end;
-	document.getElementById('bgDirectionInput').value    = direction;
-	document.getElementById('bgPowerInput').value        = power;
-	document.getElementById('bgStepsInput').value        = steps;
+	const power	 = localStorage.getItem('bgPower')	 || '3';
+	const steps	 = localStorage.getItem('bgSteps')	 || '20';
+	document.getElementById('bgTopInput').value		  = start;
+	document.getElementById('bgBottomInput').value	   = end;
+	document.getElementById('bgDirectionInput').value	= direction;
+	document.getElementById('bgPowerInput').value		= power;
+	document.getElementById('bgStepsInput').value		= steps;
 	document.getElementById('bgPowerValue').textContent  = power;
 	document.getElementById('bgStepsValue').textContent  = steps;
 	applyGradient();
 }
 
 function resetBackground() {
-	document.getElementById('bgTopInput').value          = '#000000';
-	document.getElementById('bgBottomInput').value       = '#000066';
-	document.getElementById('bgDirectionInput').value    = 'to bottom right';
-	document.getElementById('bgPowerInput').value        = '3';
-	document.getElementById('bgStepsInput').value        = '20';
+	document.getElementById('bgTopInput').value		  = '#000000';
+	document.getElementById('bgBottomInput').value	   = '#000066';
+	document.getElementById('bgDirectionInput').value	= 'to bottom right';
+	document.getElementById('bgPowerInput').value		= '3';
+	document.getElementById('bgStepsInput').value		= '20';
 	document.getElementById('bgPowerValue').textContent  = '3';
 	document.getElementById('bgStepsValue').textContent  = '20';
 	applyGradient();
@@ -353,8 +353,8 @@ document.getElementById('settingsBtn').onclick = () => {
 };
 document.getElementById('closeSidebarBtn').onclick = () => document.getElementById('settingsSidebar').classList.remove('open');
 
-document.getElementById('bgTopInput').onchange       = applyGradient;
-document.getElementById('bgBottomInput').onchange    = applyGradient;
+document.getElementById('bgTopInput').onchange	   = applyGradient;
+document.getElementById('bgBottomInput').onchange	= applyGradient;
 document.getElementById('bgDirectionInput').onchange = applyGradient;
 
 document.getElementById('bgPowerInput').oninput = (e) => {
