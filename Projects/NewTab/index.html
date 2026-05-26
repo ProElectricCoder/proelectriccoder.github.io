@@ -1105,29 +1105,36 @@ function refreshUpdateUI() {
 
 window.triggerUpdate = async function () {
 	dismissBanner();
-	if (globalDirHandle && await verifyPermission(globalDirHandle)) {
-		try {
-			const files = await fetchAllFiles();
-			for (const [name, blob] of Object.entries(files)) {
-				const fileHandle = await globalDirHandle.getFileHandle(name, { create: true });
-				const writable = await fileHandle.createWritable();
-				await writable.write(blob);
-				await writable.close();
-			}
-			
-			// Update the Updates.txt log
-			const isChecked = document.getElementById('autoUpdateToggle').checked;
-			const currentText = await readUpdatesTxt(globalDirHandle);
-			const newText = generateNewUpdatesLog(currentText, latestVersion, isChecked);
-			await writeUpdatesTxt(globalDirHandle, newText);
-			
-			await checkForUpdates();
-		} catch (e) {
-			console.error("Auto-update failed", e);
+	
+	// Ensure we strictly update the existing folder, no ZIP fallbacks!
+	if (!globalDirHandle || !(await verifyPermission(globalDirHandle))) {
+		setStatus('updateStatus', 'Folder unlinked. Please link folder to update.', 'err');
+		document.getElementById('btnReconnect').style.display = '';
+		return;
+	}
+
+	try {
+		setStatus('updateStatus', 'Overwriting files...', 'loading');
+		const files = await fetchAllFiles();
+		
+		for (const [name, blob] of Object.entries(files)) {
+			const fileHandle = await globalDirHandle.getFileHandle(name, { create: true });
+			const writable = await fileHandle.createWritable();
+			await writable.write(blob);
+			await writable.close();
 		}
-	} else {
-		// Fallback if folder isn't linked
-		await window.downloadZip();
+		
+		// Update the Updates.txt log
+		const isChecked = document.getElementById('autoUpdateToggle').checked;
+		const currentText = await readUpdatesTxt(globalDirHandle);
+		const newText = generateNewUpdatesLog(currentText, latestVersion, isChecked);
+		await writeUpdatesTxt(globalDirHandle, newText);
+		
+		await checkForUpdates();
+		setStatus('updateStatus', `✓ Successfully updated to v${latestVersion}`, 'ok');
+	} catch (e) {
+		console.error("Auto-update failed", e);
+		setStatus('updateStatus', `✗ Update failed: ${e.message}`, 'err');
 	}
 };
 
