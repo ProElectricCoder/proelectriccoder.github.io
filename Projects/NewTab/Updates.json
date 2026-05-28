@@ -1,0 +1,13 @@
+{
+	"autoUpdate": false,
+	"log": [
+		{ "version": "1.3.0", "note": "Added gradient direction, power curve, and smoothness step controls. Deduplicated engine SVG icons." },
+		{ "version": "1.3.1", "note": "Fixed search bar underline focus bug. Separated script into NewTabJS.js." },
+		{ "version": "1.3.2", "note": "Fixed shortcut icon URL auto-populating incorrectly. Added autocomplete=off." },
+		{ "version": "1.3.3", "note": "Fixed vertical dots button orientation and shortcut click propagation." },
+		{ "version": "1.3.4", "note": "Fixed missing grid.appendChild in shortcuts. Added safe JSON parsing." },
+		{ "version": "1.4.0", "note": "File-based auto-update system using Updates.json and IndexedDB folder handle." },
+		{ "version": "1.4.3", "note": "NewTab background auto-update via chrome.runtime.reload(), Updates.json format, improved link folder UI." }
+	],
+	"notify": null
+}

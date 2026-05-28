@@ -21,7 +21,7 @@ let draggedIndex = null;
 // ─── Safe JSON parse for shortcuts ───────────────────────────────────────
 function safeParseShortcuts() {
 	try {
-		return JSON.parse(localStorage.getItem('shortcuts') || '[{"name": "ProElectricCoder","url": "https://proelectriccoder.github.io/","icon": "https://proelectriccoder.github.io/Favicon.svg"},{"name": "DeepBlue IDE","url": "https://proelectriccoder.github.io/Projects/IDE/","icon": "https://proelectriccoder.github.io/Favicon.svg"},{"name": "SEP Encryptor","url": "https://proelectriccoder.github.io/Projects/SEP/","icon": "https://proelectriccoder.github.io/Favicon.svg"},{"name": "Update","url": "https://proelectriccoder.github.io/Projects/NewTab/","icon": "https://proelectriccoder.github.io/Projects/NewTab/ProElectricCoder-logo-website-1.svg"},{"name": "GitHub","url": "https://github.com","icon": "https://github.com/fluidicon.png"}]');
+		return JSON.parse(localStorage.getItem('shortcuts') || '[]');
 	} catch {
 		localStorage.removeItem('shortcuts');
 		return [];
@@ -51,41 +51,41 @@ function setEngine(engineKey) {
 
 // ─── Background / cubicGradient ───────────────────────────────────────────
 function applyGradient() {
-	const start	 = document.getElementById('bgTopInput').value;
-	const end	   = document.getElementById('bgBottomInput').value;
+	const start     = document.getElementById('bgTopInput').value;
+	const end       = document.getElementById('bgBottomInput').value;
 	const direction = document.getElementById('bgDirectionInput').value;
-	const power	 = parseFloat(document.getElementById('bgPowerInput').value);
-	const steps	 = parseInt(document.getElementById('bgStepsInput').value, 10);
+	const power     = parseFloat(document.getElementById('bgPowerInput').value);
+	const steps     = parseInt(document.getElementById('bgStepsInput').value, 10);
 	document.body.style.background = cubicGradient({ direction, start, end, steps, power });
-	localStorage.setItem('bgTop',	   start);
-	localStorage.setItem('bgBottom',	end);
+	localStorage.setItem('bgTop',       start);
+	localStorage.setItem('bgBottom',    end);
 	localStorage.setItem('bgDirection', direction);
-	localStorage.setItem('bgPower',	 power);
-	localStorage.setItem('bgSteps',	 steps);
+	localStorage.setItem('bgPower',     power);
+	localStorage.setItem('bgSteps',     steps);
 }
 
 function loadBackground() {
-	const start	 = localStorage.getItem('bgTop')	   || '#000000';
-	const end	   = localStorage.getItem('bgBottom')	|| '#000066';
+	const start     = localStorage.getItem('bgTop')       || '#000000';
+	const end       = localStorage.getItem('bgBottom')    || '#000066';
 	const direction = localStorage.getItem('bgDirection') || 'to bottom right';
-	const power	 = localStorage.getItem('bgPower')	 || '3';
-	const steps	 = localStorage.getItem('bgSteps')	 || '20';
-	document.getElementById('bgTopInput').value		  = start;
-	document.getElementById('bgBottomInput').value	   = end;
-	document.getElementById('bgDirectionInput').value	= direction;
-	document.getElementById('bgPowerInput').value		= power;
-	document.getElementById('bgStepsInput').value		= steps;
+	const power     = localStorage.getItem('bgPower')     || '3';
+	const steps     = localStorage.getItem('bgSteps')     || '20';
+	document.getElementById('bgTopInput').value          = start;
+	document.getElementById('bgBottomInput').value       = end;
+	document.getElementById('bgDirectionInput').value    = direction;
+	document.getElementById('bgPowerInput').value        = power;
+	document.getElementById('bgStepsInput').value        = steps;
 	document.getElementById('bgPowerValue').textContent  = power;
 	document.getElementById('bgStepsValue').textContent  = steps;
 	applyGradient();
 }
 
 function resetBackground() {
-	document.getElementById('bgTopInput').value		  = '#000000';
-	document.getElementById('bgBottomInput').value	   = '#000066';
-	document.getElementById('bgDirectionInput').value	= 'to bottom right';
-	document.getElementById('bgPowerInput').value		= '3';
-	document.getElementById('bgStepsInput').value		= '20';
+	document.getElementById('bgTopInput').value          = '#000000';
+	document.getElementById('bgBottomInput').value       = '#000066';
+	document.getElementById('bgDirectionInput').value    = 'to bottom right';
+	document.getElementById('bgPowerInput').value        = '3';
+	document.getElementById('bgStepsInput').value        = '20';
 	document.getElementById('bgPowerValue').textContent  = '3';
 	document.getElementById('bgStepsValue').textContent  = '20';
 	applyGradient();
@@ -148,14 +148,33 @@ function showUpdateToast(message) {
 	toast.className = 'update-toast';
 	toast.textContent = '✓ ' + message;
 	document.body.appendChild(toast);
-	requestAnimationFrame(() => {
-		requestAnimationFrame(() => toast.classList.add('show'));
-	});
+	requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
 	setTimeout(() => {
 		toast.classList.remove('show');
 		toast.addEventListener('transitionend', () => toast.remove(), { once: true });
 	}, 5000);
 }
+
+// ─── Version comparison ────────────────────────────────────────────────────
+function compareVersions(a, b) {
+	const pa = a.split('.').map(Number);
+	const pb = b.split('.').map(Number);
+	for (let i = 0; i < 3; i++) {
+		if ((pa[i]||0) > (pb[i]||0)) return 1;
+		if ((pa[i]||0) < (pb[i]||0)) return -1;
+	}
+	return 0;
+}
+
+// ─── Remote update config ─────────────────────────────────────────────────
+const REMOTE_BASE = 'https://proelectriccoder.github.io/Projects/NewTab/';
+
+// Updates.json is NOT in this list — it's managed separately to preserve local logs
+const UPDATABLE_FILES = [
+	'manifest.json', 'NewTab.html', 'NewTabJS.js', 'CubicGradient.js',
+	'ProElectricCoder-logo-website-1.svg', 'ProElectricCoder-logo-website-2.svg',
+	'Icon16.png', 'Icon48.png', 'Icon128.png'
+];
 
 // ─── IndexedDB for folder handle ──────────────────────────────────────────
 const DB_NAME = 'NewTabExtDB';
@@ -190,85 +209,148 @@ async function getHandle() {
 	});
 }
 
-// ─── Updates.txt helpers ──────────────────────────────────────────────────
-function parseLastLine(text) {
-	if (!text) return false;
-	const lines = text.trim().split('\n');
-	return lines[lines.length - 1].trim() === 'AUTO_UPDATE=ON';
+// ─── Updates.json helpers ─────────────────────────────────────────────────
+async function readUpdatesJson() {
+	try {
+		const fh = await extDirHandle.getFileHandle('Updates.json');
+		return JSON.parse(await (await fh.getFile()).text());
+	} catch {
+		// File missing — return a clean default (will be created on first write)
+		return { autoUpdate: false, log: [], notify: null };
+	}
 }
 
-async function writeUpdatesFile(text) {
-	const fh = await extDirHandle.getFileHandle('Updates.txt', { create: true });
-	const writable = await fh.createWritable();
-	await writable.write(text);
-	await writable.close();
+async function writeUpdatesJson(data) {
+	const fh = await extDirHandle.getFileHandle('Updates.json', { create: true });
+	const wr = await fh.createWritable();
+	await wr.write(JSON.stringify(data, null, '\t'));
+	await wr.close();
 }
 
-// ─── Folder access ────────────────────────────────────────────────────────
+// ─── Silent auto-update on load ───────────────────────────────────────────
+// Called once on page load if folder is already linked with permission.
+// 1. Checks for a pending notify (written by a previous update) → shows toast + clears it.
+// 2. If autoUpdate is on, fetches remote manifest, compares, downloads files, and reloads.
+async function silentUpdateCheck() {
+	if (!extDirHandle) return;
+
+	try {
+		const data = await readUpdatesJson();
+
+		// Step 1: Show any pending notification from a previous update cycle
+		if (data.notify) {
+			showUpdateToast(data.notify);
+			data.notify = null;
+			await writeUpdatesJson(data);
+		}
+
+		// Step 2: Auto-update check
+		if (!data.autoUpdate) return;
+
+		const remoteRes = await fetch(REMOTE_BASE + 'manifest.json?_=' + Date.now());
+		if (!remoteRes.ok) return;
+		const remoteMf = await remoteRes.json();
+
+		// Read local version from the installed manifest.json
+		const localMfh = await extDirHandle.getFileHandle('manifest.json');
+		const localMf = JSON.parse(await (await localMfh.getFile()).text());
+
+		if (compareVersions(remoteMf.version, localMf.version) <= 0) return; // Already up to date
+
+		// Newer version found — download and install silently
+		await performSilentUpdate(localMf.version, remoteMf.version, data);
+
+	} catch (e) {
+		// Silent — don't bother the user if the check fails (offline, server down, etc.)
+		console.warn('[NewTab] Auto-update check failed:', e.message);
+	}
+}
+
+async function performSilentUpdate(fromVersion, toVersion, updatesData) {
+	// Fetch all updatable files from remote
+	const files = {};
+	await Promise.all(UPDATABLE_FILES.map(async (name) => {
+		const res = await fetch(REMOTE_BASE + name);
+		if (!res.ok) throw new Error(`Fetch failed: ${name} (${res.status})`);
+		files[name] = await res.blob();
+	}));
+
+	// Write each file to the linked folder
+	for (const [name, blob] of Object.entries(files)) {
+		const fh = await extDirHandle.getFileHandle(name, { create: true });
+		const wr = await fh.createWritable();
+		await wr.write(blob);
+		await wr.close();
+	}
+
+	// Update Updates.json: append log entry, set notify for next load, preserve autoUpdate
+	updatesData.log.push({
+		timestamp: new Date().toLocaleString(),
+		from: fromVersion,
+		to: toVersion,
+		note: 'Auto-updated by NewTab'
+	});
+	updatesData.notify = `Updated from v${fromVersion} to v${toVersion}`;
+	// autoUpdate stays as-is
+	await writeUpdatesJson(updatesData);
+
+	// Reload the extension — new files are now on disk, chrome.runtime.reload applies them
+	if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.reload) {
+		chrome.runtime.reload();
+	}
+}
+
+// ─── Settings sidebar: folder UI ─────────────────────────────────────────
 async function checkFolderAccess() {
 	if (!extDirHandle) extDirHandle = await getHandle();
 	if (!extDirHandle) {
-		showFolderUI('unlinked');
+		setFolderBtnState('link');
 		return;
 	}
 	const perm = await extDirHandle.queryPermission({ mode: 'readwrite' });
 	if (perm === 'granted') {
-		showFolderUI('linked');
-		await readUpdatesFile();
+		setFolderBtnState('hidden');
+		await readFolderDataForSettings();
 	} else {
-		// Permission is 'prompt' or 'denied' — show reconnect (user gesture needed)
-		showFolderUI('reconnect');
+		setFolderBtnState('reconnect');
 	}
 }
 
-function showFolderUI(state) {
-	const linkRow = document.getElementById('linkFolderRow');
+function setFolderBtnState(state) {
+	const linkRow   = document.getElementById('linkFolderRow');
 	const updateRow = document.getElementById('autoUpdateRow');
-	const btn = document.getElementById('btnLinkFolder');
-	if (state === 'linked') {
-		linkRow.style.display = 'none';
+	const btn       = document.getElementById('btnLinkFolder');
+
+	if (state === 'hidden') {
+		// Folder is fully linked — hide the link row, show the settings row
+		linkRow.style.display   = 'none';
 		updateRow.style.display = 'block';
-	} else if (state === 'reconnect') {
-		linkRow.style.display = 'flex';
-		updateRow.style.display = 'none';
-		btn.textContent = 'Reconnect Folder';
-	} else {
-		linkRow.style.display = 'flex';
+	} else if (state === 'link') {
+		// No folder linked at all
+		linkRow.style.display   = 'flex';
 		updateRow.style.display = 'none';
 		btn.textContent = 'Link Folder';
+	} else if (state === 'reconnect') {
+		// Folder was linked but permission expired
+		linkRow.style.display   = 'flex';
+		updateRow.style.display = 'none';
+		btn.textContent = 'Reconnect Folder';
 	}
 }
 
-async function readUpdatesFile() {
+async function readFolderDataForSettings() {
 	const infoEl = document.getElementById('autoUpdateFolderInfo');
 	try {
-		// Read version from manifest.json
+		// Show installed version
 		const mfh = await extDirHandle.getFileHandle('manifest.json');
 		const mf = JSON.parse(await (await mfh.getFile()).text());
 		infoEl.textContent = `v${mf.version} · linked`;
 
-		// Read Updates.txt
-		const fh = await extDirHandle.getFileHandle('Updates.txt');
-		const text = await (await fh.getFile()).text();
-		const lines = text.trim().split('\n');
-
-		// Check for pending [NOTIFY] lines and show toast
-		const notifyLines = lines.filter(l => l.startsWith('[NOTIFY]'));
-		if (notifyLines.length > 0) {
-			notifyLines.forEach(l => {
-				const msg = l.replace('[NOTIFY]', '').trim();
-				showUpdateToast(msg);
-			});
-			// Remove all [NOTIFY] lines and write back
-			const cleaned = lines.filter(l => !l.startsWith('[NOTIFY]')).join('\n');
-			await writeUpdatesFile(cleaned);
-		}
-
-		// Set toggle state from last line
-		document.getElementById('extUpdateToggle').checked = parseLastLine(text);
-
+		// Read Updates.json for toggle state
+		const data = await readUpdatesJson();
+		document.getElementById('extUpdateToggle').checked = data.autoUpdate;
 	} catch (e) {
-		infoEl.textContent = 'linked · Updates.txt missing';
+		infoEl.textContent = 'linked · could not read version';
 		document.getElementById('extUpdateToggle').checked = false;
 	}
 }
@@ -277,43 +359,33 @@ async function linkExtensionFolder() {
 	const btn = document.getElementById('btnLinkFolder');
 	try {
 		if (extDirHandle && btn.textContent === 'Reconnect Folder') {
-			// Try to re-request permission on the existing handle (user gesture available here)
+			// User gesture available — safe to requestPermission on existing handle
 			const perm = await extDirHandle.requestPermission({ mode: 'readwrite' });
 			if (perm === 'granted') {
-				showFolderUI('linked');
-				await readUpdatesFile();
+				setFolderBtnState('hidden');
+				await readFolderDataForSettings();
 				return;
 			}
 		}
-		// New folder selection
+		// Pick a new folder
 		extDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
 		await saveHandle(extDirHandle);
-		showFolderUI('linked');
-		await readUpdatesFile();
+		setFolderBtnState('hidden');
+		await readFolderDataForSettings();
 	} catch (e) {
 		if (e.name !== 'AbortError') console.error('Folder link failed:', e);
 	}
 }
 
 async function toggleAutoUpdate() {
-	const isOn = document.getElementById('extUpdateToggle').checked;
 	if (!extDirHandle) return;
+	const isOn = document.getElementById('extUpdateToggle').checked;
 	try {
-		let text = '';
-		try {
-			const fh = await extDirHandle.getFileHandle('Updates.txt');
-			text = await (await fh.getFile()).text();
-		} catch { /* file missing, will create */ }
-
-		let lines = text ? text.trim().split('\n') : [];
-		// Remove old AUTO_UPDATE line
-		if (lines.length > 0 && lines[lines.length - 1].startsWith('AUTO_UPDATE=')) {
-			lines.pop();
-		}
-		lines.push(`AUTO_UPDATE=${isOn ? 'ON' : 'OFF'}`);
-		await writeUpdatesFile(lines.join('\n'));
+		const data = await readUpdatesJson();
+		data.autoUpdate = isOn;
+		await writeUpdatesJson(data);
 	} catch (e) {
-		console.error('Failed to write Updates.txt:', e);
+		console.error('Failed to write Updates.json:', e);
 	}
 }
 
@@ -324,26 +396,14 @@ loadBackground();
 setEngine(localStorage.getItem('preferredEngine') || 'google');
 renderShortcuts();
 
-// Silently check for notifications on load (no UI needed, just reads the file)
+// On load: silently connect to stored folder, check for notifications and auto-updates.
+// Uses only queryPermission — no user gesture needed for extension pages in Chrome.
 getHandle().then(async (handle) => {
 	if (!handle) return;
 	const perm = await handle.queryPermission({ mode: 'readwrite' });
 	if (perm !== 'granted') return;
 	extDirHandle = handle;
-	try {
-		const fh = await handle.getFileHandle('Updates.txt');
-		const text = await (await fh.getFile()).text();
-		const lines = text.trim().split('\n');
-		const notifyLines = lines.filter(l => l.startsWith('[NOTIFY]'));
-		if (notifyLines.length > 0) {
-			notifyLines.forEach(l => showUpdateToast(l.replace('[NOTIFY]', '').trim()));
-			const cleaned = lines.filter(l => !l.startsWith('[NOTIFY]')).join('\n');
-			const wfh = await handle.getFileHandle('Updates.txt', { create: true });
-			const writable = await wfh.createWritable();
-			await writable.write(cleaned);
-			await writable.close();
-		}
-	} catch { /* Updates.txt missing, nothing to do */ }
+	await silentUpdateCheck();
 }).catch(() => {});
 
 // ─── Event bindings ───────────────────────────────────────────────────────
@@ -353,8 +413,8 @@ document.getElementById('settingsBtn').onclick = () => {
 };
 document.getElementById('closeSidebarBtn').onclick = () => document.getElementById('settingsSidebar').classList.remove('open');
 
-document.getElementById('bgTopInput').onchange	   = applyGradient;
-document.getElementById('bgBottomInput').onchange	= applyGradient;
+document.getElementById('bgTopInput').onchange       = applyGradient;
+document.getElementById('bgBottomInput').onchange    = applyGradient;
 document.getElementById('bgDirectionInput').onchange = applyGradient;
 
 document.getElementById('bgPowerInput').oninput = (e) => {

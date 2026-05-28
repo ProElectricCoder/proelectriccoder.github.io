@@ -14,7 +14,6 @@
 
 :root {
 	--accent:      #3d6eff;
-	--accent-glow: rgba(61, 110, 255, 0.18);
 	--accent-dim:  rgba(61, 110, 255, 0.10);
 	--border:      rgba(255,255,255,0.08);
 	--border-hi:   rgba(255,255,255,0.15);
@@ -29,76 +28,26 @@
 }
 
 html { scroll-behavior: smooth; }
+body { background: #000000; color: var(--text); font-family: 'DM Sans', sans-serif; font-weight: 400; min-height: 100vh; overflow-x: hidden; }
+body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E"); opacity: 0.025; pointer-events: none; z-index: 0; }
 
-body {
-	background: #000000;
-	color: var(--text);
-	font-family: 'DM Sans', sans-serif;
-	font-weight: 400;
-	min-height: 100vh;
-	overflow-x: hidden;
-}
-
-body::before {
-	content: '';
-	position: fixed; inset: 0;
-	background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
-	opacity: 0.025; pointer-events: none; z-index: 0;
-}
-
-nav {
-	position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-	display: flex; align-items: center; justify-content: space-between;
-	padding: 0 40px; height: 60px;
-	background: rgba(0,0,0,0.6); backdrop-filter: blur(20px);
-	border-bottom: 1px solid var(--border);
-}
+nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; height: 60px; background: rgba(0,0,0,0.6); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); }
 .nav-left { display: flex; align-items: center; gap: 14px; }
 .nav-logo { width: 28px; height: 28px; opacity: 0.9; }
 .nav-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.95rem; letter-spacing: 0.02em; }
-.nav-version {
-	font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--accent);
-	background: var(--accent-dim); border: 1px solid rgba(61,110,255,0.25);
-	padding: 2px 8px; border-radius: 20px;
-}
+.nav-version { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--accent); background: var(--accent-dim); border: 1px solid rgba(61,110,255,0.25); padding: 2px 8px; border-radius: 20px; }
 .nav-right { display: flex; gap: 28px; align-items: center; }
 .nav-link { font-size: 0.82rem; color: var(--text-dim); text-decoration: none; transition: color 0.2s; }
 .nav-link:hover { color: var(--text); }
 
-.hero {
-	min-height: 100vh; display: flex; flex-direction: column;
-	align-items: center; justify-content: center; text-align: center;
-	padding: 100px 24px 80px; position: relative; z-index: 1;
-}
-.hero-eyebrow {
-	font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
-	letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent);
-	margin-bottom: 24px; opacity: 0; animation: fadeUp 0.6s ease 0.1s forwards;
-}
-.hero-title {
-	font-family: 'Syne', sans-serif; font-size: clamp(3rem, 8vw, 6rem);
-	font-weight: 800; line-height: 1.05; letter-spacing: -0.03em;
-	margin-bottom: 24px; opacity: 0; animation: fadeUp 0.6s ease 0.2s forwards;
-}
-.hero-title span {
-	background: linear-gradient(135deg, #ffffff 30%, rgba(61,110,255,0.7));
-	-webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-}
-.hero-sub {
-	font-size: clamp(1rem, 2vw, 1.15rem); font-weight: 300; color: var(--text-dim);
-	max-width: 520px; line-height: 1.7; margin-bottom: 48px;
-	opacity: 0; animation: fadeUp 0.6s ease 0.3s forwards;
-}
-.hero-actions {
-	display: flex; gap: 14px; flex-wrap: wrap; justify-content: center;
-	opacity: 0; animation: fadeUp 0.6s ease 0.4s forwards;
-}
+.hero { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 100px 24px 80px; position: relative; z-index: 1; }
+.hero-eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin-bottom: 24px; opacity: 0; animation: fadeUp 0.6s ease 0.1s forwards; }
+.hero-title { font-family: 'Syne', sans-serif; font-size: clamp(3rem, 8vw, 6rem); font-weight: 800; line-height: 1.05; letter-spacing: -0.03em; margin-bottom: 24px; opacity: 0; animation: fadeUp 0.6s ease 0.2s forwards; }
+.hero-title span { background: linear-gradient(135deg, #ffffff 30%, rgba(61,110,255,0.7)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.hero-sub { font-size: clamp(1rem, 2vw, 1.15rem); font-weight: 300; color: var(--text-dim); max-width: 520px; line-height: 1.7; margin-bottom: 48px; opacity: 0; animation: fadeUp 0.6s ease 0.3s forwards; }
+.hero-actions { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; opacity: 0; animation: fadeUp 0.6s ease 0.4s forwards; }
 
-.btn {
-	display: inline-flex; align-items: center; gap: 9px; padding: 13px 26px;
-	border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
-	font-weight: 500; cursor: pointer; transition: all 0.2s ease; border: none; text-decoration: none;
-}
+.btn { display: inline-flex; align-items: center; gap: 9px; padding: 13px 26px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.2s ease; border: none; text-decoration: none; }
 .btn-primary { background: var(--accent); color: white; box-shadow: 0 0 30px rgba(61,110,255,0.3); }
 .btn-primary:hover { background: #5580ff; box-shadow: 0 0 40px rgba(61,110,255,0.5); transform: translateY(-2px); }
 .btn-secondary { background: var(--card); color: var(--text-dim); border: 1px solid var(--border); }
@@ -120,15 +69,15 @@ section { position: relative; z-index: 1; padding: 100px 24px; max-width: 1100px
 
 .download-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 48px; }
 @media (max-width: 640px) { .download-cards { grid-template-columns: 1fr; } }
-.dl-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 32px; display: flex; flex-direction: column; gap: 14px; transition: border-color 0.2s; position: relative; overflow: hidden; }
+.dl-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 32px; display: flex; flex-direction: column; gap: 14px; position: relative; overflow: hidden; }
 .dl-card.recommended { border-color: rgba(61,110,255,0.35); background: linear-gradient(145deg, rgba(61,110,255,0.06), var(--card)); }
 .dl-card.recommended::before { content: 'RECOMMENDED'; position: absolute; top: 18px; right: -26px; background: var(--accent); color: white; font-family: 'JetBrains Mono', monospace; font-size: 0.58rem; letter-spacing: 0.1em; padding: 4px 36px; transform: rotate(35deg); }
 .dl-card-icon { font-size: 2rem; line-height: 1; }
 .dl-card-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.15rem; }
 .dl-card-desc { font-size: 0.83rem; color: var(--text-dim); line-height: 1.55; flex: 1; }
 .dl-status { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-faint); min-height: 18px; transition: color 0.2s; }
-.dl-status.ok     { color: var(--green); }
-.dl-status.err    { color: var(--red); }
+.dl-status.ok      { color: var(--green); }
+.dl-status.err     { color: var(--red); }
 .dl-status.loading { color: var(--yellow); }
 
 .steps { display: flex; flex-direction: column; gap: 0; }
@@ -165,14 +114,7 @@ section { position: relative; z-index: 1; padding: 100px 24px; max-width: 1100px
 .vinfo-val.unknown    { color: var(--text-faint); }
 .divider { height: 1px; background: var(--border); }
 
-#updateBanner {
-	position: fixed; bottom: 24px; right: 24px;
-	background: rgba(10,10,20,0.95); border: 1px solid rgba(61,110,255,0.4);
-	border-radius: 14px; padding: 20px 24px; max-width: 340px;
-	box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(61,110,255,0.1);
-	backdrop-filter: blur(16px); z-index: 200;
-	display: none; flex-direction: column; gap: 12px; animation: slideIn 0.3s ease;
-}
+#updateBanner { position: fixed; bottom: 24px; right: 24px; background: rgba(10,10,20,0.95); border: 1px solid rgba(61,110,255,0.4); border-radius: 14px; padding: 20px 24px; max-width: 340px; box-shadow: 0 8px 40px rgba(0,0,0,0.6); backdrop-filter: blur(16px); z-index: 200; display: none; flex-direction: column; gap: 12px; animation: slideIn 0.3s ease; }
 #updateBanner.show { display: flex; }
 .banner-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.95rem; }
 .banner-body  { font-size: 0.8rem; color: var(--text-dim); line-height: 1.5; }
@@ -195,7 +137,7 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 	<div class="nav-left">
 		<img src="ProElectricCoder-logo-website-1.svg" alt="Logo" class="nav-logo" onerror="this.style.display='none'">
 		<span class="nav-title">ProElectricCoder New Tab</span>
-		<span class="nav-version" id="navVersion">v1.4.0</span>
+		<span class="nav-version" id="navVersion">v1.4.3</span>
 	</div>
 	<div class="nav-right">
 		<a class="nav-link" href="#features">Features</a>
@@ -231,7 +173,7 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 		<div class="feature-card reveal"><div class="feature-icon">⚡</div><div class="feature-name">Quick Shortcuts</div><div class="feature-desc">Add, edit, delete, and reorder shortcuts with drag-and-drop. Icons are fetched automatically from each site's favicon.</div></div>
 		<div class="feature-card reveal"><div class="feature-icon">🕐</div><div class="feature-name">Live Clock &amp; Date</div><div class="feature-desc">12-hour monospace clock with AM/PM indicator and a full date line. Always centred, always sharp.</div></div>
 		<div class="feature-card reveal"><div class="feature-icon">⚙️</div><div class="feature-name">Settings Sidebar</div><div class="feature-desc">Slide-out panel gives you full control over gradient colours, direction, curve intensity, and smoothness — all live-previewed.</div></div>
-		<div class="feature-card reveal"><div class="feature-icon">🔒</div><div class="feature-name">Fully Local</div><div class="feature-desc">Zero network requests beyond search and favicons. All settings stored locally. No accounts, no tracking.</div></div>
+		<div class="feature-card reveal"><div class="feature-icon">🔄</div><div class="feature-name">Background Auto-Update</div><div class="feature-desc">Enable once and forget it. The new tab checks for updates silently on every open and applies them automatically via chrome.runtime.reload().</div></div>
 	</div>
 </section>
 
@@ -243,7 +185,7 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 		<div class="dl-card recommended">
 			<div class="dl-card-icon">📂</div>
 			<div class="dl-card-title">Select a Folder</div>
-			<div class="dl-card-desc">Uses the File System Access API to write all extension files directly into a folder you choose. No extraction needed — just point Chrome straight at it. Also links the folder for auto-updates.</div>
+			<div class="dl-card-desc">Uses the File System Access API to write all extension files directly into a folder you choose. No extraction needed — also links the folder so this page can push future updates directly.</div>
 			<p class="dl-status" id="folderStatus"></p>
 			<button class="btn btn-primary" id="btnFolder" onclick="downloadToFolder()">
 				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v8.25m19.5 0v.75a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25v-.75"/></svg>
@@ -268,7 +210,7 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 	<h2 class="section-title reveal">Installation</h2>
 	<p class="section-sub reveal">Four steps and you're done. Takes under a minute.</p>
 	<div class="steps">
-		<div class="step reveal"><div class="step-num">01</div><div class="step-body"><div class="step-title">Download the extension files</div><div class="step-desc">Use the "Choose Folder" option above (recommended) or download and unzip the ZIP file into a permanent location. Don't move the folder after loading it.</div></div></div>
+		<div class="step reveal"><div class="step-num">01</div><div class="step-body"><div class="step-title">Download the extension files</div><div class="step-desc">Use "Choose Folder" above (recommended) or download the ZIP and unzip it somewhere permanent. Don't move the folder after loading it in Chrome.</div></div></div>
 		<div class="step reveal"><div class="step-num">02</div><div class="step-body"><div class="step-title">Open Chrome Extensions</div><div class="step-desc">Navigate to the extensions management page.</div><div class="code-block" onclick="copyToClipboard('chrome://extensions', this)"><span>chrome://extensions</span><svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75"/></svg></div></div></div>
 		<div class="step reveal"><div class="step-num">03</div><div class="step-body"><div class="step-title">Enable Developer Mode</div><div class="step-desc">In the top-right corner of the extensions page, toggle on <strong>Developer mode</strong>.</div></div></div>
 		<div class="step reveal"><div class="step-num">04</div><div class="step-body"><div class="step-title">Load the extension</div><div class="step-desc">Click <strong>Load unpacked</strong> and select the folder. Open a new tab — you're done.</div></div></div>
@@ -278,13 +220,13 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 <section id="update">
 	<p class="section-label reveal">Stay current</p>
 	<h2 class="section-title reveal">Auto-Update</h2>
-	<p class="section-sub reveal">Link your installed extension folder once. This page reads your manifest.json directly for the installed version, and writes update logs and preferences to Updates.txt.</p>
+	<p class="section-sub reveal">Link your installed extension folder once. This page reads your local manifest.json for the installed version and writes all update logs and preferences to Updates.json.</p>
 
 	<div class="update-panel reveal">
 		<div class="update-row">
 			<div class="update-label-group">
 				<span class="update-label">Auto-Update</span>
-				<span class="update-sublabel">Saved to Updates.txt in your extension folder. Toggle requires folder to be linked.</span>
+				<span class="update-sublabel">Stored in Updates.json. When enabled, the new tab also self-updates silently on open.</span>
 			</div>
 			<label class="toggle">
 				<input type="checkbox" id="autoUpdateToggle" onchange="saveAutoUpdatePref()" disabled>
@@ -310,15 +252,16 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 			</div>
 		</div>
 
-		<!-- Dedicated feedback line for update actions -->
-		<p class="dl-status" id="updateActionStatus"></p>
+		<!-- Action feedback line (only shown during/after operations) -->
+		<p class="dl-status" id="updateActionStatus" style="margin-top:-8px"></p>
 
 		<div class="update-row">
 			<span class="update-sublabel" id="lastChecked">Never checked</span>
 			<div style="display:flex;gap:10px;flex-wrap:wrap">
-				<button class="btn btn-secondary" id="btnReconnect" onclick="reconnectFolder()" style="display:none">
+				<!-- Only shown when folder is NOT linked -->
+				<button class="btn btn-secondary" id="btnLinkFolder" onclick="linkFolder()" style="display:none">
 					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" width="17" height="17"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"/></svg>
-					Link Folder
+					<span>Link Folder</span>
 				</button>
 				<button class="btn btn-secondary" onclick="checkForUpdates()">
 					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" width="17" height="17"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
@@ -334,13 +277,13 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 </section>
 
 <footer>
-	ProElectricCoder New Tab · <span id="footerVersion">v1.4.0</span> · Built with ElectronCSS
+	ProElectricCoder New Tab · <span id="footerVersion">v1.4.3</span> · Built with ElectronCSS
 </footer>
 
 <div id="updateBanner">
-	<div class="banner-title">🆕 Update Available</div>
+	<div class="banner-title" id="bannerTitle">🆕 Update Available</div>
 	<div class="banner-body" id="bannerBody">A new version is ready.</div>
-	<div class="banner-actions">
+	<div class="banner-actions" id="bannerActions">
 		<button class="btn btn-primary" style="font-size:0.82rem;padding:9px 16px" onclick="triggerUpdate()">Update</button>
 		<button class="btn btn-secondary" style="font-size:0.82rem;padding:9px 16px" onclick="dismissBanner()">Later</button>
 	</div>
@@ -352,15 +295,18 @@ import { cubicGradient } from 'https://proelectriccoder.github.io/ElectronCSS/Cu
 document.body.style.background = cubicGradient({ direction: 'to bottom right', start: '#000000', end: '#000066', steps: 20, power: 3 });
 
 // ─── Extension files ───────────────────────────────────────────────────────
+// Updates.json is NOT in this list — it is created/updated separately to preserve local logs.
 const EXTENSION_FILES = [
 	'manifest.json', 'NewTab.html', 'NewTabJS.js', 'CubicGradient.js',
-	'Updates.txt',
 	'ProElectricCoder-logo-website-1.svg', 'ProElectricCoder-logo-website-2.svg',
 	'Icon16.png', 'Icon48.png', 'Icon128.png'
 ];
+// Included in ZIP only (not overwritten during updates)
+const ZIP_ONLY_FILES = ['Updates.json'];
+
 const BASE_URL = './';
 
-// ─── IndexedDB for directory handle ───────────────────────────────────────
+// ─── IndexedDB ────────────────────────────────────────────────────────────
 function initDB() {
 	return new Promise((resolve, reject) => {
 		const req = indexedDB.open('NewTabDB', 1);
@@ -387,36 +333,21 @@ async function getHandle() {
 	});
 }
 
-// ─── Updates.txt helpers ───────────────────────────────────────────────────
-async function readUpdatesTxt(dirHandle) {
+// ─── Updates.json helpers ──────────────────────────────────────────────────
+async function readUpdatesJson(dirHandle) {
 	try {
-		const fh = await dirHandle.getFileHandle('Updates.txt');
-		return await (await fh.getFile()).text();
-	} catch { return null; }
+		const fh = await dirHandle.getFileHandle('Updates.json');
+		return JSON.parse(await (await fh.getFile()).text());
+	} catch {
+		return null;
+	}
 }
 
-async function writeUpdatesTxt(dirHandle, content) {
-	const fh = await dirHandle.getFileHandle('Updates.txt', { create: true });
-	const writable = await fh.createWritable();
-	await writable.write(content);
-	await writable.close();
-}
-
-function parseAutoUpdateStatus(text) {
-	if (!text) return false;
-	const lines = text.trim().split('\n');
-	return lines[lines.length - 1].trim() === 'AUTO_UPDATE=ON';
-}
-
-function buildUpdatedLog(oldText, fromVersion, toVersion, autoUpdate) {
-	const now = new Date().toLocaleString();
-	let lines = oldText ? oldText.trim().split('\n') : [];
-	// Remove old AUTO_UPDATE and any stale [NOTIFY] lines
-	lines = lines.filter(l => !l.startsWith('AUTO_UPDATE=') && !l.startsWith('[NOTIFY]'));
-	lines.push(`[${now}] Updated from v${fromVersion} to v${toVersion}`);
-	lines.push(`[NOTIFY] Updated from v${fromVersion} to v${toVersion}`);
-	lines.push(`AUTO_UPDATE=${autoUpdate ? 'ON' : 'OFF'}`);
-	return lines.join('\n');
+async function writeUpdatesJson(dirHandle, data) {
+	const fh = await dirHandle.getFileHandle('Updates.json', { create: true });
+	const wr = await fh.createWritable();
+	await wr.write(JSON.stringify(data, null, '\t'));
+	await wr.close();
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -436,7 +367,7 @@ function compareVersions(a, b) {
 	return 0;
 }
 
-async function fetchAllFiles() {
+async function fetchExtensionFiles() {
 	const results = {};
 	await Promise.all(EXTENSION_FILES.map(async (name) => {
 		const res = await fetch(BASE_URL + name);
@@ -452,73 +383,88 @@ let localManifestVersion = null;
 let latestVersion = null;
 let autoUpdateOn = false;
 
-// ─── Folder link / reconnect ───────────────────────────────────────────────
+// ─── Folder link button visibility ────────────────────────────────────────
+// Only shown when folder is not linked or permission has expired.
+function setLinkBtnState(state) {
+	const btn = document.getElementById('btnLinkFolder');
+	if (state === 'hidden') {
+		btn.style.display = 'none';
+	} else {
+		btn.style.display = '';
+		btn.querySelector('span').textContent = state === 'reconnect' ? 'Reconnect' : 'Link Folder';
+	}
+}
+
+// ─── Folder init ──────────────────────────────────────────────────────────
 async function initFolderLink() {
 	const handle = await getHandle();
-	if (!handle) { showReconnectBtn(true); return; }
-	// Only query — no requestPermission here (no user gesture at page load)
+	if (!handle) { setLinkBtnState('link'); return; }
+	// Only query at init — no requestPermission without user gesture
 	const perm = await handle.queryPermission({ mode: 'readwrite' });
 	if (perm === 'granted') {
 		globalDirHandle = handle;
 		await readFolderData();
+		setLinkBtnState('hidden');
 	} else {
-		showReconnectBtn(true);
+		setLinkBtnState('reconnect');
 	}
 }
 
-window.reconnectFolder = async function () {
+window.linkFolder = async function () {
 	try {
-		// This IS a user gesture — safe to call showDirectoryPicker / requestPermission
 		if (globalDirHandle) {
+			// This IS a user gesture — safe to requestPermission
 			const perm = await globalDirHandle.requestPermission({ mode: 'readwrite' });
-			if (perm === 'granted') { await readFolderData(); showReconnectBtn(false); return; }
+			if (perm === 'granted') {
+				await readFolderData();
+				setLinkBtnState('hidden');
+				return;
+			}
 		}
-		// No stored handle or permission denied — pick a new folder
+		// Pick a new folder
 		const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
 		await saveHandle(handle);
 		globalDirHandle = handle;
 		await readFolderData();
-		showReconnectBtn(false);
+		setLinkBtnState('hidden');
 	} catch (e) {
 		if (e.name !== 'AbortError') setStatus('updateActionStatus', `Could not link folder: ${e.message}`, 'err');
 	}
 };
 
-function showReconnectBtn(show) {
-	document.getElementById('btnReconnect').style.display = show ? '' : 'none';
-}
-
 async function readFolderData() {
 	try {
-		// Read installed version from manifest.json
 		const mfh = await globalDirHandle.getFileHandle('manifest.json');
 		const mf = JSON.parse(await (await mfh.getFile()).text());
 		localManifestVersion = mf.version;
 
-		// Read Updates.txt for auto-update preference
-		const updatesTxt = await readUpdatesTxt(globalDirHandle);
-		autoUpdateOn = parseAutoUpdateStatus(updatesTxt);
+		// Read Updates.json for auto-update preference
+		// If it doesn't exist yet, create it with defaults (fresh folder install scenario)
+		let data = await readUpdatesJson(globalDirHandle);
+		if (!data) {
+			data = { autoUpdate: false, log: [], notify: null };
+			await writeUpdatesJson(globalDirHandle, data);
+		}
+		autoUpdateOn = data.autoUpdate;
 		document.getElementById('autoUpdateToggle').checked = autoUpdateOn;
 		document.getElementById('autoUpdateToggle').disabled = false;
 
-		showReconnectBtn(false);
 		refreshUpdateUI();
 	} catch (e) {
 		setStatus('updateActionStatus', `Error reading folder: ${e.message}`, 'err');
 	}
 }
 
-// ─── Auto-update preference ────────────────────────────────────────────────
+// ─── Auto-update toggle ────────────────────────────────────────────────────
 window.saveAutoUpdatePref = async function () {
 	if (!globalDirHandle) return;
 	autoUpdateOn = document.getElementById('autoUpdateToggle').checked;
 	try {
-		const currentText = await readUpdatesTxt(globalDirHandle) || '';
-		let lines = currentText.trim().split('\n').filter(l => !l.startsWith('AUTO_UPDATE='));
-		lines.push(`AUTO_UPDATE=${autoUpdateOn ? 'ON' : 'OFF'}`);
-		await writeUpdatesTxt(globalDirHandle, lines.join('\n'));
+		const data = (await readUpdatesJson(globalDirHandle)) || { autoUpdate: false, log: [], notify: null };
+		data.autoUpdate = autoUpdateOn;
+		await writeUpdatesJson(globalDirHandle, data);
 	} catch (e) {
-		console.error('Failed to write auto-update pref:', e);
+		console.error('Failed to save auto-update pref:', e);
 	}
 };
 
@@ -534,7 +480,7 @@ window.downloadToFolder = async function () {
 	try {
 		const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
 		setStatus('folderStatus', 'Fetching files from server…', 'loading');
-		const files = await fetchAllFiles();
+		const files = await fetchExtensionFiles();
 
 		setStatus('folderStatus', 'Writing files…', 'loading');
 		for (const [name, blob] of Object.entries(files)) {
@@ -546,26 +492,26 @@ window.downloadToFolder = async function () {
 
 		const manifest = JSON.parse(await files['manifest.json'].text());
 
-		// Write a clean initial Updates.txt (server version already included in files)
-		// Just ensure the AUTO_UPDATE line is preserved if re-downloading
-		const existingTxt = await readUpdatesTxt(dirHandle);
-		const existingAutoUpdate = parseAutoUpdateStatus(existingTxt);
-		const serverTxt = await files['Updates.txt'].text();
-		let lines = serverTxt.trim().split('\n').filter(l => !l.startsWith('AUTO_UPDATE='));
-		lines.push(`AUTO_UPDATE=${existingAutoUpdate ? 'ON' : 'OFF'}`);
-		await writeUpdatesTxt(dirHandle, lines.join('\n'));
+		// Create/merge Updates.json — preserve existing autoUpdate setting if re-downloading
+		const existingData = await readUpdatesJson(dirHandle);
+		const initData = {
+			autoUpdate: existingData ? existingData.autoUpdate : false,
+			log: existingData ? existingData.log : [],
+			notify: null
+		};
+		if (!existingData) {
+			initData.log.push({ timestamp: new Date().toLocaleString(), version: manifest.version, note: 'Initial install' });
+		}
+		await writeUpdatesJson(dirHandle, initData);
 
 		await saveHandle(dirHandle);
 		globalDirHandle = dirHandle;
 		await readFolderData();
+		setLinkBtnState('hidden');
 		refreshUpdateUI();
 		setStatus('folderStatus', `✓ All files written — v${manifest.version} installed.`, 'ok');
 	} catch (err) {
-		if (err.name === 'AbortError') {
-			setStatus('folderStatus', 'Cancelled.', '');
-		} else {
-			setStatus('folderStatus', `✗ ${err.message}`, 'err');
-		}
+		setStatus('folderStatus', err.name === 'AbortError' ? 'Cancelled.' : `✗ ${err.message}`, 'err');
 	}
 	btn.disabled = false;
 };
@@ -576,13 +522,17 @@ window.downloadZip = async function () {
 	btn.disabled = true;
 	setStatus('zipStatus', 'Fetching files…', 'loading');
 	try {
-		const files = await fetchAllFiles();
+		const files = await fetchExtensionFiles();
+		// Also fetch Updates.json for the ZIP
+		const updatesRes = await fetch(BASE_URL + 'Updates.json');
+		if (updatesRes.ok) files['Updates.json'] = await updatesRes.blob();
+
+		const manifest = JSON.parse(await files['manifest.json'].text());
 		const zip = new JSZip();
 		const folder = zip.folder('NewTab-extension');
 		for (const [name, blob] of Object.entries(files)) {
 			folder.file(name, blob);
 		}
-		const manifest = JSON.parse(await files['manifest.json'].text());
 		const content = await zip.generateAsync({ type: 'blob' });
 		const url = URL.createObjectURL(content);
 		const link = document.createElement('a');
@@ -601,10 +551,12 @@ window.downloadZip = async function () {
 window.checkForUpdates = async function () {
 	document.getElementById('latestVer').textContent = 'checking…';
 	document.getElementById('latestVer').className = 'vinfo-val unknown';
+
+	// Fetch latest version from server
 	try {
 		const res = await fetch(BASE_URL + 'manifest.json?_=' + Date.now());
-		const manifest = await res.json();
-		latestVersion = manifest.version;
+		const mf = await res.json();
+		latestVersion = mf.version;
 		document.getElementById('navVersion').textContent    = `v${latestVersion}`;
 		document.getElementById('footerVersion').textContent = `v${latestVersion}`;
 		document.getElementById('latestVer').textContent     = `v${latestVersion}`;
@@ -615,14 +567,15 @@ window.checkForUpdates = async function () {
 		return;
 	}
 
-	// Re-read installed version from folder if linked (always use queryPermission — no user gesture here)
+	// Re-read installed version from folder (queryPermission only — might be called without user gesture)
 	if (!globalDirHandle) globalDirHandle = await getHandle();
 	if (globalDirHandle) {
 		const perm = await globalDirHandle.queryPermission({ mode: 'readwrite' });
 		if (perm === 'granted') {
 			await readFolderData();
+			setLinkBtnState('hidden');
 		} else {
-			showReconnectBtn(true);
+			setLinkBtnState('reconnect');
 		}
 	}
 
@@ -630,10 +583,11 @@ window.checkForUpdates = async function () {
 
 	if (localManifestVersion && latestVersion && compareVersions(latestVersion, localManifestVersion) > 0) {
 		if (autoUpdateOn) {
-			showBanner(`v${localManifestVersion} → v${latestVersion} — updating automatically…`);
+			// Show "Updating…" banner — hide the action buttons since it's automatic
+			showBanner(`v${localManifestVersion} → v${latestVersion}`, true);
 			await triggerUpdate(true);
 		} else {
-			showBanner(`v${latestVersion} available — you have v${localManifestVersion}.`);
+			showBanner(`v${latestVersion} is available — you have v${localManifestVersion}.`, false);
 		}
 	}
 };
@@ -670,39 +624,37 @@ function refreshUpdateUI() {
 }
 
 // ─── Trigger update ────────────────────────────────────────────────────────
-// autoTriggered = true means no user gesture available (queryPermission only)
 window.triggerUpdate = async function (autoTriggered = false) {
 	dismissBanner();
 
 	if (!globalDirHandle) {
-		setStatus('updateActionStatus', 'No folder linked. Link your extension folder first.', 'err');
-		showReconnectBtn(true);
+		setStatus('updateActionStatus', 'No folder linked — use "Link Folder" first.', 'err');
+		setLinkBtnState('link');
 		return;
 	}
 
-	// Check permission — only request if we have a user gesture
+	// Check permission — only requestPermission when triggered by a user gesture
 	const perm = await globalDirHandle.queryPermission({ mode: 'readwrite' });
 	if (perm !== 'granted') {
 		if (autoTriggered) {
-			// Can't request permission without gesture — show button for manual action
+			// No user gesture — can't request. Show the Update Now button instead.
 			setStatus('updateActionStatus', `v${latestVersion} ready — click "Update Now" to apply.`, 'loading');
 			document.getElementById('btnUpdate').style.display = '';
 			return;
 		}
-		// Manual click — safe to request
 		const req = await globalDirHandle.requestPermission({ mode: 'readwrite' });
 		if (req !== 'granted') {
-			setStatus('updateActionStatus', 'Folder permission denied. Re-link the folder.', 'err');
-			showReconnectBtn(true);
+			setStatus('updateActionStatus', 'Folder permission denied — re-link the folder.', 'err');
+			setLinkBtnState('reconnect');
 			return;
 		}
 	}
 
 	const fromVersion = localManifestVersion || '?';
-	setStatus('updateActionStatus', `Fetching files from server…`, 'loading');
+	setStatus('updateActionStatus', 'Fetching files from server…', 'loading');
 
 	try {
-		const files = await fetchAllFiles();
+		const files = await fetchExtensionFiles();
 
 		setStatus('updateActionStatus', 'Writing files…', 'loading');
 		for (const [name, blob] of Object.entries(files)) {
@@ -716,23 +668,33 @@ window.triggerUpdate = async function (autoTriggered = false) {
 			}
 		}
 
-		// Update Updates.txt: append log, add [NOTIFY] for NewTab to pick up, preserve AUTO_UPDATE
-		const currentTxt = await readUpdatesTxt(globalDirHandle) || '';
-		const newTxt = buildUpdatedLog(currentTxt, fromVersion, latestVersion, autoUpdateOn);
-		await writeUpdatesTxt(globalDirHandle, newTxt);
+		// Update Updates.json in place — append log, set notify, preserve autoUpdate
+		const manifest = JSON.parse(await files['manifest.json'].text());
+		const data = (await readUpdatesJson(globalDirHandle)) || { autoUpdate: autoUpdateOn, log: [], notify: null };
+		data.log.push({
+			timestamp: new Date().toLocaleString(),
+			from: fromVersion,
+			to: manifest.version,
+			note: 'Updated via homepage'
+		});
+		data.notify = `Updated from v${fromVersion} to v${manifest.version}`;
+		data.autoUpdate = autoUpdateOn;
+		await writeUpdatesJson(globalDirHandle, data);
 
-		// Refresh state from the now-updated folder
 		await readFolderData();
 		refreshUpdateUI();
-		setStatus('updateActionStatus', `✓ Updated to v${latestVersion} — reload the extension in chrome://extensions.`, 'ok');
+		setStatus('updateActionStatus', `✓ Updated to v${manifest.version} — reload the extension in chrome://extensions.`, 'ok');
 	} catch (e) {
 		setStatus('updateActionStatus', `✗ Update failed: ${e.message}`, 'err');
 	}
 };
 
 // ─── Banner ────────────────────────────────────────────────────────────────
-function showBanner(msg) {
-	document.getElementById('bannerBody').textContent = msg;
+// isUpdating = true → show "Updating…" title and hide action buttons (it's automatic)
+function showBanner(msg, isUpdating = false) {
+	document.getElementById('bannerTitle').textContent = isUpdating ? '⏳ Updating…' : '🆕 Update Available';
+	document.getElementById('bannerBody').textContent  = msg;
+	document.getElementById('bannerActions').style.display = isUpdating ? 'none' : '';
 	document.getElementById('updateBanner').classList.add('show');
 }
 window.dismissBanner = function () {
