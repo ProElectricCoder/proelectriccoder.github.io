@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<!-- “Created by Gemini 3.1 Pro” - ProElectricCoder -->
+	<!-- “Created by Gemini 3.1 Pro” - ProElectricCoder --><!-- v2.7.5 -->
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>DeepBlue IDE - ProElectricCoder</title>
@@ -17,7 +17,7 @@
 	<meta property="og:description" content="A powerful, completely web-based IDE featuring seamless GitHub integration, AI assistance, in-browser Python execution, and zero-knowledge encryption.">
 	<meta property="og:type" content="website">
 	<meta property="og:url" content="https://proelectriccoder.github.io/Projects/IDE/">
-	<meta property="og:image" content="https://proelectriccoder.github.io/Projects/IDE/Preview2.png">
+	<meta property="og:image" content="https://proelectriccoder.github.io/Preview.png">
 	<meta property="og:site_name" content="ProElectricCoder">
     
     <meta name="twitter:card" content="summary_large_image">
@@ -1249,7 +1249,7 @@
 		},
 		'DeepBlue/manifest.json': {
 			type: 'json',
-			content: '{\n  "name": "DeepBlue IDE - ProElectricCoder",\n  "short_name": "DeepBlue",\n  "description": "A powerful, completely web-based IDE featuring seamless GitHub integration, AI assistance, in-browser Python execution, and zero-knowledge encryption.",\n  "start_url": "./",\n  "display": "standalone",\n  "background_color": "#0a0e14",\n  "theme_color": "#00e5ff",\n  "orientation": "any",\n  "icons": [\n    {\n      "src": "/Favicon.svg",\n      "sizes": "192x192 512x512 any",\n      "type": "image/svg+xml",\n      "purpose": "any maskable"\n    }\n  ],\n  "categories": [\n    "development",\n    "productivity",\n    "utilities"\n  ],\n  "shortcuts": [\n    {\n      "name": "New Project",\n      "url": "./?action=new",\n      "description": "Open the editor with a new workspace"\n    },\n    {\n      "name": "Connect GitHub",\n      "url": "./?action=github",\n      "description": "Link your GitHub account"\n    }\n  ],\n  "screenshots": [\n    {\n      "src": "https://proelectriccoder.github.io/Preview.png",\n      "sizes": "1200x630",\n      "type": "image/png",\n      "form_factor": "wide",\n      "label": "DeepBlue Editor Workspace"\n    }\n  ]\n}'
+			content: '{\n  "name": "DeepBlue IDE - ProElectricCoder",\n  "short_name": "DeepBlue",\n  "description": "A powerful, completely web-based IDE featuring seamless GitHub integration, AI assistance, in-browser Python execution, and zero-knowledge encryption.",\n  "start_url": "./",\n  "display": "standalone",\n  "background_color": "#0a0e14",\n  "theme_color": "#00e5ff",\n  "orientation": "any",\n  "icons": [\n    {\n      "src": "/Favicon.svg",\n      "sizes": "192x192 512x512 any",\n      "type": "image/svg+xml",\n      "purpose": "any maskable"\n    }\n  ],\n  "categories": [\n    "development",\n    "productivity",\n    "utilities"\n  ],\n  "shortcuts": [\n    {\n      "name": "New Project",\n      "url": "./?action=new",\n      "description": "Open the editor with a new workspace"\n    },\n    {\n      "name": "Connect GitHub",\n      "url": "./?action=github",\n      "description": "Link your GitHub account"\n    }\n  ],\n  "screenshots": [\n    {\n      "src": "https://proelectriccoder.github.io/Preview.png",\n      "sizes": "1200x630",\n      "type": "image/png",\n      "form_factor": "wide",\n      "label": "DeepBlue Editor Workspace"\n    \}\n  ]\n}'
 		},
 		'DeepBlue/Component.jsx': {
 			type: 'react',
@@ -2426,19 +2426,23 @@
 					if (fObj.subtype === 'svg' && fObj.content === null) { /* skip */ }
 					else if (fObj.subtype === 'svg') url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(fObj.content);
 					else url = fObj.src;
-				} else if (fObj.type === 'css' || fObj.type === 'js' || fObj.type === 'react' || filePath.endsWith('.enc')) {
+				} else {
 					let fContent = editorDocs[filePath] ? editorDocs[filePath].getValue() : fObj.content;
 					let trueExt = filePath.endsWith('.enc') ? (fObj.originalExt || '.txt').toLowerCase() : '.' + filePath.split('.').pop().toLowerCase();
 					
-					let mime = (trueExt === '.js' || trueExt === '.jsx') ? 'application/javascript' : 'text/css';
+					let mime = 'text/plain';
+					if (trueExt === '.js' || trueExt === '.jsx') mime = 'application/javascript';
+					else if (trueExt === '.css') mime = 'text/css';
+					else if (trueExt === '.json') mime = 'application/json';
+					else if (trueExt === '.html') mime = 'text/html';
 					
 					if (trueExt === '.jsx' && window.Babel && fContent) {
 						try { fContent = window.Babel.transform(fContent, { presets: ['react'] }).code; }
 						catch(e) { console.error('JSX Error:', e); }
 					}
 
-					// Intercept and Rewrite ES6 Imports dynamically
 					if ((trueExt === '.js' || trueExt === '.jsx') && fContent) {
+						// Intercept and Rewrite ES6 Imports dynamically
 						fContent = fContent.replace(/(import\s+.*?from\s+|import\s+|export\s+.*?from\s+|export\s+\*\s+from\s+|import\s*\(\s*)(["'])(.*?)\2/g, (match, prefix, quote, path) => {
 							if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:')) return match;
 							let resolved = resolveVirtualPath(filePath, path);
@@ -2451,6 +2455,31 @@
 							
 							let depBlobUrl = getBlobUrl(resolved);
 							if (depBlobUrl) return `${prefix}${quote}${depBlobUrl}${quote}`;
+							return match;
+						});
+
+						// Resolve general strings that map to existing files (for fetch, Image.src, JSX src properties, etc.)
+						fContent = fContent.replace(/(["'`])([^"'`\n\r]+)\1/g, (match, quote, path) => {
+							if (path.trim() === '' || path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:')) return match;
+							let resolved = resolveVirtualPath(filePath, path);
+							// Only replace the string if it perfectly resolves to a virtual file
+							if (fileSystem[resolved] && fileSystem[resolved].type !== 'folder') {
+								let depBlobUrl = getBlobUrl(resolved);
+								if (depBlobUrl) return `${quote}${depBlobUrl}${quote}`;
+							}
+							return match;
+						});
+					}
+
+					// Resolve url() paths in CSS files
+					if (trueExt === '.css' && fContent) {
+						fContent = fContent.replace(/url\(\s*(["']?)([^"')]+)\1\s*\)/g, (match, quote, path) => {
+							if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:')) return match;
+							let resolved = resolveVirtualPath(filePath, path);
+							if (fileSystem[resolved] && fileSystem[resolved].type !== 'folder') {
+								let depBlobUrl = getBlobUrl(resolved);
+								if (depBlobUrl) return `url(${quote || '"'}${depBlobUrl}${quote || '"'})`;
+							}
 							return match;
 						});
 					}
