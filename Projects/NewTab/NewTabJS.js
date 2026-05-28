@@ -132,6 +132,7 @@ function renderShortcuts() {
 	add.innerHTML = '<div class="shortcut-icon-wrapper">+</div><span class="shortcut-label">Add</span>';
 	add.onclick = () => {
 		document.getElementById('modalTitle').textContent = 'Add Shortcut';
+		document.getElementById('editShortcutIndex').value = '';
 		document.getElementById('shortcutName').value = '';
 		document.getElementById('shortcutUrl').value = '';
 		document.getElementById('shortcutIcon').value = '';
@@ -437,11 +438,19 @@ document.getElementById('engineBing').onclick   = () => { setEngine('bing');   d
 document.querySelector('.btn-cancel').onclick = () => document.getElementById('addShortcutModal').close();
 document.querySelector('.btn-save').onclick = () => {
 	const sc = safeParseShortcuts();
-	sc.push({
+	const editIndex = document.getElementById('editShortcutIndex').value;
+	const newShortcut = {
 		name: document.getElementById('shortcutName').value,
 		url:  document.getElementById('shortcutUrl').value,
 		icon: document.getElementById('shortcutIcon').value
-	});
+	};
+
+	if (editIndex !== '') {
+		sc[editIndex] = newShortcut;
+	} else {
+		sc.push(newShortcut);
+	}
+
 	localStorage.setItem('shortcuts', JSON.stringify(sc));
 	renderShortcuts();
 	document.getElementById('addShortcutModal').close();
@@ -449,6 +458,20 @@ document.querySelector('.btn-save').onclick = () => {
 
 window.onclick = () => {
 	document.getElementById('engineDropdown').classList.remove('show');
+	document.getElementById('shortcutContextMenu').style.display = 'none';
+};
+
+document.getElementById('menuEditBtn').onclick = () => {
+	const sc = safeParseShortcuts();
+	const shortcut = sc[activeShortcutIndex];
+	if (shortcut) {
+		document.getElementById('modalTitle').textContent = 'Edit Shortcut';
+		document.getElementById('editShortcutIndex').value = activeShortcutIndex;
+		document.getElementById('shortcutName').value = shortcut.name;
+		document.getElementById('shortcutUrl').value = shortcut.url;
+		document.getElementById('shortcutIcon').value = shortcut.icon || '';
+		document.getElementById('addShortcutModal').showModal();
+	}
 	document.getElementById('shortcutContextMenu').style.display = 'none';
 };
 
