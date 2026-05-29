@@ -5,7 +5,7 @@
   "description": "Custom NewTab Page by ProElectricCoder",
   "permissions": [
     "favicon"
-  ]
+  ],
   "chrome_url_overrides": {
     "newtab": "NewTab.html"
   },
