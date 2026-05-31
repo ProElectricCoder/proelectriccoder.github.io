@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="CubicGradient — Power-curve eased CSS gradients with automatic stop optimization. Part of ElectronCSS by ProElectricCoder.">
-<title>CubicGradient — ElectronCSS</title>
+<title>CubicGradient - ElectronCSS - ProElectricCoder</title>
+<link rel="icon" href="/Favicon.svg">
 
 <!-- Site-level header stylesheet (auto-injected by header.js) -->
 <link rel="stylesheet" href="/header.css">
@@ -1222,16 +1223,24 @@ function cubicGradient({ direction="to right", start="#000044",
 	};
 }
 
+document.body.style.background = cubicGradient({
+  direction: 'to bottom right',
+  start:     '#050510',
+  end:       '#004455',
+  steps:     32,
+  power:     2
+}).css;
+
 /* ─────────────────────────────────────────────
 	 PRESETS
 ───────────────────────────────────────────── */
 const PRESETS = [
-	{ name:'Deep Blue', dir:'to bottom',	start:'#01122', end:'#0eeff', steps:32, power:10	 },
-	{ name:'Red Dark',	 dir:'to bottom right', start:'#22000', end:'#77000',	 steps:32, power:2.5 },
-	{ name:'SEP Electron',	 dir:'to bottom right',		 start:'#050510', end:'#003344',	 steps:32, power:3	 },
-	{ name:'Ocean Depth',			dir:'to bottom right', start:'#000000', end:'#000066', steps:32, power:1.5	 },
-	{ name:'Emerald Fade',		 dir:'to right',	start:'#00cc66', end:'#00000000', steps:32, power:3	 },
-	{ name:'Solar Flare',			dir:'135deg',		start:'#ffcc00', end:'#ff2200',	 steps:32, power:1.5 },
+	{ name:'Deep Blue',    dir:'to bottom',	      start:'#001122', end:'#00eeff',   steps:32, power:10	},
+	{ name:'Red Dark',	   dir:'to bottom right', start:'#220000', end:'#770000',	  steps:32, power:2.5 },
+	{ name:'SEP Electron', dir:'to bottom right',	start:'#050510', end:'#003344',	  steps:32, power:3	  },
+	{ name:'Ocean Depth',	 dir:'to bottom right', start:'#000000', end:'#000066',   steps:32, power:1.5	},
+	{ name:'Emerald Fade', dir:'to right',	      start:'#00cc66', end:'#00000000', steps:32, power:3	  },
+	{ name:'Solar Flare',	 dir:'135deg',		      start:'#ffcc00', end:'#ff2200',	  steps:32, power:1.5 },
 ];
 
 /* ─────────────────────────────────────────────
@@ -1518,11 +1527,11 @@ function buildIntCode() {
 
 <span class="sc-cmt">// ─── 2. Generate a smooth eased gradient ──────────────────────────────────</span>
 <span class="sc-kw">const</span> <span class="sc-var">background</span> = <span class="sc-fn">cubicGradient</span>({
-	<span class="sc-key">direction</span>: <span class="sc-str">'to bottom'</span>,	 <span class="sc-cmt">// any CSS linear-gradient direction keyword or angle</span>
-	<span class="sc-key">start</span>:		 <span class="sc-str">'#1a2a6c'</span>,		 <span class="sc-cmt">// 6-digit RGB hex	(#RRGGBB)</span>
-	<span class="sc-key">end</span>:			 <span class="sc-str">'#00000000'</span>,	 <span class="sc-cmt">// 8-digit RGBA hex (#RRGGBBAA) — alpha natively supported</span>
-	<span class="sc-key">steps</span>:		 <span class="sc-num">12</span>,						<span class="sc-cmt">// precision: more steps → smoother curve, more stops evaluated</span>
-	<span class="sc-key">power</span>:		 <span class="sc-num">3</span>							<span class="sc-cmt">// curve exponent: 3=cubic, 2=quadratic, 1=linear, 0.5=ease-out</span>
+	<span class="sc-key">direction</span>: <span class="sc-str">'to bottom'</span>, <span class="sc-cmt">// any CSS linear-gradient direction keyword or angle</span>
+	<span class="sc-key">start</span>:     <span class="sc-str">'#1a2a6c'</span>,   <span class="sc-cmt">// 6-digit RGB hex    (#RRGGBB)</span>
+	<span class="sc-key">end</span>:       <span class="sc-str">'#00000000'</span>, <span class="sc-cmt">// 8-digit RGBA hex (#RRGGBBAA) — alpha natively supported</span>
+	<span class="sc-key">steps</span>:     <span class="sc-num">12</span>,          <span class="sc-cmt">// precision: more steps → smoother curve, more stops evaluated</span>
+	<span class="sc-key">power</span>:     <span class="sc-num">3</span>            <span class="sc-cmt">// curve exponent: 3=cubic, 2=quadratic, 1=linear, 0.5=ease-out</span>
 });
 
 <span class="sc-cmt">// ─── 3. Apply to any DOM element ──────────────────────────────────────────</span>
