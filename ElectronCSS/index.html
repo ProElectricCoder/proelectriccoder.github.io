@@ -59,9 +59,8 @@ body {
 	font-size: 14px;
 	line-height: 1.6;
 	min-height: 100vh;
-	background-image:
-		radial-gradient(ellipse 70% 50% at 15% 60%, rgba(124,58,237,0.045) 0%, transparent 60%),
-		radial-gradient(ellipse 60% 40% at 85% 20%, rgba(0,200,255,0.04) 0%, transparent 55%);
+	background-attachment: fixed;
+	background-size: cover;
 }
 
 /* ─────────────────────────────────────────────
@@ -70,7 +69,8 @@ body {
 .page {
 	max-width: 1300px;
 	margin: 0 auto;
-	padding: 60px 28px 100px;
+	/* Increased top padding from 0 to 120px so the page content easily clears the floating header */
+	padding: 60px 28px 100px; 
 }
 
 /* ─────────────────────────────────────────────
@@ -1236,11 +1236,11 @@ document.body.style.background = cubicGradient({
 ───────────────────────────────────────────── */
 const PRESETS = [
 	{ name:'Deep Blue',    dir:'to bottom',	      start:'#001122', end:'#00eeff',   steps:32, power:10	},
-	{ name:'Red Dark',	   dir:'to bottom right', start:'#220000', end:'#770000',	  steps:32, power:2.5 },
-	{ name:'SEP Electron', dir:'to bottom right',	start:'#050510', end:'#003344',	  steps:32, power:3	  },
-	{ name:'Ocean Depth',	 dir:'to bottom right', start:'#000000', end:'#000066',   steps:32, power:1.5	},
-	{ name:'Emerald Fade', dir:'to right',	      start:'#00cc66', end:'#00000000', steps:32, power:3	  },
-	{ name:'Solar Flare',	 dir:'135deg',		      start:'#ffcc00', end:'#ff2200',	  steps:32, power:1.5 },
+	{ name:'Red Dark',	   dir:'to bottom right', start:'#220000', end:'#770000',	steps:32, power:2.5 },
+	{ name:'SEP Electron', dir:'to bottom right', start:'#050510', end:'#003344',	steps:32, power:3	},
+	{ name:'Ocean Depth',  dir:'to bottom right', start:'#000000', end:'#000066',   steps:32, power:1.5	},
+	{ name:'Emerald Fade', dir:'to right',	      start:'#00cc66', end:'#00000000', steps:32, power:3	},
+	{ name:'Solar Flare',  dir:'135deg',		  start:'#ffcc00', end:'#ff2200',	steps:32, power:1.5 },
 ];
 
 /* ─────────────────────────────────────────────
