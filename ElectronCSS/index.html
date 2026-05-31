@@ -1,88 +1,1539 @@
 <!DOCTYPE html>
-<html>
-	<head>
-		<title>
-			ElectronCSS - ProElectricCoder
-		</title>
-		<link rel="icon" href="https://proelectriccoder.github.io/Favicon.svg">
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="CubicGradient — Power-curve eased CSS gradients with automatic stop optimization. Part of ElectronCSS by ProElectricCoder.">
+<title>CubicGradient — ElectronCSS</title>
 
-		<!-- meta preperties -->
-		<meta name="title" content="ProElectricCoder">
-		<meta name="description" content="ElectronCSS">
-		<meta name="keywords" content="ProElectricCannon, ProElectricCoder, Unknown9856, Electron, CSS, ElectronCSS">
-		<meta name="author" content="ProElectricCoder"> <!-- Also known as Unknown9856 -->
-		<meta name="robots" content="index, follow">
+<!-- Site-level header stylesheet (auto-injected by header.js) -->
+<link rel="stylesheet" href="/header.css">
 
-		<meta property="og:title" content="ProElectricCoder - ElectronCSS">
-		<meta property="og:description" content="A styles library made by ProElectricCoder">
-		<meta property="og:type" content="website">
-		<meta property="og:url" content="https://proelectriccoder.github.io/ElectronCSS/">
-		<meta property="og:image" content="https://proelectriccoder.github.io/Preview.png">
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800;900&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,300&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,400&display=swap" rel="stylesheet">
 
-		<!-- Load my own library styles -->
-		<link rel="stylesheet" href="ElectronThemes.css" />
+<style>
+/* ─────────────────────────────────────────────
+	 TOKENS
+───────────────────────────────────────────── */
+:root {
+	--bg:					#06060f;
+	--bg-card:		 rgba(255,255,255,0.030);
+	--bg-input:		rgba(0,0,0,0.35);
+	--border:			rgba(255,255,255,0.072);
+	--border-hi:	 rgba(0,210,255,0.28);
 
-		<style>
-			body {
-				padding: 40px;
-			}
-			#warning {
-				display: inline-block;
-				padding: 10px 16px;
-				border-radius: 8px;
-				color: yellow;
-				background: #FFFF0033;
-				font-weight: bold;
-			}
-			pre[class*="language-"] {
-				background: #00000099 !important;
-				padding: 12px;
-				border-radius: 8px;
-				border: 2px solid cyan;
-			}
-			code {
-				background: transparent;
-			}
-		</style>
-		<link rel="stylesheet" href="/header.css" />
+	--blue:	 #00c8ff;
+	--cyan:	 #00ffe0;
+	--purple: #7c3aed;
+	--pink:	 #e040fb;
+	--green:	#00ff88;
 
-		<link href="https://cdn.jsdelivr.net/npm/prismjs/themes/prism.css" rel="stylesheet" />
-		<script src="https://cdn.jsdelivr.net/npm/prismjs/prism.js"></script>
-		<script type="module">
-			import { cubicGradient } from 'https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js';
-			document.body.style.background = cubicGradient({
-				direction: 'to left',
-				start: '#000000',
-				end: '#000055',
-				steps: '20'
-			});
-		</script>
-	</head>
-	<body class="theme-electron-cyan electron-base">
-		<div id="header"></div>
-		<script src="/header.js"></script>
-		<h2>ElectronCSS - A theme library</h2>
-		<p>
-			ElectronCSS is a theme library made by me, it currently contains different types of gradients which are not present in noremal CSS, such as Quadratic and cubic gradients. The background can be set like this:
-		</p>
-		<pre>
-			<code class="language-js">
-				import { cubicGradient } from 'https://proelectriccoder.github.io/ElectrocCSS/CubicGradient.js';
-				document.body.style.background = cubicGradient({
-					direction: 'to left',  // direction, all CSS linear-gradient direction are supported
-					start: '#000055',      // start colour
-					end: '#000000',        // end colour
-					steps: 20,             // the more, the smoother
-					power: 3               // 3 for cubic, 2 for quadratic, etc
-				});
-			</code>
-		</pre>
-		ElectronThemes.css currently contains the class <code>theme-electron</code> that gives the styles that are visible on this very page.
-		<br /><br />
-		The raw file can be accessed here: <br /><br />
-		<a class="electron-a" href="CubicGradient.js">CubicGradient.js</a><br />
-		<a class="electron-a" href="ElectronThemes.css">ElectronThemes.css</a><br />
-		<br />
-		<span id="warning">⚠ WARNING: ElectronThemes.css will becomes very huge after some time, so it's better not to open it.</span>
-	</body>
+	--t1: #e8edf8;
+	--t2: rgba(232,237,248,0.55);
+	--t3: rgba(232,237,248,0.28);
+
+	--ff-head: 'Orbitron', monospace;
+	--ff-mono: 'JetBrains Mono', monospace;
+	--ff-body: 'DM Sans', sans-serif;
+
+	--r:	12px;
+	--rs: 6px;
+	--shadow: 0 4px 32px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05);
+	--glow:	 0 0 24px rgba(0,200,255,0.12), 0 0 64px rgba(0,200,255,0.04);
+}
+
+/* ─────────────────────────────────────────────
+	 RESET
+───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+	background: var(--bg);
+	color: var(--t1);
+	font-family: var(--ff-body);
+	font-size: 14px;
+	line-height: 1.6;
+	min-height: 100vh;
+	background-image:
+		radial-gradient(ellipse 70% 50% at 15% 60%, rgba(124,58,237,0.045) 0%, transparent 60%),
+		radial-gradient(ellipse 60% 40% at 85% 20%, rgba(0,200,255,0.04) 0%, transparent 55%);
+}
+
+/* ─────────────────────────────────────────────
+	 LAYOUT
+───────────────────────────────────────────── */
+.page {
+	max-width: 1300px;
+	margin: 0 auto;
+	padding: 0 28px 100px;
+}
+
+/* ─────────────────────────────────────────────
+	 HERO
+───────────────────────────────────────────── */
+.hero {
+	padding: 60px 0 52px;
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 40px;
+	border-bottom: 1px solid var(--border);
+	margin-bottom: 40px;
+}
+
+.hero-eyebrow {
+	font-family: var(--ff-mono);
+	font-size: 10px;
+	font-weight: 500;
+	color: var(--blue);
+	letter-spacing: .22em;
+	text-transform: uppercase;
+	margin-bottom: 14px;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+.hero-eyebrow::before {
+	content: '';
+	display: inline-block;
+	width: 28px;
+	height: 1px;
+	background: var(--blue);
+	box-shadow: 0 0 6px var(--blue);
+}
+
+.hero-title {
+	font-family: var(--ff-head);
+	font-size: clamp(32px, 4.2vw, 56px);
+	font-weight: 900;
+	letter-spacing: -.02em;
+	line-height: 1.0;
+	background: linear-gradient(130deg, #ffffff 0%, #b0c4ff 45%, var(--blue) 100%);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+	margin-bottom: 18px;
+}
+
+.hero-sub {
+	font-size: 15px;
+	color: var(--t2);
+	max-width: 520px;
+	line-height: 1.75;
+}
+
+.hero-code {
+	font-family: var(--ff-mono);
+	font-size: 12px;
+	color: var(--blue);
+	background: rgba(0,200,255,0.08);
+	padding: 1px 6px;
+	border-radius: 4px;
+	border: 1px solid rgba(0,200,255,0.18);
+}
+
+.hero-actions { padding-top: 4px; flex-shrink: 0; }
+
+.btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 22px;
+	border-radius: var(--rs);
+	font-family: var(--ff-mono);
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: .07em;
+	cursor: pointer;
+	text-decoration: none;
+	border: none;
+	transition: all .18s ease;
+	white-space: nowrap;
+}
+.btn-primary {
+	background: var(--blue);
+	color: #000;
+	box-shadow: 0 0 20px rgba(0,200,255,.28);
+}
+.btn-primary:hover {
+	background: #fff;
+	box-shadow: 0 0 32px rgba(0,200,255,.45);
+	transform: translateY(-1px);
+}
+
+/* ─────────────────────────────────────────────
+	 MAIN GRID
+───────────────────────────────────────────── */
+.main-grid {
+	display: grid;
+	grid-template-columns: 340px minmax(0, 1fr);
+	gap: 22px;
+	margin-bottom: 24px;
+	align-items: start;
+}
+@media (max-width: 960px) { .main-grid { grid-template-columns: 1fr; } }
+
+/* ─────────────────────────────────────────────
+	 CARD SHELL
+───────────────────────────────────────────── */
+.card {
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: var(--r);
+	box-shadow: var(--shadow);
+	overflow: hidden;
+}
+.card-head {
+	padding: 14px 20px;
+	border-bottom: 1px solid var(--border);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+.card-title {
+	font-family: var(--ff-mono);
+	font-size: 9.5px;
+	font-weight: 600;
+	letter-spacing: .18em;
+	text-transform: uppercase;
+	color: var(--t2);
+}
+.card-tag {
+	font-family: var(--ff-mono);
+	font-size: 9px;
+	color: var(--t3);
+	letter-spacing: .1em;
+}
+.card-body { padding: 18px 20px; }
+
+/* ─────────────────────────────────────────────
+	 LEFT COLUMN
+───────────────────────────────────────────── */
+.left-col { display: flex; flex-direction: column; gap: 18px; }
+
+/* ─── Presets ─── */
+.presets-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+}
+.preset-btn {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	padding: 9px 11px;
+	background: rgba(255,255,255,0.025);
+	border: 1px solid var(--border);
+	border-radius: var(--rs);
+	cursor: pointer;
+	transition: all .18s;
+	text-align: left;
+	width: 100%;
+}
+.preset-btn:hover {
+	border-color: var(--border-hi);
+	background: rgba(0,200,255,0.05);
+	transform: translateY(-1px);
+}
+.preset-swatch {
+	width: 26px;
+	height: 26px;
+	border-radius: 50%;
+	flex-shrink: 0;
+	box-shadow: 0 2px 8px rgba(0,0,0,.5);
+}
+.preset-label { line-height: 1.35; }
+.preset-name {
+	display: block;
+	font-family: var(--ff-mono);
+	font-size: 10px;
+	color: var(--t1);
+	font-weight: 500;
+}
+.preset-meta {
+	font-family: var(--ff-mono);
+	font-size: 9px;
+	color: var(--t3);
+}
+
+/* ─── Form ─── */
+.form-grp { margin-bottom: 15px; }
+.form-label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-family: var(--ff-mono);
+	font-size: 9.5px;
+	font-weight: 500;
+	letter-spacing: .13em;
+	text-transform: uppercase;
+	color: var(--t2);
+	margin-bottom: 7px;
+}
+.form-hint {
+	font-size: 8.5px;
+	color: var(--t3);
+	letter-spacing: .05em;
+	text-transform: none;
+}
+.input-row { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+.input-txt {
+	flex: 1 1 110px;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: var(--rs);
+	color: var(--t1);
+	font-family: var(--ff-mono);
+	font-size: 11.5px;
+	padding: 7px 11px;
+	outline: none;
+	transition: border-color .15s, box-shadow .15s;
+}
+.input-txt:focus {
+	border-color: var(--blue);
+	box-shadow: 0 0 0 2px rgba(0,200,255,.1);
+}
+.qbtn {
+	padding: 6px 9px;
+	background: rgba(255,255,255,.04);
+	border: 1px solid var(--border);
+	border-radius: 4px;
+	color: var(--t2);
+	font-family: var(--ff-mono);
+	font-size: 9.5px;
+	cursor: pointer;
+	transition: all .14s;
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+.qbtn:hover {
+	background: rgba(0,200,255,.09);
+	border-color: var(--blue);
+	color: var(--blue);
+}
+
+/* Color row */
+.color-row { display: flex; gap: 8px; align-items: stretch; }
+.swatch-wrap {
+	position: relative;
+	width: 34px;
+	height: 34px;
+	flex-shrink: 0;
+	cursor: pointer;
+}
+.swatch-wrap input[type="color"] {
+	position: absolute;
+	inset: 0;
+	opacity: 0;
+	width: 100%;
+	height: 100%;
+	cursor: pointer;
+}
+.swatch-face {
+	width: 34px;
+	height: 34px;
+	border-radius: var(--rs);
+	border: 1px solid var(--border);
+	overflow: hidden;
+	pointer-events: none;
+	/* Checkerboard for alpha preview */
+	background-image:
+		linear-gradient(45deg, #3a3a3a 25%, transparent 25%),
+		linear-gradient(-45deg, #3a3a3a 25%, transparent 25%),
+		linear-gradient(45deg, transparent 75%, #3a3a3a 75%),
+		linear-gradient(-45deg, transparent 75%, #3a3a3a 75%);
+	background-size: 8px 8px;
+	background-position: 0 0, 0 4px, 4px -4px, -4px 0;
+	background-color: #6a6a6a;
+}
+.swatch-color { width: 100%; height: 100%; }
+.hex-input {
+	flex: 1;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: var(--rs);
+	color: var(--t1);
+	font-family: var(--ff-mono);
+	font-size: 11.5px;
+	padding: 7px 11px;
+	outline: none;
+	transition: border-color .15s, box-shadow .15s;
+}
+.hex-input:focus {
+	border-color: var(--blue);
+	box-shadow: 0 0 0 2px rgba(0,200,255,.1);
+}
+
+/* Sliders */
+.slider-grp { margin-bottom: 14px; }
+.slider-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 7px;
+}
+.slider-val {
+	font-family: var(--ff-mono);
+	font-size: 11px;
+	color: var(--blue);
+	background: rgba(0,200,255,.08);
+	padding: 2px 9px;
+	border-radius: 4px;
+	min-width: 36px;
+	text-align: center;
+}
+input[type="range"] {
+	-webkit-appearance: none;
+	width: 100%;
+	height: 3px;
+	background: rgba(255,255,255,.08);
+	border-radius: 4px;
+	outline: none;
+	cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	width: 13px;
+	height: 13px;
+	border-radius: 50%;
+	background: var(--blue);
+	border: 2px solid rgba(255,255,255,.9);
+	box-shadow: 0 0 8px rgba(0,200,255,.5);
+	cursor: grab;
+}
+input[type="range"]::-webkit-slider-thumb:active { cursor: grabbing; }
+
+/* ─────────────────────────────────────────────
+	 RIGHT COLUMN
+───────────────────────────────────────────── */
+.right-col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+
+/* ─── Preview ─── */
+.preview-shell {
+	border: 1px solid var(--border);
+	border-radius: var(--r);
+	overflow: visible; /* Changed from hidden to allow tooltips to spill outside */
+	box-shadow: var(--shadow);
+	position: relative;
+}
+.preview-canvas {
+	position: relative;
+	height: 230px;
+	width: 100%;
+	overflow: visible; /* Changed from hidden to allow overflow mapping */
+}
+.layer {
+	position: absolute;
+	inset: 0;
+	transition: opacity .28s ease;
+}
+.layer-checker {
+	background-image:
+		linear-gradient(45deg, #3c3c3c 25%, transparent 25%),
+		linear-gradient(-45deg, #3c3c3c 25%, transparent 25%),
+		linear-gradient(45deg, transparent 75%, #3c3c3c 75%),
+		linear-gradient(-45deg, transparent 75%, #3c3c3c 75%);
+	background-size: 28px 28px;
+	background-position: 0 0, 0 14px, 14px -14px, -14px 0;
+	background-color: #272727;
+	/* Maintain rounded boundaries directly on the layer */
+	border-top-left-radius: calc(var(--r) - 1px);
+	border-top-right-radius: calc(var(--r) - 1px);
+}
+.layer-gradient { 
+	transition: background .3s ease, opacity .28s ease; 
+	border-top-left-radius: calc(var(--r) - 1px);
+	border-top-right-radius: calc(var(--r) - 1px);
+}
+.layer-curve { pointer-events: none; }
+.curve-svg { width: 100%; height: 100%; }
+.layer-stops { 
+	position: absolute;
+	inset: 0;
+	pointer-events: none; 
+	z-index: 30; /* Elevated stops container layer */
+}
+
+/* Stop dots */
+.stop-dot {
+	position: absolute;
+	width: 11px;
+	height: 11px;
+	border-radius: 50%;
+	border: 2px solid rgba(255,255,255,.9);
+	transform: translate(-50%, -50%);
+	cursor: pointer;
+	pointer-events: auto;
+	box-shadow: 0 2px 8px rgba(0,0,0,.7), 0 0 4px rgba(255,255,255,.2);
+	transition: transform .14s;
+	z-index: 10; /* Base stacking coordinate */
+}
+.stop-dot:hover { 
+	transform: translate(-50%, -50%) scale(1.55); 
+	z-index: 100; /* Promoted above all adjacent dots on hover */
+}
+.stop-dot-tip {
+	position: absolute;
+	bottom: calc(100% + 9px);
+	left: 50%;
+	transform: translateX(-50%);
+	background: rgba(6,6,18,.96);
+	border: 1px solid var(--border-hi);
+	border-radius: 6px;
+	padding: 7px 9px;
+	font-family: var(--ff-mono);
+	font-size: 9.5px;
+	color: var(--t1);
+	white-space: nowrap;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity .14s;
+	z-index: 110; /* Floats above parent stop-dot context */
+	backdrop-filter: blur(10px);
+	box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7);
+}
+.stop-dot-tip::after {
+	content: '';
+	position: absolute;
+	top: 100%;
+	left: 50%;
+	transform: translateX(-50%);
+	border: 4px solid transparent;
+	border-top-color: var(--border-hi);
+}
+.stop-dot:hover .stop-dot-tip { opacity: 1; }
+
+/* HUD toolbar */
+.hud-bar {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	padding: 9px 16px;
+	background: rgba(6,6,18,.82);
+	border-top: 1px solid var(--border);
+	backdrop-filter: blur(8px);
+	/* Maintain bottom rounded corners */
+	border-bottom-left-radius: calc(var(--r) - 1px);
+	border-bottom-right-radius: calc(var(--r) - 1px);
+}
+.hud-label {
+	font-family: var(--ff-mono);
+	font-size: 8.5px;
+	letter-spacing: .18em;
+	text-transform: uppercase;
+	color: var(--t3);
+	margin-right: 6px;
+	flex-shrink: 0;
+}
+.hud-tog {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	padding: 4px 10px;
+	border: 1px solid var(--border);
+	border-radius: 4px;
+	background: rgba(255,255,255,.02);
+	color: var(--t2);
+	font-family: var(--ff-mono);
+	font-size: 9.5px;
+	cursor: pointer;
+	transition: all .14s;
+	letter-spacing: .05em;
+}
+.hud-tog.on {
+	border-color: rgba(0,200,255,.35);
+	background: rgba(0,200,255,.07);
+	color: var(--blue);
+}
+.hud-tog:hover { border-color: rgba(0,200,255,.3); }
+
+/* ─── Metrics ─── */
+.metrics-row {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 10px;
+}
+.metric-card {
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: var(--r);
+	padding: 14px 16px;
+	box-shadow: var(--shadow);
+}
+.metric-val {
+	font-family: var(--ff-head);
+	font-size: 26px;
+	font-weight: 800;
+	letter-spacing: -.02em;
+	line-height: 1;
+	color: var(--t1);
+	margin-bottom: 5px;
+}
+.metric-val.b { color: var(--blue); }
+.metric-val.g { color: var(--cyan); }
+.metric-lbl {
+	font-family: var(--ff-mono);
+	font-size: 8.5px;
+	color: var(--t3);
+	text-transform: uppercase;
+	letter-spacing: .15em;
+}
+
+/* ─── Code output ─── */
+.code-out {
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: var(--r);
+	box-shadow: var(--shadow);
+	overflow: hidden;
+}
+.code-out-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 11px 16px;
+	border-bottom: 1px solid var(--border);
+}
+.code-out-lbl {
+	font-family: var(--ff-mono);
+	font-size: 9.5px;
+	letter-spacing: .15em;
+	text-transform: uppercase;
+	color: var(--t2);
+}
+.copy-btn {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	padding: 4px 11px;
+	background: rgba(0,200,255,.07);
+	border: 1px solid rgba(0,200,255,.2);
+	border-radius: 4px;
+	color: var(--blue);
+	font-family: var(--ff-mono);
+	font-size: 9.5px;
+	cursor: pointer;
+	transition: all .14s;
+	letter-spacing: .05em;
+}
+.copy-btn:hover { background: rgba(0,200,255,.14); border-color: var(--blue); }
+.copy-btn.ok {
+	background: rgba(0,255,136,.1);
+	border-color: rgba(0,255,136,.35);
+	color: var(--green);
+}
+.code-scroll {
+	overflow-x: auto;
+	padding: 14px 16px;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(255,255,255,.08) transparent;
+}
+.code-line {
+	font-family: var(--ff-mono);
+	font-size: 11.5px;
+	white-space: nowrap;
+	line-height: 1.5;
+}
+
+/* Syntax tokens */
+.s-prop	{ color: #80cbc4; }
+.s-colon { color: var(--t3); }
+.s-fn		{ color: #82aaff; }
+.s-dir	 { color: #c3e88d; }
+.s-rgba	{ color: #ffb347; }
+.s-num	 { color: #f78c6c; }
+.s-pct	 { color: #c792ea; }
+.s-semi	{ color: var(--t3); }
+.s-comma { color: var(--t3); }
+
+/* Integration code tokens */
+.sc-kw	 { color: #c792ea; }
+.sc-var	{ color: #eeffff; }
+.sc-str	{ color: #c3e88d; }
+.sc-key	{ color: #80cbc4; }
+.sc-fn	 { color: #82aaff; }
+.sc-num	{ color: #f78c6c; }
+.sc-cmt	{ color: #546e7a; font-style: italic; }
+
+/* ─── Timeline ─── */
+.timeline {
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: var(--r);
+	padding: 15px 18px;
+	box-shadow: var(--shadow);
+}
+.timeline-head {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	font-family: var(--ff-mono);
+	font-size: 9.5px;
+	letter-spacing: .15em;
+	text-transform: uppercase;
+	color: var(--t2);
+	margin-bottom: 13px;
+}
+.timeline-row {
+	display: flex;
+	flex-wrap: nowrap;
+	gap: 6px;
+	align-items: center;
+	overflow-x: auto;
+	padding-bottom: 8px;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(255,255,255,.08) transparent;
+}
+.stop-tag {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	background: rgba(255,255,255,.035);
+	border: 1px solid var(--border);
+	border-radius: 20px;
+	padding: 4px 9px 4px 5px;
+	font-family: var(--ff-mono);
+	font-size: 9.5px;
+	color: var(--t2);
+}
+.tag-dot {
+	width: 13px;
+	height: 13px;
+	border-radius: 50%;
+	border: 1px solid rgba(255,255,255,.18);
+	flex-shrink: 0;
+	overflow: hidden;
+	background-image:
+		linear-gradient(45deg, #555 25%, transparent 25%),
+		linear-gradient(-45deg, #555 25%, transparent 25%),
+		linear-gradient(45deg, transparent 75%, #555 75%),
+		linear-gradient(-45deg, transparent 75%, #555 75%);
+	background-size: 4px 4px;
+	background-position: 0 0, 0 2px, 2px -2px, -2px 0;
+	background-color: #777;
+}
+.tag-dot-inner { width: 100%; height: 100%; }
+.tag-pct { color: var(--t1); }
+.tag-a	 { color: var(--t3); font-size: 8.5px; }
+.arrow-sep {
+	color: var(--t3);
+	font-family: var(--ff-mono);
+	font-size: 12px;
+}
+
+/* ─────────────────────────────────────────────
+	 SECTION DIVIDERS
+───────────────────────────────────────────── */
+.sec-divider {
+	display: flex;
+	align-items: center;
+	gap: 18px;
+	margin: 36px 0 18px;
+}
+.sec-line { flex: 1; height: 1px; background: var(--border); }
+.sec-txt {
+	font-family: var(--ff-mono);
+	font-size: 9px;
+	letter-spacing: .22em;
+	text-transform: uppercase;
+	color: var(--t3);
+	white-space: nowrap;
+}
+
+/* ─────────────────────────────────────────────
+	 INTEGRATION GUIDE
+───────────────────────────────────────────── */
+.int-card {
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: var(--r);
+	box-shadow: var(--shadow);
+	overflow: hidden;
+	margin-bottom: 24px;
+}
+.int-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 16px 22px;
+	border-bottom: 1px solid var(--border);
+}
+.int-badge {
+	font-family: var(--ff-mono);
+	font-size: 8.5px;
+	font-weight: 700;
+	letter-spacing: .15em;
+	color: #000;
+	background: var(--cyan);
+	padding: 3px 8px;
+	border-radius: 4px;
+	text-transform: uppercase;
+}
+.int-title {
+	font-family: var(--ff-head);
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: .05em;
+	color: var(--t1);
+}
+.code-blk {
+	background: rgba(0,0,0,.45);
+	overflow-x: auto;
+	padding: 22px 24px;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(255,255,255,.07) transparent;
+}
+.code-blk pre {
+	font-family: var(--ff-mono);
+	font-size: 12px;
+	line-height: 1.85;
+	color: var(--t1);
+	white-space: pre;
+}
+
+/* ─────────────────────────────────────────────
+	 TECH FOOTER
+───────────────────────────────────────────── */
+.tech-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 14px;
+}
+@media (max-width: 768px) { .tech-grid { grid-template-columns: 1fr; } }
+
+.tech-card {
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: var(--r);
+	padding: 22px;
+	box-shadow: var(--shadow);
+}
+.tech-eye {
+	font-family: var(--ff-mono);
+	font-size: 8.5px;
+	letter-spacing: .2em;
+	text-transform: uppercase;
+	color: var(--blue);
+	margin-bottom: 8px;
+}
+.tech-t {
+	font-family: var(--ff-head);
+	font-size: 12.5px;
+	font-weight: 700;
+	letter-spacing: .04em;
+	color: var(--t1);
+	margin-bottom: 11px;
+}
+.tech-b {
+	font-size: 13px;
+	color: var(--t2);
+	line-height: 1.72;
+}
+.formula {
+	display: block;
+	font-family: var(--ff-mono);
+	font-size: 12.5px;
+	color: var(--cyan);
+	margin: 10px 0;
+	padding: 7px 12px;
+	background: rgba(0,255,224,.04);
+	border-left: 2px solid rgba(0,255,224,.4);
+	border-radius: 0 4px 4px 0;
+}
+
+/* ─────────────────────────────────────────────
+	 SCROLLBAR
+───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.09); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.18); }
+</style>
+</head>
+
+<body>
+
+<!-- ╔══════════════════════════════════════╗
+		 ║ Site header (populated by header.js) ║
+		 ╚══════════════════════════════════════╝ -->
+<div id="header"></div>
+<script src="/header.js" defer></script>
+
+<div class="page">
+
+	<!-- ══════════════════════════════════
+			 HERO
+	══════════════════════════════════ -->
+	<header class="hero">
+		<div>
+			<div class="hero-eyebrow">ElectronCSS / CubicGradient.js</div>
+			<h1 class="hero-title">Cubic<br>Gradient</h1>
+			<p class="hero-sub">
+				Power-curve eased CSS gradients with automatic stop optimization.
+				Generates minimal <span class="hero-code">linear-gradient()</span> strings
+				with intelligently pruned color stops — no redundancy, no bloat.
+			</p>
+		</div>
+		<div class="hero-actions">
+			<a href="https://github.com/ProElectricCoder/ElectronCSS/CubicGradient.js" target="_blank" rel="noopener" class="btn btn-primary">
+				<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+				Source on GitHub
+			</a>
+		</div>
+	</header>
+
+
+	<!-- ══════════════════════════════════
+			 MAIN TOOL GRID
+	══════════════════════════════════ -->
+	<div class="main-grid">
+
+		<!-- ──────────────── LEFT ──────────────── -->
+		<div class="left-col">
+
+			<!-- Presets -->
+			<div class="card">
+				<div class="card-head">
+					<span class="card-title">Designer Presets</span>
+					<span class="card-tag">QUICK LOAD</span>
+				</div>
+				<div class="card-body">
+					<div class="presets-grid" id="presetsGrid"></div>
+				</div>
+			</div>
+
+			<!-- Customizer -->
+			<div class="card">
+				<div class="card-head">
+					<span class="card-title">Gradient Customizer</span>
+				</div>
+				<div class="card-body">
+
+					<!-- Direction -->
+					<div class="form-grp">
+						<label class="form-label" for="dirInput">Direction</label>
+						<div class="input-row">
+							<input type="text" class="input-txt" id="dirInput" value="to right" placeholder="to right / 45deg / …">
+							<button class="qbtn" onclick="quickDir('to right')">Right</button>
+							<button class="qbtn" onclick="quickDir('to bottom')">Bottom</button>
+							<button class="qbtn" onclick="quickDir('45deg')">45°</button>
+						</div>
+					</div>
+
+					<!-- Start Color -->
+					<div class="form-grp">
+						<label class="form-label">
+							Start Color
+							<span class="form-hint">#RRGGBB or #RRGGBBAA</span>
+						</label>
+						<div class="color-row">
+							<div class="color-swatch-wrap swatch-wrap" title="Click to pick RGB">
+								<div class="swatch-face" id="startFace">
+									<div class="swatch-color" id="startColor"></div>
+								</div>
+								<input type="color" id="startPicker" value="#000044">
+							</div>
+							<input type="text" class="hex-input" id="startHex" value="#000044" placeholder="#RRGGBBAA" maxlength="9">
+						</div>
+					</div>
+
+					<!-- End Color -->
+					<div class="form-grp">
+						<label class="form-label">
+							End Color
+							<span class="form-hint">#RRGGBB or #RRGGBBAA</span>
+						</label>
+						<div class="color-row">
+							<div class="color-swatch-wrap swatch-wrap" title="Click to pick RGB">
+								<div class="swatch-face" id="endFace">
+									<div class="swatch-color" id="endColor"></div>
+								</div>
+								<input type="color" id="endPicker" value="#000000">
+							</div>
+							<input type="text" class="hex-input" id="endHex" value="#00000000" placeholder="#RRGGBBAA" maxlength="9">
+						</div>
+					</div>
+
+					<!-- Max Steps -->
+					<div class="slider-grp">
+						<div class="slider-row">
+							<label class="form-label" style="margin:0">
+								Max Steps
+								<span class="form-hint">Precision</span>
+							</label>
+							<span class="slider-val" id="stepsVal">32</span>
+						</div>
+						<input type="range" id="stepsRange" min="4" max="64" value="32" step="1">
+					</div>
+
+					<!-- Easing Power -->
+					<div class="slider-grp" style="margin-bottom:2px">
+						<div class="slider-row">
+							<label class="form-label" style="margin:0">
+								Easing Power
+								<span class="form-hint">Curve Exponent</span>
+							</label>
+							<span class="slider-val" id="powerVal">3</span>
+						</div>
+						<input type="range" id="powerRange" min="1" max="8" value="3" step="0.5">
+					</div>
+
+				</div>
+			</div>
+
+		</div><!-- /left-col -->
+
+
+		<!-- ──────────────── RIGHT ──────────────── -->
+		<div class="right-col">
+
+			<!-- Preview -->
+			<div class="preview-shell">
+				<div class="preview-canvas" id="previewCanvas">
+					<!-- Layer 1: Checkerboard -->
+					<div class="layer layer-checker" id="lyrChecker"></div>
+					<!-- Layer 2: Gradient -->
+					<div class="layer layer-gradient" id="lyrGrad"></div>
+					<!-- Layer 3: Math Curve -->
+					<div class="layer layer-curve" id="lyrCurve">
+						<svg class="curve-svg" id="curveSvg" viewBox="0 0 200 100" preserveAspectRatio="none">
+							<defs>
+								<filter id="glowFlt" x="-20%" y="-20%" width="140%" height="140%">
+									<feGaussianBlur stdDeviation="1.2" result="blur"/>
+									<feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+								</filter>
+							</defs>
+							<!-- Glow pass -->
+							<path id="curveGlow" stroke="rgba(0,255,224,0.25)" stroke-width="3" fill="none"
+										stroke-linecap="round" filter="url(#glowFlt)"/>
+							<!-- Sharp pass -->
+							<path id="curvePath" stroke="rgba(0,255,224,0.75)" stroke-width="0.8" fill="none"
+										stroke-linecap="round"/>
+						</svg>
+					</div>
+					<!-- Layer 4: Stop dots -->
+					<div class="layer layer-stops" id="lyrStops"></div>
+				</div>
+
+				<!-- HUD Visibility Controller -->
+				<div class="hud-bar">
+					<span class="hud-label">HUD</span>
+					<button class="hud-tog on" id="togCurve" onclick="toggleHUD('curve')" aria-pressed="true">
+						<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M3 20 C6 12 12 8 21 4"/></svg>
+						Curve
+					</button>
+					<button class="hud-tog on" id="togStops" onclick="toggleHUD('stops')" aria-pressed="true">
+						<svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="5"/></svg>
+						Stops
+					</button>
+					<button class="hud-tog on" id="togGrid" onclick="toggleHUD('grid')" aria-pressed="true">
+						<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+						Grid
+					</button>
+				</div>
+			</div>
+
+			<!-- Optimization Audit -->
+			<div class="metrics-row">
+				<div class="metric-card">
+					<div class="metric-val b" id="mEval">—</div>
+					<div class="metric-lbl">Steps Evaluated</div>
+				</div>
+				<div class="metric-card">
+					<div class="metric-val" id="mStops">—</div>
+					<div class="metric-lbl">Optimized Stops</div>
+				</div>
+				<div class="metric-card">
+					<div class="metric-val g" id="mSave">—</div>
+					<div class="metric-lbl">Compression Savings</div>
+				</div>
+			</div>
+
+			<!-- Code Output -->
+			<div class="code-out">
+				<div class="code-out-head">
+					<span class="code-out-lbl">CSS Output</span>
+					<button class="copy-btn" id="copyBtn" onclick="doCopy()">
+						<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+						Copy
+					</button>
+				</div>
+				<div class="code-scroll">
+					<div class="code-line">
+						<span class="s-prop">background</span><span class="s-colon">: </span><span id="codeGrad"></span><span class="s-semi">;</span>
+					</div>
+				</div>
+			</div>
+
+			<!-- Committed Stops Timeline -->
+			<div class="timeline">
+				<div class="timeline-head">
+					<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><line x1="2" y1="12" x2="9" y2="12"/><line x1="15" y1="12" x2="22" y2="12"/></svg>
+					Committed Stops
+				</div>
+				<div class="timeline-row" id="stopsTimeline"></div>
+			</div>
+
+		</div><!-- /right-col -->
+
+	</div><!-- /main-grid -->
+
+
+	<!-- ══════════════════════════════════
+			 INTEGRATION GUIDE
+	══════════════════════════════════ -->
+	<div class="sec-divider">
+		<div class="sec-line"></div>
+		<span class="sec-txt">Website Integration Guide</span>
+		<div class="sec-line"></div>
+	</div>
+
+	<div class="int-card">
+		<div class="int-head">
+			<span class="int-badge">Guide</span>
+			<span class="int-title">Importing &amp; Using CubicGradient.js</span>
+		</div>
+		<div class="code-blk">
+			<pre id="intCode"></pre>
+		</div>
+	</div>
+
+
+	<!-- ══════════════════════════════════
+			 TECHNICAL DEEP DIVE
+	══════════════════════════════════ -->
+	<div class="sec-divider">
+		<div class="sec-line"></div>
+		<span class="sec-txt">Technical Deep Dive</span>
+		<div class="sec-line"></div>
+	</div>
+
+	<div class="tech-grid">
+		<div class="tech-card">
+			<div class="tech-eye">01 / Mathematics</div>
+			<div class="tech-t">Power Curve Plotting</div>
+			<div class="tech-b">
+				Each color stop's position is mapped through a power function rather
+				than simple linear interpolation. For a normalized parameter
+				<em>t&nbsp;∈&nbsp;[0,1]</em>, the eased value is:
+				<code class="formula">eased = t ^ power</code>
+				This concentrates visual change near the gradient's start when
+				<em>power&nbsp;&gt;&nbsp;1</em>, producing the characteristic
+				"snap" of cubic and quadratic curves. A power of&nbsp;1 gives a
+				flat linear transition; higher powers create increasingly sharp
+				leading edges followed by a smooth tail.
+			</div>
+		</div>
+
+		<div class="tech-card">
+			<div class="tech-eye">02 / Algorithm</div>
+			<div class="tech-t">Precision Checking</div>
+			<div class="tech-b">
+				Before committing each candidate stop, the optimizer verifies
+				whether it lies within 0.5 channel units of a straight line
+				connecting the previous committed stop and the next candidate.
+				For each RGBA channel:
+				<code class="formula">|curr[ch] − lerp(prev, next, t)| &lt; 0.5</code>
+				If all four channels pass this threshold the point is considered
+				collinear and silently discarded — only stops where the curve
+				genuinely deviates from linearity earn a place in the output.
+			</div>
+		</div>
+
+		<div class="tech-card">
+			<div class="tech-eye">03 / Optimization</div>
+			<div class="tech-t">Linearity Reduction</div>
+			<div class="tech-b">
+				The single-pass generator evaluates all candidate T-values derived
+				from per-channel color step counts and commits only deviating stops.
+				The result is a minimal CSS payload: a <strong>high-power easing
+				curve faithfully represented with the fewest possible color
+				stops</strong>. This simultaneously reduces browser paint complexity,
+				CSS payload byte count, and GPU interpolation workload — without
+				any perceptible loss in gradient fidelity.
+			</div>
+		</div>
+	</div>
+
+</div><!-- /page -->
+
+
+<!-- ══════════════════════════════════
+		 JAVASCRIPT
+══════════════════════════════════ -->
+<script>
+/* ─────────────────────────────────────────────
+	 CubicGradient engine (inlined & extended to
+	 also return stops + candidate count for audit)
+───────────────────────────────────────────── */
+function cubicGradient({ direction="to right", start="#000044",
+													end="#00000000", steps=10, power=3 }={}) {
+	function parseHex(hex) {
+		const h = hex.replace('#','');
+		return {
+			r: parseInt(h.slice(0,2),16),
+			g: parseInt(h.slice(2,4),16),
+			b: parseInt(h.slice(4,6),16),
+			a: h.length===8 ? parseInt(h.slice(6,8),16)/255 : 1
+		};
+	}
+	const c1 = parseHex(start);
+	const c2 = parseHex(end);
+	const inv = e => Math.pow(e, 1/power);
+	const pts = new Set([0,1]);
+	['r','g','b','a'].forEach(ch => {
+		const diff = Math.abs(c2[ch]-c1[ch]);
+		if (diff > 0) {
+			const n = Math.min(diff>1?diff:255, steps);
+			for (let i=1;i<n;i++) pts.add(inv(i/n));
+		}
+	});
+	const sorted = [...pts].sort((a,b)=>a-b);
+	const totalCandidates = sorted.length;
+	const mkStop = t => {
+		const e = Math.pow(t,power);
+		return {
+			t,
+			r: Math.round(c1.r+(c2.r-c1.r)*e),
+			g: Math.round(c1.g+(c2.g-c1.g)*e),
+			b: Math.round(c1.b+(c2.b-c1.b)*e),
+			a: +((c1.a+(c2.a-c1.a)*e).toFixed(3))
+		};
+	};
+	const opt = [mkStop(sorted[0])];
+	for (let i=1;i<sorted.length-1;i++) {
+		const prev=opt[opt.length-1], curr=mkStop(sorted[i]), next=mkStop(sorted[i+1]);
+		const sT=(curr.t-prev.t)/(next.t-prev.t);
+		const linear=['r','g','b','a'].every(ch=>{
+			return Math.abs(curr[ch]-(prev[ch]+(next[ch]-prev[ch])*sT)) < 0.5;
+		});
+		if (!linear) opt.push(curr);
+	}
+	opt.push(mkStop(sorted[sorted.length-1]));
+	const stopStrs = opt.map(s=>`rgba(${s.r},${s.g},${s.b},${s.a}) ${(s.t*100).toFixed(2)}%`);
+	return {
+		css: `linear-gradient(${direction}, ${stopStrs.join(', ')})`,
+		stops: opt,
+		totalCandidates
+	};
+}
+
+/* ─────────────────────────────────────────────
+	 PRESETS
+───────────────────────────────────────────── */
+const PRESETS = [
+	{ name:'Deep Blue', dir:'to bottom',	start:'#01122', end:'#0eeff', steps:32, power:10	 },
+	{ name:'Red Dark',	 dir:'to bottom right', start:'#22000', end:'#77000',	 steps:32, power:2.5 },
+	{ name:'SEP Electron',	 dir:'to bottom right',		 start:'#050510', end:'#003344',	 steps:32, power:3	 },
+	{ name:'Ocean Depth',			dir:'to bottom right', start:'#000000', end:'#000066', steps:32, power:1.5	 },
+	{ name:'Emerald Fade',		 dir:'to right',	start:'#00cc66', end:'#00000000', steps:32, power:3	 },
+	{ name:'Solar Flare',			dir:'135deg',		start:'#ffcc00', end:'#ff2200',	 steps:32, power:1.5 },
+];
+
+/* ─────────────────────────────────────────────
+	 STATE
+───────────────────────────────────────────── */
+const S = {
+	dir:'to right', start:'#000044', end:'#00000000',
+	steps:32, power:3,
+	hudCurve:true, hudStops:true, hudGrid:true,
+};
+
+/* ─────────────────────────────────────────────
+	 BOOT
+───────────────────────────────────────────── */
+(function init() {
+	buildPresets();
+	buildIntCode();
+	bindAll();
+	refresh();
+})();
+
+/* ─────────────────────────────────────────────
+	 BUILD PRESETS
+───────────────────────────────────────────── */
+function buildPresets() {
+	const grid = document.getElementById('presetsGrid');
+	PRESETS.forEach(p => {
+		const g = cubicGradient({direction:p.dir,start:p.start,end:p.end,steps:p.steps,power:p.power});
+		const btn = document.createElement('button');
+		btn.className = 'preset-btn';
+		btn.innerHTML = `
+			<div class="preset-swatch" style="background:${g.css}"></div>
+			<div class="preset-label">
+				<span class="preset-name">${p.name}</span>
+				<span class="preset-meta">p=${p.power} / s=${p.steps}</span>
+			</div>`;
+		btn.addEventListener('click', () => loadPreset(p));
+		grid.appendChild(btn);
+	});
+}
+
+function loadPreset(p) {
+	S.dir=p.dir; S.start=p.start; S.end=p.end; S.steps=p.steps; S.power=p.power;
+	document.getElementById('dirInput').value		= p.dir;
+	document.getElementById('startHex').value		= p.start;
+	document.getElementById('endHex').value			= p.end;
+	document.getElementById('stepsRange').value	= p.steps;
+	document.getElementById('powerRange').value	= p.power;
+	document.getElementById('stepsVal').textContent = p.steps;
+	document.getElementById('powerVal').textContent = p.power;
+	syncPicker('start', p.start);
+	syncPicker('end',	 p.end);
+	refresh();
+}
+
+/* ─────────────────────────────────────────────
+	 BIND EVENTS
+───────────────────────────────────────────── */
+function bindAll() {
+	/* Direction */
+	document.getElementById('dirInput').addEventListener('input', e => {
+		S.dir = e.target.value; refresh();
+	});
+
+	/* Hex inputs */
+	document.getElementById('startHex').addEventListener('input', e => {
+		if (validHex(e.target.value)) { S.start=e.target.value; syncPicker('start',S.start); refresh(); }
+	});
+	document.getElementById('endHex').addEventListener('input', e => {
+		if (validHex(e.target.value)) { S.end=e.target.value; syncPicker('end',S.end); refresh(); }
+	});
+
+	/* Color pickers — preserve any alpha suffix the user typed */
+	document.getElementById('startPicker').addEventListener('input', e => {
+		const alpha = document.getElementById('startHex').value.length===9
+									? document.getElementById('startHex').value.slice(7) : '';
+		S.start = e.target.value + alpha;
+		document.getElementById('startHex').value = S.start;
+		updateSwatch('start', S.start);
+		refresh();
+	});
+	document.getElementById('endPicker').addEventListener('input', e => {
+		const alpha = document.getElementById('endHex').value.length===9
+									? document.getElementById('endHex').value.slice(7) : '';
+		S.end = e.target.value + alpha;
+		document.getElementById('endHex').value = S.end;
+		updateSwatch('end', S.end);
+		refresh();
+	});
+
+	/* Sliders */
+	document.getElementById('stepsRange').addEventListener('input', e => {
+		S.steps=+e.target.value;
+		document.getElementById('stepsVal').textContent=S.steps;
+		refresh();
+	});
+	document.getElementById('powerRange').addEventListener('input', e => {
+		S.power=+e.target.value;
+		document.getElementById('powerVal').textContent=S.power;
+		refresh();
+	});
+}
+
+/* ─────────────────────────────────────────────
+	 HELPERS
+───────────────────────────────────────────── */
+function validHex(h) { return /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/.test(h); }
+
+function syncPicker(w, hex) {
+	document.getElementById(w+'Picker').value = hex.slice(0,7);
+	updateSwatch(w, hex);
+}
+
+function updateSwatch(w, hex) {
+	const h = hex.replace('#','');
+	const r=parseInt(h.slice(0,2),16), g=parseInt(h.slice(2,4),16),
+				b=parseInt(h.slice(4,6),16), a=h.length===8?parseInt(h.slice(6,8),16)/255:1;
+	document.getElementById(w+'Color').style.background=`rgba(${r},${g},${b},${a})`;
+}
+
+function quickDir(d) {
+	S.dir=d;
+	document.getElementById('dirInput').value=d;
+	refresh();
+}
+
+/* ─────────────────────────────────────────────
+	 HUD TOGGLES
+───────────────────────────────────────────── */
+function toggleHUD(which) {
+	const map = { curve:['lyrCurve','togCurve','hudCurve'],
+								stops:['lyrStops','togStops','hudStops'],
+								grid:['lyrChecker','togGrid','hudGrid'] };
+	const [lyrid,btnid,key] = map[which];
+	S[key] = !S[key];
+	document.getElementById(lyrid).style.opacity = S[key]?'1':'0';
+	document.getElementById(btnid).classList.toggle('on', S[key]);
+	document.getElementById(btnid).setAttribute('aria-pressed', S[key]);
+}
+
+/* ─────────────────────────────────────────────
+	 MAIN REFRESH
+───────────────────────────────────────────── */
+function refresh() {
+	if (!validHex(S.start)||!validHex(S.end)) return;
+	updateSwatch('start',S.start);
+	updateSwatch('end',S.end);
+
+	const res = cubicGradient({ direction:S.dir, start:S.start,
+															 end:S.end, steps:S.steps, power:S.power });
+
+	/* Preview gradient */
+	document.getElementById('lyrGrad').style.background = res.css;
+
+	/* Curve SVG */
+	renderCurve();
+
+	/* Stop dots */
+	renderStopDots(res.stops);
+
+	/* Metrics */
+	const n = res.totalCandidates, m = res.stops.length;
+	document.getElementById('mEval').textContent	= n;
+	document.getElementById('mStops').textContent = m;
+	document.getElementById('mSave').textContent	= n>0 ? Math.round((1-m/n)*100)+'%' : '0%';
+
+	/* Code output */
+	renderCode(res.stops);
+
+	/* Timeline */
+	renderTimeline(res.stops);
+}
+
+/* ─────────────────────────────────────────────
+	 RENDER CURVE SVG
+───────────────────────────────────────────── */
+function renderCurve() {
+	const W=200, H=100, N=80, p=S.power;
+	const pts = Array.from({length:N+1},(_,i)=>{
+		const t=i/N, e=Math.pow(t,p);
+		return `${(t*W).toFixed(2)},${(H-e*H).toFixed(2)}`;
+	}).join(' L ');
+	const d = 'M '+pts;
+	document.getElementById('curvePath').setAttribute('d',d);
+	document.getElementById('curveGlow').setAttribute('d',d);
+}
+
+/* ─────────────────────────────────────────────
+	 RENDER STOP DOTS
+───────────────────────────────────────────── */
+function renderStopDots(stops) {
+	const layer = document.getElementById('lyrStops');
+	layer.innerHTML = '';
+	stops.forEach(s => {
+		const dot = document.createElement('div');
+		dot.className = 'stop-dot';
+		const easedY = Math.pow(s.t, S.power);
+		dot.style.left = (s.t*100)+'%';
+		dot.style.top = (100 - easedY*100)+'%';
+		dot.style.background = `rgba(${s.r},${s.g},${s.b},1)`;
+
+		const tip = document.createElement('div');
+		tip.className = 'stop-dot-tip';
+		tip.innerHTML =
+			`<div style="color:var(--blue);margin-bottom:2px">${(s.t*100).toFixed(1)}%</div>`+
+			`<div>rgba(${s.r},&nbsp;${s.g},&nbsp;${s.b},&nbsp;${s.a})</div>`;
+		dot.appendChild(tip);
+		layer.appendChild(dot);
+	});
+}
+
+/* ─────────────────────────────────────────────
+	 RENDER CODE OUTPUT (syntax-coloured)
+───────────────────────────────────────────── */
+function renderCode(stops) {
+	const stopsHtml = stops.map(s => {
+		return `<span class="s-rgba">rgba</span>(`+
+					 `<span class="s-num">${s.r}</span>, `+
+					 `<span class="s-num">${s.g}</span>, `+
+					 `<span class="s-num">${s.b}</span>, `+
+					 `<span class="s-num">${s.a}</span>) `+
+					 `<span class="s-pct">${(s.t*100).toFixed(2)}%</span>`;
+	}).join('<span class="s-comma">, </span>');
+
+	document.getElementById('codeGrad').innerHTML =
+		`<span class="s-fn">linear-gradient</span>(`+
+		`<span class="s-dir">${S.dir}</span><span class="s-comma">, </span>`+
+		stopsHtml+`)`;
+}
+
+/* ─────────────────────────────────────────────
+	 RENDER STOPS TIMELINE
+───────────────────────────────────────────── */
+function renderTimeline(stops) {
+	const row = document.getElementById('stopsTimeline');
+	row.innerHTML = '';
+	stops.forEach((s,i) => {
+		if (i>0) {
+			const arr = document.createElement('span');
+			arr.className='arrow-sep'; arr.textContent='→';
+			row.appendChild(arr);
+		}
+		const tag = document.createElement('div');
+		tag.className = 'stop-tag';
+		const pct = (s.t*100).toFixed(1);
+		const col = `rgba(${s.r},${s.g},${s.b},${s.a})`;
+		tag.innerHTML =
+			`<div class="tag-dot"><div class="tag-dot-inner" style="background:${col}"></div></div>`+
+			`<span class="tag-pct">${pct}%</span>`+
+			`<span class="tag-a">α ${s.a.toFixed(2)}</span>`;
+		row.appendChild(tag);
+	});
+}
+
+/* ─────────────────────────────────────────────
+	 COPY CSS
+───────────────────────────────────────────── */
+function doCopy() {
+	if (!validHex(S.start)||!validHex(S.end)) return;
+	const res = cubicGradient({direction:S.dir,start:S.start,end:S.end,steps:S.steps,power:S.power});
+	const text = `background: ${res.css};`;
+	navigator.clipboard.writeText(text).then(() => {
+		const btn = document.getElementById('copyBtn');
+		btn.classList.add('ok');
+		btn.innerHTML =
+			`<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`+
+			`Copied!`;
+		setTimeout(()=>{
+			btn.classList.remove('ok');
+			btn.innerHTML =
+				`<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`+
+				`Copy`;
+		}, 2000);
+	});
+}
+
+/* ─────────────────────────────────────────────
+	 INTEGRATION CODE BLOCK (syntax-coloured)
+───────────────────────────────────────────── */
+function buildIntCode() {
+	document.getElementById('intCode').innerHTML =
+`<span class="sc-cmt">// ─── 1. Import from the ElectronCSS CDN ───────────────────────────────────</span>
+<span class="sc-kw">import</span> <span class="sc-var">{ cubicGradient }</span> <span class="sc-kw">from</span> <span class="sc-str">'https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js'</span>;
+
+<span class="sc-cmt">// ─── 2. Generate a smooth eased gradient ──────────────────────────────────</span>
+<span class="sc-kw">const</span> <span class="sc-var">background</span> = <span class="sc-fn">cubicGradient</span>({
+	<span class="sc-key">direction</span>: <span class="sc-str">'to bottom'</span>,	 <span class="sc-cmt">// any CSS linear-gradient direction keyword or angle</span>
+	<span class="sc-key">start</span>:		 <span class="sc-str">'#1a2a6c'</span>,		 <span class="sc-cmt">// 6-digit RGB hex	(#RRGGBB)</span>
+	<span class="sc-key">end</span>:			 <span class="sc-str">'#00000000'</span>,	 <span class="sc-cmt">// 8-digit RGBA hex (#RRGGBBAA) — alpha natively supported</span>
+	<span class="sc-key">steps</span>:		 <span class="sc-num">12</span>,						<span class="sc-cmt">// precision: more steps → smoother curve, more stops evaluated</span>
+	<span class="sc-key">power</span>:		 <span class="sc-num">3</span>							<span class="sc-cmt">// curve exponent: 3=cubic, 2=quadratic, 1=linear, 0.5=ease-out</span>
+});
+
+<span class="sc-cmt">// ─── 3. Apply to any DOM element ──────────────────────────────────────────</span>
+<span class="sc-var">document.body.style.background</span> = <span class="sc-var">background</span>;
+
+<span class="sc-cmt">// ─── Or use inline in CSS-in-JS ───────────────────────────────────────────</span>
+<span class="sc-kw">const</span> <span class="sc-var">styles</span> = {
+	<span class="sc-key">background</span>: <span class="sc-fn">cubicGradient</span>({ <span class="sc-key">direction</span>:<span class="sc-str">'to right'</span>, <span class="sc-key">start</span>:<span class="sc-str">'#ff6600'</span>, <span class="sc-key">end</span>:<span class="sc-str">'#cc005500'</span>, <span class="sc-key">steps</span>:<span class="sc-num">10</span>, <span class="sc-key">power</span>:<span class="sc-num">2</span> })
+};`;
+}
+</script>
+
+</body>
 </html>
