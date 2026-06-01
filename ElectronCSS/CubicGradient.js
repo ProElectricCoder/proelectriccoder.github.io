@@ -1,20 +1,19 @@
 /*
-Generates an optimized, eased CSS linear-gradient string.
+Generates an optimized, eased CSS linear-gradient string and exposes raw SVG/canvas data.
  • Supports Hex (6/8 digit) and Alpha.
- • Logic: Single-pass generation that only commits stops when the curve deviates from a linear path.
- • Result: Clean, minimal CSS payload with maximum performance.
+ • Logic: Single-pass generation that only commits stops when the curve deviates.
+ • Output: A "smart object" that automatically acts as a CSS string, but contains raw data properties.
 */
-// “Created by Gemini 3.1 Flash and ChatGPT GPT-5.3 Instant” - ProElectricCoder
+// “Created by Gemini 3.1 Pro and ChatGPT 5.3 Instant” - ProElectricCoder
 export function cubicGradient({
 	direction = "to right",
 	start = "#000044",
 	end = "#00000000",
-	steps = 10,
+	steps = 32,
 	power = 3
 } = {}) {
 
 	// --- Helpers ---
-	
 	function parseHex(hex) {
 		const h = hex.replace('#', '');
 		return {
@@ -33,6 +32,7 @@ export function cubicGradient({
 	const transitionPoints = new Set([0, 1]); 
 	const channels = ['r', 'g', 'b', 'a'];
 
+	// 1. Generate all theoretical candidate points based on color delta
 	channels.forEach(ch => {
 		const startVal = c1[ch];
 		const endVal = c2[ch];
@@ -47,20 +47,21 @@ export function cubicGradient({
 	});
 
 	const sortedT = Array.from(transitionPoints).sort((a, b) => a - b);
+	const totalCandidates = sortedT.length; // Store the initial evaluation count
 
-	// Helper to calculate state at a specific T
+	// Helper to calculate exact high-precision state at a specific T
 	const getStop = (t) => {
 		const eased = Math.pow(t, power);
 		return {
 			t,
-			r: Math.round(c1.r + (c2.r - c1.r) * eased),
-			g: Math.round(c1.g + (c2.g - c1.g) * eased),
-			b: Math.round(c1.b + (c2.b - c1.b) * eased),
-			a: parseFloat((c1.a + (c2.a - c1.a) * eased).toFixed(3))
+			r: c1.r + (c2.r - c1.r) * eased,
+			g: c1.g + (c2.g - c1.g) * eased,
+			b: c1.b + (c2.b - c1.b) * eased,
+			a: c1.a + (c2.a - c1.a) * eased
 		};
 	};
 
-	// --- Optimized Single-Pass Generation ---
+	// --- 2. Optimized Single-Pass Generation ---
 	const optimized = [getStop(sortedT[0])];
 
 	for (let i = 1; i < sortedT.length - 1; i++) {
@@ -68,44 +69,49 @@ export function cubicGradient({
 		const curr = getStop(sortedT[i]);
 		const next = getStop(sortedT[i + 1]);
 
-		// Calculate the linear intersection for current point relative to prev and next
 		const segmentT = (curr.t - prev.t) / (next.t - prev.t);
 		
 		const isLinear = ['r', 'g', 'b', 'a'].every(ch => {
 			const interp = prev[ch] + (next[ch] - prev[ch]) * segmentT;
-			return Math.abs(curr[ch] - interp) < 0.5; // Threshold for color change
+			// Strict threshold check using floating point accuracy
+			return Math.abs(curr[ch] - interp) < 0.5; 
 		});
 
-		// Only push if the current point isn't just a straight line between the points we're actually keeping
 		if (!isLinear) {
 			optimized.push(curr);
 		}
 	}
 	
-	// Always add the final stop
 	optimized.push(getStop(sortedT[sortedT.length - 1]));
 
-	// Final string construction
-	const stops = optimized.map(s => {
+	// --- 3. Final Object Formatting ---
+	
+	// Map to the exact raw object format requested
+	const formattedStops = optimized.map(s => ({
+		t: Number(s.t.toFixed(4)),
+		r: Math.round(s.r),
+		g: Math.round(s.g),
+		b: Math.round(s.b),
+		a: Number(s.a.toFixed(3))
+	}));
+
+	// Build the CSS string
+	const cssStops = formattedStops.map(s => {
 		const colorStr = `rgba(${s.r}, ${s.g}, ${s.b}, ${s.a})`;
 		return `${colorStr} ${(s.t * 100).toFixed(2)}%`;
 	});
+	
+	const cssString = `linear-gradient(${direction}, ${cssStops.join(', ')})`;
 
-	return `linear-gradient(${direction}, ${stops.join(', ')})`;
+	// Return a Smart Object
+	return {
+		stops: formattedStops,
+		totalCandidates: totalCandidates,
+		css: cssString,
+		
+		// The magic method: When JavaScript expects a string, it calls this.
+		toString() {
+			return this.css;
+		}
+	};
 }
-
-/*
-USAGE EXAMPLE:
-
-import { cubicGradient } from 'https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js';
-
-const smoothBackground = cubicGradient({
-    direction: 'to bottom',
-    start: '#1a2a6c',
-    end: '#00000000',
-    steps: 12,
-    power: 3
-});
-
-document.body.style.background = smoothBackground;
-*/
