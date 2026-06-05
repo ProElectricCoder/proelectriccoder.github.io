@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<!-- “Created by Gemini 3.1 Pro” - ProElectricCoder --><!-- v2.7.5 -->
+	<!-- “Created by Gemini 3.1 Pro” - ProElectricCoder --><!-- v2.7.6 -->
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>DeepBlue IDE - ProElectricCoder</title>
@@ -41,7 +41,8 @@
 	<!-- Load Marked for Markdown Rendering -->
 	<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-	<!-- Load Babel for JSX Compilation (Removed - Now Lazy Loaded) -->
+	<!-- Load Terser for Minification during share -->
+	<script src="https://cdn.jsdelivr.net/npm/terser/dist/bundle.min.js"></script>
 
 	<!-- Load CodeMirror Editor -->
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
@@ -70,6 +71,7 @@
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/show-hint.min.css">
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/show-hint.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/javascript-hint.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/xml-hint.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/html-hint.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/css-hint.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/anyword-hint.min.js"></script>
@@ -1249,7 +1251,7 @@
 		},
 		'DeepBlue/manifest.json': {
 			type: 'json',
-			content: '{\n  "name": "DeepBlue IDE - ProElectricCoder",\n  "short_name": "DeepBlue",\n  "description": "A powerful, completely web-based IDE featuring seamless GitHub integration, AI assistance, in-browser Python execution, and zero-knowledge encryption.",\n  "start_url": "./",\n  "display": "standalone",\n  "background_color": "#0a0e14",\n  "theme_color": "#00e5ff",\n  "orientation": "any",\n  "icons": [\n    {\n      "src": "/Favicon.svg",\n      "sizes": "192x192 512x512 any",\n      "type": "image/svg+xml",\n      "purpose": "any maskable"\n    }\n  ],\n  "categories": [\n    "development",\n    "productivity",\n    "utilities"\n  ],\n  "shortcuts": [\n    {\n      "name": "New Project",\n      "url": "./?action=new",\n      "description": "Open the editor with a new workspace"\n    },\n    {\n      "name": "Connect GitHub",\n      "url": "./?action=github",\n      "description": "Link your GitHub account"\n    }\n  ],\n  "screenshots": [\n    {\n      "src": "https://proelectriccoder.github.io/Preview.png",\n      "sizes": "1200x630",\n      "type": "image/png",\n      "form_factor": "wide",\n      "label": "DeepBlue Editor Workspace"\n    \}\n  ]\n}'
+			content: '{\n  "name": "DeepBlue IDE - ProElectricCoder",\n  "short_name": "DeepBlue",\n  "description": "A powerful, completely web-based IDE featuring seamless GitHub integration, AI assistance, in-browser Python execution, and zero-knowledge encryption.",\n  "start_url": "./",\n  "display": "standalone",\n  "background_color": "#0a0e14",\n  "theme_color": "#00e5ff",\n  "orientation": "any",\n  "icons": [\n    {\n      "src": "/Favicon.svg",\n      "sizes": "192x192 512x512 any",\n      "type": "image/svg+xml",\n      "purpose": "any maskable"\n    }\n  ],\n  "categories": [\n    "development",\n    "productivity",\n    "utilities"\n  ],\n  "shortcuts": [\n    {\n      "name": "New Project",\n      "url": "./?action=new",\n      "description": "Open the editor with a new workspace"\n    },\n    {\n      "name": "Connect GitHub",\n      "url": "./?action=github",\n      "description": "Link your GitHub account"\n    }\n  ],\n  "screenshots": [\n    {\n      "src": "https://proelectriccoder.github.io/Preview.png",\n      "sizes": "1200x630",\n      "type": "image/png",\n      "form_factor": "wide",\n      "label": "DeepBlue Editor Workspace"\n    }\n  ]\n}'
 		},
 		'DeepBlue/Component.jsx': {
 			type: 'react',
@@ -1265,7 +1267,7 @@
 		},
 		'DeepBlue/style.css': { 
 			type: 'css', 
-			content: `body {\n\tbackground-color: #0a0e14;\n\tdisplay: flex;\n\tjustify-content: center;\n\talign-items: center;\n\theight: 100vh;\n\tmargin: 0;\n\toverflow: hidden;\n\tfont-family: system-ui, sans-serif;\n}\n.card {\n\twidth: 100%;\n\tmax-width: 24rem;\n\taspect-ratio: 16/9;\n\tbackground-color: #111720;\n\tborder-radius: 1rem;\n\tborder: 1px solid rgba(0, 229, 255, 0.3);\n\tdisplay: flex;\n\tflex-direction: column;\n\talign-items: center;\n\tjustify-content: center;\n\tbox-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);\n\ttransition: all 300ms;\n}\n.card:hover {\n\ttransform: translateY(-0.25rem);\n\tbox-shadow: 0 0 40px -10px rgba(0, 229, 255, 0.3);\n}\n.icon-container {\n\twidth: 4rem;\n\theight: 4rem;\n\tmargin-bottom: 1rem;\n\topacity: 0.8;\n}\n.icon-container img {\n\twidth: 100%;\n\theight: 100%;\n}\n.card-title {\n\tfont-size: 1.5rem;\n\tfont-weight: 700;\n\tcolor: white;\n\tmargin: 0;\n}\n.card-subtitle {\n\tcolor: rgba(0, 229, 255, 0.5);\n\tmargin-top: 0.25rem;\n\tfont-weight: 300;\n\tmargin-bottom: 0;\n}\n.brand-watermark {\n\tposition: absolute;\n\tbottom: 1rem;\n\tleft: 1rem;\n\tcolor: #00000000;\n\tfont-size: 0.85rem;\n\ttransition: color 300ms;\n\tcursor: default;\n}\n.brand-watermark:hover {\n\tcolor: #00e5ffff;\n}` 
+			content: `body {\n\tbackground-color: #0a0e14;\n\tdisplay: flex;\n\tjustify-content: center;\n\talign-items: center;\n\theight: 100vh;\n\tmargin: 0;\n\theight: 100vh;\n\toverflow: hidden;\n\tfont-family: system-ui, sans-serif;\n}\n.card {\n\twidth: 100%;\n\tmax-width: 24rem;\n\taspect-ratio: 16/9;\n\tbackground-color: #111720;\n\tborder-radius: 1rem;\n\tborder: 1px solid rgba(0, 229, 255, 0.3);\n\tdisplay: flex;\n\tflex-direction: column;\n\talign-items: center;\n\tjustify-content: center;\n\tbox-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);\n\ttransition: all 300ms;\n}\n.card:hover {\n\ttransform: translateY(-0.25rem);\n\tbox-shadow: 0 0 40px -10px rgba(0, 229, 255, 0.3);\n}\n.icon-container {\n\twidth: 4rem;\n\theight: 4rem;\n\tmargin-bottom: 1rem;\n\topacity: 0.8;\n}\n.icon-container img {\n\twidth: 100%;\n\theight: 100%;\n}\n.card-title {\n\tfont-size: 1.5rem;\n\tfont-weight: 700;\n\tcolor: white;\n\tmargin: 0;\n}\n.card-subtitle {\n\tcolor: rgba(0, 229, 255, 0.5);\n\tmargin-top: 0.25rem;\n\tfont-weight: 300;\n\tmargin-bottom: 0;\n}\n.brand-watermark {\n\tposition: absolute;\n\tbottom: 1rem;\n\tleft: 1rem;\n\tcolor: #00000000;\n\tfont-size: 0.85rem;\n\ttransition: color 300ms;\n\tcursor: default;\n}\n.brand-watermark:hover {\n\tcolor: #00e5ffff;\n}` 
 		},
 		'DeepBlue/index.html': { 
 	 		type: 'html', 
@@ -1617,9 +1619,13 @@
 				
 				if (fileSystem[resolvedPath]) {
 					// Update IDE URL to include the new query params before switching file state
-					const newUrl = new URL(window.location);
-					newUrl.search = queryParams; 
-					window.history.replaceState(null, '', newUrl);
+					try {
+						const newUrl = new URL(window.location);
+						newUrl.search = queryParams; 
+						window.history.replaceState(null, '', newUrl);
+					} catch (e) {
+						console.warn("Could not update URL:", e);
+					}
 
 					// Switch the editor visually and then execute it with the passed parameters
 					switchFile(resolvedPath).then(() => {
@@ -1844,9 +1850,13 @@
 				document.getElementById('binary-overlay').style.display = 'flex';
 				document.getElementById('binary-info').innerText = 'No File Selected';
 				document.getElementById('editor-lang-label').innerText = 'NONE';
-				const url = new URL(window.location);
-				url.searchParams.delete('file');
-				window.history.replaceState(null, '', url);
+				try {
+					const url = new URL(window.location);
+					url.searchParams.delete('file');
+					window.history.replaceState(null, '', url);
+				} catch (e) {
+					console.warn("Could not update URL:", e);
+				}
 				renderEditorTabs();
 				renderSidebar();
 			}
@@ -2061,9 +2071,13 @@
 		renderEditorTabs();
 		
 		// Update URL silently
-		const url = new URL(window.location);
-		url.searchParams.set('file', filename);
-		window.history.replaceState(null, '', url);
+		try {
+			const url = new URL(window.location);
+			url.searchParams.set('file', filename);
+			window.history.replaceState(null, '', url);
+		} catch (e) {
+			console.warn("Could not update URL:", e);
+		}
 
 		const overlay = document.getElementById('binary-overlay'); 
 		const editorDiv = document.querySelector('.editor-wrapper'); 
@@ -2441,6 +2455,19 @@
 						catch(e) { console.error('JSX Error:', e); }
 					}
 
+					// Intercept explicit fetch() calls in JS, JSX, and inline HTML scripts
+					if ((trueExt === '.js' || trueExt === '.jsx' || trueExt === '.html') && fContent) {
+						fContent = fContent.replace(/fetch\(\s*(["'`])([^"'`\n\r]+)\1/g, (match, quote, path) => {
+							if (path.trim() === '' || path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:')) return match;
+							let resolved = resolveVirtualPath(filePath, path);
+							if (fileSystem[resolved] && fileSystem[resolved].type !== 'folder') {
+								let depBlobUrl = getBlobUrl(resolved);
+								if (depBlobUrl) return `fetch(${quote}${depBlobUrl}${quote}`;
+							}
+							return match;
+						});
+					}
+
 					if ((trueExt === '.js' || trueExt === '.jsx') && fContent) {
 						// Intercept and Rewrite ES6 Imports dynamically
 						fContent = fContent.replace(/(import\s+.*?from\s+|import\s+|export\s+.*?from\s+|export\s+\*\s+from\s+|import\s*\(\s*)(["'])(.*?)\2/g, (match, prefix, quote, path) => {
@@ -2669,6 +2696,17 @@
 			}
 		}
 
+		// Helper to run asynchronous replacements cleanly within RegExp match mappings
+		async function replaceAsync(str, regex, asyncFn) {
+			const promises = [];
+			str.replace(regex, (match, ...args) => {
+				const promise = asyncFn(match, ...args);
+				promises.push(promise);
+			});
+			const data = await Promise.all(promises);
+			return str.replace(regex, () => data.shift());
+		}
+
 		// Inline CSS
 		htmlContent = htmlContent.replace(/<link[^>]+href=["'](.*?)["'][^>]*>/g, (match, href) => {
 			if (href.startsWith('http') || href.startsWith('data:') || href.startsWith('blob:') || href.startsWith('#')) return match;
@@ -2681,8 +2719,8 @@
 			return match;
 		});
 
-		// Inline JS
-		htmlContent = htmlContent.replace(/<script[^>]+src=["'](.*?)["'][^>]*><\/script>/g, (match, src) => {
+		// Inline JS with optional automatic Terser Minification
+		htmlContent = await replaceAsync(htmlContent, /<script[^>]+src=["'](.*?)["'][^>]*><\/script>/g, async (match, src) => {
 			if (src.startsWith('http') || src.startsWith('data:') || src.startsWith('blob:') || src.startsWith('#')) return match;
 			let resolved = resolveVirtualPath(targetFile, src);
 			const file = fileSystem[resolved];
@@ -2692,11 +2730,36 @@
 					try { fContent = window.Babel.transform(fContent, { presets: ['react'] }).code; }
 					catch(e) { console.error('JSX Error:', e); }
 				}
-				if (fContent !== null) return `<script>${fContent}<\/script>`;
+				if (fContent !== null) {
+					if (window.Terser) {
+						try {
+							const minified = await window.Terser.minify(fContent);
+							if (minified.code) fContent = minified.code;
+						} catch (e) {
+							console.warn('Terser Minification Error:', e);
+						}
+					}
+					return `<script>${fContent}<\/script>`;
+				}
 				if (file.ghUrl) return match.replace(src, file.ghUrl);
 			}
 			return match;
 		});
+
+		// Minify active inline scripts within the entry HTML document
+		htmlContent = await replaceAsync(htmlContent, /<script[^*]*?>([\s\S]*?)<\/script>/gi, async (match, scriptContent) => {
+			if (match.includes('src=')) return match;
+			if (window.Terser && scriptContent.trim()) {
+				try {
+					const minified = await window.Terser.minify(scriptContent);
+					if (minified.code) return match.replace(scriptContent, minified.code);
+				} catch (e) {
+					console.warn('Terser Inline Minification Error:', e);
+				}
+			}
+			return match;
+		});
+
 		htmlContent = htmlContent.replace(/type\s*=\s*["']text\/babel["']/g, 'type="application/javascript"');
 
 		// Inline Assets (Images/SVGs)
@@ -2724,30 +2787,14 @@
 			const base64Zip = await zip.generateAsync({type: "base64", compression: "DEFLATE", compressionOptions: {level: 9}});
 
 			// Create self-extracting HTML wrapper
-			const wrapper = `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>Deep Blue Project</title></head>
-<body style="background:#0f172a;color:#38bdf8;font-family:sans-serif;display:flex;height:100vh;justify-content:center;align-items:center;flex-direction:column;margin:0">
-<div id="s">Unpacking Project...</div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"><\/script>
-<script>
-window.onload=function(){
-\tvar d="${base64Zip}";
-\tif(!window.JSZip){document.getElementById('s').innerText="Error: JSZip CDN failed.";return;}
-\tJSZip.loadAsync(d,{base64:true}).then(function(z){return z.file("index.html").async("string");})
-\t.then(function(c){document.open();document.write(c);document.close();})
-\t.catch(function(e){document.getElementById('s').innerText="Error: "+e.message;});
-};
-<\/script>
-</body>
-</html>`;
+			const wrapper = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Deep Blue Project</title></head><body style="background:#0f172a;color:#38bdf8;font-family:sans-serif;display:flex;height:100vh;justify-content:center;align-items:center;flex-direction:column;margin:0"><div id="s">Unpacking Project...</div><script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"><\/script><script>window.onload=function(){var d="${base64Zip}";if(!window.JSZip){document.getElementById('s').innerText="Error: JSZip CDN failed.";return;}JSZip.loadAsync(d,{base64:true}).then(function(z){return z.file("index.html").async("string");}).then(function(c){document.open();document.write(c);document.close();}).catch(function(e){document.getElementById('s').innerText="Error: "+e.message;});};<\/script></body></html>`;
 
 			// Create Data URL of the wrapper
 			const finalDataUrl = "data:text/html;base64," + btoa(wrapper);
 			
 			// Copy to Clipboard
 			navigator.clipboard.writeText(finalDataUrl).then(async () => {
-				await customAlert("Compressed project copied to clipboard! (Data URL)", "Success");
+				await customAlert("Compressed and minified project copied to clipboard! (Data URL)", "Success");
 			}).catch(async (err) => {
 				console.error('Failed to copy: ', err);
 				await customPrompt("Copy this Data URL manually:", finalDataUrl, "Data URL Generated");
@@ -3667,9 +3714,13 @@ window.onload=function(){
 					document.getElementById('binary-overlay').style.display = 'flex';
 					document.getElementById('binary-info').innerText = 'No File Selected';
 					document.getElementById('editor-lang-label').innerText = 'NONE';
-					const url = new URL(window.location);
-					url.searchParams.delete('file');
-					window.history.replaceState(null, '', url);
+					try {
+						const url = new URL(window.location);
+						url.searchParams.delete('file');
+						window.history.replaceState(null, '', url);
+					} catch (e) {
+						console.warn("Could not update URL:", e);
+					}
 					renderEditorTabs();
 				}
 			} else {
@@ -3786,9 +3837,13 @@ window.onload=function(){
 				document.getElementById('binary-info').innerText = 'No File Selected';
 				document.getElementById('editor-lang-label').innerText = 'NONE';
 				
-				const url = new URL(window.location);
-				url.searchParams.delete('file');
-				window.history.replaceState(null, '', url);
+				try {
+					const url = new URL(window.location);
+					url.searchParams.delete('file');
+					window.history.replaceState(null, '', url);
+				} catch (e) {
+					console.warn("Could not update URL:", e);
+				}
 				renderEditorTabs();
 			}
 		} else {
