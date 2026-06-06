@@ -1,530 +1,1215 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- “Created by Gemini 3.1 Pro” - ProElectricCoder -->
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SEP Encryptor - ProElectricCoder</title>
-    
-    <link rel="icon" href="/Favicon.svg">
-    <!-- meta properties -->
-    <meta name="title" content="SEP Encryptor - ProElectricCoder">
-    <meta name="description" content="Secure file encryption using a 1024-byte, base-256 stream key by ProElectricCoder">
-    <meta name="author" content="ProElectricCoder"> <!-- Also known as Unknown9856 -->
+	<!-- "Redesigned with Claude Sonnet 4.6" - ProElectricCoder -->
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>SEP Encryptor - ProElectricCoder</title>
 
-    <meta property="og:title" content="SEP Encryptor - ProElectricCoder">
-    <meta property="og:description" content="Secure file encryption using a 1024-byte, base-256 stream key.">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://proelectriccoder.github.io/Projects/SEP/">
-    <meta property="og:image" content="https://proelectriccoder.github.io/Preview.png">
+	<link rel="icon" href="/Favicon.svg">
+	<meta name="title" content="SEP Encryptor - ProElectricCoder">
+	<meta name="description" content="Secure file encryption using a 1024-byte, base-256 stream key by ProElectricCoder">
+	<meta name="author" content="ProElectricCoder">
+	<meta property="og:title" content="SEP Encryptor - ProElectricCoder">
+	<meta property="og:description" content="Secure file encryption using a 1024-byte, base-256 stream key.">
+	<meta property="og:type" content="website">
+	<meta property="og:url" content="https://proelectriccoder.github.io/Projects/SEP/">
+	<meta property="og:image" content="https://proelectriccoder.github.io/Preview.png">
 
-    <!-- Global Header Resources -->
-    <link rel="stylesheet" href="/header.css">
-    <script src="https://proelectriccoder.github.io/header.js" defer></script>
+	<!-- ProElectricCoder global header -->
+	<link rel="stylesheet" href="/header.css">
+	<script src="/header.js" defer></script>
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Custom scrollbar for the textareas and file lists */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #1f2937; }
-        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-    </style>
+	<!-- Same fonts as ElectronCSS -->
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800;900&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,300&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,400&display=swap" rel="stylesheet">
+
+	<style>
+	/* ══════════════════════════════════════════════
+	   TOKENS  (mirrors ElectronCSS)
+	══════════════════════════════════════════════ */
+	:root {
+		--bg:        #06060f;
+		--bg-card:   rgba(255,255,255,0.030);
+		--bg-input:  rgba(0,0,0,0.35);
+		--border:    rgba(255,255,255,0.072);
+		--border-hi: rgba(0,210,255,0.28);
+
+		--blue:   #00c8ff;
+		--cyan:   #00ffe0;
+		--green:  #00ff88;
+		--red:    #ff4455;
+		--yellow: #ffd060;
+
+		--t1: #e8edf8;
+		--t2: rgba(232,237,248,0.55);
+		--t3: rgba(232,237,248,0.28);
+
+		--ff-head: 'Orbitron', monospace;
+		--ff-mono: 'JetBrains Mono', monospace;
+		--ff-body: 'DM Sans', sans-serif;
+
+		--r:  12px;
+		--rs: 6px;
+		--shadow: 0 4px 32px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05);
+	}
+
+	/* ══ RESET ══════════════════════════════════ */
+	*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+	html { scroll-behavior: smooth; }
+	body {
+		background: var(--bg);
+		color: var(--t1);
+		font-family: var(--ff-body);
+		font-size: 14px;
+		line-height: 1.6;
+		min-height: 100vh;
+	}
+
+	/* ══ LAYOUT ═════════════════════════════════ */
+	.page {
+		max-width: 1300px;
+		margin: 0 auto;
+		padding: 100px 28px 120px;
+	}
+
+	/* ══ HERO ═══════════════════════════════════ */
+	.hero {
+		padding: 44px 0 50px;
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 40px;
+		border-bottom: 1px solid var(--border);
+		margin-bottom: 44px;
+	}
+	.hero-eyebrow {
+		font-family: var(--ff-mono);
+		font-size: 10px;
+		color: var(--blue);
+		letter-spacing: .22em;
+		text-transform: uppercase;
+		margin-bottom: 16px;
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+	.hero-eyebrow::before {
+		content: '';
+		display: inline-block;
+		width: 28px;
+		height: 1px;
+		background: var(--blue);
+		box-shadow: 0 0 6px var(--blue);
+	}
+	.hero-title {
+		font-family: var(--ff-head);
+		font-size: clamp(32px, 4.2vw, 54px);
+		font-weight: 900;
+		letter-spacing: -.02em;
+		line-height: 1.0;
+		background: linear-gradient(130deg, #ffffff 0%, #b0c4ff 45%, var(--blue) 100%);
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+		background-clip: text;
+		margin-bottom: 16px;
+	}
+	.hero-sub {
+		font-size: 14.5px;
+		color: var(--t2);
+		max-width: 520px;
+		line-height: 1.75;
+		margin-bottom: 22px;
+	}
+	.hero-pills { display: flex; gap: 7px; flex-wrap: wrap; }
+	.pill {
+		font-family: var(--ff-mono);
+		font-size: 9px;
+		letter-spacing: .1em;
+		padding: 4px 10px;
+		border-radius: 20px;
+		border: 1px solid;
+	}
+	.pill-blue   { color: var(--blue);  border-color: rgba(0,200,255,.28); background: rgba(0,200,255,.06); }
+	.pill-cyan   { color: var(--cyan);  border-color: rgba(0,255,224,.22); background: rgba(0,255,224,.04); }
+	.pill-green  { color: var(--green); border-color: rgba(0,255,136,.22); background: rgba(0,255,136,.04); }
+
+	/* ══ GRID ═══════════════════════════════════ */
+	.main-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 20px;
+		align-items: start;
+		margin-bottom: 20px;
+	}
+	@media (max-width: 920px) { .main-grid { grid-template-columns: 1fr; } }
+	.col { display: flex; flex-direction: column; gap: 18px; }
+
+	/* ══ CARDS ══════════════════════════════════ */
+	.card {
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--r);
+		box-shadow: var(--shadow);
+	}
+	.card-head {
+		padding: 13px 20px;
+		border-bottom: 1px solid var(--border);
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+	.card-title {
+		font-family: var(--ff-mono);
+		font-size: 9.5px;
+		font-weight: 600;
+		letter-spacing: .18em;
+		text-transform: uppercase;
+		color: var(--t2);
+	}
+	.card-tag {
+		font-family: var(--ff-mono);
+		font-size: 9px;
+		color: var(--t3);
+		letter-spacing: .1em;
+	}
+	.card-body { padding: 20px; }
+
+	/* ══ FORM ═══════════════════════════════════ */
+	.form-grp { margin-bottom: 16px; }
+	.form-grp:last-child { margin-bottom: 0; }
+	.form-label {
+		font-family: var(--ff-mono);
+		font-size: 9.5px;
+		font-weight: 500;
+		letter-spacing: .13em;
+		text-transform: uppercase;
+		color: var(--t2);
+		margin-bottom: 8px;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+	.form-hint { font-size: 8.5px; color: var(--t3); text-transform: none; letter-spacing: .04em; }
+	.input-txt {
+		width: 100%;
+		background: var(--bg-input);
+		border: 1px solid var(--border);
+		border-radius: var(--rs);
+		color: var(--t1);
+		font-family: var(--ff-mono);
+		font-size: 12px;
+		padding: 9px 13px;
+		outline: none;
+		transition: border-color .15s, box-shadow .15s;
+	}
+	.input-txt:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(0,200,255,.09); }
+	.input-txt::placeholder { color: var(--t3); }
+
+	/* ══ BUTTONS ════════════════════════════════ */
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 7px;
+		padding: 9px 16px;
+		border-radius: var(--rs);
+		font-family: var(--ff-mono);
+		font-size: 10.5px;
+		font-weight: 500;
+		letter-spacing: .06em;
+		cursor: pointer;
+		border: none;
+		transition: all .17s ease;
+		white-space: nowrap;
+		flex-shrink: 0;
+		text-decoration: none;
+	}
+	.btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+	.btn:disabled { opacity: .38; cursor: not-allowed; pointer-events: none; }
+
+	.btn-primary {
+		background: var(--blue); color: #000; font-weight: 700;
+		box-shadow: 0 0 18px rgba(0,200,255,.2);
+	}
+	.btn-primary:hover { background: #33d4ff; box-shadow: 0 0 28px rgba(0,200,255,.4); transform: translateY(-1px); }
+	.btn-ghost {
+		background: rgba(0,200,255,.06); color: var(--blue);
+		border: 1px solid rgba(0,200,255,.22);
+	}
+	.btn-ghost:hover { background: rgba(0,200,255,.12); border-color: var(--blue); transform: translateY(-1px); }
+	.btn-muted {
+		background: rgba(255,255,255,.04); color: var(--t2);
+		border: 1px solid var(--border);
+	}
+	.btn-muted:hover { background: rgba(255,255,255,.08); border-color: var(--border-hi); color: var(--t1); }
+	.btn-danger {
+		background: rgba(255,68,85,.07); color: var(--red);
+		border: 1px solid rgba(255,68,85,.22);
+	}
+	.btn-danger:hover { background: rgba(255,68,85,.14); border-color: var(--red); }
+	.btn-row { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+	.btn-dual { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+	/* ══ DROPZONE ═══════════════════════════════ */
+	.dropzone {
+		border: 2px dashed var(--border);
+		border-radius: var(--r);
+		padding: 28px 20px;
+		text-align: center;
+		cursor: pointer;
+		transition: border-color .2s, background .2s;
+		position: relative;
+		user-select: none;
+	}
+	.dropzone:hover, .dropzone.over { border-color: var(--border-hi); background: rgba(0,200,255,.025); }
+	.dz-input {
+		position: absolute; inset: 0; opacity: 0;
+		cursor: pointer; width: 100%; height: 100%; z-index: 2;
+	}
+	.dz-icon { font-size: 1.8rem; margin-bottom: 8px; opacity: .65; }
+	.dz-text { font-family: var(--ff-mono); font-size: 11px; color: var(--t2); margin-bottom: 3px; }
+	.dz-hint { font-family: var(--ff-mono); font-size: 9.5px; color: var(--t3); }
+
+	/* hidden file inputs */
+	.fi-hidden { display: none; }
+
+	/* ══ FILE LIST ══════════════════════════════ */
+	.fl-wrap { margin-top: 14px; display: none; }
+	.fl-meta { font-family: var(--ff-mono); font-size: 9.5px; color: var(--t3); margin-bottom: 8px; }
+	.fl-list {
+		display: flex; flex-direction: column; gap: 5px;
+		max-height: 220px; overflow-y: auto;
+		scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.07) transparent;
+	}
+	.fl-item {
+		display: flex; align-items: center; gap: 9px;
+		background: rgba(0,200,255,.03); border: 1px solid rgba(0,200,255,.09);
+		border-radius: var(--rs); padding: 7px 11px;
+	}
+	.fl-icon { font-size: .95rem; flex-shrink: 0; line-height: 1; }
+	.fl-info { flex: 1; min-width: 0; }
+	.fl-rename {
+		background: transparent; border: none;
+		border-bottom: 1px solid transparent;
+		color: var(--t1); font-family: var(--ff-mono); font-size: 10.5px;
+		padding: 1px 3px; outline: none; width: 100%;
+		transition: border-color .15s;
+	}
+	.fl-rename:focus { border-color: var(--blue); }
+	.fl-path { font-family: var(--ff-mono); font-size: 8.5px; color: var(--t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.fl-ext { font-family: var(--ff-mono); font-size: 9px; color: var(--t3); flex-shrink: 0; min-width: 32px; text-align: right; }
+	.fl-rm {
+		background: none; border: none; color: var(--t3); cursor: pointer;
+		padding: 3px; border-radius: 3px; display: flex; align-items: center;
+		transition: color .15s, background .15s; flex-shrink: 0;
+	}
+	.fl-rm:hover { color: var(--red); background: rgba(255,68,85,.1); }
+
+	/* ══ STRATEGY DROPDOWN ══════════════════════ */
+	.strat-wrap { position: relative; }
+	.strat-btn {
+		width: 100%; background: var(--bg-input); border: 1px solid var(--border);
+		border-radius: var(--rs); color: var(--t1); font-family: var(--ff-mono);
+		font-size: 11px; padding: 9px 13px; text-align: left; cursor: pointer;
+		transition: border-color .15s; display: flex; align-items: center;
+		justify-content: space-between; gap: 8px;
+	}
+	.strat-btn:hover { border-color: var(--border-hi); }
+	.strat-menu {
+		position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+		background: rgba(6,6,18,.97); border: 1px solid var(--border-hi);
+		border-radius: var(--rs); z-index: 60; display: none;
+		box-shadow: 0 16px 48px rgba(0,0,0,.75); backdrop-filter: blur(18px); overflow: hidden;
+	}
+	.strat-menu.open { display: block; }
+	.strat-opt {
+		padding: 10px 14px; font-family: var(--ff-mono); font-size: 10.5px;
+		color: var(--t2); cursor: pointer; transition: background .12s, color .12s;
+		border-bottom: 1px solid var(--border);
+	}
+	.strat-opt:last-child { border-bottom: none; }
+	.strat-opt:hover, .strat-opt.sel { background: rgba(0,200,255,.07); color: var(--blue); }
+
+	/* ══ RADIO ══════════════════════════════════ */
+	.radio-grp { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; }
+	.radio-lbl {
+		display: flex; align-items: center; gap: 7px;
+		font-family: var(--ff-mono); font-size: 10.5px; color: var(--t2);
+		cursor: pointer; transition: color .15s;
+	}
+	.radio-lbl:hover { color: var(--t1); }
+	.radio-lbl input[type="radio"] { accent-color: var(--blue); }
+
+	/* ══ KEY STATUS ═════════════════════════════ */
+	.key-stat { font-family: var(--ff-mono); font-size: 9.5px; transition: color .2s; }
+	.key-stat.ok   { color: var(--green); }
+	.key-stat.err  { color: var(--red); }
+	.key-stat.none { color: var(--t3); }
+
+	/* ══ PROGRESS ═══════════════════════════════ */
+	.progress { display: none; flex-direction: column; gap: 6px; margin-top: 12px; }
+	.progress.show { display: flex; }
+	.p-track { width: 100%; height: 3px; background: rgba(255,255,255,.07); border-radius: 3px; overflow: hidden; }
+	.p-fill {
+		height: 100%; background: var(--blue); border-radius: 3px;
+		width: 0%; transition: width .25s ease;
+		box-shadow: 0 0 8px rgba(0,200,255,.55);
+	}
+	.p-label { font-family: var(--ff-mono); font-size: 9.5px; color: var(--t2); }
+
+	/* ══ FSAA DIR PANEL ═════════════════════════ */
+	.dir-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+	.dir-pick-lbl {
+		font-family: var(--ff-mono); font-size: 10px; color: var(--t3);
+		background: var(--bg-input); border: 1px solid var(--border);
+		border-radius: var(--rs); padding: 8px 11px;
+		white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+		transition: color .2s, border-color .2s;
+	}
+	.dir-pick-lbl.set { color: var(--t1); border-color: rgba(0,200,255,.2); }
+
+	/* ══ ACTION BUTTONS (full width) ════════════ */
+	.act-btn {
+		width: 100%; padding: 13px; font-size: 12px;
+		border-radius: 9px; letter-spacing: .07em;
+	}
+
+	/* ══ TOAST ══════════════════════════════════ */
+	.toast {
+		position: fixed; bottom: 28px; left: 50%;
+		transform: translateX(-50%) translateY(18px);
+		background: rgba(5,5,18,.97); border: 1px solid var(--border);
+		border-radius: 10px; padding: 11px 22px;
+		font-family: var(--ff-mono); font-size: 12px; color: var(--t1);
+		backdrop-filter: blur(14px); box-shadow: 0 8px 40px rgba(0,0,0,.65);
+		opacity: 0; pointer-events: none;
+		transition: opacity .25s, transform .25s;
+		z-index: 9999; white-space: nowrap;
+		display: flex; align-items: center; gap: 10px; max-width: 90vw;
+	}
+	.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+	.toast.success { border-color: rgba(0,255,136,.3); }
+	.toast.error   { border-color: rgba(255,68,85,.35); }
+	.toast-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+	.toast.success .toast-dot { background: var(--green); box-shadow: 0 0 7px var(--green); }
+	.toast.error   .toast-dot { background: var(--red);   box-shadow: 0 0 7px var(--red); }
+
+	/* ══ SECTION DIVIDER ════════════════════════ */
+	.sec-div { display: flex; align-items: center; gap: 18px; margin: 58px 0 30px; }
+	.sec-line { flex: 1; height: 1px; background: var(--border); }
+	.sec-lbl {
+		font-family: var(--ff-mono); font-size: 9px;
+		letter-spacing: .22em; text-transform: uppercase;
+		color: var(--t3); white-space: nowrap;
+	}
+
+	/* ══ DOCS ═══════════════════════════════════ */
+	.docs-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 14px;
+	}
+	@media (max-width: 960px) { .docs-grid { grid-template-columns: 1fr 1fr; } }
+	@media (max-width: 600px) { .docs-grid { grid-template-columns: 1fr; } }
+	.doc-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r); padding: 24px; box-shadow: var(--shadow); }
+	.doc-eye { font-family: var(--ff-mono); font-size: 8.5px; letter-spacing: .2em; text-transform: uppercase; color: var(--blue); margin-bottom: 8px; }
+	.doc-t { font-family: var(--ff-head); font-size: 13px; font-weight: 700; letter-spacing: .03em; color: var(--t1); margin-bottom: 12px; }
+	.doc-b { font-size: 13px; color: var(--t2); line-height: 1.72; }
+	.formula {
+		display: block; font-family: var(--ff-mono); font-size: 11px; color: var(--cyan);
+		margin: 10px 0; padding: 8px 13px;
+		background: rgba(0,255,224,.04); border-left: 2px solid rgba(0,255,224,.4);
+		border-radius: 0 4px 4px 0; overflow-x: auto; white-space: nowrap;
+	}
+	.ci { font-family: var(--ff-mono); font-size: 11px; color: var(--cyan); background: rgba(0,255,224,.04); padding: 1px 5px; border-radius: 3px; }
+	.layer-stack { display: flex; flex-direction: column; gap: 7px; margin-top: 10px; }
+	.layer-item { display: flex; align-items: flex-start; gap: 9px; padding: 9px 11px; background: rgba(255,255,255,.025); border: 1px solid var(--border); border-radius: var(--rs); }
+	.lt { font-family: var(--ff-head); font-size: 8.5px; font-weight: 700; padding: 2px 8px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; margin-top: 1px; }
+	.lt-blue   { color: var(--blue);  background: rgba(0,200,255,.1);  border: 1px solid rgba(0,200,255,.22); }
+	.lt-green  { color: var(--green); background: rgba(0,255,136,.08); border: 1px solid rgba(0,255,136,.2); }
+	.lt-purple { color: #c4b5fd; background: rgba(124,58,237,.1); border: 1px solid rgba(124,58,237,.2); }
+	.layer-text { font-family: var(--ff-mono); font-size: 10px; color: var(--t2); line-height: 1.5; }
+
+	/* ══ SCROLLBARS ═════════════════════════════ */
+	::-webkit-scrollbar { width: 5px; height: 5px; }
+	::-webkit-scrollbar-track { background: transparent; }
+	::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 4px; }
+	::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.16); }
+	</style>
 </head>
-<body class="text-gray-100 min-h-screen flex items-center justify-center p-4 font-sans">
-    <!-- Global Header Container -->
-    <div id="header" class="fixed top-0 left-0 w-full z-50"></div>
+<body>
 
-    <div class="bg-gray-900/80 backdrop-blur-md p-8 rounded-2xl shadow-[0_0_30px_rgba(34,211,238,0.15)] w-full max-w-3xl border border-cyan-500/30 mt-16">
-        <h1 class="text-3xl font-bold mb-2 text-cyan-400 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-            SEP Encryptor
-        </h1>
-        <p class="text-gray-400 mb-8 text-sm">Secure multi-file encryption using a 1024-byte, base-256 stream key.</p>
+<div id="header"></div>
 
-        <!-- File Input Section -->
-        <div class="mb-6">
-            <label class="block text-sm font-semibold mb-2 text-cyan-200">1. Select Input File(s)</label>
-            <input type="file" id="fileInput" multiple class="block w-full text-sm text-cyan-100 
-                file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border file:border-cyan-400 
-                file:text-sm file:font-semibold file:bg-cyan-900/30 file:text-cyan-400 
-                hover:file:bg-cyan-400/20 hover:file:shadow-[0_0_15px_rgba(34,211,238,0.4)] file:transition-all cursor-pointer bg-gray-900/50 rounded-lg p-2 border border-cyan-500/30 transition-colors">
-            
-            <!-- Dynamic File Renaming List -->
-            <div id="fileListContainer" class="hidden mt-4 bg-gray-900/40 p-3 rounded-lg border border-cyan-500/20">
-                <label class="block text-xs font-semibold mb-2 text-cyan-400">Rename Files (Optional):</label>
-                <div id="fileList" class="space-y-2 max-h-32 overflow-y-auto pr-2 custom-scrollbar"></div>
-            </div>
-        </div>
+<div class="page">
 
-        <!-- Strategy Section -->
-        <div class="mb-6 bg-gray-900/40 p-4 rounded-lg border border-cyan-500/30">
-            <label class="block text-sm font-semibold mb-3 text-cyan-200">2. Encryption Strategy</label>
-            <div class="relative w-full" id="strategyDropdown">
-                <button type="button" id="dropdownBtn" class="w-full bg-cyan-900/20 border border-cyan-500/30 rounded-lg px-3 py-3 text-sm text-cyan-100 flex justify-between items-center focus:outline-none focus:border-cyan-400 transition-colors">
-                    <span id="dropdownSelectedText">Double Layer: SEP + AES (Requires Password & Key)</span>
-                    <svg class="w-4 h-4 text-cyan-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                </button>
-                <div id="dropdownMenu" class="hidden absolute z-10 w-full mt-1 bg-gray-900/95 backdrop-blur border border-cyan-500/30 rounded-lg shadow-xl overflow-hidden">
-                    <div class="p-1 space-y-1">
-                        <div class="dropdown-option cursor-pointer px-3 py-2 text-sm text-cyan-100 hover:bg-cyan-900/60 rounded transition-colors" data-value="both">Double Layer: SEP + AES (Requires Password & Key)</div>
-                        <div class="dropdown-option cursor-pointer px-3 py-2 text-sm text-cyan-100 hover:bg-cyan-900/60 rounded transition-colors" data-value="both_pwd">Double Layer: SEP + AES (Requires Password Only)</div>
-                        <div class="dropdown-option cursor-pointer px-3 py-2 text-sm text-cyan-100 hover:bg-cyan-900/60 rounded transition-colors" data-value="sep_key">SEP Layer Only (Requires Key File)</div>
-                        <div class="dropdown-option cursor-pointer px-3 py-2 text-sm text-cyan-100 hover:bg-cyan-900/60 rounded transition-colors" data-value="sep_pwd">SEP Layer Only (Requires Password)</div>
-                        <div class="dropdown-option cursor-pointer px-3 py-2 text-sm text-cyan-100 hover:bg-cyan-900/60 rounded transition-colors" data-value="aes_pwd">AES Layer Only (Requires Password)</div>
-                    </div>
-                </div>
-            </div>
-        </div>
+	<!-- ═══════════════ HERO ═══════════════════ -->
+	<header class="hero">
+		<div>
+			<div class="hero-eyebrow">Projects / SEP Encryptor</div>
+			<h1 class="hero-title">SEP<br>Encryptor</h1>
+			<p class="hero-sub">Multi-file and directory encryption powered by a 1024-byte XOR stream key with optional AES-256-GCM double-layer protection. Every operation runs entirely in your browser — no data ever leaves your device.</p>
+			<div class="hero-pills">
+				<span class="pill pill-blue">XOR Stream Cipher</span>
+				<span class="pill pill-cyan">AES-256-GCM</span>
+				<span class="pill pill-green">PBKDF2 · 100k Rounds</span>
+				<span class="pill pill-blue">WebCrypto API</span>
+				<span class="pill pill-green">Zero-Server</span>
+				<span class="pill pill-cyan">FSAA Directory Encrypt</span>
+			</div>
+		</div>
+	</header>
 
-        <!-- Credentials Section -->
-        <div class="mb-6" id="credentialsSection">
-            <label class="block text-sm font-semibold mb-2 text-cyan-200">3. Credentials</label>
-            
-            <div id="keyFileBlock" class="mb-4">
-                <label class="block text-xs font-semibold mb-2 text-cyan-400">Key File (.sep)</label>
-                <input type="file" id="keyFileInput" accept=".sep" class="block w-full text-sm text-cyan-100 
-                    file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border file:border-cyan-400 
-                    file:text-sm file:font-semibold file:bg-cyan-900/30 file:text-cyan-400 
-                    hover:file:bg-cyan-400/20 hover:file:shadow-[0_0_15px_rgba(34,211,238,0.4)] file:transition-all cursor-pointer bg-gray-900/50 rounded-lg p-2 border border-cyan-500/30 transition-colors mb-2">
-                <div class="flex justify-between items-center mt-2">
-                    <span id="keyLengthStatus" class="text-xs text-gray-400">Current Key: Not loaded</span>
-                    <button id="genKeyBtn" class="text-sm border border-cyan-400 bg-cyan-900/30 text-cyan-400 hover:bg-cyan-400/20 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)] px-4 py-2 rounded-lg transition-all shadow-sm font-medium">
-                        Generate & Download Key
-                    </button>
-                </div>
-            </div>
+	<!-- ═══════════════ MAIN GRID ══════════════ -->
+	<div class="main-grid">
 
-            <!-- New Dual Password Settings -->
-            <div id="dualPasswordSettings" class="hidden mb-4 border-b border-cyan-500/20 pb-4">
-                <span class="text-xs text-cyan-400 block mb-2">Password Setup:</span>
-                <div class="flex flex-col sm:flex-row gap-4 text-sm text-cyan-100">
-                    <label class="flex items-center gap-2 cursor-pointer group">
-                        <input type="radio" name="pwdMode" value="same" checked class="accent-cyan-500 w-4 h-4"> 
-                        <span class="group-hover:text-cyan-300 transition-colors">Use same password</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer group">
-                        <input type="radio" name="pwdMode" value="different" class="accent-cyan-500 w-4 h-4"> 
-                        <span class="group-hover:text-cyan-300 transition-colors">Use different passwords</span>
-                    </label>
-                </div>
-            </div>
+		<!-- ── LEFT: FILES ───────────────────── -->
+		<div class="col">
 
-            <div id="passwordBlock" class="hidden">
-                <label id="pwd1Label" class="block text-xs font-semibold mb-2 text-cyan-400">Password</label>
-                <input type="password" id="passwordInput" placeholder="Enter secure password..." class="w-full bg-cyan-900/20 border border-cyan-500/30 rounded-lg px-3 py-2 text-sm text-cyan-100 focus:outline-none focus:border-cyan-400 transition-colors mb-3">
-                
-                <div id="password2Block" class="hidden">
-                    <label class="block text-xs font-semibold mb-2 text-cyan-400">AES Layer Password</label>
-                    <input type="password" id="passwordInput2" placeholder="Enter AES password..." class="w-full bg-cyan-900/20 border border-cyan-500/30 rounded-lg px-3 py-2 text-sm text-cyan-100 focus:outline-none focus:border-cyan-400 transition-colors">
-                </div>
-            </div>
-        </div>
+			<!-- Files Card -->
+			<div class="card">
+				<div class="card-head">
+					<span class="card-title">Input Files</span>
+					<span class="card-tag" id="fileCountTag">No files selected</span>
+				</div>
+				<div class="card-body">
 
-        <!-- Action Buttons -->
-        <div class="flex gap-4 mb-6">
-            <button id="encryptBtn" class="flex-1 border-2 border-cyan-400 bg-cyan-900/30 text-cyan-400 hover:bg-cyan-400/20 hover:shadow-[0_0_20px_rgba(34,211,238,0.5)] font-bold py-3 px-4 rounded-xl transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed">
-                Encrypt
-            </button>
-            <button id="decryptBtn" class="flex-1 border-2 border-cyan-400 bg-cyan-900/30 text-cyan-400 hover:bg-cyan-400/20 hover:shadow-[0_0_20px_rgba(34,211,238,0.5)] font-bold py-3 px-4 rounded-xl transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed">
-                Decrypt
-            </button>
-        </div>
-    </div>
+					<!-- Dropzone -->
+					<div class="dropzone" id="dropzone">
+						<input type="file" class="dz-input" id="dzInput" multiple>
+						<div class="dz-icon">🗂️</div>
+						<div class="dz-text">Drop files or folders here, or click to browse</div>
+						<div class="dz-hint">All file types · Multiple files at once</div>
+					</div>
 
-    <!-- Message Modal/Toast -->
-    <div id="toast" class="fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-xl transform transition-transform duration-300 translate-y-20 opacity-0 z-50">
-        <span id="toastMessage">Error message</span>
-    </div>
+					<!-- Controls -->
+					<div class="btn-row" style="margin-top:12px">
+						<button class="btn btn-muted" id="btnAddFiles">
+							<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+							Add Files
+						</button>
+						<input type="file" class="fi-hidden" id="addFilesInput" multiple>
 
-    <script type="module">
-        import { cubicGradient } from 'https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js';
-        import { encryptFile, decryptFile, encryptSEP, decryptSEP, encryptAES, decryptAES } from 'https://proelectriccoder.github.io/Projects/SEP/sep-crypto.js';
+						<button class="btn btn-muted" id="btnAddFolder">
+							<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v8.25m19.5 0v.75a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25v-.75"/></svg>
+							Add Folder
+						</button>
+						<input type="file" class="fi-hidden" id="addFolderInput" webkitdirectory multiple>
 
-        // Apply ProElectricCoder's signature cubic gradient to the background
-        document.body.style.background = cubicGradient({
-            direction: 'to bottom right',
-            start: '#050510', 
-            end: '#003344',   
-            steps: 20,
-            power: 3
-        });
+						<button class="btn btn-danger" id="btnClear" style="margin-left:auto">
+							<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+							Clear
+						</button>
+					</div>
 
-        // Security Warning (Self-XSS Prevention)
-        console.log("%cSTOP!", "color: #ef4444; font-family: sans-serif; font-size: 4rem; font-weight: bold; text-shadow: 2px 2px 0px #000;");
-        console.log("%cThis is a browser feature intended for developers.\nIf someone told you to copy and paste something here, it is a scam and will give them access to steal your 1024-byte SEP encryption key and decrypted files!", "color: #f3f4f6; font-family: sans-serif; font-size: 1.25rem; font-weight: bold; background: #1f2937; padding: 10px; border-radius: 5px;");
+					<!-- File list -->
+					<div class="fl-wrap" id="flWrap">
+						<div class="fl-meta" id="flMeta"></div>
+						<div class="fl-list" id="flList"></div>
+					</div>
+				</div>
+			</div>
 
-        // DOM Elements
-        const fileInput = document.getElementById('fileInput');
-        
-        const dropdownBtn = document.getElementById('dropdownBtn');
-        const dropdownMenu = document.getElementById('dropdownMenu');
-        const dropdownSelectedText = document.getElementById('dropdownSelectedText');
-        const dualPasswordSettings = document.getElementById('dualPasswordSettings');
-        const pwd1Label = document.getElementById('pwd1Label');
-        const password2Block = document.getElementById('password2Block');
-        const passwordInput2 = document.getElementById('passwordInput2');
+			<!-- FSAA Directory Card -->
+			<div class="card" id="fsaaCard">
+				<div class="card-head">
+					<span class="card-title">Encrypt Directory to Disk</span>
+					<span class="card-tag" style="color:var(--cyan)">FSAA · Native I/O</span>
+				</div>
+				<div class="card-body">
+					<p style="font-family:var(--ff-mono);font-size:10.5px;color:var(--t2);margin-bottom:16px;line-height:1.65">
+						Uses the <span class="ci">File System Access API</span> to read a folder directly from disk, encrypt every file inside with the current strategy, and write the results to a second folder — no browser download dialogs. Folder structure is fully preserved.
+					</p>
 
-        const keyFileBlock = document.getElementById('keyFileBlock');
-        const passwordBlock = document.getElementById('passwordBlock');
-        const keyFileInput = document.getElementById('keyFileInput');
-        const keyLengthStatus = document.getElementById('keyLengthStatus');
-        const genKeyBtn = document.getElementById('genKeyBtn');
-        const passwordInput = document.getElementById('passwordInput');
-        const encryptBtn = document.getElementById('encryptBtn');
-        const decryptBtn = document.getElementById('decryptBtn');
-        const toast = document.getElementById('toast');
-        const toastMessage = document.getElementById('toastMessage');
-        const fileListContainer = document.getElementById('fileListContainer');
-        const fileList = document.getElementById('fileList');
+					<div class="dir-grid">
+						<div>
+							<div class="form-label" style="margin-bottom:6px">Source Folder</div>
+							<div class="dir-pick-lbl" id="srcDirLbl">not selected</div>
+						</div>
+						<div>
+							<div class="form-label" style="margin-bottom:6px">Output Folder</div>
+							<div class="dir-pick-lbl" id="outDirLbl">not selected</div>
+						</div>
+					</div>
 
-        // Constants
-        const REQUIRED_KEY_LENGTH = 1024;
+					<div class="btn-row" style="margin-bottom:0">
+						<button class="btn btn-muted" id="btnPickSrc">
+							<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v8.25m19.5 0v.75a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25v-.75"/></svg>
+							Source
+						</button>
+						<div class="strat-wrap" id="outBtnWrapper" style="cursor:not-allowed;" title="Select source folder first">
+							<button class="btn btn-muted" id="btnPickOut" disabled style="pointer-events:none;">
+								<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+								Output ▼
+							</button>
+							<div class="strat-menu" id="outMenu" style="min-width: 220px; bottom: 100%; top: auto; margin-bottom: 4px;">
+								<div class="strat-opt" id="optPickOut">Choose Output Folder...</div>
+								<div class="strat-opt" id="optReplaceOut">Replace in Source Folder</div>
+							</div>
+						</div>
+						<button class="btn btn-primary" id="btnEncDir" disabled>
+							<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></svg>
+							Encrypt Dir
+						</button>
+						<button class="btn btn-muted" id="btnDecDir" disabled>
+							<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 0 0-4.5-4.5 4.5 4.5 0 0 0-4.5 4.5v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></svg>
+							Decrypt Dir
+						</button>
+					</div>
 
-        // State
-        let currentKeyBytes = null;
-        let selectedFiles = [];
-        let currentStrategy = 'both';
+					<div class="progress" id="dirProgress">
+						<div class="p-track"><div class="p-fill" id="dirFill"></div></div>
+						<div class="p-label" id="dirLabel"></div>
+					</div>
 
-        // Custom Dropdown Logic
-        dropdownBtn.addEventListener('click', () => {
-            dropdownMenu.classList.toggle('hidden');
-        });
+					<div id="fsaaUnsupported" style="display:none;margin-top:12px;font-family:var(--ff-mono);font-size:9.5px;color:var(--red)">
+						⚠ File System Access API is not supported in this browser. Use a Chromium browser such as Google Chrome or Microsoft Edge
+					</div>
+				</div>
+			</div>
 
-        document.addEventListener('click', (e) => {
-            if (!dropdownBtn.contains(e.target) && !dropdownMenu.contains(e.target)) {
-                dropdownMenu.classList.add('hidden');
-            }
-        });
+		</div><!-- /left col -->
 
-        document.querySelectorAll('.dropdown-option').forEach(option => {
-            option.addEventListener('click', (e) => {
-                currentStrategy = e.target.dataset.value;
-                dropdownSelectedText.textContent = e.target.textContent;
-                dropdownMenu.classList.add('hidden');
-                updateStrategyUI();
-            });
-        });
+		<!-- ── RIGHT: SETTINGS + ACTIONS ────── -->
+		<div class="col">
 
-        // Password Mode Toggle Logic
-        document.querySelectorAll('input[name="pwdMode"]').forEach(radio => {
-            radio.addEventListener('change', updateStrategyUI);
-        });
+			<!-- Strategy Card -->
+			<div class="card">
+				<div class="card-head">
+					<span class="card-title">Encryption Strategy</span>
+				</div>
+				<div class="card-body">
+					<div class="form-grp">
+						<div class="form-label">Strategy</div>
+						<div class="strat-wrap" id="stratWrap">
+							<button class="strat-btn" id="stratBtn">
+								<span id="stratBtnTxt">Double Layer: SEP + AES (Password Only)</span>
+								<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="12" height="12" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+							</button>
+							<div class="strat-menu" id="stratMenu">
+								<div class="strat-opt" data-value="both">Double Layer: SEP + AES (Key + Password)</div>
+								<div class="strat-opt sel" data-value="both_pwd">Double Layer: SEP + AES (Password Only)</div>
+								<div class="strat-opt" data-value="sep_key">SEP Only (Key File)</div>
+								<div class="strat-opt" data-value="sep_pwd">SEP Only (Password)</div>
+								<div class="strat-opt" data-value="aes_pwd">AES-256-GCM Only (Password)</div>
+							</div>
+						</div>
+					</div>
+					<div id="dualPwdRow" style="display:none" class="form-grp">
+						<div class="form-label">Password Mode</div>
+						<div class="radio-grp">
+							<label class="radio-lbl"><input type="radio" name="pwdMode" value="same" checked> Same for both layers</label>
+							<label class="radio-lbl"><input type="radio" name="pwdMode" value="different"> Different per layer</label>
+						</div>
+					</div>
+				</div>
+			</div>
 
-        // Strategy UI Toggle
-        function updateStrategyUI() {
-            const val = currentStrategy;
-            const pwdMode = document.querySelector('input[name="pwdMode"]:checked').value;
-            
-            // Reset visibility
-            keyFileBlock.style.display = 'none';
-            passwordBlock.style.display = 'none';
-            dualPasswordSettings.style.display = 'none';
-            password2Block.style.display = 'none';
-            pwd1Label.textContent = "Password";
+			<!-- Credentials Card -->
+			<div class="card">
+				<div class="card-head">
+					<span class="card-title">Credentials</span>
+				</div>
+				<div class="card-body">
 
-            if (val === 'sep_key') {
-                keyFileBlock.style.display = 'block';
-            } else if (val === 'sep_pwd' || val === 'aes_pwd') {
-                passwordBlock.style.display = 'block';
-            } else if (val === 'both') {
-                keyFileBlock.style.display = 'block';
-                passwordBlock.style.display = 'block';
-            } else if (val === 'both_pwd') {
-                passwordBlock.style.display = 'block';
-                dualPasswordSettings.style.display = 'block';
-                if (pwdMode === 'different') {
-                    pwd1Label.textContent = "SEP Layer Password";
-                    password2Block.style.display = 'block';
-                }
-            }
-        }
-        updateStrategyUI();
+					<!-- Key File Block -->
+					<div class="form-grp" id="keyBlock">
+						<div class="form-label">
+							Key File
+							<span class="form-hint">· .sep · 1024 bytes of entropy</span>
+						</div>
+						<div class="btn-row" style="margin-bottom:10px">
+							<label class="btn btn-muted" for="keyFileInput" style="cursor:pointer">
+								<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75"/></svg>
+								Load Key
+							</label>
+							<input type="file" class="fi-hidden" id="keyFileInput" accept=".sep">
+							<button class="btn btn-ghost" id="genKeyBtn">
+								<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z"/></svg>
+								Generate Key
+							</button>
+						</div>
+						<div class="key-stat none" id="keyStatus">No key loaded</div>
+					</div>
 
-        // Utilities
-        function showToast(message, isError = true) {
-            toastMessage.textContent = message;
-            toast.className = `fixed bottom-4 right-4 text-white px-6 py-3 rounded-lg shadow-xl transform transition-all duration-300 z-50 ${isError ? 'bg-red-500' : 'bg-green-500'}`;
-            toast.style.transform = 'translateY(0)';
-            toast.style.opacity = '1';
-            setTimeout(() => {
-                toast.style.transform = 'translateY(20px)';
-                toast.style.opacity = '0';
-            }, 3000);
-        }
+					<!-- Password Block -->
+					<div id="pwdBlock" style="display:none">
+						<div class="form-grp">
+							<div class="form-label" id="pwd1Lbl">Password</div>
+							<input type="password" class="input-txt" id="pwdInput" placeholder="Enter secure password…">
+						</div>
+						<div id="pwd2Block" style="display:none" class="form-grp">
+							<div class="form-label">AES Layer Password</div>
+							<input type="password" class="input-txt" id="pwdInput2" placeholder="Enter AES layer password…">
+						</div>
+					</div>
 
-        async function readFileAsUint8Array(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = e => resolve(new Uint8Array(e.target.result));
-                reader.onerror = reject;
-                reader.readAsArrayBuffer(file);
-            });
-        }
+				</div>
+			</div>
 
-        // Key encoding/decoding: Packs 2 bytes into 1 UTF-16 character
-        function generateUTF16KeyBlob(bytes) {
-            const buffer = new ArrayBuffer(bytes.length + 2);
-            const view = new DataView(buffer);
-            view.setUint16(0, 0xFEFF, true);
-            for (let i = 0; i < bytes.length; i += 2) {
-                const charCode = (bytes[i] << 8) | (bytes[i + 1] || 0);
-                view.setUint16(2 + i, charCode, true);
-            }
-            return new Blob([buffer], { type: 'text/plain;charset=UTF-16LE' });
-        }
+			<!-- Actions Card -->
+			<div class="card">
+				<div class="card-head">
+					<span class="card-title">Actions</span>
+					<span class="card-tag">processes files in list above</span>
+				</div>
+				<div class="card-body">
+					<div class="btn-dual" style="margin-bottom:0">
+						<button class="btn btn-primary act-btn" id="encryptBtn">
+							<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></svg>
+							Encrypt
+						</button>
+						<button class="btn btn-muted act-btn" id="decryptBtn">
+							<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 0 0-4.5-4.5 4.5 4.5 0 0 0-4.5 4.5v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></svg>
+							Decrypt
+						</button>
+					</div>
+					<div class="progress" id="mainProgress">
+						<div class="p-track"><div class="p-fill" id="mainFill"></div></div>
+						<div class="p-label" id="mainLabel"></div>
+					</div>
+				</div>
+			</div>
 
-        function parseUTF16KeyBuffer(buffer) {
-            const view = new DataView(buffer);
-            let startIndex = 0;
-            if (buffer.byteLength >= 2 && view.getUint16(0, true) === 0xFEFF) {
-                startIndex = 2;
-            }
-            const bytes = new Uint8Array(REQUIRED_KEY_LENGTH);
-            let byteIdx = 0;
-            for (let i = startIndex; i < buffer.byteLength && byteIdx < REQUIRED_KEY_LENGTH; i += 2) {
-                const charCode = view.getUint16(i, true);
-                bytes[byteIdx++] = (charCode >> 8) & 0xFF;
-                bytes[byteIdx++] = charCode & 0xFF;
-            }
-            return bytes;
-        }
+		</div><!-- /right col -->
+	</div><!-- /main-grid -->
 
-        function updateKeyStatus(bytes) {
-            currentKeyBytes = bytes;
-            if (!bytes) {
-                keyLengthStatus.textContent = "Current Key: Not loaded";
-                keyLengthStatus.className = "text-xs text-gray-500";
-            } else if (bytes.length !== REQUIRED_KEY_LENGTH) {
-                keyLengthStatus.textContent = `Invalid Key: ${bytes.length} bytes`;
-                keyLengthStatus.className = "text-xs text-red-400";
-            } else {
-                keyLengthStatus.textContent = `Current Key: Loaded (1024 bytes)`;
-                keyLengthStatus.className = "text-xs text-green-400";
-            }
-        }
 
-        // Event Listeners for Key
-        if (keyFileInput) {
-            keyFileInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (!file) return updateKeyStatus(null);
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    try {
-                        const bytes = parseUTF16KeyBuffer(event.target.result);
-                        updateKeyStatus(bytes);
-                    } catch (err) {
-                        showToast("Failed to parse key file.");
-                    }
-                };
-                reader.readAsArrayBuffer(file);
-            });
-        }
+	<!-- ═══════════════ DOCUMENTATION ═════════ -->
+	<div class="sec-div">
+		<div class="sec-line"></div>
+		<span class="sec-lbl">Encryption Documentation</span>
+		<div class="sec-line"></div>
+	</div>
 
-        if (genKeyBtn) {
-            genKeyBtn.addEventListener('click', () => {
-                const keyBytes = new Uint8Array(REQUIRED_KEY_LENGTH);
-                crypto.getRandomValues(keyBytes);
-                updateKeyStatus(keyBytes);
-                const blob = generateUTF16KeyBlob(keyBytes);
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'key.sep';
-                a.click();
-                URL.revokeObjectURL(url);
-                showToast("1024-byte key packed to UTF-16 and downloaded.", false);
-            });
-        }
+	<div class="docs-grid">
 
-        // Event Listener for Multiple Files
-        fileInput.addEventListener('change', (e) => {
-            const files = Array.from(e.target.files);
-            fileList.innerHTML = '';
-            selectedFiles = [];
+		<div class="doc-card">
+			<div class="doc-eye">01 · Overview</div>
+			<div class="doc-t">SEP1 Container</div>
+			<div class="doc-b">
+				Before any encryption, the file is packed into the SEP1 binary container. This attaches lightweight metadata — the original file extension and a format version byte — alongside the data so both can be recovered automatically on decryption without any user input.
+				<code class="formula">[SEP1][ver][extLen][ext bytes][gzip(data)]</code>
+				The 4-byte magic header allows the decryptor to verify the format. Data is also gzip-compressed at this stage, reducing payload size and increasing byte entropy before the XOR pass.
+			</div>
+		</div>
 
-            if (files.length === 0) {
-                fileListContainer.classList.add('hidden');
-                return;
-            }
+		<div class="doc-card">
+			<div class="doc-eye">02 · Layer 1</div>
+			<div class="doc-t">XOR Stream Cipher</div>
+			<div class="doc-b">
+				The SEP layer XOR-encrypts the packed payload against a 1024-byte key. With a key file, the key is raw cryptographic randomness from <span class="ci">crypto.getRandomValues()</span>. With a password, the key is derived via stretch-and-repeat over a per-file 16-byte random salt:
+				<code class="formula">key[i] = (passBytes ‖ salt)[i mod len]</code>
+				The salt is prepended to the ciphertext so every encryption is unique. The 1024-byte key cycle length significantly weakens frequency analysis against short files.
+			</div>
+		</div>
 
-            fileListContainer.classList.remove('hidden');
-            files.forEach((file, index) => {
-                const lastDot = file.name.lastIndexOf('.');
-                const baseName = lastDot !== -1 && lastDot !== 0 ? file.name.substring(0, lastDot) : file.name;
-                const ext = lastDot !== -1 && lastDot !== 0 ? file.name.substring(lastDot) : '';
-                
-                const id = `file_${index}`;
-                selectedFiles.push({ file, id, ext });
+		<div class="doc-card">
+			<div class="doc-eye">03 · Layer 2</div>
+			<div class="doc-t">AES-256-GCM</div>
+			<div class="doc-b">
+				The optional second layer wraps the SEP output in NIST-standard authenticated encryption. The password is hardened through PBKDF2-HMAC-SHA256 at 100,000 iterations:
+				<code class="formula">key = PBKDF2(pwd, salt₁₆B, 100000, SHA-256)</code>
+				A 12-byte IV is generated per-file. AES-GCM appends a 128-bit authentication tag — any bit-flip in the ciphertext causes decryption to fail entirely, providing tamper detection. Output layout: <span class="ci">[16B salt][12B IV][ciphertext + 16B tag]</span>.
+			</div>
+		</div>
 
-                const item = document.createElement('div');
-                item.className = 'flex items-center gap-2 text-sm';
-                item.innerHTML = `
-                    <span class="text-gray-400 w-4 text-right">${index + 1}.</span>
-                    <input type="text" id="input_${id}" value="${baseName}" class="flex-1 bg-cyan-900/20 border border-cyan-500/30 rounded px-2 py-1 text-cyan-100 focus:outline-none focus:border-cyan-400 transition-colors">
-                    <span class="text-gray-500 w-12 truncate">${ext}</span>
-                `;
-                fileList.appendChild(item);
-            });
-        });
+		<div class="doc-card">
+			<div class="doc-eye">04 · Strategies</div>
+			<div class="doc-t">Strategy Guide</div>
+			<div class="doc-b">
+				<div class="layer-stack">
+					<div class="layer-item">
+						<span class="lt lt-blue">SEP+AES Key</span>
+						<span class="layer-text">Strongest. Key file = physical second factor. Both key and password required to decrypt.</span>
+					</div>
+					<div class="layer-item">
+						<span class="lt lt-blue">SEP+AES Pwd</span>
+						<span class="layer-text">Double-layer from a password. Two separate derive operations increase brute-force cost.</span>
+					</div>
+					<div class="layer-item">
+						<span class="lt lt-green">SEP Only</span>
+						<span class="layer-text">Fast XOR cipher. Good for very large files where AES compute overhead matters.</span>
+					</div>
+					<div class="layer-item">
+						<span class="lt lt-purple">AES Only</span>
+						<span class="layer-text">Standard AES-256-GCM only. Extension is not recovered on decrypt; best for interoperability.</span>
+					</div>
+				</div>
+			</div>
+		</div>
 
-        // Provide Download Function
-        function triggerDownload(data, filename, type = 'application/octet-stream') {
-            const blob = data instanceof Blob ? data : new Blob([data], { type });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
-        }
+		<div class="doc-card">
+			<div class="doc-eye">05 · Security</div>
+			<div class="doc-t">Properties &amp; Caveats</div>
+			<div class="doc-b">
+				All operations use the browser's <span class="ci">WebCrypto</span> API — no keys or plaintext are ever transmitted. The key file stores 8192 bits of <span class="ci">getRandomValues()</span> entropy. XOR with a random key file provides information-theoretic security proportional to key-length/data-length. XOR with a password-derived key is weaker — use Double Layer for high-sensitivity data. AES-GCM provides IND-CCA2 security. The Self-XSS warning in DevTools is intentional.
+			</div>
+		</div>
 
-        // Handle Encryption
-        encryptBtn.addEventListener('click', async () => {
-            if (selectedFiles.length === 0) return showToast("Select input file(s) first.");
-            
-            let keyString = "";
-            if (currentKeyBytes) {
-                for (let i = 0; i < currentKeyBytes.length; i++) keyString += String.fromCharCode(currentKeyBytes[i]);
-            }
-            const password = passwordInput.value;
-            const pwd2 = passwordInput2.value;
-            const strategy = currentStrategy;
-            
-            showToast("Processing encryption...", false);
-            encryptBtn.disabled = true;
+		<div class="doc-card">
+			<div class="doc-eye">06 · Key Format</div>
+			<div class="doc-t">Key File Encoding</div>
+			<div class="doc-b">
+				Raw 1024 random bytes are packed into a UTF-16LE text file with a BOM header (<span class="ci">0xFEFF</span>). Two bytes of entropy are combined into one UTF-16 character code to maximise density in a plain-text container:
+				<code class="formula">char = (byte₁ &lt;&lt; 8) | byte₂</code>
+				On load, the BOM is stripped and character codes are re-expanded to the original byte pairs. The <span class="ci">.sep</span> extension is just a label — the format is a standard UTF-16LE text file.
+			</div>
+		</div>
 
-            try {
-                async function processFileBytes(data, ext) {
-                    if (strategy === 'sep_key') {
-                        if (!keyString) throw new Error("Key file is required.");
-                        return encryptSEP(data, ext, btoa(keyString));
-                    } else if (strategy === 'sep_pwd') {
-                        if (!password) throw new Error("Password is required.");
-                        return encryptSEP(data, ext, password);
-                    } else if (strategy === 'aes_pwd') {
-                        if (!password) throw new Error("Password is required.");
-                        return await encryptAES(data, password);
-                    } else if (strategy === 'both') {
-                        if (!password || !keyString) throw new Error("Both password and key file are required.");
-                        return await encryptFile(data, ext, password + btoa(keyString));
-                    } else if (strategy === 'both_pwd') {
-                        const pwdMode = document.querySelector('input[name="pwdMode"]:checked').value;
-                        if (pwdMode === 'same') {
-                            if (!password) throw new Error("Password is required.");
-                            return await encryptFile(data, ext, password);
-                        } else {
-                            if (!password || !pwd2) throw new Error("Both SEP and AES passwords are required.");
-                            const sepEncrypted = encryptSEP(data, ext, password);
-                            return await encryptAES(sepEncrypted, pwd2);
-                        }
-                    }
-                }
+	</div><!-- /docs-grid -->
 
-                // Encrypt each file individually
-                for (const item of selectedFiles) {
-                    const newBaseName = document.getElementById(`input_${item.id}`).value;
-                    const data = await readFileAsUint8Array(item.file);
-                    const resultBytes = await processFileBytes(data, item.ext);
-                    
-                    // Include extension in filename if AES is used, since AES standalone strips it
-                    const encName = strategy === 'aes_pwd' ? `${newBaseName}${item.ext}.enc` : `${newBaseName}.enc`;
-                    triggerDownload(resultBytes, encName);
-                    
-                    // Slight delay to handle browser simultaneous download restrictions
-                    await new Promise(r => setTimeout(r, 100));
-                }
-                
-                showToast("Files encrypted successfully!", false);
-            } catch (error) {
-                showToast("Encryption error: " + error.message);
-            } finally {
-                encryptBtn.disabled = false;
-            }
-        });
+</div><!-- /page -->
 
-        // Handle Decryption
-        decryptBtn.addEventListener('click', async () => {
-            if (selectedFiles.length === 0) return showToast("Select input file(s) first.");
-            
-            let keyString = "";
-            if (currentKeyBytes) {
-                for (let i = 0; i < currentKeyBytes.length; i++) keyString += String.fromCharCode(currentKeyBytes[i]);
-            }
-            const password = passwordInput.value;
-            const pwd2 = passwordInput2.value;
-            const strategy = currentStrategy;
-            
-            showToast("Processing decryption...", false);
-            decryptBtn.disabled = true;
+<!-- Toast -->
+<div class="toast" id="toast">
+	<div class="toast-dot"></div>
+	<span id="toastMsg"></span>
+</div>
 
-            try {
-                async function reverseFileBytes(data) {
-                    if (strategy === 'sep_key') {
-                        if (!keyString) throw new Error("Key file is required.");
-                        return decryptSEP(data, btoa(keyString));
-                    } else if (strategy === 'sep_pwd') {
-                        if (!password) throw new Error("Password is required.");
-                        return decryptSEP(data, password);
-                    } else if (strategy === 'aes_pwd') {
-                        if (!password) throw new Error("Password is required.");
-                        const raw = await decryptAES(data, password);
-                        return { data: raw, ext: "" };
-                    } else if (strategy === 'both') {
-                        if (!password || !keyString) throw new Error("Both password and key file are required.");
-                        return await decryptFile(data, password + btoa(keyString));
-                    } else if (strategy === 'both_pwd') {
-                        const pwdMode = document.querySelector('input[name="pwdMode"]:checked').value;
-                        if (pwdMode === 'same') {
-                            if (!password) throw new Error("Password is required.");
-                            return await decryptFile(data, password);
-                        } else {
-                            if (!password || !pwd2) throw new Error("Both SEP and AES passwords are required.");
-                            const aesDecrypted = await decryptAES(data, pwd2);
-                            return decryptSEP(aesDecrypted, password);
-                        }
-                    }
-                }
+<script type="module">
+import { cubicGradient } from 'https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js';
+import { encryptFile, decryptFile, encryptSEP, decryptSEP, encryptAES, decryptAES } from 'https://proelectriccoder.github.io/Projects/SEP/sep-crypto.js';
 
-                for (const item of selectedFiles) {
-                    const currentFileName = item.file.name;
-                    const data = await readFileAsUint8Array(item.file);
+// Background
+document.body.style.background = cubicGradient({ direction: 'to bottom right', start: '#050510', end: '#003344', steps: 20, power: 3 });
 
-                    if (currentFileName.endsWith('.enc')) {
-                        const unpacked = await reverseFileBytes(data);
-                        
-                        const customBaseName = document.getElementById(`input_${item.id}`).value;
-                        let finalName = customBaseName;
-                        if (finalName.endsWith('.enc')) finalName = finalName.replace(/\.enc$/i, "");
-                        
-                        let outName = '';
-                        if (strategy === 'aes_pwd' && finalName.includes('.')) {
-                            // Assume the custom base name has the original extension if preserved
-                            outName = finalName;
-                        } else {
-                            outName = finalName + unpacked.ext;
-                        }
-                        
-                        triggerDownload(unpacked.data, outName);
-                        
-                        // Slight delay to handle browser simultaneous download restrictions
-                        await new Promise(r => setTimeout(r, 100));
-                    }
-                }
+// Self-XSS warning
+console.log('%cSTOP!', 'color:#ef4444;font-size:4rem;font-weight:bold;font-family:sans-serif');
+console.log('%cIf someone told you to paste something here, it is a scam that steals your encryption keys and files.', 'color:#f3f4f6;font-size:1rem;background:#1f2937;padding:10px;border-radius:5px;font-family:sans-serif');
 
-                showToast("Files decrypted successfully!", false);
-            } catch (error) {
-                showToast("Decryption error: " + error.message);
-            } finally {
-                decryptBtn.disabled = false;
-            }
-        });
-    </script>
+// ── Constants ───────────────────────────────────────────────────────────
+const KEY_LEN = 1024;
+
+// ── State ───────────────────────────────────────────────────────────────
+let files    = [];   // { id, file, ext, baseName, path }
+let idCtr    = 0;
+let keyBytes = null;
+let strategy = 'both_pwd';
+let srcDir   = null;
+let outDir   = null;
+
+// ── Toast ───────────────────────────────────────────────────────────────
+let toastTmr;
+function showToast(msg, type = 'success') {
+	const el = document.getElementById('toast');
+	el.className = `toast ${type}`;
+	document.getElementById('toastMsg').textContent = msg;
+	el.classList.add('show');
+	clearTimeout(toastTmr);
+	toastTmr = setTimeout(() => el.classList.remove('show'), 3800);
+}
+
+// ── Progress ────────────────────────────────────────────────────────────
+function setProgress(prefix, pct, label) {
+	const wrap = document.getElementById(prefix + 'Progress');
+	document.getElementById(prefix + 'Fill').style.width = pct + '%';
+	document.getElementById(prefix + 'Label').textContent = label;
+	wrap.classList.add('show');
+	if (pct >= 100) setTimeout(() => wrap.classList.remove('show'), 2000);
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────
+function fmtBytes(n) {
+	if (n < 1024) return n + ' B';
+	if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+	return (n / 1048576).toFixed(1) + ' MB';
+}
+function fileIcon(ext) {
+	const e = (ext || '').toLowerCase();
+	if (['.jpg','.jpeg','.png','.gif','.webp','.svg','.bmp','.ico'].includes(e)) return '🖼️';
+	if (['.pdf','.doc','.docx','.txt','.md','.rtf'].includes(e)) return '📄';
+	if (['.js','.ts','.html','.css','.py','.java','.cpp','.c','.json','.xml','.sh'].includes(e)) return '💻';
+	if (['.zip','.rar','.tar','.gz','.7z'].includes(e)) return '🗜️';
+	if (['.mp4','.mkv','.avi','.mov','.webm'].includes(e)) return '🎬';
+	if (['.mp3','.wav','.flac','.ogg','.aac'].includes(e)) return '🎵';
+	if (e === '.sep') return '🔑';
+	if (e === '.enc') return '🔒';
+	return '📎';
+}
+function download(data, name) {
+	const url = URL.createObjectURL(new Blob([data], { type: 'application/octet-stream' }));
+	const a = Object.assign(document.createElement('a'), { href: url, download: name });
+	document.body.appendChild(a); a.click(); document.body.removeChild(a);
+	setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+const getKeyStr = () => keyBytes ? Array.from(keyBytes, b => String.fromCharCode(b)).join('') : '';
+
+// ── File Management ─────────────────────────────────────────────────────
+function addFiles(rawFiles) {
+	rawFiles.forEach(file => {
+		const id  = 'f' + (++idCtr);
+		const dot = file.name.lastIndexOf('.');
+		const ext  = dot > 0 ? file.name.slice(dot)  : '';
+		const base = dot > 0 ? file.name.slice(0, dot) : file.name;
+		const path = file.webkitRelativePath || file.name;
+		files.push({ id, file, ext, baseName: base, path });
+	});
+	renderFiles();
+}
+
+// ── Render Files ────────────────────────────────────────────────────────
+function renderFiles() {
+	const list = document.getElementById('flList');
+	const wrap = document.getElementById('flWrap');
+	const tag  = document.getElementById('fileCountTag');
+	const meta = document.getElementById('flMeta');
+
+	tag.textContent = files.length ? `${files.length} file${files.length !== 1 ? 's' : ''}` : 'No files selected';
+	if (!files.length) { wrap.style.display = 'none'; return; }
+
+	const total = files.reduce((s, f) => s + f.file.size, 0);
+	meta.textContent = `${files.length} file${files.length !== 1 ? 's' : ''} · ${fmtBytes(total)}`;
+	wrap.style.display = 'block';
+
+	list.innerHTML = '';
+	files.forEach(item => {
+		const div = document.createElement('div');
+		div.className = 'fl-item';
+		div.innerHTML = `
+			<span class="fl-icon">${fileIcon(item.ext)}</span>
+			<div class="fl-info">
+				<input class="fl-rename" value="${item.baseName.replace(/"/g,'&quot;')}" title="Rename">
+				<div class="fl-path" title="${item.path}">${item.path}</div>
+			</div>
+			<span class="fl-ext">${item.ext || '—'}</span>
+			<button class="fl-rm" title="Remove">
+				<svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+			</button>`;
+		div.querySelector('.fl-rename').addEventListener('change', e => {
+			const f = files.find(x => x.id === item.id);
+			if (f) f.baseName = e.target.value;
+		});
+		div.querySelector('.fl-rm').addEventListener('click', () => {
+			files = files.filter(f => f.id !== item.id);
+			renderFiles();
+		});
+		list.appendChild(div);
+	});
+}
+
+// ── File Input Events ───────────────────────────────────────────────────
+document.getElementById('dzInput').addEventListener('change', e => {
+	addFiles(Array.from(e.target.files)); e.target.value = '';
+});
+document.getElementById('btnAddFiles').addEventListener('click', () =>
+	document.getElementById('addFilesInput').click());
+document.getElementById('addFilesInput').addEventListener('change', e => {
+	addFiles(Array.from(e.target.files)); e.target.value = '';
+});
+document.getElementById('btnAddFolder').addEventListener('click', () =>
+	document.getElementById('addFolderInput').click());
+document.getElementById('addFolderInput').addEventListener('change', e => {
+	addFiles(Array.from(e.target.files)); e.target.value = '';
+});
+document.getElementById('btnClear').addEventListener('click', () => { files = []; renderFiles(); });
+
+// Drag and drop
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => {
+	e.preventDefault(); dz.classList.remove('over');
+	addFiles(Array.from(e.dataTransfer.files));
+});
+
+// ── Strategy UI ─────────────────────────────────────────────────────────
+document.getElementById('stratBtn').addEventListener('click', e => {
+	e.stopPropagation();
+	document.getElementById('stratMenu').classList.toggle('open');
+});
+document.addEventListener('click', () => document.getElementById('stratMenu').classList.remove('open'));
+document.querySelectorAll('#stratMenu .strat-opt').forEach(opt => {
+	opt.addEventListener('click', e => {
+		strategy = e.target.dataset.value;
+		document.getElementById('stratBtnTxt').textContent = e.target.textContent;
+		document.querySelectorAll('#stratMenu .strat-opt').forEach(o => o.classList.remove('sel'));
+		e.target.classList.add('sel');
+		document.getElementById('stratMenu').classList.remove('open');
+		updateCredUI();
+	});
+});
+document.querySelectorAll('input[name="pwdMode"]').forEach(r => r.addEventListener('change', updateCredUI));
+
+function updateCredUI() {
+	const v = strategy;
+	const mode = document.querySelector('input[name="pwdMode"]:checked').value;
+	const keyBlk  = document.getElementById('keyBlock');
+	const pwdBlk  = document.getElementById('pwdBlock');
+	const dualRow = document.getElementById('dualPwdRow');
+	const pwd2    = document.getElementById('pwd2Block');
+	const pwd1Lbl = document.getElementById('pwd1Lbl');
+
+	keyBlk.style.display  = 'none';
+	pwdBlk.style.display  = 'none';
+	dualRow.style.display = 'none';
+	pwd2.style.display    = 'none';
+	pwd1Lbl.textContent   = 'Password';
+
+	if      (v === 'sep_key')  { keyBlk.style.display = ''; }
+	else if (v === 'sep_pwd' || v === 'aes_pwd') { pwdBlk.style.display = ''; }
+	else if (v === 'both')     { keyBlk.style.display = ''; pwdBlk.style.display = ''; }
+	else if (v === 'both_pwd') {
+		pwdBlk.style.display  = '';
+		dualRow.style.display = '';
+		if (mode === 'different') { pwd1Lbl.textContent = 'SEP Password'; pwd2.style.display = ''; }
+	}
+}
+updateCredUI();
+
+// ── Key Handling ────────────────────────────────────────────────────────
+function encodeKeyUTF16(bytes) {
+	const buf = new ArrayBuffer(bytes.length + 2);
+	const view = new DataView(buf);
+	view.setUint16(0, 0xFEFF, true);
+	for (let i = 0; i < bytes.length; i += 2)
+		view.setUint16(2 + i, (bytes[i] << 8) | (bytes[i + 1] || 0), true);
+	return new Blob([buf], { type: 'text/plain;charset=UTF-16LE' });
+}
+function decodeKeyUTF16(buf) {
+	const view = new DataView(buf);
+	let s = 0;
+	if (buf.byteLength >= 2 && view.getUint16(0, true) === 0xFEFF) s = 2;
+	const out = new Uint8Array(KEY_LEN);
+	let idx = 0;
+	for (let i = s; i < buf.byteLength && idx < KEY_LEN; i += 2) {
+		const code = view.getUint16(i, true);
+		out[idx++] = (code >> 8) & 0xFF;
+		out[idx++] = code & 0xFF;
+	}
+	return out;
+}
+function setKeyStatus(bytes) {
+	keyBytes = bytes;
+	const el = document.getElementById('keyStatus');
+	if      (!bytes)                    { el.textContent = 'No key loaded';          el.className = 'key-stat none'; }
+	else if (bytes.length !== KEY_LEN)  { el.textContent = `Invalid: ${bytes.length} bytes`; el.className = 'key-stat err'; }
+	else                                { el.textContent = '✓ 1024-byte key loaded'; el.className = 'key-stat ok';  }
+}
+
+document.getElementById('keyFileInput').addEventListener('change', e => {
+	const file = e.target.files[0];
+	if (!file) return setKeyStatus(null);
+	const r = new FileReader();
+	r.onload = ev => { try { setKeyStatus(decodeKeyUTF16(ev.target.result)); } catch { showToast('Failed to parse key file', 'error'); } };
+	r.readAsArrayBuffer(file);
+});
+document.getElementById('genKeyBtn').addEventListener('click', () => {
+	const bytes = crypto.getRandomValues(new Uint8Array(KEY_LEN));
+	setKeyStatus(bytes);
+	const url = URL.createObjectURL(encodeKeyUTF16(bytes));
+	Object.assign(document.createElement('a'), { href: url, download: 'key.sep' }).click();
+	URL.revokeObjectURL(url);
+	showToast('Key generated & downloaded', 'success');
+});
+
+// ── Crypto Core ─────────────────────────────────────────────────────────
+async function doEncrypt(data, ext) {
+	const ks  = getKeyStr();
+	const pwd = document.getElementById('pwdInput').value;
+	const pw2 = document.getElementById('pwdInput2').value;
+	const mode = document.querySelector('input[name="pwdMode"]:checked').value;
+	switch (strategy) {
+		case 'sep_key':  if (!ks)        throw new Error('Key file required');                 return await encryptSEP(data, ext, btoa(ks));
+		case 'sep_pwd':  if (!pwd)       throw new Error('Password required');                 return await encryptSEP(data, ext, pwd);
+		case 'aes_pwd':  if (!pwd)       throw new Error('Password required');                 return await encryptAES(data, pwd);
+		case 'both':     if (!pwd || !ks) throw new Error('Key file and password required');   return await encryptFile(data, ext, pwd + btoa(ks));
+		case 'both_pwd':
+			if (mode === 'same')      { if (!pwd)       throw new Error('Password required');          return await encryptFile(data, ext, pwd); }
+			else                      { if (!pwd || !pw2) throw new Error('Both passwords required');  return await encryptAES(await encryptSEP(data, ext, pwd), pw2); }
+	}
+}
+async function doDecrypt(data) {
+	const ks  = getKeyStr();
+	const pwd = document.getElementById('pwdInput').value;
+	const pw2 = document.getElementById('pwdInput2').value;
+	const mode = document.querySelector('input[name="pwdMode"]:checked').value;
+	switch (strategy) {
+		case 'sep_key':  if (!ks)        throw new Error('Key file required');                 return await decryptSEP(data, btoa(ks));
+		case 'sep_pwd':  if (!pwd)       throw new Error('Password required');                 return await decryptSEP(data, pwd);
+		case 'aes_pwd':  if (!pwd)       throw new Error('Password required');                 return { data: await decryptAES(data, pwd), ext: '' };
+		case 'both':     if (!pwd || !ks) throw new Error('Key file and password required');   return await decryptFile(data, pwd + btoa(ks));
+		case 'both_pwd':
+			if (mode === 'same')      { if (!pwd)       throw new Error('Password required');          return await decryptFile(data, pwd); }
+			else                      { if (!pwd || !pw2) throw new Error('Both passwords required');  return await decryptSEP(await decryptAES(data, pw2), pwd); }
+	}
+}
+
+// ── Main Encrypt / Decrypt ──────────────────────────────────────────────
+async function runFiles(isDecrypt) {
+	if (!files.length) { showToast('Select files first', 'error'); return; }
+	const encBtn = document.getElementById('encryptBtn');
+	const decBtn = document.getElementById('decryptBtn');
+	encBtn.disabled = decBtn.disabled = true;
+	try {
+		for (let i = 0; i < files.length; i++) {
+			const item = files[i];
+			setProgress('main', Math.round(i / files.length * 100),
+				`${isDecrypt ? 'Decrypting' : 'Encrypting'} ${i + 1}/${files.length}: ${item.file.name}`);
+			const data = new Uint8Array(await item.file.arrayBuffer());
+			if (isDecrypt) {
+				if (!item.file.name.endsWith('.enc')) continue;
+				const res = await doDecrypt(data);
+				let name = item.baseName.replace(/\.enc$/i, '');
+				if (strategy !== 'aes_pwd') name += res.ext;
+				download(res.data, name);
+			} else {
+				const res = await doEncrypt(data, item.ext);
+				const name = strategy === 'aes_pwd' ? `${item.baseName}${item.ext}.enc` : `${item.baseName}.enc`;
+				download(res, name);
+			}
+			await new Promise(r => setTimeout(r, 80));
+		}
+		setProgress('main', 100, 'Done!');
+		showToast(`${files.length} file${files.length !== 1 ? 's' : ''} ${isDecrypt ? 'decrypted' : 'encrypted'}`, 'success');
+	} catch (e) {
+		showToast(e.message, 'error');
+		document.getElementById('mainProgress').classList.remove('show');
+	}
+	encBtn.disabled = decBtn.disabled = false;
+}
+document.getElementById('encryptBtn').addEventListener('click', () => runFiles(false));
+document.getElementById('decryptBtn').addEventListener('click', () => runFiles(true));
+
+// ── FSAA Directory ──────────────────────────────────────────────────────
+const fsaaOk = 'showDirectoryPicker' in window;
+if (!fsaaOk) {
+	document.getElementById('btnPickSrc').disabled = true;
+	document.getElementById('btnPickOut').disabled = true;
+	document.getElementById('fsaaUnsupported').style.display = 'block';
+}
+
+function updateDirBtns() {
+	const ready = !!(srcDir && outDir);
+	document.getElementById('btnEncDir').disabled = !ready;
+	document.getElementById('btnDecDir').disabled = !ready;
+
+	const outWrap = document.getElementById('outBtnWrapper');
+	const outBtn = document.getElementById('btnPickOut');
+	if (srcDir) {
+		outWrap.title = "";
+		outWrap.style.cursor = "pointer";
+		outBtn.disabled = false;
+		outBtn.style.pointerEvents = "auto";
+	} else {
+		outWrap.title = "Select source folder first";
+		outWrap.style.cursor = "not-allowed";
+		outBtn.disabled = true;
+		outBtn.style.pointerEvents = "none";
+	}
+}
+
+document.getElementById('btnPickSrc').addEventListener('click', async () => {
+	if (!fsaaOk) return;
+	try {
+		srcDir = await window.showDirectoryPicker({ mode: 'read' });
+		const el = document.getElementById('srcDirLbl');
+		el.textContent = srcDir.name; el.classList.add('set'); 
+		
+		// Reset output if source changes
+		outDir = null;
+		const outEl = document.getElementById('outDirLbl');
+		outEl.textContent = 'not selected'; outEl.classList.remove('set');
+		
+		updateDirBtns();
+	} catch (e) { if (e.name !== 'AbortError') showToast(e.message, 'error'); }
+});
+
+document.getElementById('btnPickOut').addEventListener('click', e => {
+	e.stopPropagation();
+	if (srcDir) document.getElementById('outMenu').classList.toggle('open');
+});
+document.addEventListener('click', () => {
+	const m = document.getElementById('outMenu');
+	if (m) m.classList.remove('open');
+});
+
+document.getElementById('optPickOut').addEventListener('click', async () => {
+	if (!fsaaOk || !srcDir) return;
+	try {
+		outDir = await window.showDirectoryPicker({ mode: 'readwrite' });
+		const el = document.getElementById('outDirLbl');
+		el.textContent = outDir.name; el.classList.add('set'); updateDirBtns();
+	} catch (e) { if (e.name !== 'AbortError') showToast(e.message, 'error'); }
+});
+
+document.getElementById('optReplaceOut').addEventListener('click', async () => {
+	if (!fsaaOk || !srcDir) return;
+	try {
+		if (await srcDir.requestPermission({ mode: 'readwrite' }) === 'granted') {
+			outDir = srcDir;
+			const el = document.getElementById('outDirLbl');
+			el.textContent = srcDir.name + " (Replacing)"; el.classList.add('set'); updateDirBtns();
+		} else {
+			showToast("Write permission denied", "error");
+		}
+	} catch (e) { showToast(e.message, 'error'); }
+});
+
+async function walkDir(handle, prefix) {
+	const result = [];
+	for await (const [name, h] of handle) {
+		const p = prefix ? `${prefix}/${name}` : name;
+		if (h.kind === 'file') result.push({ handle: h, path: p });
+		else result.push(...await walkDir(h, p));
+	}
+	return result;
+}
+
+async function writeToDisk(dirHandle, filePath, blob) {
+	const parts = filePath.split('/');
+	const filename = parts.pop();
+	let cur = dirHandle;
+	for (const part of parts)
+		if (part) cur = await cur.getDirectoryHandle(part, { create: true });
+	const fh = await cur.getFileHandle(filename, { create: true });
+	const wr = await fh.createWritable();
+	await wr.write(blob); await wr.close();
+}
+
+async function processDirectory(isDecrypt) {
+	if (!srcDir || !outDir) return;
+	document.getElementById('btnEncDir').disabled = true;
+	document.getElementById('btnDecDir').disabled = true;
+	try {
+		const entries = await walkDir(srcDir, '');
+		let done = 0;
+		for (const entry of entries) {
+			const file = await entry.handle.getFile();
+			const verb = isDecrypt ? 'Decrypting' : 'Encrypting';
+			setProgress('dir', Math.round(done / entries.length * 100), `${verb} ${done + 1}/${entries.length}: ${file.name}`);
+			const data = new Uint8Array(await file.arrayBuffer());
+			let outPath, outData;
+			if (isDecrypt) {
+				if (!entry.path.endsWith('.enc')) { done++; continue; }
+				const res = await doDecrypt(data);
+				const base = entry.path.replace(/\.enc$/i, '');
+				outPath = strategy === 'aes_pwd' ? base : base + res.ext;
+				outData = res.data;
+			} else {
+				const dot = file.name.lastIndexOf('.');
+				const ext = dot > 0 ? file.name.slice(dot) : '';
+				const res = await doEncrypt(data, ext);
+				const base = entry.path.replace(/\.[^/.]+$/, '');
+				outPath = (strategy === 'aes_pwd' ? entry.path : base) + '.enc';
+				outData = res;
+			}
+			await writeToDisk(outDir, outPath, new Blob([outData]));
+			done++;
+		}
+		setProgress('dir', 100, `Done — ${done} file${done !== 1 ? 's' : ''} ${isDecrypt ? 'decrypted' : 'encrypted'}`);
+		showToast(`${done} file${done !== 1 ? 's' : ''} written to "${outDir.name}"`, 'success');
+	} catch (e) {
+		showToast(e.message, 'error');
+		document.getElementById('dirProgress').classList.remove('show');
+	}
+	updateDirBtns();
+}
+
+document.getElementById('btnEncDir').addEventListener('click', () => processDirectory(false));
+document.getElementById('btnDecDir').addEventListener('click', () => processDirectory(true));
+</script>
 </body>
 </html>

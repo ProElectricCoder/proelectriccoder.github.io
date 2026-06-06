@@ -1,224 +1,526 @@
 <!DOCTYPE html>
-<html>
-	<head>
-		<title>
-			Home - ProElectricCoder
-		</title>
-		<link rel="icon" href="Favicon.svg">
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>ProElectricCoder</title>
+	<link rel="icon" href="/Favicon.svg">
 
-		<!-- meta preperties -->
-		<meta name="title" content="ProElectricCoder">
-		<meta name="description" content="Homepage">
-		<meta name="author" content="ProElectricCoder"> <!-- Also known as Unknown9856 -->
+	<meta name="title" content="ProElectricCoder">
+	<meta name="description" content="A Scratcher, Scratch Wikian and Web Developer.">
+	<meta name="author" content="ProElectricCoder">
+	<meta property="og:title" content="ProElectricCoder">
+	<meta property="og:description" content="A Scratcher, Scratch Wikian and Web Developer.">
+	<meta property="og:type" content="website">
+	<meta property="og:url" content="https://proelectriccoder.github.io/">
+	<meta property="og:image" content="https://proelectriccoder.github.io/Preview.png">
 
-		<meta property="og:title" content="ProElectricCoder - Home">
-		<meta property="og:description" content="ProElectricCoder">
-		<meta property="og:type" content="website">
-		<meta property="og:url" content="https://proelectriccoder.github.io/">
-		<meta property="og:image" content="https://proelectriccoder.github.io/Preview.png">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
 
-		<script type="module">
-			import { cubicGradient } from 'https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js';
-			document.body.style.background = cubicGradient({
-				direction: 'to left',
-				start: '#000000',
-				end: '#000055',
-				steps: '20'
-			});
-		</script>
-		
-		<style>
-			body {
-				margin: 0;
-				display: flex;
-				flex-direction: column;
-				min-height: 100vh;
-			}
-			@keyframes breathingGlow {
-				0% { box-shadow: 0 0 30px cyan; }
-				50% { box-shadow: 0 0 50px cyan; }
-				100% { box-shadow: 0 0 30px cyan; }
-			}
-			#logo {
-				animation: breathingGlow 5s ease-in-out infinite;
-				border-radius: 50%;
-				padding: 5px;
-				width: 512px;
-				height: 512px;
-			}
-			.normal {
-				font-family: monospace;
-				color: #0ff;
-				font-size: 15px;
-			}
-			#name {
-				font-family: fantasy;
-				color: #fff;
-				font-size: 50px;
-			}
-			.container {
-				flex: 1;
-				display: flex;
-				align-items: center;
-				gap: 40px;
-				margin-left: 80px;
-				height: 100vh;
-				margin-right: 80px;
-			}
+	<link rel="stylesheet" href="/header.css">
+	<script src="/header.js" defer></script>
 
-			.left {
-				flex: 1;
-				display: flex;
-				flex-direction: column;
-				justify-content: center;
-				align-items: flex-start;
-				padding-left: 80px;
-			}
-			.right {
-				flex: 1;
-				display: flex;
-				justify-content: center; 
-				align-items: center; 
-				aspect-ratio: 1/1;
-				max-width: 512px;
-				padding-right: 80px;
-			}
-			.button-container {
-				display: flex;
-				gap: 15px;
-				margin-top: 20px;
-			}
-			.cyan-button {
-				background-color: transparent;
-				border: 2px solid cyan;
-				border-radius: 10px;
-				color: cyan;
-				padding: 10px 20px;
-				font-family: monospace;
-				font-size: 14px;
-				text-decoration: none;
-				cursor: pointer;
-				transition: all 0.3s ease;
-				display: inline-flex;
-				align-items: center;
-				gap: 8px;
-			}
-			.cyan-button:hover {
-				background-color: rgba(0, 255, 255, 0.1);
-				box-shadow: 0 0 15px cyan;
-			}
-			.web-image {
-				height: 16px;
-				width: auto;
-			}
-			.projects-container {
-				margin-top: 40px;
-				color: cyan;
-				font-family: monospace;
-			}
-			.projects-container h2 {
-				margin-bottom: 20px;
-				color: cyan;
-			}
-			.projects-grid {
-				display: grid;
-				grid-template-columns: repeat(3, 1fr);
-				gap: 20px;
-			}
-			.project-card {
-				background: #00111155;
-				padding: 10px;
-				border-radius: 12px;
-				border: 1px solid cyan;
-				transition: 0.3s;
-			}
-			.project-card:hover {
-				transform: translateY(-5px);
-				box-shadow: 0 0 15px cyan;
-			}
-			.card-content{
-				min-height: 120px;
-				padding: 16px;
-				display: flex;
-				flex-direction: column;
-			}
-			.card-content h3 {
-				margin-top: 0px;
-				margin-bottom: 10px;
-			}
-			.card-content p {
-				font-size: 14px;
-				margin-bottom: 15px;
-			}
-			.card-content a {
-				margin-top: auto;
-				text-decoration: none;
-				color: #FFFFFF88;
-				padding: 8px 0px;
-				transition: 0.2s;
-			}
-			.card-content a:hover { color: #FFFFFFFF; }
-		</style>
-		<link rel="stylesheet" href="header.css" />
-	</head>
-	<body>
-		<div id="header"></div>
-		<script src="header.js"></script>
-		<div class="container">
-			<div class="left">
-				<span class="normal">
-					Home
-				</span>
-				<br />
-				<span id="name">
-					ProElectricCoder
-				</span>
-				<br />
-				<span class="normal">
-					A Scratcher, Scratch Wikian and a Programmer
-				</span>
-				<div class="button-container">
-					<a href="https://scratch.mit.edu/users/Unknown9856" target="_blank" class="cyan-button">
-						<img src="https://scratch.mit.edu/favicon.ico" class="web-image">
-						Scratch Profile
-					</a>
-					<a href="https://en.scratch-wiki.info/User:Unknown9856" target="_blank" class="cyan-button">
-						<img src="https://en.scratch-wiki.info/favicon.ico" class="web-image">
-						Scratch Wiki Profile
-					</a>
-					<a href="https://github.com/ProElectricCoder" target="_blank" class="cyan-button">
-						<img src="https://github.githubassets.com/favicons/favicon-dark.svg" class="web-image">
-						GitHub Profile
-					</a>
-				</div>
-				<div class="projects-container">
-					<h2>Featured Projects</h2>
-					<div class="projects-grid">
-						<div class="project-card">
-							<div class="card-content">
-								<h3>HTML Direct Chat App</h3>
-								<p>A realtime chat app using Firebase and WebRTC.</p>
-								<a href="./Projects/Chat/">View Project</a>
-							</div>
-						</div>
-						<div class="project-card">
-							<div class="card-content">
-								<h3>Custom New Tab Page</h3>
-								<p>Custom browser start page with shortcuts.</p>
-								<a href="./Projects/NewTab/">View Project</a>
-							</div>
-						</div>
-						<div class="project-card">
-							<div class="card-content">
-								<h3>Electron - Theme Library</h3>
-								<p>Reusable color themes and cubic gradients</p>
-								<a href="./ElectronCSS/">View Project</a>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-			<img class="right" id="logo" src="Favicon.svg" />
+	<style>
+		*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+		html { scroll-behavior: smooth; }
+
+		:root {
+			--cyan:   #00ffff;
+			--blue:   #3d6eff;
+			--border: rgba(0, 255, 255, 0.12);
+			--card:   rgba(0, 255, 255, 0.03);
+			--card-hi: rgba(0, 255, 255, 0.06);
+			--text:   #e8edf8;
+			--dim:    rgba(232, 237, 248, 0.55);
+			--faint:  rgba(232, 237, 248, 0.25);
+		}
+
+		body {
+			font-family: 'DM Sans', sans-serif;
+			color: var(--text);
+			min-height: 100vh;
+			overflow-x: hidden;
+		}
+
+		/* ── Noise texture overlay ── */
+		body::after {
+			content: '';
+			position: fixed;
+			inset: 0;
+			background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+			opacity: 0.03;
+			pointer-events: none;
+			z-index: 0;
+		}
+
+		/* ── Hero ── */
+		.hero {
+			position: relative;
+			z-index: 1;
+			min-height: 100vh;
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			align-items: center;
+			gap: 60px;
+			max-width: 1200px;
+			margin: 0 auto;
+			padding: 120px 48px 80px;
+		}
+		@media (max-width: 900px) {
+			.hero { grid-template-columns: 1fr; padding: 100px 24px 60px; text-align: center; }
+			.hero-right { display: none; }
+		}
+
+		.hero-eyebrow {
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.7rem;
+			letter-spacing: 0.22em;
+			text-transform: uppercase;
+			color: var(--cyan);
+			margin-bottom: 20px;
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			opacity: 0;
+			animation: fadeUp 0.7s ease 0.1s forwards;
+		}
+		.hero-eyebrow::before {
+			content: '';
+			width: 28px;
+			height: 1px;
+			background: var(--cyan);
+			box-shadow: 0 0 8px var(--cyan);
+		}
+		@media (max-width: 900px) { .hero-eyebrow { justify-content: center; } }
+
+		.hero-name {
+			font-family: 'Syne', sans-serif;
+			font-size: clamp(3rem, 7vw, 5.5rem);
+			font-weight: 900;
+			line-height: 1.0;
+			letter-spacing: -0.03em;
+			margin-bottom: 16px;
+			opacity: 0;
+			animation: fadeUp 0.7s ease 0.2s forwards;
+		}
+		.hero-name span {
+			display: block;
+			background: linear-gradient(135deg, #ffffff 30%, var(--cyan) 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+		}
+
+		.hero-tagline {
+			font-size: 1.05rem;
+			color: var(--dim);
+			font-weight: 300;
+			line-height: 1.7;
+			margin-bottom: 40px;
+			max-width: 440px;
+			opacity: 0;
+			animation: fadeUp 0.7s ease 0.3s forwards;
+		}
+		@media (max-width: 900px) { .hero-tagline { max-width: none; margin: 0 auto 40px; } }
+
+		.hero-links {
+			display: flex;
+			gap: 12px;
+			flex-wrap: wrap;
+			opacity: 0;
+			animation: fadeUp 0.7s ease 0.4s forwards;
+		}
+		@media (max-width: 900px) { .hero-links { justify-content: center; } }
+
+		.link-btn {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			padding: 10px 20px;
+			border: 1px solid var(--border);
+			border-radius: 8px;
+			background: var(--card);
+			color: var(--cyan);
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.78rem;
+			font-weight: 500;
+			letter-spacing: 0.04em;
+			text-decoration: none;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			white-space: nowrap;
+		}
+		.link-btn:hover {
+			background: var(--card-hi);
+			border-color: rgba(0, 255, 255, 0.35);
+			box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
+			transform: translateY(-2px);
+		}
+		.link-btn img { width: 15px; height: 15px; object-fit: contain; }
+
+		/* ── Hero Right: Animated Logo ── */
+		.hero-right {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			opacity: 0;
+			animation: fadeIn 1s ease 0.5s forwards;
+		}
+		.logo-ring {
+			position: relative;
+			width: clamp(240px, 28vw, 380px);
+			height: clamp(240px, 28vw, 380px);
+		}
+		.logo-ring::before {
+			content: '';
+			position: absolute;
+			inset: -12px;
+			border-radius: 50%;
+			border: 1px solid rgba(0, 255, 255, 0.2);
+			animation: spin 12s linear infinite;
+		}
+		.logo-ring::after {
+			content: '';
+			position: absolute;
+			inset: -28px;
+			border-radius: 50%;
+			border: 1px dashed rgba(0, 255, 255, 0.08);
+			animation: spin 20s linear infinite reverse;
+		}
+		.logo-img {
+			width: 100%;
+			height: 100%;
+			border-radius: 50%;
+			object-fit: contain;
+			filter: drop-shadow(0 0 32px rgba(0, 255, 255, 0.3));
+			animation: breathe 5s ease-in-out infinite;
+		}
+
+		/* ── Section wrapper ── */
+		.section {
+			position: relative;
+			z-index: 1;
+			max-width: 1200px;
+			margin: 0 auto;
+			padding: 80px 48px;
+		}
+		@media (max-width: 768px) { .section { padding: 60px 24px; } }
+
+		.section-label {
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.68rem;
+			letter-spacing: 0.22em;
+			text-transform: uppercase;
+			color: var(--cyan);
+			margin-bottom: 14px;
+		}
+		.section-title {
+			font-family: 'Syne', sans-serif;
+			font-size: clamp(1.8rem, 4vw, 2.8rem);
+			font-weight: 800;
+			letter-spacing: -0.025em;
+			line-height: 1.1;
+			margin-bottom: 14px;
+		}
+		.section-sub {
+			font-size: 0.9rem;
+			color: var(--dim);
+			line-height: 1.7;
+			max-width: 480px;
+			margin-bottom: 48px;
+		}
+
+		/* ── Divider ── */
+		.divider {
+			max-width: 1200px;
+			margin: 0 auto;
+			padding: 0 48px;
+			position: relative;
+			z-index: 1;
+		}
+		.divider-line {
+			height: 1px;
+			background: linear-gradient(to right, transparent, var(--border), transparent);
+		}
+
+		/* ── Projects grid ── */
+		.projects-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+			gap: 16px;
+		}
+
+		.project-card {
+			background: var(--card);
+			border: 1px solid var(--border);
+			border-radius: 14px;
+			padding: 28px;
+			text-decoration: none;
+			color: var(--text);
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+			transition: background 0.2s, border-color 0.2s, transform 0.2s;
+		}
+		.project-card:hover {
+			background: var(--card-hi);
+			border-color: rgba(0, 255, 255, 0.28);
+			transform: translateY(-4px);
+			box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+		}
+
+		.card-icon {
+			width: 44px;
+			height: 44px;
+			border-radius: 10px;
+			background: rgba(0, 255, 255, 0.07);
+			border: 1px solid rgba(0, 255, 255, 0.15);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 1.3rem;
+		}
+		.card-title {
+			font-family: 'Syne', sans-serif;
+			font-weight: 700;
+			font-size: 1rem;
+		}
+		.card-desc {
+			font-size: 0.83rem;
+			color: var(--dim);
+			line-height: 1.6;
+			flex: 1;
+		}
+		.card-link {
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.72rem;
+			letter-spacing: 0.08em;
+			color: var(--cyan);
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			margin-top: 4px;
+		}
+		.card-link::after { content: '→'; transition: transform 0.2s; }
+		.project-card:hover .card-link::after { transform: translateX(4px); }
+
+		/* ── Stats strip ── */
+		.stats-strip {
+			display: grid;
+			grid-template-columns: repeat(3, 1fr);
+			gap: 1px;
+			background: var(--border);
+			border: 1px solid var(--border);
+			border-radius: 14px;
+			overflow: hidden;
+			margin-bottom: 80px;
+		}
+		@media (max-width: 600px) { .stats-strip { grid-template-columns: 1fr; } }
+
+		.stat {
+			background: var(--card);
+			padding: 28px 24px;
+			text-align: center;
+		}
+		.stat-val {
+			font-family: 'Syne', sans-serif;
+			font-size: 2.4rem;
+			font-weight: 900;
+			color: var(--cyan);
+			line-height: 1;
+			margin-bottom: 8px;
+		}
+		.stat-label {
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.68rem;
+			letter-spacing: 0.15em;
+			text-transform: uppercase;
+			color: var(--faint);
+		}
+
+		/* ── Footer ── */
+		footer {
+			position: relative;
+			z-index: 1;
+			text-align: center;
+			padding: 40px 24px;
+			border-top: 1px solid var(--border);
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.72rem;
+			color: var(--faint);
+			letter-spacing: 0.08em;
+		}
+
+		/* ── Animations ── */
+		@keyframes fadeUp {
+			from { opacity: 0; transform: translateY(20px); }
+			to   { opacity: 1; transform: translateY(0); }
+		}
+		@keyframes fadeIn {
+			from { opacity: 0; }
+			to   { opacity: 1; }
+		}
+		@keyframes spin {
+			to { transform: rotate(360deg); }
+		}
+		@keyframes breathe {
+			0%, 100% { filter: drop-shadow(0 0 28px rgba(0, 255, 255, 0.25)); }
+			50%       { filter: drop-shadow(0 0 48px rgba(0, 255, 255, 0.45)); }
+		}
+
+		/* ── Scroll reveal ── */
+		.reveal {
+			opacity: 0;
+			transform: translateY(22px);
+			transition: opacity 0.6s ease, transform 0.6s ease;
+		}
+		.reveal.visible { opacity: 1; transform: none; }
+
+		::-webkit-scrollbar { width: 5px; }
+		::-webkit-scrollbar-track { background: transparent; }
+		::-webkit-scrollbar-thumb { background: rgba(0, 255, 255, 0.15); border-radius: 4px; }
+	</style>
+</head>
+<body>
+
+<div id="header"></div>
+
+<!-- ══ HERO ══════════════════════════════════════════════════════ -->
+<section class="hero">
+	<div class="hero-left">
+		<div class="hero-eyebrow">Programmer · Scratcher · Wiki Editor</div>
+		<h1 class="hero-name">
+			<span>ProElectric<br>Coder</span>
+		</h1>
+		<p class="hero-tagline">
+			Building open-source tools, browser extensions, and web experiments.
+			Also known as <strong>Unknown9856</strong> on the Scratch community.
+		</p>
+		<div class="hero-links">
+			<a href="https://scratch.mit.edu/users/Unknown9856" target="_blank" rel="noopener" class="link-btn">
+				<img src="https://scratch.mit.edu/favicon.ico" alt="">
+				Scratch Profile
+			</a>
+			<a href="https://en.scratch-wiki.info/User:Unknown9856" target="_blank" rel="noopener" class="link-btn">
+				<img src="https://en.scratch-wiki.info/favicon.ico" alt="">
+				Scratch Wiki
+			</a>
+			<a href="https://github.com/ProElectricCoder" target="_blank" rel="noopener" class="link-btn">
+				<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+				GitHub
+			</a>
 		</div>
-	</body>
+	</div>
+
+	<div class="hero-right">
+		<div class="logo-ring">
+			<img class="logo-img" src="/Favicon.svg" alt="ProElectricCoder Logo" onerror="this.style.opacity='0'">
+		</div>
+	</div>
+</section>
+
+<!-- ══ DIVIDER ═══ -->
+<div class="divider"><div class="divider-line"></div></div>
+
+<!-- ══ STATS ══════════════════════════════════════════════════════ -->
+<div class="section" style="padding-top:60px; padding-bottom:60px">
+	<div class="stats-strip reveal">
+		<div class="stat">
+			<div class="stat-val">3+</div>
+			<div class="stat-label">Live Projects</div>
+		</div>
+		<div class="stat">
+			<div class="stat-val">MV3</div>
+			<div class="stat-label">Chrome Extension</div>
+		</div>
+		<div class="stat">
+			<div class="stat-val">0</div>
+			<div class="stat-label">Trackers / Ads</div>
+		</div>
+	</div>
+</div>
+
+<!-- ══ PROJECTS ═══════════════════════════════════════════════════ -->
+<div class="divider"><div class="divider-line"></div></div>
+<section class="section" id="projects">
+	<p class="section-label reveal">Portfolio</p>
+	<h2 class="section-title reveal">Featured Projects</h2>
+	<p class="section-sub reveal">Open-source tools built for the web.</p>
+
+	<div class="projects-grid">
+		<a class="project-card reveal" href="/Projects/NewTab/">
+			<div class="card-icon">🌐</div>
+			<div class="card-title">New Tab Extension</div>
+			<div class="card-desc">Custom Chrome new-tab page with a live clock, gradient backgrounds, multi-engine search, and drag-and-drop shortcuts. Supports silent auto-updates via File System Access API.</div>
+			<span class="card-link">View project</span>
+		</a>
+
+		<a class="project-card reveal" href="/Projects/Chat/">
+			<div class="card-icon">💬</div>
+			<div class="card-title">P2P Chat Engine</div>
+			<div class="card-desc">Real-time peer-to-peer chat built on WebRTC data channels with Firebase signaling. Supports direct mode (no sign-in) for completely offline-capable messaging.</div>
+			<span class="card-link">View project</span>
+		</a>
+
+		<a class="project-card reveal" href="/ElectronCSS/">
+			<div class="card-icon">🎨</div>
+			<div class="card-title">ElectronCSS — CubicGradient</div>
+			<div class="card-desc">A power-curve eased CSS gradient generator with automatic stop optimization. Produces minimal linear-gradient() strings with intelligently pruned color stops.</div>
+			<span class="card-link">View project</span>
+		</a>
+
+		<a class="project-card reveal" href="/Projects/SEP/">
+			<div class="card-icon">🔐</div>
+			<div class="card-title">SEP Encryptor</div>
+			<div class="card-desc">Secure multi-file encryption using a 1024-byte base-256 stream key. Supports double-layer SEP + AES-GCM encryption with PBKDF2 key derivation.</div>
+			<span class="card-link">View project</span>
+		</a>
+
+		<a class="project-card reveal" href="/Projects/">
+			<div class="card-icon">📦</div>
+			<div class="card-title">All Projects</div>
+			<div class="card-desc">Browse the full collection of tools, experiments, and libraries built and maintained by ProElectricCoder.</div>
+			<span class="card-link">Browse all</span>
+		</a>
+
+		<a class="project-card reveal" href="/Library/">
+			<div class="card-icon">📚</div>
+			<div class="card-title">Library</div>
+			<div class="card-desc">A collection of reusable scripts, utilities, and code snippets maintained for use across projects.</div>
+			<span class="card-link">View library</span>
+		</a>
+	</div>
+</section>
+
+<!-- ══ FOOTER ════════════════════════════════════════════════════ -->
+<footer>
+	ProElectricCoder · Also known as Unknown9856 · Built with ElectronCSS
+</footer>
+
+<script type="module">
+	import { cubicGradient } from 'https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js';
+
+	document.body.style.background = cubicGradient({
+		direction: 'to bottom right',
+		start: '#000000',
+		end: '#004a6a',
+		steps: 32,
+		power: 2
+	});
+
+	// Scroll reveal
+	const observer = new IntersectionObserver((entries) => {
+		entries.forEach((entry, i) => {
+			if (entry.isIntersecting) {
+				setTimeout(() => entry.target.classList.add('visible'), i * 70);
+				observer.unobserve(entry.target);
+			}
+		});
+	}, { threshold: 0.1 });
+
+	document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
 </html>

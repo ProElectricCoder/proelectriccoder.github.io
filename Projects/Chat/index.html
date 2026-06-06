@@ -1,2532 +1,710 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<!-- “Created with Gemini 3.1 Pro” - ProElectricCoder -->
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>PeerLink - P2P Multi-Chat Messenger - ProElectricCoder</title>
+	<title>P2P Chat Engine — ProElectricCoder</title>
+	<link rel="icon" href="/Favicon.svg">
 
-	<!-- Meta Properties -->
-	<meta name="title" content="PeerLink – Secure P2P Chat">
-	<meta name="description" content="A fast peer-to-peer chat app using WebRTC. Send messages, files, and images directly between devices with no central server.">
-	<meta name="author" content="ProElectricCannon"> <!-- Also known as Unknown9856 -->
-
-	<meta property="og:title" content="PeerLink – Secure P2P Chat">
-	<meta property="og:description" content="Instant peer-to-peer messaging and file sharing powered by WebRTC.">
+	<meta name="description" content="WebRTC + Firebase peer-to-peer chat engine documentation by ProElectricCoder.">
+	<meta name="author" content="ProElectricCoder">
+	<meta property="og:title" content="P2P Chat Engine — ProElectricCoder">
+	<meta property="og:description" content="Real-time peer-to-peer communication engine using WebRTC data channels and Firebase signaling.">
 	<meta property="og:type" content="website">
-	<meta property="og:url" content="https://proelectriccoder.github.io/Projects/Chat/">
-	<meta property="og:image" content="https://proelectriccoder.github.io/Preview.png">
 
-	<link rel="icon" type="image/svg+xml" href="/Favicon.svg">
-	<link rel="stylesheet" href="https://proelectriccoder.github.io/ElectronCSS/ElectronThemes.css">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800;900&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,300&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500&display=swap" rel="stylesheet">
 
-	<script src="https://cdn.tailwindcss.com"></script>
+	<link rel="stylesheet" href="/header.css">
+	<script src="/header.js" defer></script>
+
 	<style>
-		.chat-scroll::-webkit-scrollbar { width: 6px; }
-		.chat-scroll::-webkit-scrollbar-track { background: transparent; }
-		.chat-scroll::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
-		.chat-scroll::-webkit-scrollbar-thumb:hover { background: #4b5563; }
-		
-		/* Bouncy Message Animations */
-		@keyframes popInRight {
-			0% { opacity: 0; transform: scale(0.8) translateY(10px); transform-origin: bottom right; }
-			100% { opacity: 1; transform: scale(1) translateY(0); transform-origin: bottom right; }
-		}
-		@keyframes popInLeft {
-			0% { opacity: 0; transform: scale(0.8) translateY(10px); transform-origin: bottom left; }
-			100% { opacity: 1; transform: scale(1) translateY(0); transform-origin: bottom left; }
-		}
-		@keyframes popInCenter {
-			0% { opacity: 0; transform: scale(0.9) translateY(10px); transform-origin: bottom center; }
-			100% { opacity: 1; transform: scale(1) translateY(0); transform-origin: bottom center; }
-		}
-		.msg-pop-right { animation: popInRight 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-		.msg-pop-left { animation: popInLeft 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-		.msg-pop-center { animation: popInCenter 0.3s ease-out forwards; }
-		
-		.selected-chat { background-color: #1f2937; border-left: 4px solid #06b6d4; }
-		
-		/* Typing Indicator */
-		.typing-dot { animation: typing 1.4s infinite ease-in-out both; }
-		.typing-dot:nth-child(1) { animation-delay: -0.32s; }
-		.typing-dot:nth-child(2) { animation-delay: -0.16s; }
-		@keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+		*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+		html { scroll-behavior: smooth; }
 
-		/* Popout Mode Styles */
-		.popout-mode #sidebar { display: none !important; }
-		.popout-mode #main-chat-area { display: flex !important; width: 100% !important; max-width: 100% !important; }
-		.popout-mode .popout-hide { display: none !important; }
-		
-		/* Text input scrollbar */
-		#chat-input {
-		resize: none;
-		overflow-y: auto;
-		max-height: 240px; 
-		}
-		
-		#chat-input::-webkit-scrollbar {
-			width: 6px;
+		:root {
+			--cyan:       #00ffff;
+			--blue:       #3d6eff;
+			--green:      #00ff99;
+			--yellow:     #ffdd55;
+			--border:     rgba(0, 255, 255, 0.10);
+			--border-hi:  rgba(0, 255, 255, 0.25);
+			--card:       rgba(0, 255, 255, 0.025);
+			--card-hi:    rgba(0, 255, 255, 0.05);
+			--text:       #e8edf8;
+			--dim:        rgba(232, 237, 248, 0.55);
+			--faint:      rgba(232, 237, 248, 0.25);
+			--code-bg:    rgba(0, 0, 0, 0.50);
 		}
 
-		#chat-input::-webkit-scrollbar-track {
-			background: transparent;
+		body {
+			font-family: 'DM Sans', sans-serif;
+			color: var(--text);
+			min-height: 100vh;
+			font-size: 14px;
+			line-height: 1.65;
 		}
 
-		#chat-input::-webkit-scrollbar-thumb {
-			background: #4b5563;
+		body::after {
+			content: '';
+			position: fixed;
+			inset: 0;
+			background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+			opacity: 0.025;
+			pointer-events: none;
+			z-index: 0;
+		}
+
+		/* ── Page layout ── */
+		.page {
+			max-width: 900px;
+			margin: 0 auto;
+			padding: 100px 32px 120px;
+			position: relative;
+			z-index: 1;
+		}
+
+		/* ── Hero ── */
+		.hero {
+			padding: 60px 0 56px;
+			border-bottom: 1px solid var(--border);
+			margin-bottom: 60px;
+		}
+		.hero-eyebrow {
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.68rem;
+			letter-spacing: 0.22em;
+			text-transform: uppercase;
+			color: var(--cyan);
+			margin-bottom: 16px;
+			display: flex;
+			align-items: center;
+			gap: 10px;
+		}
+		.hero-eyebrow::before {
+			content: '';
+			width: 24px;
+			height: 1px;
+			background: var(--cyan);
+			box-shadow: 0 0 6px var(--cyan);
+		}
+		.hero-title {
+			font-family: 'Syne', sans-serif;
+			font-size: clamp(2.4rem, 5vw, 4rem);
+			font-weight: 900;
+			letter-spacing: -0.03em;
+			line-height: 1.05;
+			background: linear-gradient(130deg, #fff 30%, var(--cyan) 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+			margin-bottom: 20px;
+		}
+		.hero-sub {
+			font-size: 1.0rem;
+			color: var(--dim);
+			max-width: 560px;
+			line-height: 1.75;
+			margin-bottom: 32px;
+		}
+
+		/* ── Launch CTA ── */
+		.launch-btn {
+			display: inline-flex;
+			align-items: center;
+			gap: 10px;
+			padding: 14px 28px;
+			background: var(--cyan);
+			color: #000;
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.82rem;
+			font-weight: 700;
+			letter-spacing: 0.06em;
 			border-radius: 10px;
+			text-decoration: none;
+			transition: all 0.2s ease;
+			box-shadow: 0 0 30px rgba(0, 255, 255, 0.25);
+		}
+		.launch-btn:hover {
+			background: #fff;
+			box-shadow: 0 0 40px rgba(0, 255, 255, 0.4);
+			transform: translateY(-2px);
+		}
+		.launch-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+		/* ── Section divider ── */
+		.sec {
+			margin: 56px 0 28px;
+			padding-top: 56px;
+			border-top: 1px solid var(--border);
+		}
+		.sec:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+
+		.sec-label {
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.65rem;
+			letter-spacing: 0.22em;
+			text-transform: uppercase;
+			color: var(--cyan);
+			margin-bottom: 10px;
+		}
+		.sec-title {
+			font-family: 'Syne', sans-serif;
+			font-size: 1.5rem;
+			font-weight: 800;
+			letter-spacing: -0.02em;
+			margin-bottom: 16px;
+		}
+		.sec-body {
+			font-size: 0.88rem;
+			color: var(--dim);
+			line-height: 1.72;
+			margin-bottom: 24px;
+		}
+		.sec-body + .sec-body { margin-top: -12px; }
+
+		/* ── Architecture diagram ── */
+		.arch-diagram {
+			background: var(--code-bg);
+			border: 1px solid var(--border);
+			border-radius: 12px;
+			padding: 28px 24px;
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.78rem;
+			color: var(--dim);
+			line-height: 1.9;
+			overflow-x: auto;
+			margin: 24px 0;
+		}
+		.arch-diagram .hl { color: var(--cyan); }
+		.arch-diagram .g  { color: var(--green); }
+		.arch-diagram .y  { color: var(--yellow); }
+		.arch-diagram .b  { color: var(--blue); }
+
+		/* ── Code blocks ── */
+		pre {
+			background: var(--code-bg);
+			border: 1px solid var(--border);
+			border-radius: 10px;
+			padding: 20px 22px;
+			overflow-x: auto;
+			margin: 16px 0;
+		}
+		code {
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.79rem;
+			line-height: 1.75;
+			color: #c9d1e0;
+		}
+		pre code { color: inherit; }
+		.t-kw   { color: #c792ea; }
+		.t-str  { color: #c3e88d; }
+		.t-fn   { color: #82aaff; }
+		.t-var  { color: #eeffff; }
+		.t-num  { color: #f78c6c; }
+		.t-cmt  { color: #546e7a; font-style: italic; }
+		.t-cls  { color: #ffcb6b; }
+
+		/* ── API table ── */
+		.api-table {
+			width: 100%;
+			border-collapse: collapse;
+			margin: 20px 0;
+			font-size: 0.83rem;
+		}
+		.api-table th {
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.65rem;
+			letter-spacing: 0.15em;
+			text-transform: uppercase;
+			color: var(--faint);
+			text-align: left;
+			padding: 10px 14px;
+			border-bottom: 1px solid var(--border);
+		}
+		.api-table td {
+			padding: 11px 14px;
+			border-bottom: 1px solid rgba(0,255,255,0.05);
+			color: var(--dim);
+			vertical-align: top;
+		}
+		.api-table tr:last-child td { border-bottom: none; }
+		.api-table tr:hover td { background: var(--card); }
+		.api-table .method {
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.79rem;
+			color: var(--cyan);
+			white-space: nowrap;
+		}
+		.api-table .returns {
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.75rem;
+			color: var(--green);
 		}
 
-		#chat-input::-webkit-scrollbar-thumb:hover {
-			background: #6b7280;
+		/* ── Info boxes ── */
+		.note {
+			display: flex;
+			gap: 14px;
+			background: rgba(0,255,255,0.04);
+			border: 1px solid rgba(0,255,255,0.15);
+			border-radius: 10px;
+			padding: 16px 18px;
+			margin: 20px 0;
+			font-size: 0.84rem;
+			color: var(--dim);
+			line-height: 1.65;
 		}
-		
+		.note-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+
+		/* ── Inline code ── */
+		:not(pre) > code {
+			background: rgba(0,255,255,0.08);
+			border: 1px solid rgba(0,255,255,0.15);
+			border-radius: 4px;
+			padding: 1px 6px;
+			font-size: 0.81em;
+			color: var(--cyan);
+		}
+
+		/* ── TOC ── */
+		.toc {
+			background: var(--card);
+			border: 1px solid var(--border);
+			border-radius: 12px;
+			padding: 20px 22px;
+			margin-bottom: 56px;
+		}
+		.toc-title {
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.68rem;
+			letter-spacing: 0.18em;
+			text-transform: uppercase;
+			color: var(--faint);
+			margin-bottom: 12px;
+		}
+		.toc ol { padding-left: 18px; }
+		.toc li { margin: 6px 0; }
+		.toc a {
+			color: var(--dim);
+			text-decoration: none;
+			font-size: 0.85rem;
+			transition: color 0.15s;
+		}
+		.toc a:hover { color: var(--cyan); }
+
+		::-webkit-scrollbar { width: 5px; height: 5px; }
+		::-webkit-scrollbar-track { background: transparent; }
+		::-webkit-scrollbar-thumb { background: rgba(0,255,255,0.15); border-radius: 4px; }
 	</style>
 </head>
-<body class="theme-electron text-gray-100 h-screen overflow-hidden font-sans antialiased flex">
+<body>
 
-	<!-- Left Sidebar: Contacts & Chats -->
-	<div id="sidebar" class="w-full md:w-80 flex flex-col border-r border-gray-700/50 bg-gray-900/60 backdrop-blur-xl h-full flex-shrink-0 shadow-2xl">
-		<!-- Header -->
-		<div class="p-4 border-b border-gray-700/50 flex justify-between items-center bg-transparent">
-			<h1 class="font-bold text-lg text-cyan-400 flex items-center gap-2">
-				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"></path></svg>
-				P2P Chats
-			</h1>
-			<button onclick="openModal()" class="bg-cyan-600 hover:bg-cyan-500 text-white p-2 rounded-full transition shadow-lg" title="New Chat">
-				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-			</button>
-		</div>
-		
-		<!-- Profile (Simplified with Settings) -->
-		<div class="p-3 border-b border-gray-700/50 bg-gray-800/40 flex items-center justify-between gap-3">
-			<div class="flex items-center gap-3 min-w-0">
-				<div id="sidebar-my-avatar" class="w-10 h-10 rounded-full bg-gray-700/50 border border-gray-600 flex items-center justify-center overflow-hidden flex-shrink-0 shadow">
-					<svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-				</div>
-				<div class="min-w-0">
-					<div class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-0.5">My Profile</div>
-					<div id="sidebar-my-name" class="text-sm font-bold text-gray-100 truncate">Anonymous</div>
-				</div>
-			</div>
-			<button onclick="openSettingsModal()" class="text-gray-400 hover:text-cyan-400 p-2 transition rounded-full hover:bg-gray-700/50 flex-shrink-0" title="Settings & Logout">
-				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-			</button>
-		</div>
+<div id="header"></div>
 
-		<!-- Chat List -->
-		<div id="sidebar-chats" class="flex-1 overflow-y-auto chat-scroll p-2 space-y-1">
-			<!-- Populated by JS -->
+<div class="page">
+
+	<!-- ══ HERO ══════════════════════════════════════════════════ -->
+	<div class="hero">
+		<div class="hero-eyebrow">Projects / Chat / engine.js</div>
+		<h1 class="hero-title">P2P Chat Engine</h1>
+		<p class="hero-sub">
+			A reusable real-time communication module built on WebRTC data channels
+			with Firebase Firestore for signaling. Supports text, JSON, and binary
+			data transfer — plus a zero-backend direct mode for fully offline use.
+		</p>
+		<a href="/Projects/Chat/App/" class="launch-btn">
+			<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"/>
+			</svg>
+			Launch Chat App
+		</a>
+	</div>
+
+	<!-- ══ TOC ════════════════════════════════════════════════ -->
+	<div class="toc">
+		<div class="toc-title">Contents</div>
+		<ol>
+			<li><a href="#architecture">Architecture Overview</a></li>
+			<li><a href="#firebase-engine">ChatEngine — Firebase Signaling Mode</a></li>
+			<li><a href="#direct-engine">DirectEngine — No-Backend Direct Mode</a></li>
+			<li><a href="#api">Full API Reference</a></li>
+			<li><a href="#usage">Usage Examples</a></li>
+			<li><a href="#data-types">Data Types</a></li>
+			<li><a href="#firestore">Firestore Schema</a></li>
+		</ol>
+	</div>
+
+	<!-- ══ ARCHITECTURE ══════════════════════════════════════ -->
+	<div class="sec" id="architecture">
+		<div class="sec-label">01 / Overview</div>
+		<h2 class="sec-title">Architecture</h2>
+		<p class="sec-body">
+			The engine splits communication into two layers: <strong>signaling</strong>
+			(coordination via Firebase Firestore) and <strong>data transfer</strong>
+			(via WebRTC RTCDataChannel). Once the peer connection is established,
+			Firebase is no longer involved — all messages travel directly between
+			browsers.
+		</p>
+		<p class="sec-body">
+			A second class, <code>DirectEngine</code>, eliminates Firebase entirely.
+			It produces raw SDP strings you can share by any means (copy/paste, QR,
+			email) and establishes a direct channel with no server infrastructure.
+		</p>
+
+		<div class="arch-diagram">
+			<span class="hl">Firebase Mode (ChatEngine)</span>
+			<br>
+			<br>
+			&nbsp; Peer A (host)                    Peer B (guest)
+			<br>
+			&nbsp; &nbsp;│                                   │
+			&nbsp; &nbsp;│──── createRoom(id) ──────────────▶│
+			&nbsp; &nbsp;│     [writes offer to Firestore]    │
+			&nbsp; &nbsp;│                                   │
+			&nbsp; &nbsp;│◀─── joinRoom(id) ─────────────────│
+			&nbsp; &nbsp;│     [reads offer, writes answer]   │
+			&nbsp; &nbsp;│                                   │
+			&nbsp; &nbsp;│════════ RTCDataChannel ════════════│
+			&nbsp; &nbsp;│         (direct P2P)               │
+			<br>
+			<br>
+			&nbsp; &nbsp;<span class="g">Firestore used only for offer/answer/ICE exchange.</span>
+			&nbsp; &nbsp;<span class="y">All subsequent data flows peer-to-peer via WebRTC.</span>
+			<br>
+			<br>
+			<span class="hl">Direct Mode (DirectEngine)</span>
+			<br>
+			<br>
+			&nbsp; Caller                           Callee
+			&nbsp; &nbsp;│                                   │
+			&nbsp; &nbsp;│─── createOffer() ─────────────────│
+			&nbsp; &nbsp;│    [shows SDP string]              │
+			&nbsp; &nbsp;│                                   │
+			&nbsp; &nbsp;│◀── createAnswerFor(offer) ─────────│
+			&nbsp; &nbsp;│    [shows SDP answer string]        │
+			&nbsp; &nbsp;│                                   │
+			&nbsp; &nbsp;│── setAnswer(answer) ───────────────│
+			&nbsp; &nbsp;│                                   │
+			&nbsp; &nbsp;│════════ RTCDataChannel ════════════│
+			<br>
+			<br>
+			&nbsp; &nbsp;<span class="b">No server required. SDP shared via any channel.</span>
 		</div>
 	</div>
 
-	<!-- Main Chat Area -->
-	<div id="main-chat-area" class="hidden md:flex flex-1 w-full md:w-auto flex-col bg-gray-800/40 backdrop-blur-md relative h-full">
-		
-		<!-- Empty State -->
-		<div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center z-10 bg-transparent">
-			<div class="w-20 h-20 bg-gray-700/60 backdrop-blur-md rounded-full flex items-center justify-center mb-4 shadow-inner">
-				<svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
-			</div>
-			<h2 class="text-xl font-bold text-gray-300">No Chat Selected</h2>
-			<p class="text-gray-500 mt-2">Select a chat from the sidebar or start a new one.</p>
+	<!-- ══ FIREBASE ENGINE ═══════════════════════════════════ -->
+	<div class="sec" id="firebase-engine">
+		<div class="sec-label">02 / Firebase Mode</div>
+		<h2 class="sec-title">ChatEngine</h2>
+		<p class="sec-body">
+			<code>ChatEngine</code> uses Firebase Firestore as a rendezvous server.
+			It handles WebRTC offer/answer negotiation and ICE candidate exchange
+			automatically. Once connected, Firebase listeners are preserved only for
+			detecting new joiners (basic mesh support).
+		</p>
+
+		<div class="note">
+			<span class="note-icon">ℹ️</span>
+			<span>
+				<strong>Prerequisites:</strong> The host page must call
+				<code>firebase.initializeApp(config)</code> and pass
+				<code>firebase.firestore()</code> to <code>engine.init()</code>
+				before calling any room methods.
+			</span>
 		</div>
 
-		<!-- Active Chat Header -->
-		<div id="active-chat-header" class="h-16 border-b border-gray-700/50 flex items-center justify-between px-4 md:px-6 bg-gray-850/50 backdrop-blur-sm hidden z-20 shadow-md">
-			<div class="flex items-center gap-2 md:gap-4 min-w-0">
-				<button class="md:hidden text-gray-400 hover:text-white p-1 -ml-1 flex-shrink-0 popout-hide" onclick="closeMobileChat()">
-					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-				</button>
-				<div class="relative flex-shrink-0" id="header-avatar-wrapper" title="">
-					<div id="header-avatar" class="w-10 h-10 bg-cyan-600 rounded-full flex items-center justify-center font-bold text-white uppercase shadow-md overflow-hidden">G</div>
-					<div id="header-avatar-overlay" class="absolute inset-0 bg-black/60 rounded-full hidden items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm">
-						<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-					</div>
-					<div id="header-status-dot" class="absolute bottom-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-gray-850"></div>
-				</div>
-				<input type="file" id="group-avatar-upload" accept="image/*" class="hidden" onchange="handleGroupAvatarUpload(event)">
-				<div class="min-w-0">
-					<h2 id="header-title" class="font-bold text-gray-100 leading-tight truncate">Room Name</h2>
-					<div class="flex items-center gap-2">
-						<span id="header-status-text" class="text-xs text-red-400 font-medium whitespace-nowrap">Disconnected</span>
-						<span id="header-code" class="text-[10px] bg-gray-700 text-gray-300 px-2 py-0.5 rounded font-mono cursor-pointer hover:bg-gray-600 flex-shrink-0" onclick="copyCurrentRoomCode()" title="Copy Room Code">CODE</span>
-					</div>
-				</div>
-			</div>
-			<div class="flex gap-2 flex-shrink-0 pl-2">
-				<button class="popout-hide bg-gray-700 hover:bg-gray-600 text-gray-200 px-2 md:px-3 py-1.5 rounded-lg text-sm transition hidden md:flex items-center justify-center shadow-sm" onclick="popOutChat()" title="Pop Out in New Window">
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-				</button>
-				<button id="btn-connect" class="bg-green-600 hover:bg-green-500 text-white px-3 md:px-4 py-1.5 rounded-lg text-sm font-medium transition shadow-sm flex items-center gap-1" onclick="connectCurrentRoom()">
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> <span class="hidden sm:inline">Connect</span>
-				</button>
-				<button id="btn-disconnect" class="bg-yellow-600 hover:bg-yellow-500 text-white px-3 md:px-4 py-1.5 rounded-lg text-sm font-medium transition shadow-sm hidden flex items-center gap-1" onclick="disconnectCurrentRoom()">
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414"></path></svg> <span class="hidden sm:inline">Disconnect</span>
-				</button>
-				<button class="bg-red-900 hover:bg-red-800 text-red-200 px-2 md:px-3 py-1.5 rounded-lg text-sm transition" onclick="deleteCurrentRoom()" title="Delete Chat History">
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-				</button>
-			</div>
+		<pre><code><span class="t-kw">import</span> <span class="t-var">{ ChatEngine }</span> <span class="t-kw">from</span> <span class="t-str">'/Projects/Chat/engine.js'</span>;
+
+<span class="t-cmt">// Assumes firebase.initializeApp() already called on this page</span>
+<span class="t-kw">const</span> <span class="t-var">engine</span> = <span class="t-kw">new</span> <span class="t-cls">ChatEngine</span>();
+<span class="t-var">engine</span>.<span class="t-fn">init</span>(firebase.<span class="t-fn">firestore</span>());
+
+<span class="t-cmt">// Register callbacks before joining</span>
+<span class="t-var">engine</span>.<span class="t-fn">onPeerConnected</span>(<span class="t-var">peerId</span> => console.<span class="t-fn">log</span>(<span class="t-str">'peer joined:'</span>, <span class="t-var">peerId</span>));
+<span class="t-var">engine</span>.<span class="t-fn">onPeerDisconnected</span>(<span class="t-var">peerId</span> => console.<span class="t-fn">log</span>(<span class="t-str">'peer left:'</span>, <span class="t-var">peerId</span>));
+<span class="t-var">engine</span>.<span class="t-fn">onMessage</span>((<span class="t-var">data</span>, <span class="t-var">peerId</span>) => console.<span class="t-fn">log</span>(<span class="t-str">'message from'</span>, <span class="t-var">peerId</span>, <span class="t-var">data</span>));
+
+<span class="t-cmt">// Host: create a room</span>
+<span class="t-kw">await</span> <span class="t-var">engine</span>.<span class="t-fn">createRoom</span>(<span class="t-str">'my-room-123'</span>);
+
+<span class="t-cmt">// Guest: join the same room</span>
+<span class="t-kw">await</span> <span class="t-var">engine</span>.<span class="t-fn">joinRoom</span>(<span class="t-str">'my-room-123'</span>);
+
+<span class="t-cmt">// Once onPeerConnected fires, send data</span>
+<span class="t-var">engine</span>.<span class="t-fn">send</span>({ <span class="t-var">type</span>: <span class="t-str">'chat'</span>, <span class="t-var">text</span>: <span class="t-str">'Hello!'</span> });</code></pre>
+	</div>
+
+	<!-- ══ DIRECT ENGINE ══════════════════════════════════════ -->
+	<div class="sec" id="direct-engine">
+		<div class="sec-label">03 / Direct Mode</div>
+		<h2 class="sec-title">DirectEngine</h2>
+		<p class="sec-body">
+			<code>DirectEngine</code> generates SDP strings that you exchange with
+			the remote peer through any channel — paste them in a chat, email them,
+			display them as QR codes. No server, no sign-in, no dependency other
+			than a modern browser.
+		</p>
+
+		<pre><code><span class="t-kw">import</span> <span class="t-var">{ DirectEngine }</span> <span class="t-kw">from</span> <span class="t-str">'/Projects/Chat/engine.js'</span>;
+
+<span class="t-cmt">// ── Caller side ─────────────────────────────────────────</span>
+<span class="t-kw">const</span> <span class="t-var">caller</span> = <span class="t-kw">new</span> <span class="t-cls">DirectEngine</span>();
+<span class="t-var">caller</span>.<span class="t-fn">onMessage</span>(<span class="t-var">data</span> => console.<span class="t-fn">log</span>(<span class="t-str">'received:'</span>, <span class="t-var">data</span>));
+<span class="t-var">caller</span>.<span class="t-fn">onPeerConnected</span>(() => console.<span class="t-fn">log</span>(<span class="t-str">'connected!'</span>));
+
+<span class="t-kw">const</span> <span class="t-var">offerSDP</span> = <span class="t-kw">await</span> <span class="t-var">caller</span>.<span class="t-fn">createOffer</span>();
+<span class="t-cmt">// Display offerSDP to user — they copy/share it to callee</span>
+
+<span class="t-cmt">// After callee sends back their answer SDP:</span>
+<span class="t-kw">await</span> <span class="t-var">caller</span>.<span class="t-fn">setAnswer</span>(<span class="t-var">answerSDP</span>);
+
+<span class="t-cmt">// ── Callee side ─────────────────────────────────────────</span>
+<span class="t-kw">const</span> <span class="t-var">callee</span> = <span class="t-kw">new</span> <span class="t-cls">DirectEngine</span>();
+<span class="t-var">callee</span>.<span class="t-fn">onMessage</span>(<span class="t-var">data</span> => console.<span class="t-fn">log</span>(<span class="t-str">'received:'</span>, <span class="t-var">data</span>));
+
+<span class="t-kw">const</span> <span class="t-var">answerSDP</span> = <span class="t-kw">await</span> <span class="t-var">callee</span>.<span class="t-fn">createAnswerFor</span>(<span class="t-var">offerSDP</span>);
+<span class="t-cmt">// Display answerSDP to user — they share it back to caller</span></code></pre>
+	</div>
+
+	<!-- ══ API REFERENCE ═════════════════════════════════════ -->
+	<div class="sec" id="api">
+		<div class="sec-label">04 / Reference</div>
+		<h2 class="sec-title">API Reference</h2>
+
+		<h3 style="font-family:'Syne',sans-serif; font-size:1rem; margin: 24px 0 12px; color: var(--cyan);">ChatEngine</h3>
+		<table class="api-table">
+			<thead>
+				<tr>
+					<th>Method</th>
+					<th>Returns</th>
+					<th>Description</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td class="method">init(db)</td>
+					<td class="returns">void</td>
+					<td>Inject <code>firebase.firestore()</code> instance. Required before room methods.</td>
+				</tr>
+				<tr>
+					<td class="method">createRoom(roomId)</td>
+					<td class="returns">Promise&lt;string&gt;</td>
+					<td>Create a room as host. Writes offer to Firestore and listens for guests joining.</td>
+				</tr>
+				<tr>
+					<td class="method">joinRoom(roomId)</td>
+					<td class="returns">Promise&lt;void&gt;</td>
+					<td>Join an existing room as guest. Reads host offer, writes answer.</td>
+				</tr>
+				<tr>
+					<td class="method">send(data)</td>
+					<td class="returns">void</td>
+					<td>Broadcast data to all open peer channels. Accepts string, object (JSON-serialised), ArrayBuffer, or Blob.</td>
+				</tr>
+				<tr>
+					<td class="method">onMessage(cb)</td>
+					<td class="returns">void</td>
+					<td>Register handler: <code>cb(data, peerId)</code>. Called for every incoming message.</td>
+				</tr>
+				<tr>
+					<td class="method">onPeerConnected(cb)</td>
+					<td class="returns">void</td>
+					<td>Register handler: <code>cb(peerId)</code>. Called when a data channel opens.</td>
+				</tr>
+				<tr>
+					<td class="method">onPeerDisconnected(cb)</td>
+					<td class="returns">void</td>
+					<td>Register handler: <code>cb(peerId)</code>. Called when a peer disconnects.</td>
+				</tr>
+				<tr>
+					<td class="method">disconnect()</td>
+					<td class="returns">void</td>
+					<td>Close all peer connections and Firestore listeners. Safe to call multiple times.</td>
+				</tr>
+			</tbody>
+		</table>
+
+		<h3 style="font-family:'Syne',sans-serif; font-size:1rem; margin: 32px 0 12px; color: var(--cyan);">DirectEngine</h3>
+		<table class="api-table">
+			<thead>
+				<tr>
+					<th>Method</th>
+					<th>Returns</th>
+					<th>Description</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td class="method">createOffer()</td>
+					<td class="returns">Promise&lt;string&gt;</td>
+					<td>Generate SDP offer string (JSON). Share this with the remote peer out-of-band.</td>
+				</tr>
+				<tr>
+					<td class="method">setAnswer(sdp)</td>
+					<td class="returns">Promise&lt;void&gt;</td>
+					<td>Apply the SDP answer string received from the remote peer. Completes handshake.</td>
+				</tr>
+				<tr>
+					<td class="method">createAnswerFor(offer)</td>
+					<td class="returns">Promise&lt;string&gt;</td>
+					<td>Callee-side: consume offer SDP and return answer SDP string to share back.</td>
+				</tr>
+				<tr>
+					<td class="method">getLocalCandidates()</td>
+					<td class="returns">string[]</td>
+					<td>Return accumulated ICE candidates as JSON strings (optional, for trickle ICE).</td>
+				</tr>
+				<tr>
+					<td class="method">addRemoteCandidate(c)</td>
+					<td class="returns">void</td>
+					<td>Add a remote ICE candidate JSON string (optional, for trickle ICE).</td>
+				</tr>
+				<tr>
+					<td class="method">send(data)</td>
+					<td class="returns">void</td>
+					<td>Send data over the data channel. Same type support as ChatEngine.</td>
+				</tr>
+				<tr>
+					<td class="method">onMessage(cb)</td>
+					<td class="returns">void</td>
+					<td>Register message handler: <code>cb(data, 'remote')</code>.</td>
+				</tr>
+				<tr>
+					<td class="method">onPeerConnected(cb)</td>
+					<td class="returns">void</td>
+					<td>Register connection handler: <code>cb('remote')</code>.</td>
+				</tr>
+				<tr>
+					<td class="method">onPeerDisconnected(cb)</td>
+					<td class="returns">void</td>
+					<td>Register disconnection handler: <code>cb('remote')</code>.</td>
+				</tr>
+				<tr>
+					<td class="method">disconnect()</td>
+					<td class="returns">void</td>
+					<td>Close the peer connection and data channel.</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+
+	<!-- ══ USAGE ══════════════════════════════════════════════ -->
+	<div class="sec" id="usage">
+		<div class="sec-label">05 / Examples</div>
+		<h2 class="sec-title">Usage Examples</h2>
+
+		<h3 style="font-family:'Syne',sans-serif; font-size:0.95rem; margin: 0 0 12px; color: var(--dim);">Collaborative code editing</h3>
+		<pre><code><span class="t-var">engine</span>.<span class="t-fn">onMessage</span>((<span class="t-var">msg</span>) => {
+  <span class="t-kw">if</span> (<span class="t-var">msg</span>.<span class="t-var">type</span> === <span class="t-str">'edit'</span>) {
+    <span class="t-var">editor</span>.<span class="t-fn">applyDelta</span>(<span class="t-var">msg</span>.<span class="t-var">delta</span>);
+  }
+});
+
+<span class="t-var">editor</span>.<span class="t-fn">onChange</span>(<span class="t-var">delta</span> => {
+  <span class="t-var">engine</span>.<span class="t-fn">send</span>({ <span class="t-var">type</span>: <span class="t-str">'edit'</span>, <span class="t-var">delta</span> });
+});</code></pre>
+
+		<h3 style="font-family:'Syne',sans-serif; font-size:0.95rem; margin: 24px 0 12px; color: var(--dim);">Sending binary data (file transfer)</h3>
+		<pre><code><span class="t-cmt">// Sender</span>
+<span class="t-kw">const</span> <span class="t-var">buffer</span> = <span class="t-kw">await</span> <span class="t-var">file</span>.<span class="t-fn">arrayBuffer</span>();
+<span class="t-var">engine</span>.<span class="t-fn">send</span>(<span class="t-var">buffer</span>);  <span class="t-cmt">// ArrayBuffer sent as binary frame</span>
+
+<span class="t-cmt">// Receiver</span>
+<span class="t-var">engine</span>.<span class="t-fn">onMessage</span>(<span class="t-var">data</span> => {
+  <span class="t-kw">if</span> (<span class="t-var">data</span> <span class="t-kw">instanceof</span> ArrayBuffer) {
+    <span class="t-kw">const</span> <span class="t-var">blob</span> = <span class="t-kw">new</span> <span class="t-cls">Blob</span>([<span class="t-var">data</span>]);
+    <span class="t-var">saveBlob</span>(<span class="t-var">blob</span>);
+  }
+});</code></pre>
+	</div>
+
+	<!-- ══ DATA TYPES ════════════════════════════════════════ -->
+	<div class="sec" id="data-types">
+		<div class="sec-label">06 / Data</div>
+		<h2 class="sec-title">Data Types</h2>
+		<p class="sec-body">
+			The engine transparently serialises and deserialises data so you can
+			work with native JS types.
+		</p>
+		<table class="api-table">
+			<thead>
+				<tr><th>Sent as</th><th>Received as</th><th>Notes</th></tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td class="method">string</td>
+					<td class="returns">string</td>
+					<td>Passed through as-is. Attempted JSON parse on receive (falls back to string).</td>
+				</tr>
+				<tr>
+					<td class="method">object / array</td>
+					<td class="returns">object / array</td>
+					<td>Serialised with <code>JSON.stringify</code>, parsed on receive.</td>
+				</tr>
+				<tr>
+					<td class="method">ArrayBuffer</td>
+					<td class="returns">ArrayBuffer</td>
+					<td>Sent as binary WebRTC frame. No JSON serialisation.</td>
+				</tr>
+				<tr>
+					<td class="method">Blob</td>
+					<td class="returns">ArrayBuffer</td>
+					<td>Channel <code>binaryType</code> is <code>'arraybuffer'</code>; Blob is sent natively.</td>
+				</tr>
+				<tr>
+					<td class="method">number / boolean</td>
+					<td class="returns">string</td>
+					<td>Converted via <code>String()</code>. Wrap in an object if you need the type preserved.</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+
+	<!-- ══ FIRESTORE SCHEMA ══════════════════════════════════ -->
+	<div class="sec" id="firestore">
+		<div class="sec-label">07 / Firestore</div>
+		<h2 class="sec-title">Firestore Schema</h2>
+		<p class="sec-body">
+			Only used for signaling. Once connected, Firestore is idle.
+		</p>
+		<div class="arch-diagram">
+<span class="hl">chatRooms/</span> <span class="t-cmt">(collection)</span>
+&nbsp; └─ <span class="g">{roomId}/</span> <span class="t-cmt">(document)</span>
+&nbsp;     ├─ <span class="t-var">createdAt</span>: Timestamp
+&nbsp;     ├─ <span class="t-var">host</span>: true
+&nbsp;     └─ <span class="g">signals/</span> <span class="t-cmt">(subcollection)</span>
+&nbsp;         └─ <span class="y">{guestId}/</span> <span class="t-cmt">(document per guest)</span>
+&nbsp;             ├─ <span class="t-var">type</span>: <span class="t-str">"offer"</span>
+&nbsp;             ├─ <span class="t-var">sdp</span>: <span class="t-str">"&lt;offer SDP string&gt;"</span>
+&nbsp;             ├─ <span class="t-var">answer</span>: <span class="t-str">"&lt;answer SDP string&gt;"</span> <span class="t-cmt">(written by host)</span>
+&nbsp;             ├─ <span class="t-var">guestCandidates</span>: ICECandidate[] <span class="t-cmt">(written by guest)</span>
+&nbsp;             └─ <span class="t-var">hostCandidates</span>: ICECandidate[]  <span class="t-cmt">(written by host)</span>
 		</div>
 
-		<!-- Messages Area -->
-		<div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-4 chat-scroll flex flex-col z-20 bg-transparent hidden">
-			<!-- Messages injected here -->
-		</div>
-
-		<!-- Typing Indicator -->
-		<div id="typing-indicator" class="px-6 py-2 text-xs text-gray-400 italic hidden z-20 bg-transparent border-t border-gray-750/50">
-			<span id="typing-users"></span> is typing<span class="inline-flex ml-1"><span class="typing-dot w-1 h-1 bg-gray-400 rounded-full mx-0.5"></span><span class="typing-dot w-1 h-1 bg-gray-400 rounded-full mx-0.5"></span><span class="typing-dot w-1 h-1 bg-gray-400 rounded-full mx-0.5"></span></span>
-		</div>
-
-		<!-- Input Area -->
-		<div id="chat-input-area" class="p-4 bg-gray-850/60 backdrop-blur-md border-t border-gray-700/50 z-20 hidden">
-			<div id="attachment-preview-area" class="flex gap-2 mb-2 overflow-x-auto hidden"></div>
-			<form id="chat-form" class="flex gap-2" onsubmit="sendMessage(event)">
-				<button type="button" onclick="document.getElementById('media-upload').click()" class="bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl px-4 py-3 transition disabled:opacity-50 flex items-center justify-center shadow" disabled id="btn-attach" title="Attach File">
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
-				</button>
-				<input type="file" id="media-upload" class="hidden" onchange="handleMediaUpload(event)" multiple>
-				<textarea id="chat-input" rows="1" class="flex-1 bg-gray-900 border border-gray-600 text-gray-100 rounded-xl px-4 py-3 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition disabled:opacity-50" placeholder="Type a message..." autocomplete="off" disabled oninput="handleTyping()"></textarea>				<button type="submit" id="btn-send" class="bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl px-6 py-3 font-medium transition disabled:opacity-50 flex items-center justify-center shadow-lg" disabled>
-					<svg class="w-5 h-5 transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-				</button>
-			</form>
+		<div class="note">
+			<span class="note-icon">🔒</span>
+			<span>
+				In production, add Firestore security rules to restrict who can
+				read and write room signals. At minimum, require authenticated users
+				or rate-limit writes per IP.
+			</span>
 		</div>
 	</div>
 
-	<!-- Modals (Create/Join) -->
-	<div id="setup-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-[120] backdrop-blur-sm transition-opacity">
-		<div class="bg-gray-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-gray-700 transform scale-95 transition-transform" id="modal-content">
-			<div class="flex border-b border-gray-700 bg-gray-900">
-				<button class="flex-1 py-3 text-sm font-semibold text-cyan-400 border-b-2 border-cyan-500" id="tab-join" onclick="switchModalTab('join')">Join Room</button>
-				<button class="flex-1 py-3 text-sm font-semibold text-gray-400 hover:text-gray-200 transition" id="tab-create" onclick="switchModalTab('create')">Create Room</button>
-			</div>
-			
-			<div class="p-6">
-				<!-- Join View -->
-				<div id="view-join" class="space-y-4">
-					<div>
-						<label class="block text-xs text-gray-400 mb-1">Room Code</label>
-						<input type="text" id="join-input-code" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 text-xl font-mono text-center uppercase tracking-widest text-white focus:border-cyan-500 focus:outline-none" placeholder="Enter code" maxlength="16">
-					</div>
-					<div>
-						<label class="block text-xs text-gray-400 mb-1">Chat Name (Optional)</label>
-						<input type="text" id="join-input-name" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-cyan-500 focus:outline-none" placeholder="e.g. Work Team / John">
-					</div>
-					<button class="w-full bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg font-bold shadow-lg transition" onclick="processJoin()">Join & Save Contact</button>
-				</div>
-
-				<!-- Create View -->
-				<div id="view-create" class="hidden space-y-4">
-					<div>
-						<label class="block text-xs text-gray-400 mb-2">Room Type</label>
-						<div class="flex gap-2">
-							<label class="flex-1 cursor-pointer">
-								<input type="radio" name="roomType" value="group" class="peer hidden" checked>
-								<div class="text-center py-2 rounded-lg bg-gray-900 border border-gray-700 peer-checked:border-cyan-500 peer-checked:bg-cyan-600/20 text-gray-300 peer-checked:text-cyan-400 text-sm font-medium transition">Group Chat</div>
-							</label>
-							<label class="flex-1 cursor-pointer">
-								<input type="radio" name="roomType" value="direct" class="peer hidden">
-								<div class="text-center py-2 rounded-lg bg-gray-900 border border-gray-700 peer-checked:border-cyan-700 peer-checked:bg-cyan-700/20 text-gray-300 peer-checked:text-cyan-500 text-sm font-medium transition">Direct (1-on-1)</div>
-							</label>
-						</div>
-					</div>
-					<div>
-						<label class="block text-xs text-gray-400 mb-1">Chat Name (for your sidebar)</label>
-						<input type="text" id="create-input-name" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-cyan-500 focus:outline-none" placeholder="e.g. Project Team">
-					</div>
-					<div>
-						<label class="block text-xs text-gray-400 mb-1">Custom Room Code (Optional)</label>
-						<input type="text" id="create-input-code" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white font-mono uppercase tracking-widest focus:border-cyan-500 focus:outline-none" placeholder="Leave blank for random" maxlength="16">
-					</div>
-					
-					<!-- ADVANCED CHAT PROTECTION -->
-					<div class="mt-4 pt-4 border-t border-gray-700">
-						<div class="flex items-center gap-2 mb-2">
-							<input type="checkbox" id="advanced-chat-checkbox" class="w-4 h-4 text-cyan-600 bg-gray-900 border-gray-600 rounded focus:ring-cyan-500 focus:ring-2" onchange="toggleChatPasswordUI()">
-							<label for="advanced-chat-checkbox" class="text-sm text-yellow-500 font-bold flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg> Advanced Chat Protection</label>
-						</div>
-						<div id="chat-password-container" class="hidden">
-							<input type="password" id="advanced-chat-password" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-cyan-500 focus:outline-none transition text-sm" placeholder="Set Chat Password (Required)">
-						</div>
-					</div>
-
-					<button class="w-full bg-cyan-600 hover:bg-cyan-500 text-white py-3 rounded-lg font-bold shadow-lg transition mt-2" onclick="processCreate()">Create Room</button>
-				</div>
-				
-				<button class="w-full mt-4 text-gray-500 hover:text-gray-300 text-sm py-2" onclick="closeModal()">Cancel</button>
-			</div>
-		</div>
-	</div>
-
-	<!-- Settings Modal -->
-	<div id="settings-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-[150] backdrop-blur-sm transition-opacity p-4 md:p-6">
-		<div class="bg-gray-800 w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-700 transform scale-95 transition-transform max-h-full" id="settings-modal-content">
-			<!-- Header -->
-			<div class="flex justify-between items-center p-5 md:p-6 border-b border-gray-700 bg-gray-850/50 flex-shrink-0">
-				<h2 class="text-xl font-bold text-cyan-400 flex items-center gap-2">
-					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-					Settings
-				</h2>
-				<button onclick="closeSettingsModal()" class="text-gray-400 hover:text-white transition bg-gray-700/50 hover:bg-gray-700 p-1.5 rounded-full">
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-				</button>
-			</div>
-			
-			<div class="flex flex-col md:flex-row flex-1 overflow-hidden min-h-[400px]">
-				<!-- Sidebar Tabs -->
-				<div class="md:w-64 border-b md:border-b-0 md:border-r border-gray-700 bg-gray-900/30 p-4 space-y-2 flex-shrink-0 overflow-x-auto flex md:flex-col gap-2 md:gap-0 chat-scroll">
-					<button onclick="switchSettingsTab('profile')" id="btn-tab-profile" class="settings-tab-btn flex-shrink-0 w-full text-left px-4 py-3 rounded-lg font-medium transition bg-cyan-600/20 text-cyan-400 border border-cyan-500/30 whitespace-nowrap md:whitespace-normal">Profile & Account</button>
-					<button onclick="switchSettingsTab('storage')" id="btn-tab-storage" class="settings-tab-btn flex-shrink-0 w-full text-left px-4 py-3 rounded-lg font-medium transition text-gray-400 hover:bg-gray-800 hover:text-gray-200 border border-transparent whitespace-nowrap md:whitespace-normal">Storage Settings</button>
-					<button onclick="switchSettingsTab('theme')" id="btn-tab-theme" class="settings-tab-btn flex-shrink-0 w-full text-left px-4 py-3 rounded-lg font-medium transition text-gray-400 hover:bg-gray-800 hover:text-gray-200 border border-transparent whitespace-nowrap md:whitespace-normal">Theme</button>
-				</div>
-
-				<!-- Content Area -->
-				<div class="flex-1 p-5 md:p-8 overflow-y-auto chat-scroll">
-					
-					<!-- TAB: PROFILE & ACCOUNT -->
-					<div id="settings-tab-profile" class="space-y-6 max-w-md mx-auto">
-						<div class="flex flex-col items-center gap-3">
-							<div class="relative group cursor-pointer" onclick="document.getElementById('avatar-upload').click()" title="Change Profile Picture">
-								<div id="my-avatar-preview-container" class="w-20 h-20 rounded-full bg-gray-700/50 border-2 border-gray-600 flex items-center justify-center overflow-hidden group-hover:border-cyan-500 transition shadow-lg">
-									<svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-								</div>
-								<div class="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm">
-									<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-								</div>
-							</div>
-							<input type="file" id="avatar-upload" accept="image/*" class="hidden" onchange="handleAvatarUpload(event)">
-							<div class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Tap to change avatar</div>
-						</div>
-
-						<div>
-							<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1">Display Name</label>
-							<input type="text" id="my-username" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:border-cyan-500 focus:outline-none transition font-medium" value="Anonymous" oninput="saveMyProfile()">
-						</div>
-
-						<div>
-							<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1">About Me (Description)</label>
-							<input type="text" id="my-description" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-cyan-500 focus:outline-none transition text-sm" placeholder="Available" oninput="saveMyProfile()">
-						</div>
-
-						<div class="pt-2 border-t border-gray-700">
-							<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1 mt-2">Change Password (Email Auth Only)</label>
-							<div class="flex gap-2">
-								<input type="password" id="new-password" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-cyan-500 focus:outline-none transition text-sm" placeholder="New Password">
-								<button onclick="updateUserPassword()" class="bg-gray-700 hover:bg-cyan-600 text-white px-4 rounded-lg text-sm font-medium transition shadow">Update</button>
-							</div>
-						</div>
-
-						<div class="pt-4">
-							<button onclick="logoutUser()" class="w-full bg-red-900/40 hover:bg-red-800/80 text-red-300 py-3 rounded-lg font-bold shadow-lg transition flex items-center justify-center gap-2 border border-red-800/50 hover:border-red-500/50">
-								<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-								Log Out
-							</button>
-						</div>
-					</div>
-
-					<!-- TAB: STORAGE SETTINGS -->
-					<div id="settings-tab-storage" class="space-y-6 max-w-md mx-auto hidden">
-						<!-- STORAGE METHOD SELECTION -->
-						<div>
-							<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1">Storage Method</label>
-							<div class="relative">
-								<select id="settings-storage-method" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:border-cyan-500 focus:outline-none transition text-sm appearance-none cursor-pointer shadow-sm" onchange="handleStorageMethodChange(this.value)">
-									<option value="browser">Browser Storage</option>
-									<option value="drive">Google Drive</option>
-									<option value="local">Local Folder</option>
-								</select>
-								<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
-									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-								</div>
-							</div>
-							<p id="browser-storage-warning" class="text-[10px] text-yellow-500 mt-1.5 hidden pl-1 tracking-wide">⚠️ Only the last 2MB of the text msgs will be stored.</p>
-						</div>
-
-						<!-- GLOBAL ENCRYPTION SETTINGS -->
-						<div class="pt-4 border-t border-gray-700">
-							<label class="block text-xs text-cyan-400 mb-1 font-semibold pl-1 flex items-center gap-2">
-								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg> Storage Security
-							</label>
-							<div class="flex items-center gap-2 mt-3 mb-3">
-								<input type="checkbox" id="global-encrypt-checkbox" class="w-4 h-4 text-cyan-600 bg-gray-900 border-gray-600 rounded focus:ring-cyan-500 focus:ring-2" onchange="toggleGlobalPasswordUI()">
-								<label for="global-encrypt-checkbox" class="text-sm text-gray-300 font-medium cursor-pointer">Encrypt Local Storage</label>
-							</div>
-							<div id="global-password-container" class="hidden">
-								<input type="password" id="global-encrypt-password" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:border-cyan-500 focus:outline-none transition text-sm" placeholder="Set Master Password" onchange="triggerForceSave()">
-							</div>
-						</div>
-					</div>
-
-					<!-- TAB: THEME -->
-					<div id="settings-tab-theme" class="space-y-6 max-w-md mx-auto hidden">
-						<h3 class="text-lg font-bold text-white border-b border-gray-700 pb-2 mb-4">Background Gradient</h3>
-						
-						<div class="grid grid-cols-2 gap-4">
-							<div>
-								<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1">Start Color</label>
-								<div class="flex items-center gap-2">
-									<input type="color" id="theme-start-color" class="h-10 w-10 rounded cursor-pointer bg-transparent border-0 p-0" oninput="updateThemePreview()">
-									<input type="text" id="theme-start-text" class="flex-1 bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:border-cyan-500 focus:outline-none uppercase font-mono" oninput="syncThemeText('start')" maxlength="7">
-								</div>
-							</div>
-							<div>
-								<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1">End Color</label>
-								<div class="flex items-center gap-2">
-									<input type="color" id="theme-end-color" class="h-10 w-10 rounded cursor-pointer bg-transparent border-0 p-0" oninput="updateThemePreview()">
-									<input type="text" id="theme-end-text" class="flex-1 bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:border-cyan-500 focus:outline-none uppercase font-mono" oninput="syncThemeText('end')" maxlength="7">
-								</div>
-							</div>
-						</div>
-
-						<div>
-							<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1">Direction</label>
-							<select id="theme-direction" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:border-cyan-500 focus:outline-none transition text-sm cursor-pointer shadow-sm" onchange="updateThemePreview()">
-								<option value="to bottom right">To Bottom Right</option>
-								<option value="to bottom">To Bottom</option>
-								<option value="to bottom left">To Bottom Left</option>
-								<option value="to right">To Right</option>
-								<option value="to left">To Left</option>
-								<option value="to top">To Top</option>
-								<option value="to top right">To Top Right</option>
-								<option value="to top left">To Top Left</option>
-							</select>
-						</div>
-
-						<div>
-							<label class="block text-xs text-gray-400 mb-1 font-semibold pl-1 flex justify-between">
-								<span>Power (Intensity)</span>
-								<span id="theme-power-val" class="text-cyan-400 font-mono">3.0</span>
-							</label>
-							<input type="range" id="theme-power" min="0.5" max="10" step="0.5" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-500" oninput="updateThemePreview()">
-						</div>
-
-						<div class="pt-6 border-t border-gray-700 flex gap-3">
-							<button onclick="resetTheme()" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2.5 rounded-lg text-sm font-medium transition shadow">Reset Default</button>
-							<button onclick="saveTheme()" class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white py-2.5 rounded-lg text-sm font-bold shadow-lg transition">Save Theme</button>
-						</div>
-					</div>
-
-				</div>
-			</div>
-		</div>
-	</div>
-
-	<!-- Image Preview Overlay -->
-	<div id="image-overlay" class="fixed inset-0 bg-black/95 hidden items-center justify-center z-[100] cursor-zoom-out transition-opacity duration-300 opacity-0" onclick="closeImageOverlay()">
-		<button class="absolute top-4 right-4 text-white hover:text-gray-300 bg-gray-800/50 hover:bg-gray-700 p-2 rounded-full transition shadow-lg" onclick="closeImageOverlay(event)">
-			<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-		</button>
-		<img id="overlay-image" class="max-w-[95vw] max-h-[95vh] object-contain rounded-lg shadow-2xl transform scale-95 transition-transform duration-300" src="" alt="Preview">
-	</div>
-
-	<!-- Global Unlock Modal (Triggered on App Load if DB is Encrypted) -->
-	<div id="global-unlock-modal" class="fixed inset-0 bg-black/95 hidden items-center justify-center z-[250] backdrop-blur-md transition-opacity">
-		<div class="bg-gray-800 w-full max-w-sm rounded-2xl shadow-2xl p-6 border border-gray-700 text-center">
-			<svg class="w-12 h-12 text-cyan-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-			<h3 class="text-xl font-bold text-white mb-2">Storage is Encrypted</h3>
-			<p class="text-xs text-gray-400 mb-4">Enter your Master Password to decrypt your chat history.</p>
-			<input type="password" id="global-unlock-password" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 text-white mb-2 focus:border-cyan-500 focus:outline-none" placeholder="Master Password">
-			<p id="global-unlock-error" class="text-red-400 text-xs mb-3 hidden">Incorrect password.</p>
-			<button onclick="attemptGlobalUnlock()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-lg shadow-lg transition">Unlock Database</button>
-		</div>
-	</div>
-
-	<!-- Per-Chat Unlock Modal -->
-	<div id="unlock-chat-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-[150] backdrop-blur-sm transition-opacity">
-		<div class="bg-gray-800 w-full max-w-sm rounded-2xl shadow-2xl p-6 border border-gray-700 text-center">
-			<svg class="w-12 h-12 text-yellow-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-			<h3 class="text-xl font-bold text-white mb-2">Protected Chat</h3>
-			<p class="text-xs text-gray-400 mb-4">Enter the password to decrypt this specific conversation.</p>
-			<input type="password" id="unlock-chat-password" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 text-white mb-2 focus:border-cyan-500 focus:outline-none" placeholder="Chat Password">
-			<p id="unlock-error" class="text-red-400 text-xs mb-3 hidden">Incorrect password.</p>
-			<button onclick="attemptChatUnlock()" class="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 rounded-lg shadow-lg transition">Unlock Chat</button>
-			<button onclick="closeChatUnlockModal()" class="w-full mt-3 text-gray-400 hover:text-white transition text-sm">Cancel</button>
-		</div>
-	</div>
-
-	<!-- Startup Modal (Auth & Storage) -->
-	<div id="startup-modal" class="fixed inset-0 bg-black/90 flex flex-col items-center justify-center z-[200] backdrop-blur-md">
-		<div class="bg-gray-800 w-full max-w-md rounded-2xl shadow-2xl p-6 border border-gray-700 text-center">
-			<h2 class="text-2xl font-bold text-white mb-4">Welcome to PeerLink</h2>
-			<p class="text-gray-300 text-sm mb-4" id="startup-modal-desc">
-				Sign-in is required to connect to the P2P network. Choose how you want to save your chat history.
-			</p>
-			
-			<div class="space-y-4" id="auth-buttons-container">
-				<!-- Email / Password Auth -->
-				<div class="space-y-3 text-left bg-gray-900/50 p-4 rounded-xl border border-gray-700">
-					<input type="email" id="auth-email" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-sm text-white focus:border-cyan-500 focus:outline-none transition" placeholder="Email address" autocomplete="username">
-					<input type="password" id="auth-password" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-sm text-white focus:border-cyan-500 focus:outline-none transition" placeholder="Password" autocomplete="current-password">
-					<div class="flex gap-2 pt-1">
-						<button class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white py-2.5 rounded-lg text-sm font-bold shadow-lg transition" onclick="signInWithEmail()">Log In</button>
-						<button class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2.5 rounded-lg text-sm font-bold shadow-lg transition" onclick="signUpWithEmail()">Sign Up</button>
-					</div>
-				</div>
-				
-				<div class="relative flex items-center py-1">
-					<div class="flex-grow border-t border-gray-700"></div>
-					<span class="flex-shrink-0 mx-4 text-gray-500 text-xs font-semibold tracking-wider">OR</span>
-					<div class="flex-grow border-t border-gray-700"></div>
-				</div>
-
-				<button id="btn-google-signin" class="w-full bg-white hover:bg-gray-100 text-gray-900 py-3 rounded-lg font-bold shadow-lg transition flex items-center justify-center gap-2" onclick="signInWithGoogle()">
-					<svg class="w-5 h-5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-					Sign in with Google
-				</button>
-				<button id="btn-github-signin" class="w-full bg-gray-900 hover:bg-black text-white py-3 rounded-lg font-bold shadow-lg transition flex items-center justify-center gap-2 border border-gray-700" onclick="signInWithGitHub()">
-					<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.416 22 12c0-5.523-4.477-10-10-10z"></path></svg>
-					Sign in with GitHub
-				</button>
-			</div>
-
-			<div class="space-y-4 hidden" id="storage-buttons-container">
-				
-				<!-- STARTUP GLOBAL ENCRYPTION TOGGLE -->
-				<div class="mb-4 text-left border border-cyan-800/50 bg-cyan-900/10 p-3 rounded-lg">
-					<div class="flex items-center gap-2 mb-2">
-						<input type="checkbox" id="startup-global-encrypt" class="w-4 h-4 text-cyan-600 bg-gray-900 border-gray-600 rounded focus:ring-cyan-500 focus:ring-2" onchange="toggleStartupGlobalUI()">
-						<label for="startup-global-encrypt" class="text-sm text-cyan-400 font-semibold flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg> Encrypt Storage</label>
-					</div>
-					<div id="startup-global-password-container" class="hidden">
-						<input type="password" id="startup-global-password" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-cyan-500 focus:outline-none transition text-sm" placeholder="Set Master Password">
-					</div>
-				</div>
-
-				<button id="btn-google-drive" class="w-full bg-white hover:bg-gray-100 text-gray-900 py-3 rounded-lg font-bold shadow-lg transition flex items-center justify-center gap-2" onclick="chooseGoogleDrive()">
-					<svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M17 6l-6 10.5 15 26h12l6-10.5z"/><path fill="#1976D2" d="M32 42.5H8l-6-10.5h24z"/><path fill="#4CAF50" d="M31 6H17l15 26 6-10.5z"/></svg>
-					Save to Google Drive
-				</button>
-				<button id="btn-choose-storage" class="w-full bg-cyan-700 hover:bg-cyan-600 text-white py-3 rounded-lg font-bold shadow-lg transition flex items-center justify-center gap-2" onclick="chooseStorageFolder()">
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
-					Choose Local Folder
-				</button>
-				<button class="w-full text-gray-400 hover:text-gray-200 text-sm py-2 underline" onclick="skipStorageSelection()">
-					Skip & Use Browser Storage
-				</button>
-				<div id="storage-status" class="text-xs text-green-400 hidden font-semibold">✓ Storage initialized</div>
-			</div>
-
-			<div class="mt-6 pt-4 border-t border-gray-700 text-xs text-gray-500 text-center">
-				By continuing, you agree to the <a href="https://proelectriccoder.github.io/Info#peerlink-terms" target="_blank" class="text-cyan-400 hover:underline">Terms of Service</a> & <a href="https://proelectriccoder.github.io/Info#peerlink-privacy" target="_blank" class="text-cyan-400 hover:underline">Privacy Policy</a>.
-			</div>
-		</div>
-	</div>
-
-	<script type="module">
-		import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-		import { getAuth, GoogleAuthProvider, GithubAuthProvider, signInWithPopup, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-		import { getFirestore, doc, setDoc, updateDoc, onSnapshot, collection, arrayUnion, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-		import { cubicGradient } from "https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js";
-		import { encryptFile, decryptFile } from "../SEP/sep-crypto.js"; // <--- ENCRYPTION INTEGRATION
-
-		// --- 0. APPLY ELECTRON THEME ---
-		const defaultTheme = { start: '#0f172a', end: '#000000', direction: 'to bottom right', power: 3 };
-		window.applyTheme = function(customTheme = null) {
-			const theme = customTheme || JSON.parse(localStorage.getItem('p2p_theme')) || defaultTheme;
-			document.body.style.background = cubicGradient({
-				direction: theme.direction,
-				start: theme.start,
-				end: theme.end,
-				steps: 25,
-				power: theme.power
-			});
-			
-			// Sync UI inputs if they exist
-			if(document.getElementById('theme-start-color')) {
-				document.getElementById('theme-start-color').value = theme.start;
-				document.getElementById('theme-start-text').value = theme.start;
-				document.getElementById('theme-end-color').value = theme.end;
-				document.getElementById('theme-end-text').value = theme.end;
-				document.getElementById('theme-direction').value = theme.direction;
-				document.getElementById('theme-power').value = theme.power;
-				document.getElementById('theme-power-val').textContent = parseFloat(theme.power).toFixed(1);
-			}
-		};
-		window.applyTheme();
-
-		// --- ENCRYPTION GLOBALS & HELPERS ---
-		let globalEncryptionEnabled = localStorage.getItem('p2p_global_enc_enabled') === 'true';
-		let globalMasterPassword = null;
-		let activeUnlockedChats = {}; // Holds passwords for unlocked advanced chats: { roomId: 'password' }
-
-		// Safe Base64 converters for raw Byte Arrays
-		function bytesToBase64(bytes) {
-			let binary = '';
-			const len = bytes.byteLength;
-			for (let i = 0; i < len; i++) {
-				binary += String.fromCharCode(bytes[i]);
-			}
-			return btoa(binary);
-		}
-		
-		function base64ToBytes(base64) {
-			const binary = atob(base64);
-			const bytes = new Uint8Array(binary.length);
-			for (let i = 0; i < binary.length; i++) {
-				bytes[i] = binary.charCodeAt(i);
-			}
-			return bytes;
-		}
-
-		// --- ENCRYPTION UI TOGGLES ---
-		window.toggleGlobalPasswordUI = function() {
-			const isChecked = document.getElementById('global-encrypt-checkbox').checked;
-			document.getElementById('global-password-container').classList.toggle('hidden', !isChecked);
-		};
-		window.toggleStartupGlobalUI = function() {
-			const isChecked = document.getElementById('startup-global-encrypt').checked;
-			document.getElementById('startup-global-password-container').classList.toggle('hidden', !isChecked);
-		};
-		window.toggleChatPasswordUI = function() {
-			const isChecked = document.getElementById('advanced-chat-checkbox').checked;
-			document.getElementById('chat-password-container').classList.toggle('hidden', !isChecked);
-		};
-
-		// --- 0. APPLY ELECTRON THEME ---
-		document.body.style.background = cubicGradient({
-			direction: 'to bottom right',
-			start: '#0f172a',
-			end: '#000000',
-			steps: 25,
-			power: 3
-		});
-
-		// --- 1. FIREBASE SETUP ---
-		const firebaseConfig = {
-            apiKey: "AIzaSyC_v49m7e5xt-FCWs0DSq7aGU7gD1aiTh4",
-            authDomain: "proelectriccoder.firebaseapp.com",
-            projectId: "proelectriccoder",
-            storageBucket: "proelectriccoder.firebasestorage.app",
-            messagingSenderId: "629115974151",
-            appId: "1:629115974151:web:636737d123e4e8685c70a2"
-        };
-		
-		let app, auth, db;
-		try {
-			app = initializeApp(firebaseConfig);
-			auth = getAuth(app);
-			db = getFirestore(app);
-		} catch(e) { console.warn("Firebase config error.", e); }
-
-		const appId = 'my-local-p2p-chat';
-		let currentUser = null;
-		let googleOAuthToken = null; 
-
-		onAuthStateChanged(auth, user => { 
-			currentUser = user; 
-			if (user) {
-				document.getElementById('auth-buttons-container').classList.add('hidden');
-				
-				if (!localStorage.getItem('p2p_my_username') && user.displayName) {
-					localStorage.setItem('p2p_my_username', user.displayName);
-					document.getElementById('my-username').value = user.displayName;
-				}
-				if (!localStorage.getItem('p2p_my_avatar') && user.photoURL) {
-					localStorage.setItem('p2p_my_avatar', user.photoURL);
-					setMyAvatarPreview(user.photoURL);
-				}
-				
-				const activeStorage = localStorage.getItem('p2p_storage_method');
-				if (activeStorage === 'drive') {
-					const token = localStorage.getItem('p2p_drive_token');
-					const expiry = localStorage.getItem('p2p_drive_token_expiry');
-					if (token && expiry && Date.now() < parseInt(expiry)) {
-						googleOAuthToken = token;
-						console.log("[Auth] Restored Google Drive token from storage.");
-						document.getElementById('startup-modal').classList.add('hidden');
-						loadChatsFromDrive();
-					} else {
-						console.warn("[Auth] Drive token missing or expired. Re-authentication required.");
-						document.getElementById('startup-modal').classList.remove('hidden');
-						document.getElementById('auth-buttons-container').classList.add('hidden');
-						document.getElementById('storage-buttons-container').classList.remove('hidden');
-						document.getElementById('startup-modal-desc').textContent = "Your Google Drive session has expired. Please click 'Reconnect Google Drive' to continue syncing.";
-						document.getElementById('btn-google-drive').innerHTML = `<svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M17 6l-6 10.5 15 26h12l6-10.5z"/><path fill="#1976D2" d="M32 42.5H8l-6-10.5h24z"/><path fill="#4CAF50" d="M31 6H17l15 26 6-10.5z"/></svg> Reconnect Google Drive`;
-					}
-				} else if (activeStorage === 'local') {
-					document.getElementById('startup-modal').classList.add('hidden');
-					loadChatsFromDisk(); 
-				} else if (activeStorage === 'browser') {
-					document.getElementById('startup-modal').classList.add('hidden');
-				} else {
-					document.getElementById('storage-buttons-container').classList.remove('hidden');
-					document.getElementById('startup-modal-desc').textContent = "Select where to securely store your chat history.";
-				}
-			} else {
-				document.getElementById('startup-modal').classList.remove('hidden');
-				document.getElementById('auth-buttons-container').classList.remove('hidden');
-				document.getElementById('storage-buttons-container').classList.add('hidden');
-			}
-		});
-
-		window.signInWithGoogle = async function(requestDriveScope = false) {
-			try {
-				const provider = new GoogleAuthProvider();
-				if (requestDriveScope) {
-					provider.addScope('https://www.googleapis.com/auth/drive.appdata'); 
-				}
-				const result = await signInWithPopup(auth, provider);
-				
-				const credential = GoogleAuthProvider.credentialFromResult(result);
-				if (credential && credential.accessToken) {
-					googleOAuthToken = credential.accessToken;
-					localStorage.setItem('p2p_drive_token', googleOAuthToken);
-					localStorage.setItem('p2p_drive_token_expiry', Date.now() + 3500000);
-					console.log("[Auth] Successfully acquired and cached new Google Drive token.");
-				}
-			} catch (error) {
-				console.error("Google Sign-In Error:", error);
-				alert("Failed to sign in: " + error.message);
-			}
-		};
-
-		window.signInWithGitHub = async function() {
-			try {
-				const provider = new GithubAuthProvider();
-				await signInWithPopup(auth, provider);
-			} catch (error) {
-				console.error("GitHub Sign-In Error:", error);
-				alert("Failed to sign in: " + error.message);
-			}
-		};
-
-		window.signInWithEmail = async function() {
-			const email = document.getElementById('auth-email').value.trim();
-			const password = document.getElementById('auth-password').value;
-			if (!email || !password) return alert("Please enter both email and password.");
-			
-			try {
-				await signInWithEmailAndPassword(auth, email, password);
-			} catch (error) {
-				console.error("Email Sign-In Error:", error);
-				alert("Failed to log in: " + error.message);
-			}
-		};
-
-		window.signUpWithEmail = async function() {
-			const email = document.getElementById('auth-email').value.trim();
-			const password = document.getElementById('auth-password').value;
-			if (!email || !password) return alert("Please enter both email and password.");
-			
-			try {
-				await createUserWithEmailAndPassword(auth, email, password);
-				const prefix = email.split('@')[0];
-				if (!localStorage.getItem('p2p_my_username')) {
-					localStorage.setItem('p2p_my_username', prefix);
-					document.getElementById('my-username').value = prefix;
-				}
-			} catch (error) {
-				console.error("Email Sign-Up Error:", error);
-				alert("Failed to sign up: " + error.message);
-			}
-		};
-
-		// --- File System Access API Variables ---
-		let storageDirHandle = null;
-
-		function applyStartupEncryptionPreferences() {
-			const isChecked = document.getElementById('startup-global-encrypt').checked;
-			if (isChecked) {
-				const pass = document.getElementById('startup-global-password').value;
-				if(pass) {
-					globalEncryptionEnabled = true;
-					globalMasterPassword = pass;
-					// Sync with settings UI
-					document.getElementById('global-encrypt-checkbox').checked = true;
-					document.getElementById('global-encrypt-password').value = pass;
-					toggleGlobalPasswordUI();
-				}
-			}
-		}
-
-		window.skipStorageSelection = function() {
-			applyStartupEncryptionPreferences();
-			localStorage.setItem('p2p_storage_method', 'browser');
-			document.getElementById('startup-modal').classList.add('hidden');
-			saveToStorage(); // Force an immediate encrypted save if enabled
-		}
-
-		window.chooseGoogleDrive = async function() {
-			applyStartupEncryptionPreferences();
-			try {
-				document.getElementById('btn-google-drive').classList.add('opacity-50');
-				document.getElementById('btn-google-drive').textContent = "Authorizing...";
-				
-				await window.signInWithGoogle(true);
-				
-				if (googleOAuthToken) {
-					localStorage.setItem('p2p_storage_method', 'drive');
-					document.getElementById('storage-status').textContent = '✓ Google Drive Connected';
-					document.getElementById('storage-status').classList.remove('hidden');
-					
-					await loadChatsFromDrive();
-					
-					setTimeout(() => {
-						document.getElementById('startup-modal').classList.add('hidden');
-					}, 1000);
-				} else {
-					throw new Error("Could not retrieve Drive access token.");
-				}
-			} catch (error) {
-				console.error("Drive Auth Error:", error);
-				alert("Failed to connect Drive: " + error.message);
-				document.getElementById('btn-google-drive').classList.remove('opacity-50');
-				document.getElementById('btn-google-drive').innerHTML = `Save to Google Drive`;
-			}
-		};
-
-		async function verifyStoragePermission() {
-			if (!storageDirHandle) return false;
-			try {
-				if (await storageDirHandle.queryPermission({ mode: 'readwrite' }) === 'granted') return true;
-				if (await storageDirHandle.requestPermission({ mode: 'readwrite' }) === 'granted') return true;
-			} catch (e) { console.warn("Storage permission check failed.", e); }
-			return false;
-		}
-
-		window.chooseStorageFolder = async function() {
-			applyStartupEncryptionPreferences();
-			if (!window.showDirectoryPicker) {
-				alert("Local folder storage is not supported in this browser. Falling back to standard browser storage.");
-				return;
-			}
-			try {
-				storageDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-				localStorage.setItem('p2p_storage_method', 'local');
-				document.getElementById('storage-status').textContent = '✓ Local folder selected';
-				document.getElementById('storage-status').classList.remove('hidden');
-				document.getElementById('btn-choose-storage').classList.add('opacity-50');
-				
-				await loadChatsFromDisk();
-				
-				setTimeout(() => {
-					document.getElementById('startup-modal').classList.add('hidden');
-				}, 1000);
-			} catch (error) {
-				console.warn("Storage folder selection cancelled or failed.", error);
-			}
-		};
-
-		// --- Drive API Logic ---
-		let driveFileId = null;
-
-		async function findDriveFileId() {
-			if (!googleOAuthToken) return null;
-			if (driveFileId) return driveFileId;
-
-			try {
-				const query = encodeURIComponent('name="p2p_saved_chats.json"');
-				const response = await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${query}`, {
-					headers: { 'Authorization': `Bearer ${googleOAuthToken}` }
-				});
-				const data = await response.json();
-				if (data.files && data.files.length > 0) {
-					driveFileId = data.files[0].id;
-					return driveFileId;
-				}
-			} catch (e) { console.error("[Drive] Error finding Drive file:", e); }
-			return null;
-		}
-
-		async function saveChatsToDrive() {
-			if (!googleOAuthToken) return;
-			try {
-				await findDriveFileId();
-				
-				// Read the ALREADY ENCRYPTED robust data format built by saveToStorage
-				const fileContent = localStorage.getItem('p2p_saved_chats') || "{}"; 
-				const metadata = { name: 'p2p_saved_chats.json', mimeType: 'application/json' };
-
-				let url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-				let method = 'POST';
-
-				if (driveFileId) {
-					url = `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=multipart`;
-					method = 'PATCH';
-				} else {
-					metadata.parents = ['appDataFolder'];
-				}
-
-				const boundary = '-------314159265358979323846';
-				const delimiter = "\r\n--" + boundary + "\r\n";
-				const close_delim = "\r\n--" + boundary + "--";
-
-				const multipartRequestBody = delimiter +
-					'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
-					JSON.stringify(metadata) + delimiter +
-					'Content-Type: application/json\r\n\r\n' +
-					fileContent + close_delim;
-
-				const response = await fetch(url, {
-					method: method,
-					headers: { 
-						'Authorization': `Bearer ${googleOAuthToken}`,
-						'Content-Type': `multipart/related; boundary=${boundary}`
-					},
-					body: multipartRequestBody
-				});
-				
-				if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-				const data = await response.json();
-				if (data.id) driveFileId = data.id;
-			} catch (e) { console.error("[Drive] Critical error saving to Drive:", e); }
-		}
-
-		async function loadChatsFromDrive() {
-			if (!googleOAuthToken) return;
-			try {
-				const fileId = await findDriveFileId();
-				if (!fileId) return;
-
-				const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-					headers: { 'Authorization': `Bearer ${googleOAuthToken}` }
-				});
-				
-				if (response.ok) {
-					const rawText = await response.text();
-					if (rawText) {
-						const success = await processLoadedData(rawText, true);
-						if (success) {
-							saveToStorage(); 
-							renderSidebar();
-						}
-					}
-				}
-			} catch (e) { console.error("[Drive] Error loading from Drive:", e); }
-		}
-
-		// --- Local Disk Logic ---
-		async function saveChatsToDisk() {
-			if (!(await verifyStoragePermission())) return;
-			try {
-				const fileHandle = await storageDirHandle.getFileHandle('p2p_saved_chats.json', { create: true });
-				const writable = await fileHandle.createWritable();
-				// Read the ALREADY ENCRYPTED data from localStorage
-				const fileContent = localStorage.getItem('p2p_saved_chats') || "{}";
-				await writable.write(fileContent);
-				await writable.close();
-			} catch (error) {
-				console.warn("[Local Disk] Failed to save to disk:", error);
-			}
-		}
-
-		async function loadChatsFromDisk() {
-			if (!(await verifyStoragePermission())) return;
-			try {
-				const fileHandle = await storageDirHandle.getFileHandle('p2p_saved_chats.json');
-				const file = await fileHandle.getFile();
-				const rawText = await file.text();
-				if (rawText) {
-					const success = await processLoadedData(rawText, true);
-					if (success) {
-						saveToStorage(); 
-						renderSidebar();
-					}
-				}
-			} catch (error) {
-				console.log("[Local Disk] No existing disk chats found or could not read.", error);
-			}
-		}
-
-		// --- 2. GLOBAL STATE & ENCRYPTION INTERCEPTORS ---
-		let savedChats = {};
-		let activeRooms = {}; 
-		let currentRoomId = null; 
-		const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
-
-		let chunkBuffers = {};
-		let typingTimeouts = {}; 
-		let activeTypers = new Set();
-		const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8MB
-		let pendingAttachments = [];
-
-		/**
-		 * processLoadedData handles decrypting payloads (Global and Per-Chat).
-		 * @param {string} rawString - The downloaded string (might be JSON or base64 encrypted payload)
-		 * @param {boolean} isMerge - Whether to merge with existing state or overwrite
-		 */
-		async function processLoadedData(rawString, isMerge = false) {
-			if (!rawString) return true;
-			
-			// 1. Check for Global Encryption
-			if (rawString.startsWith("SEP-GLOBAL::")) {
-				if (globalMasterPassword) {
-					// We have the password in memory, try to unlock silently
-					try {
-						const encryptedBase64 = rawString.replace("SEP-GLOBAL::", "");
-						const decryptedRes = await decryptFile(base64ToBytes(encryptedBase64), globalMasterPassword);
-						const parsed = JSON.parse(new TextDecoder().decode(decryptedRes.data));
-						
-						if (isMerge) savedChats = { ...savedChats, ...parsed };
-						else savedChats = parsed;
-						return true;
-					} catch(e) { 
-						console.error("Silent global decryption failed.");
-						return false; 
-					}
-				} else {
-					// Show UI to unlock the Database
-					window.pendingGlobalUnlockData = { rawString, isMerge };
-					document.getElementById('global-unlock-modal').classList.remove('hidden');
-					document.getElementById('global-unlock-modal').classList.add('flex');
-					return false; // Paused until user provides password
-				}
-			} 
-			// 2. Normal (Unencrypted Globally) JSON load
-			else {
-				try {
-					const parsed = JSON.parse(rawString);
-					if (isMerge) savedChats = { ...savedChats, ...parsed };
-					else savedChats = parsed;
-					return true;
-				} catch(e) {
-					console.error("Failed to parse unencrypted save file", e);
-					return false;
-				}
-			}
-		}
-
-		// Called from Global Unlock Modal Button
-		window.attemptGlobalUnlock = async function() {
-			const pass = document.getElementById('global-unlock-password').value;
-			if (!pass) return;
-
-			try {
-				const encryptedBase64 = window.pendingGlobalUnlockData.rawString.replace("SEP-GLOBAL::", "");
-				const decryptedRes = await decryptFile(base64ToBytes(encryptedBase64), pass);
-				const parsed = JSON.parse(new TextDecoder().decode(decryptedRes.data));
-				
-				globalMasterPassword = pass;
-				globalEncryptionEnabled = true;
-				
-				if (window.pendingGlobalUnlockData.isMerge) savedChats = { ...savedChats, ...parsed };
-				else savedChats = parsed;
-				
-				// Cleanup UI
-				document.getElementById('global-unlock-modal').classList.add('hidden');
-				document.getElementById('global-unlock-modal').classList.remove('flex');
-				document.getElementById('global-encrypt-checkbox').checked = true;
-				document.getElementById('global-encrypt-password').value = pass;
-				toggleGlobalPasswordUI();
-				
-				renderSidebar();
-			} catch (err) {
-				document.getElementById('global-unlock-error').classList.remove('hidden');
-			}
-		};
-
-		// Initialize from localStorage on boot
-		async function initLocalChats() {
-			const rawLocal = localStorage.getItem('p2p_saved_chats');
-			if (rawLocal) {
-				const success = await processLoadedData(rawLocal, false);
-				if (success) renderSidebar();
-			}
-			
-			// Set UI if global encryption was remembered
-			if (globalEncryptionEnabled) {
-				document.getElementById('global-encrypt-checkbox').checked = true;
-				toggleGlobalPasswordUI();
-			}
-		}
-		initLocalChats();
-
-		// Asynchronous Storage Wrapper
-		let localSaveTimer = null;
-		let cloudSaveTimer = null;
-		let isSavingStorage = false;
-		
-		window.triggerForceSave = function() {
-			saveToStorage();
-		};
-
-		async function saveToStorage() {
-			clearTimeout(localSaveTimer);
-			localSaveTimer = setTimeout(async () => {
-				if (isSavingStorage) return; // Prevent overlapping encryption threads
-				isSavingStorage = true;
-				
-				try {
-					// 1. Prepare an isolated clone so we don't accidentally wipe live UI data
-					let clone = JSON.parse(JSON.stringify(savedChats));
-					
-					// 2. Apply Per-Chat Advanced Encryption
-					for (let id in clone) {
-						const room = clone[id];
-						if (room.isAdvancedProtected) {
-							if (activeUnlockedChats[id] && room.messages && room.messages.length > 0) {
-								// Encrypt messages for this chat
-								const msgBytes = new TextEncoder().encode(JSON.stringify(room.messages));
-								const encryptedBytes = await encryptFile(msgBytes, ".json", activeUnlockedChats[id]);
-								room.encryptedPayload = bytesToBase64(encryptedBytes);
-								room.messages = []; // Destroy plaintext from the clone being saved
-							}
-						}
-					}
-
-				let finalStorageData = JSON.stringify(clone);
-				
-				// 3. Apply Global Storage Encryption
-				globalEncryptionEnabled = document.getElementById('global-encrypt-checkbox')?.checked || false;
-				localStorage.setItem('p2p_global_enc_enabled', globalEncryptionEnabled);
-
-				if (globalEncryptionEnabled) {
-					globalMasterPassword = document.getElementById('global-encrypt-password')?.value || globalMasterPassword;
-					if (!globalMasterPassword) {
-						console.error("Global encryption enabled but no password set! Saving as plain JSON to prevent data loss.");
-					} else {
-						const finalBytes = new TextEncoder().encode(finalStorageData);
-						const finalEncrypted = await encryptFile(finalBytes, ".json", globalMasterPassword);
-						finalStorageData = "SEP-GLOBAL::" + bytesToBase64(finalEncrypted);
-					}
-				}
-
-				// 4. Write perfectly secured data to LocalStorage
-				localStorage.setItem('p2p_saved_chats', finalStorageData);
-
-				// 5. Trigger Cloud/Disk pushes (they will read the secured data directly)
-				clearTimeout(cloudSaveTimer);
-				cloudSaveTimer = setTimeout(() => {
-					const method = localStorage.getItem('p2p_storage_method');
-					if (method === 'drive') saveChatsToDrive();
-					else if (method === 'local') saveChatsToDisk(); 
-				}, 2000);
-
-			} catch(e) { console.error("Encryption Save Failed:", e); }
-			isSavingStorage = false;
-			}, 1000);
-		}
-
-		// --- REST OF APP LOGIC ---
-		
-		if ("Notification" in window && Notification.permission === "default") {
-			Notification.requestPermission();
-		}
-
-		function playNotificationSound() {
-			try {
-				const ctx = new (window.AudioContext || window.webkitAudioContext)();
-				const osc = ctx.createOscillator();
-				const gain = ctx.createGain();
-				osc.connect(gain);
-				gain.connect(ctx.destination);
-				osc.type = 'sine';
-				osc.frequency.setValueAtTime(880, ctx.currentTime);
-				gain.gain.setValueAtTime(0.05, ctx.currentTime);
-				osc.start();
-				gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.15);
-				osc.stop(ctx.currentTime + 0.15);
-			} catch(e) {}
-		}
-
-		function showNotification(title, body) {
-			if (document.hasFocus() && currentRoomId) return;
-			playNotificationSound();
-			if ("Notification" in window && Notification.permission === "granted") {
-				new Notification(title, { body, icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="%2306b6d4"/></svg>' });
-			}
-		}
-
-		function sendDataChunked(roomId, dataObj, targetDc = null) {
-			const str = JSON.stringify(dataObj);
-			const chunkSize = 16384; 
-			const msgId = Math.random().toString(36).substring(2, 10);
-			
-			const chunks = [];
-			let i = 0;
-			while (i < str.length) {
-				let end = i + chunkSize;
-				if (end < str.length && str.charCodeAt(end - 1) >= 0xD800 && str.charCodeAt(end - 1) <= 0xDBFF) end--; 
-				chunks.push(str.substring(i, end));
-				i = end;
-			}
-
-			const total = chunks.length;
-
-			for (let idx = 0; idx < total; idx++) {
-				const chunkData = { type: 'chunk', id: msgId, index: idx, total: total, data: chunks[idx] };
-				const payload = JSON.stringify(chunkData);
-				
-				if (targetDc) {
-					if (targetDc.readyState === 'open') targetDc.send(payload);
-				} else {
-					broadcastInRoom(roomId, chunkData);
-				}
-			}
-		}
-
-		function getFileIconSVG(type) {
-			if (!type) return `<svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>`;
-			if (type.startsWith('image/')) return `<svg class="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>`;
-			if (type.startsWith('video/')) return `<svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>`;
-			if (type.startsWith('audio/')) return `<svg class="w-6 h-6 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>`;
-			if (type === 'text/html') return `<svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>`;
-			if (type === 'application/pdf') return `<svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>`;
-			if (type.includes('zip') || type.includes('compressed')) return `<svg class="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>`;
-			return `<svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>`;
-		}
-
-		window.openImageOverlay = function(src) {
-			const overlay = document.getElementById('image-overlay');
-			const img = document.getElementById('overlay-image');
-			img.src = src;
-			overlay.classList.remove('hidden');
-			overlay.classList.add('flex');
-			void overlay.offsetWidth;
-			overlay.classList.remove('opacity-0');
-			img.classList.remove('scale-95');
-			img.classList.add('scale-100');
-		};
-
-		window.closeImageOverlay = function(e) {
-			if (e) e.stopPropagation();
-			const overlay = document.getElementById('image-overlay');
-			const img = document.getElementById('overlay-image');
-			overlay.classList.add('opacity-0');
-			img.classList.remove('scale-100');
-			img.classList.add('scale-95');
-			setTimeout(() => {
-				overlay.classList.add('hidden');
-				overlay.classList.remove('flex');
-				img.src = '';
-			}, 300);
-		};
-
-		function renderSidebar() {
-			const container = document.getElementById('sidebar-chats');
-			if (!container) return;
-			container.innerHTML = '';
-			
-			const sortedChats = Object.keys(savedChats).sort((a, b) => {
-				const timeA = savedChats[a].messages?.length ? savedChats[a].messages[savedChats[a].messages.length - 1].timestamp : 0;
-				const timeB = savedChats[b].messages?.length ? savedChats[b].messages[savedChats[b].messages.length - 1].timestamp : 0;
-				return timeB - timeA;
-			});
-
-			sortedChats.forEach(roomId => {
-				const chat = savedChats[roomId];
-				const isSelected = roomId === currentRoomId;
-				
-				let lastMsg = "No messages yet";
-				if (chat.isAdvancedProtected && !activeUnlockedChats[roomId]) {
-					lastMsg = "🔒 Encrypted Chat";
-				} else if (chat.messages && chat.messages.length > 0) {
-					const m = chat.messages[chat.messages.length - 1];
-					lastMsg = m.isSystem ? m.text : `${m.senderName || 'Unknown'}: ${m.text || (m.image ? '[Attachment]' : '')}`;
-				}
-				
-				const div = document.createElement('div');
-				div.className = `p-3 rounded-lg cursor-pointer transition flex items-center gap-3 ${isSelected ? 'selected-chat' : 'hover:bg-gray-800'}`;
-				div.onclick = () => selectChat(roomId);
-				
-				const avatarLetter = chat.name ? chat.name.charAt(0).toUpperCase() : 'R';
-				const avatarColor = chat.type === 'direct' ? 'bg-cyan-700' : 'bg-cyan-600';
-				
-				let avatarContent = `<div class="w-10 h-10 ${avatarColor} rounded-full flex items-center justify-center font-bold text-white shadow flex-shrink-0">${avatarLetter}</div>`;
-				if (chat.avatar) {
-					avatarContent = `<div class="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden border border-gray-600 shadow flex-shrink-0"><img src="${chat.avatar}" class="w-full h-full object-cover"></div>`;
-				}
-				
-				// Show lock icon on protected chats
-				const lockIcon = chat.isAdvancedProtected ? `<svg class="w-3 h-3 text-yellow-500 inline ml-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path></svg>` : '';
-
-				div.innerHTML = `
-					${avatarContent}
-					<div class="flex-1 min-w-0">
-						<div class="flex justify-between items-baseline mb-0.5">
-							<h3 class="text-sm font-bold text-gray-200 truncate flex items-center">${chat.name || 'Unknown Room'}${lockIcon}</h3>
-							<span class="text-[10px] text-gray-500 flex-shrink-0 ml-2">${chat.type === 'direct' ? 'Direct' : 'Group'}</span>
-						</div>
-						<p class="text-xs text-gray-400 truncate ${chat.unread > 0 ? 'font-bold text-gray-200' : ''} ${chat.isAdvancedProtected && !activeUnlockedChats[roomId] ? 'text-yellow-500/70' : ''}">${lastMsg}</p>
-					</div>
-					${chat.unread > 0 ? `<div class="w-5 h-5 bg-cyan-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow flex-shrink-0">${chat.unread}</div>` : ''}
-				`;
-				container.appendChild(div);
-			});
-		}
-
-		// --- ADVANCED CHAT PROTECTION LOGIC ---
-		window.currentUnlockRoomId = null;
-
-		window.closeChatUnlockModal = function() {
-			document.getElementById('unlock-chat-modal').classList.add('hidden');
-			document.getElementById('unlock-chat-modal').classList.remove('flex');
-		}
-
-		window.attemptChatUnlock = async function() {
-			const roomId = window.currentUnlockRoomId;
-			const pass = document.getElementById('unlock-chat-password').value;
-			if(!pass) return;
-
-			const room = savedChats[roomId];
-
-			// If room is protected but has no messages/encrypted payload yet (brand new)
-			if (!room.encryptedPayload && (!room.messages || room.messages.length === 0)) {
-				activeUnlockedChats[roomId] = pass;
-				closeChatUnlockModal();
-				finalizeChatSelection(roomId);
-				return;
-			}
-
-			try {
-				const encryptedBytes = base64ToBytes(room.encryptedPayload);
-				const decryptedRes = await decryptFile(encryptedBytes, pass);
-				room.messages = JSON.parse(new TextDecoder().decode(decryptedRes.data));
-				
-				activeUnlockedChats[roomId] = pass;
-				closeChatUnlockModal();
-				finalizeChatSelection(roomId);
-			} catch (err) {
-				document.getElementById('unlock-error').classList.remove('hidden');
-			}
-		}
-
-		window.selectChat = function(roomId) {
-			const chat = savedChats[roomId];
-			
-			// Intercept for Per-Chat Unlock
-			if (chat.isAdvancedProtected && !activeUnlockedChats[roomId]) {
-				window.currentUnlockRoomId = roomId;
-				document.getElementById('unlock-chat-modal').classList.remove('hidden');
-				document.getElementById('unlock-chat-modal').classList.add('flex');
-				document.getElementById('unlock-chat-password').value = '';
-				document.getElementById('unlock-error').classList.add('hidden');
-				return; // Halt selection until decrypted
-			}
-
-			finalizeChatSelection(roomId);
-		};
-
-		function finalizeChatSelection(roomId) {
-			currentRoomId = roomId;
-			if(savedChats[roomId]) savedChats[roomId].unread = 0;
-			saveToStorage();
-			
-			activeTypers.clear();
-			document.getElementById('typing-indicator').classList.add('hidden');
-			if (document.hasFocus()) markRoomAsRead(roomId);
-			
-			document.getElementById('sidebar').classList.add('hidden', 'md:flex');
-			document.getElementById('sidebar').classList.remove('flex');
-			document.getElementById('main-chat-area').classList.remove('hidden', 'md:flex');
-			document.getElementById('main-chat-area').classList.add('flex');
-
-			document.getElementById('empty-state').classList.add('hidden');
-			document.getElementById('active-chat-header').classList.remove('hidden');
-			document.getElementById('chat-messages').classList.remove('hidden');
-			document.getElementById('chat-input-area').classList.remove('hidden');
-			
-			renderSidebar();
-			renderActiveChatHeader();
-			renderMessages();
-			
-			setTimeout(() => {
-				const box = document.getElementById('chat-messages');
-				box.scrollTop = box.scrollHeight;
-			}, 50);
-		}
-
-		window.closeMobileChat = function() {
-			document.getElementById('sidebar').classList.remove('hidden', 'md:flex');
-			document.getElementById('sidebar').classList.add('flex');
-			
-			document.getElementById('main-chat-area').classList.add('hidden', 'md:flex');
-			document.getElementById('main-chat-area').classList.remove('flex');
-		};
-
-		window.popOutChat = function() {
-			if(!currentRoomId) return;
-			const url = window.location.href.split('#')[0] + '#popout=' + currentRoomId;
-			
-			try {
-				const newWin = window.open(url, 'P2P_Chat_' + currentRoomId, 'width=420,height=700,menubar=no,toolbar=no,location=no,status=no');
-				if (!newWin || newWin.closed || typeof newWin.closed == 'undefined') {
-					throw new Error("Popup blocked");
-				}
-				disconnectCurrentRoom(); 
-			} catch (e) {
-				alert("Popups are blocked by your browser/environment. Please allow popups to use this feature.");
-			}
-		};
-
-		function renderActiveChatHeader() {
-			if(!currentRoomId || !savedChats[currentRoomId]) return;
-			const chat = savedChats[currentRoomId];
-			const state = activeRooms[currentRoomId] ? activeRooms[currentRoomId].state : 'disconnected';
-			
-			// Show lock next to title if protected
-			const lockHTML = chat.isAdvancedProtected ? `<svg class="w-4 h-4 text-yellow-500 inline ml-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path></svg>` : '';
-			document.getElementById('header-title').innerHTML = chat.name + lockHTML;
-			document.getElementById('header-code').textContent = currentRoomId;
-			
-			const headerAvatar = document.getElementById('header-avatar');
-			if (chat.avatar) {
-				headerAvatar.innerHTML = `<img src="${chat.avatar}" class="w-full h-full object-cover rounded-full">`;
-				headerAvatar.className = `w-10 h-10 rounded-full shadow-md border border-gray-700`;
-			} else {
-				headerAvatar.textContent = chat.name.charAt(0).toUpperCase();
-				headerAvatar.className = `w-10 h-10 rounded-full flex items-center justify-center font-bold text-white uppercase shadow-md ${chat.type === 'direct' ? 'bg-cyan-700' : 'bg-cyan-600'}`;
-			}
-			
-			const overlay = document.getElementById('header-avatar-overlay');
-			const wrapper = document.getElementById('header-avatar-wrapper');
-			if (chat.role === 'host' && chat.type === 'group') {
-				wrapper.classList.add('cursor-pointer', 'group');
-				wrapper.onclick = () => document.getElementById('group-avatar-upload').click();
-				wrapper.title = "Change Group Icon";
-				overlay.classList.remove('hidden');
-				overlay.classList.add('flex');
-			} else {
-				wrapper.classList.remove('cursor-pointer', 'group');
-				wrapper.onclick = null;
-				wrapper.title = "";
-				overlay.classList.remove('flex');
-				overlay.classList.add('hidden');
-			}
-
-			const dot = document.getElementById('header-status-dot');
-			const txt = document.getElementById('header-status-text');
-			const btnConn = document.getElementById('btn-connect');
-			const btnDisc = document.getElementById('btn-disconnect');
-			const input = document.getElementById('chat-input');
-			const btnSend = document.getElementById('btn-send');
-			const btnAttach = document.getElementById('btn-attach');
-
-			if(state === 'connected') {
-				dot.className = 'absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-850 shadow-[0_0_8px_rgba(34,197,94,0.6)]';
-				txt.textContent = 'Connected & Secured';
-				txt.className = 'text-xs text-green-400 font-medium';
-				btnConn.classList.add('hidden');
-				btnDisc.classList.remove('hidden');
-				input.disabled = false;
-				btnSend.disabled = false;
-				btnAttach.disabled = false;
-				input.focus();
-				markRoomAsRead(currentRoomId);
-			} else if (state === 'connecting') {
-				dot.className = 'absolute bottom-0 right-0 w-3 h-3 bg-yellow-500 rounded-full border-2 border-gray-850 animate-pulse';
-				txt.textContent = 'Connecting...';
-				txt.className = 'text-xs text-yellow-400 font-medium';
-				btnConn.classList.add('hidden');
-				btnDisc.classList.remove('hidden');
-				input.disabled = true;
-				btnSend.disabled = true;
-				btnAttach.disabled = true;
-			} else {
-				dot.className = 'absolute bottom-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-gray-850';
-				txt.textContent = 'Disconnected';
-				txt.className = 'text-xs text-red-400 font-medium';
-				btnConn.classList.remove('hidden');
-				btnDisc.classList.add('hidden');
-				input.disabled = true;
-				btnSend.disabled = true;
-				btnAttach.disabled = true;
-			}
-		}
-
-		function formatMessageText(text) {
-			if (!text) return '';
-			
-			// 1. Escape raw HTML to prevent XSS injection
-			let safe = String(text).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
-			
-			// 2. Extract and protect Code Blocks & Inline Code from other formatting
-			const codeBlocks = [];
-			safe = safe.replace(/```([\s\S]*?)```/g, (m, p1) => {
-				codeBlocks.push(`<pre class="bg-gray-900/60 border border-gray-700/50 p-2 rounded-md my-1 text-xs font-mono overflow-x-auto whitespace-pre"><code>${p1}</code></pre>`);
-				return `___CB${codeBlocks.length - 1}___`;
-			});
-			
-			const inlineCodes = [];
-			safe = safe.replace(/`([^`]+)`/g, (m, p1) => {
-				inlineCodes.push(`<code class="bg-gray-900/60 border border-gray-700/50 px-1.5 py-0.5 rounded-md text-xs font-mono text-cyan-300">${p1}</code>`);
-				return `___IC${inlineCodes.length - 1}___`;
-			});
-
-			// 3. Apply WhatsApp style Markdown formatting (Single characters)
-			safe = safe.replace(/(?<!\w)\*([^\*]+)\*(?!\w)/g, '<strong class="font-bold">$1</strong>');
-			safe = safe.replace(/(?<!\w)_([^_]+)_(?!\w)/g, '<em class="italic">$1</em>');
-			safe = safe.replace(/(?<!\w)~([^~]+)~(?!\w)/g, '<del class="line-through opacity-80">$1</del>');
-
-			// 4. Restore Code Blocks
-			safe = safe.replace(/___IC(\d+)___/g, (m, p1) => inlineCodes[p1]);
-			safe = safe.replace(/___CB(\d+)___/g, (m, p1) => codeBlocks[p1]);
-
-			return safe;
-		}
-
-		function createMessageElement(msg, isAnimated) {
-			const msgDiv = document.createElement('div');
-			
-			if (msg.isSystem) {
-				msgDiv.className = `flex justify-center my-1 ${isAnimated ? 'msg-pop-center' : ''}`;
-				msgDiv.innerHTML = `<span class="bg-gray-700 text-gray-400 text-[10px] py-1 px-3 rounded-full border border-gray-600">${msg.text}</span>`;
-				return msgDiv;
-			}
-
-			msgDiv.className = `flex w-full gap-2 items-start ${msg.isSelf ? 'justify-end' : 'justify-start'}`;
-			
-			if (!msg.isSelf) {
-				let contacts = JSON.parse(localStorage.getItem('p2p_contact_avatars')) || {};
-				let avatarSrc = contacts[msg.senderName] || '';
-				if (savedChats[currentRoomId].type === 'direct' && savedChats[currentRoomId].avatar) {
-					avatarSrc = savedChats[currentRoomId].avatar;
-				}
-				
-				const avDiv = document.createElement('div');
-				avDiv.className = "w-6 h-6 rounded-full bg-gray-700 flex-shrink-0 flex items-center justify-center overflow-hidden border border-gray-600 mb-1";
-				if (avatarSrc) {
-					avDiv.innerHTML = `<img src="${avatarSrc}" class="w-full h-full object-cover">`;
-				} else {
-					avDiv.innerHTML = `<span class="text-[10px] font-bold text-gray-300">${msg.senderName ? msg.senderName.charAt(0).toUpperCase() : '?'}</span>`;
-				}
-				msgDiv.appendChild(avDiv);
-			}
-
-			const bubble = document.createElement('div');
-			bubble.className = `min-w-[80px] max-w-[75%] rounded-2xl px-4 py-2 shadow-lg flex flex-col ${
-				msg.isSelf 
-				? 'bg-cyan-600 text-white rounded-tr-none' 
-				: 'bg-gray-700 text-gray-100 rounded-tl-none border border-gray-600'
-			} ${isAnimated ? (msg.isSelf ? 'msg-pop-right' : 'msg-pop-left') : ''}`;
-			
-			if (!msg.isSelf && msg.senderName && savedChats[currentRoomId].type !== 'direct') {
-				const nameDiv = document.createElement('div');
-				nameDiv.className = 'text-[10px] font-bold text-cyan-300 mb-0.5';
-				nameDiv.textContent = msg.senderName;
-				bubble.appendChild(nameDiv);
-			}
-
-			if (msg.image) {
-				const isObj = typeof msg.image === 'object';
-				const type = isObj ? msg.image.type : 'image/jpeg';
-				const data = isObj ? msg.image.data : msg.image;
-				const name = isObj ? msg.image.name : 'attachment';
-
-				if (type.startsWith('image/')) {
-					const imgEl = document.createElement('img');
-					imgEl.src = data;
-					imgEl.className = 'max-w-full rounded-lg mb-2 max-h-60 object-contain shadow-sm cursor-zoom-in hover:opacity-90 transition';
-					imgEl.onclick = () => openImageOverlay(data);
-					bubble.appendChild(imgEl);
-				} else if (type.startsWith('video/')) {
-					const vidEl = document.createElement('video');
-					vidEl.src = data;
-					vidEl.controls = true;
-					vidEl.className = 'max-w-full rounded-lg mb-2 max-h-60 object-contain shadow-sm bg-black';
-					bubble.appendChild(vidEl);
-				} else if (type.startsWith('audio/')) {
-					const audEl = document.createElement('audio');
-					audEl.src = data;
-					audEl.controls = true;
-					audEl.className = 'max-w-full mb-2';
-					bubble.appendChild(audEl);
-				} else if (type === 'text/html') {
-					const fileLink = document.createElement('a');
-					fileLink.href = data;
-					fileLink.download = name;
-					fileLink.className = 'flex items-center gap-2 bg-gray-900/60 p-3 rounded-t-lg hover:bg-gray-800 transition text-orange-300 font-medium border border-gray-600 border-b-0 w-full group shadow-sm';
-					fileLink.innerHTML = `${getFileIconSVG(type)} <span class="truncate flex-1">Download ${name}</span> <svg class="w-5 h-5 ml-auto text-gray-400 group-hover:text-white transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>`;
-					bubble.appendChild(fileLink);
-
-					const iframeEl = document.createElement('iframe');
-					iframeEl.src = data;
-					iframeEl.sandbox = 'allow-scripts'; 
-					iframeEl.className = 'w-full h-60 rounded-b-lg mb-2 bg-white border border-gray-600 shadow-sm';
-					bubble.appendChild(iframeEl);
-				} else {
-					const fileLink = document.createElement('a');
-					fileLink.href = data;
-					fileLink.download = name;
-					fileLink.className = 'flex items-center gap-3 bg-gray-900 p-3 rounded-lg mb-2 hover:bg-gray-800 transition text-gray-200 shadow-sm border border-gray-600 w-full min-w-[200px] max-w-sm group';
-					fileLink.innerHTML = `${getFileIconSVG(type)} <div class="flex-1 min-w-0"><div class="truncate font-medium text-sm text-cyan-400">${name}</div><div class="text-[10px] text-gray-500 uppercase tracking-wider mt-0.5">Click to Download</div></div> <svg class="w-5 h-5 flex-shrink-0 text-gray-400 group-hover:text-white transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>`;
-					bubble.appendChild(fileLink);
-				}
-			}
-
-			if (msg.text) {
-				const textDiv = document.createElement('div');
-				textDiv.className = 'whitespace-pre-wrap break-words overflow-hidden';
-				textDiv.innerHTML = formatMessageText(msg.text);
-				bubble.appendChild(textDiv);
-			}
-			
-			const timeSpan = document.createElement('div');
-			timeSpan.className = `text-[9px] mt-1 opacity-60 flex items-center justify-end gap-1 ${msg.isSelf ? 'text-right' : 'text-left'}`;
-			
-			let timeHTML = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-			if (msg.isSelf) {
-				const readColor = msg.read ? 'text-cyan-200' : 'text-gray-400';
-				const readIcon = msg.read ? '✓✓' : '✓';
-				timeHTML += `<span class="${readColor} font-bold text-[10px] ml-1 tracking-tighter" id="receipt-${msg.id}">${readIcon}</span>`;
-			}
-			timeSpan.innerHTML = timeHTML;
-			
-			bubble.appendChild(timeSpan);
-			
-			msgDiv.appendChild(bubble);
-			return msgDiv;
-		}
-
-		function renderMessages() {
-			if(!currentRoomId || !savedChats[currentRoomId]) return;
-			const container = document.getElementById('chat-messages');
-			container.innerHTML = '';
-			
-			if (savedChats[currentRoomId].messages) {
-				savedChats[currentRoomId].messages.forEach(msg => {
-					container.appendChild(createMessageElement(msg, false));
-				});
-			}
-		}
-
-		function appendMessageDOM(msg) {
-			if (currentRoomId !== msg.roomId) return; 
-			const container = document.getElementById('chat-messages');
-			container.appendChild(createMessageElement(msg, true));
-			container.scrollTop = container.scrollHeight;
-			
-			if (!msg.isSelf && !msg.isSystem && document.hasFocus()) {
-				sendReadReceipt(msg.roomId, msg.id);
-			}
-		}
-
-		function pushMessageToHistory(roomId, text, senderName, isSelf, isSystem, image = null, forceId = null) {
-			const msgObj = { 
-				id: forceId || Math.random().toString(36).substring(2, 11), 
-				roomId, text, image, senderName, isSelf, isSystem, 
-				timestamp: Date.now(), read: false 
-			};
-			if (!savedChats[roomId]) return;
-			
-			if(!savedChats[roomId].messages) savedChats[roomId].messages = [];
-			savedChats[roomId].messages.push(msgObj);
-			
-			if (currentRoomId !== roomId && !isSelf && !isSystem) {
-				savedChats[roomId].unread = (savedChats[roomId].unread || 0) + 1;
-				showNotification(savedChats[roomId].name || senderName, image ? "🖼️ Image attached" : text);
-			}
-			
-			saveToStorage();
-			if (currentRoomId === roomId) appendMessageDOM(msgObj);
-			renderSidebar();
-		}
-
-		function sendReadReceipt(roomId, messageId) {
-			sendDataChunked(roomId, { type: 'read_receipt', messageId: messageId, roomId: roomId });
-		}
-
-		window.addEventListener('focus', () => {
-			if (currentRoomId) markRoomAsRead(currentRoomId);
-		});
-
-		function markRoomAsRead(roomId) {
-			if (!savedChats[roomId] || !document.hasFocus() || !savedChats[roomId].messages) return;
-			let changed = false;
-			savedChats[roomId].messages.forEach(m => {
-				if (!m.isSelf && !m.read && !m.isSystem) {
-					sendReadReceipt(roomId, m.id);
-					m.read = true; 
-					changed = true;
-				}
-			});
-			if (changed) saveToStorage();
-		}
-
-		function updateReadReceiptUI(messageId) {
-			const el = document.getElementById(`receipt-${messageId}`);
-			if (el) {
-				el.textContent = '✓✓';
-				el.classList.remove('text-gray-400');
-				el.classList.add('text-cyan-400');
-			}
-		}
-
-		// --- 4. MODAL & ACTIONS ---
-		window.openModal = function() {
-			document.getElementById('setup-modal').classList.remove('hidden');
-			document.getElementById('setup-modal').classList.add('flex');
-			setTimeout(() => document.getElementById('modal-content').classList.remove('scale-95'), 10);
-		};
-		window.closeModal = function() {
-			document.getElementById('modal-content').classList.add('scale-95');
-			setTimeout(() => {
-				document.getElementById('setup-modal').classList.add('hidden');
-				document.getElementById('setup-modal').classList.remove('flex');
-			}, 150);
-		};
-		window.switchModalTab = function(tab) {
-			const btnJoin = document.getElementById('tab-join');
-			const btnCreate = document.getElementById('tab-create');
-			const viewJoin = document.getElementById('view-join');
-			const viewCreate = document.getElementById('view-create');
-
-			if (tab === 'join') {
-				btnJoin.className = "flex-1 py-3 text-sm font-semibold text-cyan-400 border-b-2 border-cyan-500";
-				btnCreate.className = "flex-1 py-3 text-sm font-semibold text-gray-400 hover:text-gray-200 transition";
-				viewJoin.classList.remove('hidden');
-				viewCreate.classList.add('hidden');
-			} else {
-				btnCreate.className = "flex-1 py-3 text-sm font-semibold text-cyan-400 border-b-2 border-cyan-500";
-				btnJoin.className = "flex-1 py-3 text-sm font-semibold text-gray-400 hover:text-gray-200 transition";
-				viewCreate.classList.remove('hidden');
-				viewJoin.classList.add('hidden');
-			}
-		};
-
-		window.switchSettingsTab = function(tabName) {
-			const tabs = ['profile', 'storage', 'theme'];
-			tabs.forEach(t => {
-				const btn = document.getElementById(`btn-tab-${t}`);
-				const content = document.getElementById(`settings-tab-${t}`);
-				if(t === tabName) {
-					btn.className = "settings-tab-btn flex-shrink-0 w-full text-left px-4 py-3 rounded-lg font-medium transition bg-cyan-600/20 text-cyan-400 border border-cyan-500/30 whitespace-nowrap md:whitespace-normal";
-					content.classList.remove('hidden');
-				} else {
-					btn.className = "settings-tab-btn flex-shrink-0 w-full text-left px-4 py-3 rounded-lg font-medium transition text-gray-400 hover:bg-gray-800 hover:text-gray-200 border border-transparent whitespace-nowrap md:whitespace-normal";
-					content.classList.add('hidden');
-				}
-			});
-		};
-
-		window.openSettingsModal = function() {
-			document.getElementById('settings-modal').classList.remove('hidden');
-			document.getElementById('settings-modal').classList.add('flex');
-			
-			// Always default to Profile tab when opening
-			switchSettingsTab('profile');
-			window.applyTheme(); // Sync theme UI
-
-			// Sync Storage Method Dropdown to active preference
-			const currentMethod = localStorage.getItem('p2p_storage_method') || 'browser';
-			const selectEl = document.getElementById('settings-storage-method');
-			if (selectEl) {
-				selectEl.value = currentMethod;
-				document.getElementById('browser-storage-warning').classList.toggle('hidden', currentMethod !== 'browser');
-			}
-
-			setTimeout(() => document.getElementById('settings-modal-content').classList.remove('scale-95'), 10);
-		};
-
-		window.closeSettingsModal = function() {
-			document.getElementById('settings-modal-content').classList.add('scale-95');
-			setTimeout(() => {
-				document.getElementById('settings-modal').classList.add('hidden');
-				document.getElementById('settings-modal').classList.remove('flex');
-			}, 150);
-		};
-
-		window.handleStorageMethodChange = async function(method) {
-			const warning = document.getElementById('browser-storage-warning');
-			const selectEl = document.getElementById('settings-storage-method');
-			
-			if (method === 'browser') {
-				localStorage.setItem('p2p_storage_method', 'browser');
-				saveToStorage();
-			} else if (method === 'drive') {
-				await chooseGoogleDrive();
-			} else if (method === 'local') {
-				await chooseStorageFolder();
-			}
-			
-			// Re-sync UI with actual storage method in case auth or folder selection failed/cancelled
-			const currentMethod = localStorage.getItem('p2p_storage_method') || 'browser';
-			selectEl.value = currentMethod;
-			warning.classList.toggle('hidden', currentMethod !== 'browser');
-		};
-
-		// --- THEME SETTINGS BINDINGS ---
-		window.updateThemePreview = function() {
-			const start = document.getElementById('theme-start-color').value;
-			const end = document.getElementById('theme-end-color').value;
-			const dir = document.getElementById('theme-direction').value;
-			const pwr = document.getElementById('theme-power').value;
-			
-			document.getElementById('theme-start-text').value = start;
-			document.getElementById('theme-end-text').value = end;
-			document.getElementById('theme-power-val').textContent = parseFloat(pwr).toFixed(1);
-			
-			window.applyTheme({ start: start, end: end, direction: dir, power: pwr });
-		};
-
-		window.syncThemeText = function(type) {
-			let val = document.getElementById(`theme-${type}-text`).value;
-			if(!val.startsWith('#')) val = '#' + val;
-			if(val.length === 7 || val.length === 4) {
-				document.getElementById(`theme-${type}-color`).value = val;
-				window.updateThemePreview();
-			}
-		};
-
-		window.saveTheme = function() {
-			const theme = {
-				start: document.getElementById('theme-start-color').value,
-				end: document.getElementById('theme-end-color').value,
-				direction: document.getElementById('theme-direction').value,
-				power: document.getElementById('theme-power').value
-			};
-			localStorage.setItem('p2p_theme', JSON.stringify(theme));
-			window.applyTheme();
-			alert("Theme saved successfully!");
-		};
-
-		window.resetTheme = function() {
-			localStorage.removeItem('p2p_theme');
-			window.applyTheme();
-		};
-
-		window.logoutUser = async function() {
-			try {
-				localStorage.removeItem('p2p_storage_method'); 
-				localStorage.removeItem('p2p_drive_token');
-				localStorage.removeItem('p2p_drive_token_expiry');
-				localStorage.removeItem('p2p_global_enc_enabled'); // Clear enc pref locally on logout
-				if (currentRoomId) disconnectCurrentRoom();
-				await signOut(auth);
-				closeSettingsModal();
-				location.reload();
-			} catch (error) {
-				console.error("Logout Error:", error);
-			}
-		};
-
-		window.copyCurrentRoomCode = function() {
-			if(!currentRoomId) return;
-			navigator.clipboard.writeText(currentRoomId).then(() => {
-				const el = document.getElementById('header-code');
-				const orig = el.textContent;
-				el.textContent = "COPIED!";
-				el.classList.add('bg-green-600', 'text-white');
-				setTimeout(() => {
-					el.textContent = orig;
-					el.classList.remove('bg-green-600', 'text-white');
-				}, 1500);
-			}).catch(err => {
-				const tempInput = document.createElement("input");
-				tempInput.value = currentRoomId;
-				document.body.appendChild(tempInput);
-				tempInput.select();
-				document.execCommand('copy');
-				document.body.removeChild(tempInput);
-				alert("Copied code: " + currentRoomId);
-			});
-		};
-
-		window.deleteCurrentRoom = function() {
-			if(!currentRoomId) return;
-			if(!confirm("Are you sure you want to delete this chat history entirely?")) return;
-			
-			disconnectRoomLogic(currentRoomId);
-			delete savedChats[currentRoomId];
-			if(activeUnlockedChats[currentRoomId]) delete activeUnlockedChats[currentRoomId];
-			
-			saveToStorage();
-			
-			currentRoomId = null;
-			document.getElementById('empty-state').classList.remove('hidden');
-			document.getElementById('active-chat-header').classList.add('hidden');
-			document.getElementById('chat-messages').classList.add('hidden');
-			document.getElementById('chat-input-area').classList.add('hidden');
-			renderSidebar();
-			
-			if (window.innerWidth < 768) {
-				closeMobileChat();
-			}
-		};
-
-		// --- 5. WEBRTC MULTI-ROOM LOGIC ---
-		function updateRoomConnectionState(roomId, state) {
-			if (!activeRooms[roomId]) activeRooms[roomId] = { peers: {} };
-			activeRooms[roomId].state = state;
-			if (currentRoomId === roomId) renderActiveChatHeader();
-			renderSidebar();
-		}
-
-		window.disconnectCurrentRoom = function() {
-			if(!currentRoomId) return;
-			disconnectRoomLogic(currentRoomId);
-		};
-
-		async function disconnectRoomLogic(roomId) {
-			if(!activeRooms[roomId]) return;
-			const state = activeRooms[roomId];
-			
-			Object.values(state.peers).forEach(p => {
-				if (p.dc) { p.dc.onclose = null; p.dc.close(); }
-				if (p.pc) { p.pc.oniceconnectionstatechange = null; p.pc.close(); }
-			});
-			
-			if (state.unsubs) state.unsubs.forEach(unsub => unsub());
-			else if (state.unsub) state.unsub();
-			
-			if (currentUser) {
-				const myParticipantRef = doc(db, 'artifacts', appId, 'public', 'data', `room_participants_${roomId}`, currentUser.uid);
-				deleteDoc(myParticipantRef).catch(e => e);
-			}
-			
-			delete activeRooms[roomId];
-			pushMessageToHistory(roomId, "Disconnected locally.", "System", false, true);
-			updateRoomConnectionState(roomId, 'disconnected');
-		}
-
-		function setupDataChannelEvents(roomId, peerId, dc) {
-			dc.onopen = () => {
-				updateRoomConnectionState(roomId, 'connected');
-				const myName = document.getElementById('my-username').value.trim() || 'Anonymous';
-				const myAvatar = localStorage.getItem('p2p_my_avatar') || '';
-				const myDesc = localStorage.getItem('p2p_my_description') || '';
-				dc.send(JSON.stringify({ type: 'system', action: 'set_username', username: myName, avatar: myAvatar, description: myDesc }));
-				
-				if (savedChats[roomId] && savedChats[roomId].role === 'host' && savedChats[roomId].avatar) {
-					sendDataChunked(roomId, { type: 'system', action: 'update_group_avatar', avatar: savedChats[roomId].avatar }, dc);
-				}
-			};
-			
-			dc.onclose = () => {
-				const name = activeRooms[roomId].peers[peerId] ? activeRooms[roomId].peers[peerId].username : 'A user';
-				pushMessageToHistory(roomId, `${name} left.`, "System", false, true);
-				delete activeRooms[roomId].peers[peerId];
-				
-				if (Object.keys(activeRooms[roomId].peers).length === 0) {
-					updateRoomConnectionState(roomId, 'connecting'); 
-				}
-			};
-			
-			dc.onmessage = (event) => {
-				try {
-					const rawData = JSON.parse(event.data);
-					
-					if (rawData.type === 'chunk') {
-						if (!chunkBuffers[rawData.id]) {
-							chunkBuffers[rawData.id] = [];
-							setTimeout(() => { delete chunkBuffers[rawData.id]; }, 60000);
-						}
-						chunkBuffers[rawData.id][rawData.index] = rawData.data;
-						
-						if (Object.keys(chunkBuffers[rawData.id]).length === rawData.total) {
-							const fullPayload = JSON.parse(chunkBuffers[rawData.id].join(''));
-							delete chunkBuffers[rawData.id];
-							processDataChannelMessage(roomId, peerId, fullPayload);
-						}
-						return;
-					}
-					
-					processDataChannelMessage(roomId, peerId, rawData);
-				} catch (e) { console.error("Message parse error:", e); }
-			};
-		}
-
-		function processDataChannelMessage(roomId, peerId, data) {
-			if (data.type === 'system' && data.action === 'set_username') {
-				activeRooms[roomId].peers[peerId].username = data.username;
-				if(data.avatar) activeRooms[roomId].peers[peerId].avatar = data.avatar;
-				
-				if (data.avatar) {
-					let contacts = JSON.parse(localStorage.getItem('p2p_contact_avatars')) || {};
-					contacts[data.username] = data.avatar;
-					localStorage.setItem('p2p_contact_avatars', JSON.stringify(contacts));
-				}
-				if (data.description !== undefined) {
-					let contactsDesc = JSON.parse(localStorage.getItem('p2p_contact_desc')) || {};
-					contactsDesc[data.username] = data.description;
-					localStorage.setItem('p2p_contact_desc', JSON.stringify(contactsDesc));
-				}
-
-				if (savedChats[roomId].type === 'direct') {
-					savedChats[roomId].name = savedChats[roomId].name + " • " + data.username;
-					if (data.avatar) savedChats[roomId].avatar = data.avatar;
-					saveToStorage();
-					renderSidebar();
-					if(currentRoomId === roomId) renderActiveChatHeader();
-				} else if (savedChats[roomId].name.includes("Room") && savedChats[roomId].role === 'guest') {
-					savedChats[roomId].name = `${data.username}'s Group`;
-					saveToStorage();
-					renderSidebar();
-					if(currentRoomId === roomId) renderActiveChatHeader();
-				}
-				
-				pushMessageToHistory(roomId, `${data.username} connected.`, "System", false, true);
-			} else if (data.type === 'system' && data.action === 'update_group_avatar') {
-				if (savedChats[roomId] && savedChats[roomId].type === 'group') {
-					savedChats[roomId].avatar = data.avatar;
-					saveToStorage();
-					renderSidebar();
-					if (currentRoomId === roomId) renderActiveChatHeader();
-					pushMessageToHistory(roomId, "Group icon was updated by the host.", "System", false, true);
-				}
-			} else if (data.type === 'chat') {
-				pushMessageToHistory(roomId, data.text, data.username, false, false, data.attachment || data.image, data.id);
-			} else if (data.type === 'typing') {
-				handleRemoteTyping(roomId, data.username, data.isTyping);
-			} else if (data.type === 'read_receipt') {
-				if(!savedChats[roomId].messages) return;
-				const msg = savedChats[roomId].messages.find(m => m.id === data.messageId);
-				if (msg) {
-					msg.read = true;
-					saveToStorage();
-					if (currentRoomId === roomId) updateReadReceiptUI(data.messageId);
-				}
-			}
-		}
-
-		function broadcastInRoom(roomId, dataObj, excludePeerId = null) {
-			if (!activeRooms[roomId]) return;
-			const payload = JSON.stringify(dataObj);
-			Object.keys(activeRooms[roomId].peers).forEach(id => {
-				const p = activeRooms[roomId].peers[id];
-				if (id !== excludePeerId && p.dc && p.dc.readyState === 'open') {
-					p.dc.send(payload);
-				}
-			});
-		}
-
-		window.connectCurrentRoom = function() {
-			if(!currentRoomId || !savedChats[currentRoomId]) return;
-			const chat = savedChats[currentRoomId];
-			startMeshConnection(currentRoomId, chat.type);
-		};
-
-		async function startMeshConnection(roomId, roomType) {
-			if (!currentUser) return alert("Firebase connecting. Try again in a second.");
-			updateRoomConnectionState(roomId, 'connecting');
-			
-			if (savedChats[roomId].role === 'host') {
-				const roomMetaRef = doc(db, 'artifacts', appId, 'public', 'data', 'webrtc_rooms', roomId);
-				await setDoc(roomMetaRef, { hostId: currentUser.uid, roomType: roomType, createdAt: new Date().toISOString() });
-			}
-
-			const participantsColl = collection(db, 'artifacts', appId, 'public', 'data', `room_participants_${roomId}`);
-			const signalsColl = collection(db, 'artifacts', appId, 'public', 'data', `room_signals_${roomId}`);
-			
-			activeRooms[roomId].unsubs = [];
-
-			const myParticipantRef = doc(participantsColl, currentUser.uid);
-			await setDoc(myParticipantRef, { joinedAt: Date.now() });
-
-			const unsubParticipants = onSnapshot(participantsColl, snapshot => {
-				snapshot.docChanges().forEach(async change => {
-					if (change.type === 'added') {
-						const peerId = change.doc.id;
-						if (peerId === currentUser.uid) return; 
-
-						if (currentUser.uid < peerId) {
-							initiateCall(roomId, peerId, signalsColl);
-						}
-					}
-				});
-			});
-			activeRooms[roomId].unsubs.push(unsubParticipants);
-
-			const unsubSignals = onSnapshot(signalsColl, snapshot => {
-				snapshot.docChanges().forEach(async change => {
-					const docId = change.doc.id;
-					const data = change.doc.data();
-					if (!data) return;
-
-					const [callerId, targetId] = docId.split('_');
-					if (callerId !== currentUser.uid && targetId !== currentUser.uid) return;
-
-					if (targetId === currentUser.uid) {
-						handleIncomingSignal(roomId, callerId, data, change.doc.ref);
-					} else if (callerId === currentUser.uid) {
-						handleOutgoingSignal(roomId, targetId, data);
-					}
-				});
-			});
-			activeRooms[roomId].unsubs.push(unsubSignals);
-			
-			pushMessageToHistory(roomId, "Mesh initialized. Waiting for peers.", "System", false, true);
-		}
-
-		async function initiateCall(roomId, peerId, signalsColl) {
-			if (activeRooms[roomId].peers[peerId]) return;
-
-			const pc = new RTCPeerConnection(rtcConfig);
-			const dc = pc.createDataChannel('p2p-chat');
-			
-			activeRooms[roomId].peers[peerId] = { pc, dc, username: "Peer", processedCandidates: new Set() };
-			setupDataChannelEvents(roomId, peerId, dc);
-
-			pc.oniceconnectionstatechange = () => handleIceState(roomId, peerId, pc);
-
-			const signalRef = doc(signalsColl, `${currentUser.uid}_${peerId}`);
-			
-			pc.onicecandidate = async event => {
-				if (event.candidate) await updateDoc(signalRef, { callerCandidates: arrayUnion(event.candidate.toJSON()) }).catch(e=>e);
-			};
-
-			const offer = await pc.createOffer();
-			await pc.setLocalDescription(offer);
-			await setDoc(signalRef, { offer: { type: offer.type, sdp: offer.sdp }, callerCandidates: [], calleeCandidates: [] });
-		}
-
-		async function handleIncomingSignal(roomId, callerId, data, signalRef) {
-			if (data.offer && !activeRooms[roomId].peers[callerId]) {
-				const pc = new RTCPeerConnection(rtcConfig);
-				activeRooms[roomId].peers[callerId] = { pc, dc: null, username: "Peer", processedCandidates: new Set() };
-				
-				pc.ondatachannel = event => {
-					activeRooms[roomId].peers[callerId].dc = event.channel;
-					setupDataChannelEvents(roomId, callerId, event.channel);
-				};
-
-				pc.oniceconnectionstatechange = () => handleIceState(roomId, callerId, pc);
-				pc.onicecandidate = async event => {
-					if (event.candidate) await updateDoc(signalRef, { calleeCandidates: arrayUnion(event.candidate.toJSON()) }).catch(e=>e);
-				};
-
-				await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-				const answer = await pc.createAnswer();
-				await pc.setLocalDescription(answer);
-				await updateDoc(signalRef, { answer: { type: answer.type, sdp: answer.sdp } });
-			}
-
-			if (activeRooms[roomId].peers[callerId] && data.callerCandidates) {
-				data.callerCandidates.forEach(c => {
-					const key = c.candidate;
-					if (!activeRooms[roomId].peers[callerId].processedCandidates.has(key)) {
-						activeRooms[roomId].peers[callerId].pc.addIceCandidate(new RTCIceCandidate(c)).catch(e=>e);
-						activeRooms[roomId].peers[callerId].processedCandidates.add(key);
-					}
-				});
-			}
-		}
-
-		async function handleOutgoingSignal(roomId, targetId, data) {
-			const peer = activeRooms[roomId].peers[targetId];
-			if (!peer) return;
-
-			if (data.answer && !peer.pc.currentRemoteDescription) {
-				await peer.pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-			}
-
-			if (data.calleeCandidates) {
-				data.calleeCandidates.forEach(c => {
-					const key = c.candidate;
-					if (!peer.processedCandidates.has(key)) {
-						peer.pc.addIceCandidate(new RTCIceCandidate(c)).catch(e=>e);
-						peer.processedCandidates.add(key);
-					}
-				});
-			}
-		}
-
-		function handleIceState(roomId, peerId, pc) {
-			if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
-				if(activeRooms[roomId]?.peers[peerId]?.dc) activeRooms[roomId].peers[peerId].dc.close();
-			}
-		}
-
-		// --- 6. SETUP UI BINDINGS ---
-		window.processCreate = function() {
-			if (!currentUser) return alert("Sign in required to create a room.");
-			const selectedType = document.querySelector('input[name="roomType"]:checked').value;
-			let name = document.getElementById('create-input-name').value.trim();
-			if (!name) name = "My " + (selectedType === 'direct' ? "Direct Chat" : "Group Chat");
-			
-			let customCode = document.getElementById('create-input-code').value.trim().toUpperCase();
-			customCode = customCode.replace(/[^A-Z0-9-]/g, ''); 
-			const roomId = customCode || Math.random().toString(36).substring(2, 8).toUpperCase();
-			
-			// ENCRYPTION CHECK
-			const isProtected = document.getElementById('advanced-chat-checkbox').checked;
-			const chatPassword = document.getElementById('advanced-chat-password').value;
-
-			if (isProtected && !chatPassword) {
-				alert("A password is required for Advanced Chat Protection.");
-				return;
-			}
-			
-			savedChats[roomId] = { 
-				name, 
-				type: selectedType, 
-				role: 'host', 
-				messages: [], 
-				unread: 0,
-				isAdvancedProtected: isProtected,
-				encryptedPayload: null 
-			};
-
-			if(isProtected) {
-				activeUnlockedChats[roomId] = chatPassword;
-			}
-			
-			saveToStorage();
-			closeModal();
-			selectChat(roomId);
-			startMeshConnection(roomId, selectedType);
-		};
-
-		window.processJoin = async function() {
-			if (!currentUser) return alert("Sign in required to join a room.");
-			const codeInput = document.getElementById('join-input-code');
-			const nameInput = document.getElementById('join-input-name');
-			
-			const roomId = codeInput.value.trim().toUpperCase();
-			const customName = nameInput.value.trim();
-			
-			if(roomId.length < 3) return alert("Room code must be at least 3 characters.");
-
-			if(savedChats[roomId]) {
-				if (customName) {
-					savedChats[roomId].name = customName;
-					saveToStorage();
-				}
-				closeModal();
-				selectChat(roomId);
-				if (!activeRooms[roomId] || activeRooms[roomId].state === 'disconnected') connectCurrentRoom();
-				return;
-			}
-
-			try {
-				const roomMetaRef = doc(db, 'artifacts', appId, 'public', 'data', 'webrtc_rooms', roomId);
-				const metaSnap = await getDoc(roomMetaRef);
-				let rType = 'group';
-				if (metaSnap.exists()) rType = metaSnap.data().roomType || 'group';
-				
-				const chatName = customName || ("New Room " + roomId);
-				
-				// Automatically prompt if they want to protect this newly joined chat on their local machine
-				let protectChat = false;
-				let joinPass = null;
-				if(confirm("Do you want to enable Local Advanced Protection for this chat on your machine?")) {
-					joinPass = prompt("Set a local password for this chat:");
-					if(joinPass) protectChat = true;
-				}
-
-				savedChats[roomId] = { 
-					name: chatName, 
-					type: rType, 
-					role: 'guest', 
-					messages: [], 
-					unread: 0,
-					isAdvancedProtected: protectChat,
-					encryptedPayload: null 
-				};
-
-				if(protectChat) activeUnlockedChats[roomId] = joinPass;
-
-				saveToStorage();
-				
-				closeModal();
-				codeInput.value = '';
-				nameInput.value = '';
-				selectChat(roomId);
-				startMeshConnection(roomId, rType);
-
-			} catch (err) { alert("Could not find room data."); }
-		};
-
-		window.sendMessage = function(e) {
-			e.preventDefault();
-			if (!currentUser) return alert("Sign in required to send messages.");
-			if(!currentRoomId || !activeRooms[currentRoomId] || activeRooms[currentRoomId].state !== 'connected') return;
-			
-			const input = document.getElementById('chat-input');
-			const text = input.value.trim();
-			if(!text && pendingAttachments.length === 0) return;
-
-			const now = Date.now();
-			if (window.lastSendTime && now - window.lastSendTime < 500) {
-				return console.warn("Sending too fast. Please wait.");
-			}
-			window.lastSendTime = now;
-
-			const myName = document.getElementById('my-username').value.trim() || 'Anonymous';
-			const msgId = Math.random().toString(36).substring(2, 11);
-			const attachment = pendingAttachments.length > 0 ? pendingAttachments[0] : null;
-			const payload = { type: 'chat', id: msgId, username: myName, text: text, attachment: attachment };
-			
-			pushMessageToHistory(currentRoomId, text, myName, true, false, attachment, msgId);
-			input.value = '';
-			pendingAttachments = [];
-			renderAttachmentPreviews();
-			sendTypingState(false);
-
-			sendDataChunked(currentRoomId, payload);
-		};
-
-		let typingTimer = null;
-		window.handleTyping = function() {
-			if (!currentRoomId || activeRooms[currentRoomId]?.state !== 'connected') return;
-			sendTypingState(true);
-			clearTimeout(typingTimer);
-			typingTimer = setTimeout(() => sendTypingState(false), 2000);
-		};
-
-		function sendTypingState(isTyping) {
-			const myName = document.getElementById('my-username').value.trim() || 'Anonymous';
-			sendDataChunked(currentRoomId, { type: 'typing', username: myName, isTyping });
-		}
-
-		function handleRemoteTyping(roomId, username, isTyping) {
-			if (currentRoomId !== roomId) return;
-			
-			const ind = document.getElementById('typing-indicator');
-			const usersSpan = document.getElementById('typing-users');
-			
-			if (isTyping) { activeTypers.add(username); } 
-			else { activeTypers.delete(username); }
-			
-			if (activeTypers.size > 0) {
-				usersSpan.textContent = Array.from(activeTypers).join(', ');
-				ind.classList.remove('hidden');
-			} else {
-				ind.classList.add('hidden');
-			}
-			
-			clearTimeout(typingTimeouts[username]);
-			if (isTyping) {
-				typingTimeouts[username] = setTimeout(() => handleRemoteTyping(roomId, username, false), 3500);
-			}
-			
-			const box = document.getElementById('chat-messages');
-			if (box.scrollHeight - box.scrollTop < box.clientHeight + 60) {
-				setTimeout(() => box.scrollTop = box.scrollHeight, 50);
-			}
-		}
-
-		window.handleMediaUpload = async function(e) {
-			const target = e.target;
-			const files = Array.from(target.files);
-			if (!files.length || !currentRoomId || activeRooms[currentRoomId]?.state !== 'connected') return;
-			
-			for (let file of files) {
-				if (file.size > MAX_FILE_SIZE) {
-					alert(`File ${file.name} is too large. Max size is 8MB.`);
-					continue;
-				}
-
-				if (file.type.startsWith('image/')) {
-					if (file.type === 'image/svg+xml' || file.type === 'image/gif') {
-						const base64 = await readFileAsBase64(file);
-						if (base64) pendingAttachments.push({ name: file.name, type: file.type, data: base64 });
-					} else {
-						const base64 = await processImage(file);
-						if (base64) pendingAttachments.push({ name: file.name, type: file.type, data: base64 });
-					}
-				} else {
-					const base64 = await readFileAsBase64(file);
-					if (base64) pendingAttachments.push({ name: file.name, type: file.type || 'application/octet-stream', data: base64 });
-				}
-			}
-			
-			target.value = ''; 
-			renderAttachmentPreviews();
-		};
-
-		function processImage(file) {
-			return new Promise(resolve => {
-				const reader = new FileReader();
-				reader.onload = event => {
-					const img = new Image();
-					img.onload = () => {
-						try {
-							const canvas = document.createElement('canvas');
-							let w = img.width, h = img.height;
-							const MAX = 1200;
-							if (w > MAX || h > MAX) {
-								const ratio = Math.min(MAX/w, MAX/h);
-								w *= ratio; h *= ratio;
-							}
-							canvas.width = w; canvas.height = h;
-							const ctx = canvas.getContext('2d');
-							ctx.drawImage(img, 0, 0, w, h);
-							resolve(canvas.toDataURL(file.type === 'image/png' ? 'image/png' : 'image/jpeg', 0.8));
-						} catch (err) {
-							resolve(event.target.result); 
-						}
-					};
-					img.onerror = () => resolve(event.target.result); 
-					img.src = event.target.result;
-				};
-				reader.onerror = () => resolve(''); 
-				reader.readAsDataURL(file);
-			});
-		}
-
-		function readFileAsBase64(file) {
-			return new Promise(resolve => {
-				const reader = new FileReader();
-				reader.onload = e => resolve(e.target.result);
-				reader.onerror = () => resolve(''); 
-				reader.readAsDataURL(file);
-			});
-		}
-
-		window.renderAttachmentPreviews = function() {
-			const container = document.getElementById('attachment-preview-area');
-			container.innerHTML = '';
-			if (pendingAttachments.length === 0) {
-				container.classList.add('hidden');
-				return;
-			}
-			container.classList.remove('hidden');
-
-			pendingAttachments.forEach((att, index) => {
-				const div = document.createElement('div');
-				div.className = 'bg-gray-800 rounded-lg p-2.5 flex items-center gap-3 min-w-[160px] max-w-[250px] border border-gray-600 shadow';
-
-				div.innerHTML = `
-					<div class="flex-shrink-0">${getFileIconSVG(att.type)}</div>
-					<div class="flex-1 min-w-0">
-						<span class="block text-xs text-gray-200 truncate font-medium">${att.name}</span>
-					</div>
-					<button type="button" class="text-red-400 hover:text-red-300 hover:bg-red-900/30 p-1 rounded transition flex-shrink-0" onclick="removeAttachment(${index})">
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-					</button>
-				`;
-				container.appendChild(div);
-			});
-		};
-
-		window.removeAttachment = function(index) {
-			pendingAttachments.splice(index, 1);
-			renderAttachmentPreviews();
-		};
-
-		window.handleInputAutoGrow = function() {
-			const el = document.getElementById('chat-input');
-			el.style.height = 'auto';
-			el.style.height = Math.min(el.scrollHeight, 240) + 'px';
-			handleTyping();
-		};
-
-		window.handleGroupAvatarUpload = function(e) {
-			if (!currentRoomId || !savedChats[currentRoomId] || savedChats[currentRoomId].role !== 'host') return;
-			const file = e.target.files[0];
-			if (!file) return;
-			const reader = new FileReader();
-			reader.onload = function(event) {
-				const img = new Image();
-				img.onload = function() {
-					const canvas = document.createElement('canvas');
-					canvas.width = 128;
-					canvas.height = 128;
-					const ctx = canvas.getContext('2d');
-					
-					const size = Math.min(img.width, img.height);
-					const sx = (img.width - size) / 2;
-					const sy = (img.height - size) / 2;
-					ctx.drawImage(img, sx, sy, size, size, 0, 0, 128, 128);
-
-					const base64 = canvas.toDataURL('image/jpeg', 0.8);
-					savedChats[currentRoomId].avatar = base64;
-					saveToStorage();
-					renderActiveChatHeader();
-					renderSidebar();
-					
-					if (activeRooms[currentRoomId] && activeRooms[currentRoomId].state === 'connected') {
-						sendDataChunked(currentRoomId, { type: 'system', action: 'update_group_avatar', avatar: base64 });
-						pushMessageToHistory(currentRoomId, "You updated the group icon.", "System", true, true);
-					}
-				}
-				img.src = event.target.result;
-			}
-			reader.readAsDataURL(file);
-			e.target.value = ''; 
-		};
-
-		window.updateUserPassword = async function() {
-			const newPass = document.getElementById('new-password').value;
-			if (!newPass) return alert("Enter a new password first.");
-			if (!currentUser) return alert("You are not logged in.");
-
-			try {
-				await updatePassword(currentUser, newPass);
-				alert("Password updated successfully!");
-				document.getElementById('new-password').value = '';
-			} catch (error) {
-				if (error.code === 'auth/requires-recent-login') {
-					alert("For security reasons, please log out and log back in before changing your password.");
-				} else {
-					alert("Failed to update password: " + error.message);
-				}
-			}
-		};
-
-		// --- 7. PROFILE AVATAR LOGIC ---
-		window.saveMyProfile = function() {
-			const name = document.getElementById('my-username').value.trim();
-			const desc = document.getElementById('my-description').value.trim();
-			localStorage.setItem('p2p_my_username', name);
-			localStorage.setItem('p2p_my_description', desc);
-			const displayEl = document.getElementById('sidebar-my-name');
-			if (displayEl) displayEl.textContent = name || 'Anonymous';
-		};
-		
-		window.handleAvatarUpload = function(e) {
-			const file = e.target.files[0];
-			if (!file) return;
-			const reader = new FileReader();
-			reader.onload = function(event) {
-				const img = new Image();
-				img.onload = function() {
-					const canvas = document.createElement('canvas');
-					canvas.width = 128;
-					canvas.height = 128;
-					const ctx = canvas.getContext('2d');
-					
-					const size = Math.min(img.width, img.height);
-					const sx = (img.width - size) / 2;
-					const sy = (img.height - size) / 2;
-					ctx.drawImage(img, sx, sy, size, size, 0, 0, 128, 128);
-
-					const base64 = canvas.toDataURL('image/jpeg', 0.8);
-					localStorage.setItem('p2p_my_avatar', base64);
-					setMyAvatarPreview(base64);
-				}
-				img.src = event.target.result;
-			}
-			reader.readAsDataURL(file);
-		};
-
-		function setMyAvatarPreview(base64) {
-			const container = document.getElementById('my-avatar-preview-container');
-			const sidebarAvatar = document.getElementById('sidebar-my-avatar');
-			if(base64) {
-				container.innerHTML = `<img src="${base64}" class="w-full h-full object-cover">`;
-				if (sidebarAvatar) sidebarAvatar.innerHTML = `<img src="${base64}" class="w-full h-full object-cover">`;
-			}
-		}
-		
-		const chatInput = document.getElementById("chat-input");
-
-		chatInput.addEventListener("keydown", function(e) {
-			if (e.key === "Enter" && !e.shiftKey) {
-				e.preventDefault(); 
-				sendMessage(e);		
-			}
-		});
-
-		const savedUsername = localStorage.getItem('p2p_my_username');
-		if (savedUsername) {
-			document.getElementById('my-username').value = savedUsername;
-			document.getElementById('sidebar-my-name').textContent = savedUsername;
-		}
-		const savedDesc = localStorage.getItem('p2p_my_description');
-		if (savedDesc) document.getElementById('my-description').value = savedDesc;
-		
-		const savedAvatar = localStorage.getItem('p2p_my_avatar');
-		if (savedAvatar) setMyAvatarPreview(savedAvatar);
-		
-		if (window.location.hash.startsWith('#popout=')) {
-			document.body.classList.add('popout-mode');
-			const popRoomId = window.location.hash.replace('#popout=', '');
-			
-			const authCheckInterval = setInterval(() => {
-				if (currentUser) {
-					clearInterval(authCheckInterval);
-					if (savedChats[popRoomId]) {
-						selectChat(popRoomId);
-						connectCurrentRoom();
-					}
-				}
-			}, 200);
-		}
-
-	</script>
+</div><!-- /page -->
+
+<script type="module">
+	import { cubicGradient } from 'https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js';
+
+	document.body.style.background = cubicGradient({
+		direction: 'to bottom right',
+		start: '#000000',
+		end: '#004455',
+		steps: 24,
+		power: 2.5
+	});
+</script>
 </body>
 </html>

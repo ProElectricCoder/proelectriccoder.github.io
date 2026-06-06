@@ -1,11 +1,205 @@
-<header class="main-header">
-	<div class="logo-section">
-		<img src="/Favicon.svg" alt="Logo" class="logo">
-		<span class="site-name">ProElectricCoder</span>
-	</div>
-	<nav class="nav-links">
+<!--
+	ProElectricCoder · Shared Header Component
+	────────────────────────────────────────────
+	Self-contained: inline CSS, no external dependencies.
+	Usage — copy the <header> block into any page, or let
+	header.js inject it via: document.getElementById('header').innerHTML = ...
+
+	To use with header.js, host this file at /header.html.
+	The script fetches it and injects into <div id="header">.
+-->
+
+<style>
+/* ── Header Reset & Tokens ─────────────────────────────────────────────── */
+.main-header *,
+.main-header *::before,
+.main-header *::after {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+}
+
+.main-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 32px;
+	height: 56px;
+	background: rgba(0, 0, 17, 0.7);
+	backdrop-filter: blur(16px);
+	-webkit-backdrop-filter: blur(16px);
+	border-bottom: 1px solid rgba(0, 255, 255, 0.14);
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	z-index: 1000;
+}
+
+/* ── Logo Section ──────────────────────────────────────────────────────── */
+.header-brand {
+	display: flex;
+	align-items: center;
+	gap: 11px;
+	text-decoration: none;
+	flex-shrink: 0;
+}
+
+.header-logo {
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	object-fit: contain;
+	transition: filter 0.3s ease;
+}
+.header-brand:hover .header-logo {
+	filter: drop-shadow(0 0 8px rgba(0, 255, 255, 0.6));
+}
+
+.header-site-name {
+	font-family: fantasy, 'Copperplate', serif;
+	font-size: 1.05rem;
+	color: #ffffff;
+	letter-spacing: 0.02em;
+	line-height: 1;
+	white-space: nowrap;
+}
+
+/* ── Navigation ────────────────────────────────────────────────────────── */
+.header-nav {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.header-nav a {
+	font-family: 'JetBrains Mono', 'Courier New', monospace;
+	font-size: 0.78rem;
+	font-weight: 500;
+	letter-spacing: 0.06em;
+	color: rgba(0, 255, 255, 0.75);
+	text-decoration: none;
+	padding: 6px 14px;
+	border-radius: 6px;
+	border: 1px solid transparent;
+	transition: color 0.2s, border-color 0.2s, background 0.2s;
+	position: relative;
+	white-space: nowrap;
+}
+
+.header-nav a:hover,
+.header-nav a[aria-current="page"] {
+	color: #00ffff;
+	background: rgba(0, 255, 255, 0.06);
+	border-color: rgba(0, 255, 255, 0.18);
+}
+
+/* ── Hamburger (mobile) ────────────────────────────────────────────────── */
+.header-hamburger {
+	display: none;
+	flex-direction: column;
+	gap: 5px;
+	cursor: pointer;
+	padding: 6px;
+	border: none;
+	background: none;
+	border-radius: 6px;
+	transition: background 0.2s;
+}
+.header-hamburger:hover { background: rgba(0, 255, 255, 0.06); }
+.header-hamburger span {
+	display: block;
+	width: 20px;
+	height: 1.5px;
+	background: rgba(0, 255, 255, 0.8);
+	border-radius: 2px;
+	transition: all 0.25s ease;
+}
+.header-hamburger.open span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+.header-hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+.header-hamburger.open span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+
+/* ── Mobile drawer ─────────────────────────────────────────────────────── */
+.header-drawer {
+	display: none;
+	position: fixed;
+	top: 56px;
+	left: 0;
+	right: 0;
+	background: rgba(0, 0, 17, 0.97);
+	backdrop-filter: blur(20px);
+	border-bottom: 1px solid rgba(0, 255, 255, 0.14);
+	flex-direction: column;
+	padding: 12px 24px 20px;
+	gap: 2px;
+	z-index: 999;
+	transform: translateY(-8px);
+	opacity: 0;
+	transition: transform 0.22s ease, opacity 0.22s ease;
+}
+.header-drawer.open {
+	display: flex;
+	transform: translateY(0);
+	opacity: 1;
+}
+.header-drawer a {
+	font-family: 'JetBrains Mono', 'Courier New', monospace;
+	font-size: 0.85rem;
+	letter-spacing: 0.06em;
+	color: rgba(0, 255, 255, 0.75);
+	text-decoration: none;
+	padding: 11px 14px;
+	border-radius: 8px;
+	border: 1px solid transparent;
+	transition: all 0.18s;
+}
+.header-drawer a:hover {
+	color: #00ffff;
+	background: rgba(0, 255, 255, 0.06);
+	border-color: rgba(0, 255, 255, 0.15);
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+	.main-header { padding: 0 20px; }
+	.header-site-name { display: none; }
+	.header-nav { display: none; }
+	.header-hamburger { display: flex; }
+}
+
+@media (min-width: 641px) {
+	.header-drawer { display: none !important; }
+}
+</style>
+
+<header class="main-header" role="banner">
+	<a href="https://proelectriccoder.github.io/" class="header-brand">
+		<img src="/Favicon.svg" alt="ProElectricCoder" class="header-logo"
+			 onerror="this.style.display='none'">
+		<span class="header-site-name">ProElectricCoder</span>
+	</a>
+
+	<nav class="header-nav" aria-label="Main navigation">
 		<a href="https://proelectriccoder.github.io/">Home</a>
 		<a href="/Projects/">Projects</a>
 		<a href="/Library/">Library</a>
 	</nav>
+
+	<button class="header-hamburger" aria-label="Toggle menu" aria-expanded="false"
+			onclick="(function(btn){
+				var open = btn.classList.toggle('open');
+				btn.setAttribute('aria-expanded', open);
+				var drawer = document.getElementById('headerDrawer');
+				if(drawer) drawer.classList.toggle('open', open);
+			})(this)">
+		<span></span>
+		<span></span>
+		<span></span>
+	</button>
 </header>
+
+<nav class="header-drawer" id="headerDrawer" aria-label="Mobile navigation">
+	<a href="https://proelectriccoder.github.io/">Home</a>
+	<a href="/Projects/">Projects</a>
+	<a href="/Library/">Library</a>
+</nav>
