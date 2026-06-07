@@ -10,20 +10,21 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=JetBrains+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
-	<!-- Firebase SDK (compat) -->
+	<!-- Firebase SDK (compat mode) -->
 	<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 	<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 	<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 	<style>
 		*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-		html, body { height: 100%; }
+		html, body { height: 100%; overflow: hidden; }
 
 		:root {
 			--cyan:      #00ffff;
 			--blue:      #3d6eff;
 			--green:     #00ff88;
 			--red:       #ff4455;
+			--yellow:    #ffdd55;
 			--border:    rgba(0, 255, 255, 0.12);
 			--border-hi: rgba(0, 255, 255, 0.28);
 			--card:      rgba(0, 0, 0, 0.45);
@@ -36,509 +37,318 @@
 		body {
 			font-family: 'DM Sans', sans-serif;
 			color: var(--text);
-			min-height: 100vh;
 			display: flex;
 			flex-direction: column;
-			overflow: hidden;
 		}
 
-		/* ── App shell ── */
-		.app-shell {
-			display: flex;
-			flex-direction: column;
-			height: 100vh;
-			position: relative;
-			z-index: 1;
-		}
+		.app-shell { display: flex; flex-direction: column; height: 100vh; position: relative; z-index: 1; }
 
 		/* ── Topbar ── */
 		.topbar {
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
-			padding: 0 20px;
+			padding: 0 16px;
 			height: 52px;
-			background: rgba(0, 0, 0, 0.65);
-			backdrop-filter: blur(16px);
+			background: rgba(0,0,0,0.7);
+			backdrop-filter: blur(18px);
 			border-bottom: 1px solid var(--border);
 			flex-shrink: 0;
-			gap: 12px;
+			gap: 10px;
+			z-index: 10;
 		}
-		.topbar-left {
+		.topbar-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+		.topbar-logo { width: 24px; height: 24px; opacity: 0.85; flex-shrink: 0; }
+		.topbar-title { font-family: 'Syne', sans-serif; font-size: 0.88rem; font-weight: 800; white-space: nowrap; }
+
+		.status-pill {
 			display: flex;
 			align-items: center;
-			gap: 10px;
-		}
-		.topbar-logo {
-			width: 24px;
-			height: 24px;
-			opacity: 0.85;
-		}
-		.topbar-title {
-			font-family: 'Syne', sans-serif;
-			font-size: 0.9rem;
-			font-weight: 800;
-			letter-spacing: -0.01em;
+			gap: 6px;
+			background: rgba(255,255,255,0.04);
+			border: 1px solid var(--border);
+			border-radius: 20px;
+			padding: 3px 10px 3px 7px;
 		}
 		.status-dot {
-			width: 8px;
-			height: 8px;
-			border-radius: 50%;
+			width: 7px; height: 7px; border-radius: 50%;
 			background: var(--faint);
-			transition: background 0.3s;
+			transition: background 0.3s, box-shadow 0.3s;
 			flex-shrink: 0;
 		}
-		.status-dot.connected    { background: var(--green); box-shadow: 0 0 6px var(--green); }
-		.status-dot.connecting   { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); animation: pulse 1s ease-in-out infinite; }
-		.status-dot.disconnected { background: var(--red); }
-		@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+		.status-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
+		.status-dot.connecting { background: var(--cyan); animation: blink 1s ease-in-out infinite; }
+		.status-dot.disconnected { background: var(--faint); }
+		@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+		.status-text { font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; color: var(--dim); }
 
-		.status-text {
-			font-family: 'JetBrains Mono', monospace;
-			font-size: 0.7rem;
+		.topbar-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+		/* ── Icon buttons ── */
+		.icon-btn {
+			width: 34px; height: 34px; border-radius: 8px;
+			border: 1px solid var(--border);
+			background: rgba(255,255,255,0.04);
 			color: var(--dim);
+			display: flex; align-items: center; justify-content: center;
+			cursor: pointer; transition: all 0.18s; flex-shrink: 0;
 		}
+		.icon-btn:hover { background: rgba(255,255,255,0.09); color: var(--text); border-color: var(--border-hi); }
+		.icon-btn.active { background: rgba(0,255,255,0.1); color: var(--cyan); border-color: rgba(0,255,255,0.3); }
+		.icon-btn svg { width: 16px; height: 16px; }
+		.icon-btn.call-btn { display: none; }
 
-		.topbar-right {
-			display: flex;
-			align-items: center;
-			gap: 10px;
-		}
-
-		/* ── Main content area ── */
-		.main {
-			flex: 1;
-			display: flex;
-			overflow: hidden;
-		}
+		/* ── Main area ── */
+		.main { flex: 1; display: flex; overflow: hidden; }
 
 		/* ── Sidebar ── */
 		.sidebar {
-			width: 280px;
+			width: 270px;
 			flex-shrink: 0;
 			border-right: 1px solid var(--border);
-			background: rgba(0, 0, 0, 0.3);
+			background: rgba(0,0,0,0.28);
 			display: flex;
 			flex-direction: column;
 			overflow-y: auto;
 		}
-		@media (max-width: 680px) {
-			.sidebar { display: none; }
-		}
+		@media (max-width: 680px) { .sidebar { display: none; } }
 
-		.sidebar-section {
-			padding: 16px;
-			border-bottom: 1px solid var(--border);
-		}
+		.sidebar-section { padding: 14px; border-bottom: 1px solid var(--border); }
 		.sidebar-label {
 			font-family: 'JetBrains Mono', monospace;
-			font-size: 0.62rem;
-			letter-spacing: 0.18em;
-			text-transform: uppercase;
-			color: var(--faint);
-			margin-bottom: 10px;
+			font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase;
+			color: var(--faint); margin-bottom: 10px;
 		}
 
 		/* ── Mode tabs ── */
 		.mode-tabs {
-			display: flex;
-			gap: 0;
-			background: rgba(0,0,0,0.3);
-			border: 1px solid var(--border);
-			border-radius: 8px;
-			overflow: hidden;
+			display: flex; background: rgba(0,0,0,0.3);
+			border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
 		}
 		.mode-tab {
-			flex: 1;
-			padding: 8px;
-			border: none;
-			background: none;
-			color: var(--dim);
-			font-family: 'JetBrains Mono', monospace;
-			font-size: 0.72rem;
-			letter-spacing: 0.05em;
-			cursor: pointer;
-			transition: all 0.2s;
-			text-align: center;
+			flex: 1; padding: 7px; border: none; background: none;
+			color: var(--dim); font-family: 'JetBrains Mono', monospace;
+			font-size: 0.7rem; letter-spacing: 0.04em; cursor: pointer; transition: all 0.18s;
 		}
-		.mode-tab.active {
-			background: rgba(0, 255, 255, 0.08);
-			color: var(--cyan);
-			border-right: 1px solid var(--border);
-		}
-		.mode-tab:last-child.active { border-right: none; }
+		.mode-tab.active { background: rgba(0,255,255,0.08); color: var(--cyan); }
 
-		/* ── Forms ── */
-		.field-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
-		.field-label {
-			font-family: 'JetBrains Mono', monospace;
-			font-size: 0.65rem;
-			letter-spacing: 0.12em;
-			text-transform: uppercase;
-			color: var(--faint);
-		}
+		/* ── Form fields ── */
+		.field-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+		.field-label { font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
 		.field-input {
-			background: rgba(0,0,0,0.4);
-			border: 1px solid var(--border);
-			border-radius: 7px;
-			color: var(--text);
-			font-family: 'JetBrains Mono', monospace;
-			font-size: 0.8rem;
-			padding: 8px 11px;
-			outline: none;
-			transition: border-color 0.2s;
-			width: 100%;
+			background: rgba(0,0,0,0.4); border: 1px solid var(--border);
+			border-radius: 7px; color: var(--text);
+			font-family: 'JetBrains Mono', monospace; font-size: 0.78rem;
+			padding: 7px 10px; outline: none; transition: border-color 0.2s; width: 100%;
 		}
 		.field-input:focus { border-color: var(--cyan); }
 		.field-input::placeholder { color: var(--faint); }
-
-		textarea.field-input {
-			resize: vertical;
-			min-height: 80px;
-			font-size: 0.72rem;
-			line-height: 1.5;
-		}
+		textarea.field-input { resize: vertical; min-height: 72px; font-size: 0.7rem; line-height: 1.45; }
 
 		/* ── Buttons ── */
 		.btn {
-			display: inline-flex;
-			align-items: center;
-			justify-content: center;
-			gap: 7px;
-			padding: 8px 14px;
-			border-radius: 7px;
-			font-family: 'JetBrains Mono', monospace;
-			font-size: 0.75rem;
-			font-weight: 500;
-			letter-spacing: 0.04em;
-			cursor: pointer;
-			border: none;
-			transition: all 0.18s;
-			white-space: nowrap;
+			display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+			padding: 7px 13px; border-radius: 7px;
+			font-family: 'JetBrains Mono', monospace; font-size: 0.73rem; font-weight: 500;
+			letter-spacing: 0.04em; cursor: pointer; border: none; transition: all 0.18s; white-space: nowrap;
 		}
-		.btn-primary {
-			background: var(--cyan);
-			color: #000;
-		}
+		.btn-primary { background: var(--cyan); color: #000; }
 		.btn-primary:hover { background: #fff; }
-		.btn-secondary {
-			background: rgba(255,255,255,0.06);
-			color: var(--dim);
-			border: 1px solid var(--border);
-		}
+		.btn-secondary { background: rgba(255,255,255,0.06); color: var(--dim); border: 1px solid var(--border); }
 		.btn-secondary:hover { background: rgba(255,255,255,0.1); color: var(--text); }
-		.btn-danger {
-			background: rgba(255,68,85,0.12);
-			color: var(--red);
-			border: 1px solid rgba(255,68,85,0.25);
-		}
+		.btn-danger { background: rgba(255,68,85,0.1); color: var(--red); border: 1px solid rgba(255,68,85,0.22); }
 		.btn-danger:hover { background: rgba(255,68,85,0.2); }
-		.btn:disabled { opacity: 0.35; cursor: not-allowed; }
 		.btn-full { width: 100%; }
+		.btn:disabled { opacity: 0.3; cursor: not-allowed; }
+		.gap-row { display: flex; gap: 7px; }
+		.gap-col { display: flex; flex-direction: column; gap: 7px; }
 
-		/* ── Auth user card ── */
-		.user-card {
-			display: flex;
-			align-items: center;
-			gap: 10px;
-			padding: 10px 12px;
-			background: var(--card-hi);
-			border: 1px solid var(--border);
-			border-radius: 8px;
-			margin-bottom: 10px;
+		/* ── Auth card ── */
+		.user-card { display: flex; align-items: center; gap: 9px; padding: 9px 11px; background: var(--card-hi); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; }
+		.user-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: rgba(0,255,255,0.1); flex-shrink: 0; }
+		.user-name { font-size: 0.8rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+
+		/* ── Copy block ── */
+		.copy-block { position: relative; }
+		.copy-block textarea { padding-right: 42px; }
+		.copy-btn-inline {
+			position: absolute; top: 7px; right: 7px;
+			background: rgba(0,255,255,0.1); border: 1px solid rgba(0,255,255,0.2);
+			border-radius: 4px; color: var(--cyan);
+			font-family: 'JetBrains Mono', monospace; font-size: 0.62rem;
+			padding: 2px 7px; cursor: pointer; transition: all 0.15s;
 		}
-		.user-avatar {
-			width: 30px;
-			height: 30px;
-			border-radius: 50%;
-			background: rgba(0,255,255,0.1);
-			object-fit: cover;
-			flex-shrink: 0;
-		}
-		.user-name {
-			font-size: 0.82rem;
-			font-weight: 500;
-			overflow: hidden;
-			text-overflow: ellipsis;
-			white-space: nowrap;
-			flex: 1;
-		}
+		.copy-btn-inline:hover { background: rgba(0,255,255,0.2); }
 
 		/* ── Chat area ── */
-		.chat-area {
-			flex: 1;
-			display: flex;
-			flex-direction: column;
-			min-width: 0;
-		}
+		.chat-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
-		/* ── Message list ── */
+		/* ── Welcome panel ── */
+		.panel {
+			display: none; flex-direction: column; align-items: center; justify-content: center;
+			flex: 1; padding: 40px 24px; text-align: center; gap: 18px;
+		}
+		.panel.active { display: flex; }
+		.panel-title { font-family: 'Syne', sans-serif; font-size: 1.4rem; font-weight: 800; }
+		.panel-sub { font-size: 0.84rem; color: var(--dim); max-width: 360px; line-height: 1.65; }
+
+		/* ── Messages ── */
+		.chat-view { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+		.chat-view.active { display: flex; }
+
 		.messages {
-			flex: 1;
-			overflow-y: auto;
-			padding: 20px 24px;
-			display: flex;
-			flex-direction: column;
-			gap: 10px;
+			flex: 1; overflow-y: auto; padding: 18px 20px;
+			display: flex; flex-direction: column; gap: 9px;
 		}
 
-		.message {
-			display: flex;
-			flex-direction: column;
-			gap: 3px;
-			max-width: 72%;
-		}
-		.message.mine {
-			align-self: flex-end;
-			align-items: flex-end;
-		}
-		.message.theirs {
-			align-self: flex-start;
-			align-items: flex-start;
-		}
+		.message { display: flex; flex-direction: column; gap: 3px; max-width: 74%; }
+		.message.mine { align-self: flex-end; align-items: flex-end; }
+		.message.theirs { align-self: flex-start; align-items: flex-start; }
 
-		.message-meta {
-			font-family: 'JetBrains Mono', monospace;
-			font-size: 0.62rem;
-			color: var(--faint);
-		}
+		.message-meta { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: var(--faint); }
+		.message-bubble { padding: 9px 13px; border-radius: 12px; font-size: 0.86rem; line-height: 1.5; word-break: break-word; }
+		.message.mine .message-bubble { background: rgba(0,255,255,0.11); border: 1px solid rgba(0,255,255,0.18); border-bottom-right-radius: 4px; }
+		.message.theirs .message-bubble { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.09); border-bottom-left-radius: 4px; }
 
-		.message-bubble {
-			padding: 10px 14px;
-			border-radius: 12px;
-			font-size: 0.88rem;
-			line-height: 1.5;
-			word-break: break-word;
-		}
-		.message.mine .message-bubble {
-			background: rgba(0, 255, 255, 0.12);
-			border: 1px solid rgba(0, 255, 255, 0.2);
-			border-bottom-right-radius: 4px;
-		}
-		.message.theirs .message-bubble {
-			background: rgba(255, 255, 255, 0.06);
-			border: 1px solid rgba(255, 255, 255, 0.1);
-			border-bottom-left-radius: 4px;
-		}
-
-		/* System messages */
 		.system-msg {
-			align-self: center;
-			font-family: 'JetBrains Mono', monospace;
-			font-size: 0.68rem;
-			color: var(--faint);
-			background: rgba(255,255,255,0.03);
-			border: 1px solid rgba(255,255,255,0.07);
-			border-radius: 20px;
-			padding: 4px 14px;
+			align-self: center; font-family: 'JetBrains Mono', monospace;
+			font-size: 0.65rem; color: var(--faint);
+			background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);
+			border-radius: 20px; padding: 3px 13px;
 		}
 
 		/* ── Input bar ── */
 		.input-bar {
-			display: flex;
-			gap: 10px;
-			padding: 14px 20px;
-			background: rgba(0,0,0,0.4);
-			border-top: 1px solid var(--border);
-			flex-shrink: 0;
+			display: flex; gap: 8px; padding: 12px 16px;
+			background: rgba(0,0,0,0.42); border-top: 1px solid var(--border); flex-shrink: 0;
+			align-items: flex-end;
 		}
-		.input-bar input {
+		.input-bar textarea {
 			flex: 1;
-			background: rgba(0,0,0,0.5);
-			border: 1px solid var(--border);
-			border-radius: 8px;
-			color: var(--text);
-			font-family: 'DM Sans', sans-serif;
-			font-size: 0.9rem;
-			padding: 10px 14px;
-			outline: none;
-			transition: border-color 0.2s;
+			background: rgba(0,0,0,0.5); border: 1px solid var(--border);
+			border-radius: 9px; color: var(--text);
+			font-family: 'DM Sans', sans-serif; font-size: 0.88rem;
+			padding: 10px 13px; outline: none; transition: border-color 0.2s;
+			resize: none; min-height: 42px; max-height: 140px; overflow-y: auto; line-height: 1.45;
 		}
-		.input-bar input:focus { border-color: var(--cyan); }
-		.input-bar input::placeholder { color: var(--faint); }
+		.input-bar textarea:focus { border-color: var(--cyan); }
+		.input-bar textarea::placeholder { color: var(--faint); }
 
-		/* ── Panels (auth, direct mode) ── */
-		.panel {
-			display: none;
-			flex-direction: column;
-			align-items: center;
-			justify-content: center;
-			flex: 1;
-			padding: 40px 24px;
-			text-align: center;
-			gap: 20px;
+		/* ── File previews ── */
+		.preview-img { max-width: 260px; max-height: 200px; border-radius: 8px; cursor: pointer; display: block; object-fit: cover; }
+		.file-card {
+			display: flex; align-items: center; gap: 12px;
+			background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+			border-radius: 10px; padding: 12px 14px; min-width: 200px; max-width: 280px;
 		}
-		.panel.active { display: flex; }
-
-		.panel-title {
-			font-family: 'Syne', sans-serif;
-			font-size: 1.5rem;
-			font-weight: 800;
-		}
-		.panel-sub {
-			font-size: 0.85rem;
-			color: var(--dim);
-			max-width: 380px;
-			line-height: 1.65;
-		}
-		.sign-in-buttons {
-			display: flex;
-			flex-direction: column;
-			gap: 10px;
-			width: 100%;
-			max-width: 280px;
-		}
-		.sign-in-btn {
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			gap: 10px;
-			padding: 12px 20px;
-			border-radius: 9px;
-			font-family: 'DM Sans', sans-serif;
-			font-size: 0.88rem;
-			font-weight: 500;
-			cursor: pointer;
-			border: 1px solid var(--border);
-			background: rgba(255,255,255,0.04);
-			color: var(--text);
-			transition: all 0.2s;
-			width: 100%;
-		}
-		.sign-in-btn:hover {
-			background: rgba(255,255,255,0.09);
-			border-color: var(--border-hi);
-		}
-		.sign-in-btn svg, .sign-in-btn img { width: 18px; height: 18px; flex-shrink: 0; }
-
-		.divider-or {
-			display: flex;
-			align-items: center;
-			gap: 14px;
-			width: 100%;
-			max-width: 280px;
-			color: var(--faint);
-			font-size: 0.75rem;
-		}
-		.divider-or::before, .divider-or::after {
-			content: '';
-			flex: 1;
-			height: 1px;
-			background: var(--border);
-		}
-
-		/* ── Copy block ── */
-		.copy-block {
-			position: relative;
-		}
-		.copy-block textarea.field-input {
-			padding-right: 44px;
-		}
-		.copy-block-btn {
-			position: absolute;
-			top: 8px;
-			right: 8px;
-			background: rgba(0,255,255,0.1);
-			border: 1px solid rgba(0,255,255,0.2);
-			border-radius: 5px;
-			color: var(--cyan);
-			font-family: 'JetBrains Mono', monospace;
-			font-size: 0.65rem;
-			padding: 3px 8px;
-			cursor: pointer;
-			transition: all 0.15s;
-		}
-		.copy-block-btn:hover { background: rgba(0,255,255,0.2); }
-
-		/* ── Toast ── */
-		.toast {
-			position: fixed;
-			bottom: 24px;
-			left: 50%;
-			transform: translateX(-50%) translateY(10px);
-			background: rgba(0,0,0,0.9);
-			border: 1px solid var(--border-hi);
-			border-radius: 8px;
-			padding: 10px 20px;
-			font-family: 'JetBrains Mono', monospace;
-			font-size: 0.76rem;
-			color: var(--text);
-			pointer-events: none;
-			opacity: 0;
-			transition: all 0.25s ease;
-			z-index: 1000;
-			white-space: nowrap;
-		}
-		.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+		.file-card-info { flex: 1; min-width: 0; }
+		.file-card-name { font-size: 0.82rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		.file-card-size { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: var(--faint); margin-top: 2px; }
 
 		/* ── Scrollbar ── */
-		::-webkit-scrollbar { width: 5px; }
+		::-webkit-scrollbar { width: 5px; height: 5px; }
 		::-webkit-scrollbar-track { background: transparent; }
 		::-webkit-scrollbar-thumb { background: rgba(0,255,255,0.12); border-radius: 4px; }
 
-		/* ── Utility ── */
+		/* ── Toast ── */
+		#toast {
+			position: fixed; bottom: 22px; left: 50%;
+			transform: translateX(-50%) translateY(12px);
+			background: rgba(0,0,0,0.92); border: 1px solid var(--border-hi);
+			border-radius: 8px; padding: 9px 18px;
+			font-family: 'JetBrains Mono', monospace; font-size: 0.74rem; color: var(--text);
+			opacity: 0; transition: all 0.24s ease; z-index: 9999; pointer-events: none; white-space: nowrap;
+		}
+		#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+		/* ── Sign in buttons ── */
+		.sign-in-btn {
+			display: flex; align-items: center; justify-content: center; gap: 9px;
+			padding: 11px 18px; border-radius: 9px;
+			font-family: 'DM Sans', sans-serif; font-size: 0.86rem; font-weight: 500;
+			cursor: pointer; border: 1px solid var(--border);
+			background: rgba(255,255,255,0.04); color: var(--text);
+			transition: all 0.18s; width: 100%;
+		}
+		.sign-in-btn:hover { background: rgba(255,255,255,0.09); border-color: var(--border-hi); }
+		.sign-in-btn img { width: 17px; height: 17px; }
+
+		/* hidden until connected */
+		.call-controls-row { display: none; gap: 5px; }
 		.hidden { display: none !important; }
-		.gap-row { display: flex; gap: 8px; }
-		.gap-col { display: flex; flex-direction: column; gap: 8px; }
 	</style>
 </head>
 <body>
 
 <div class="app-shell">
-
-	<!-- ── Topbar ─────────────────────────────────────────────── -->
+	<!-- ── Topbar ──────────────────────────────────────────────── -->
 	<div class="topbar">
 		<div class="topbar-left">
 			<img src="/Favicon.svg" alt="" class="topbar-logo" onerror="this.style.display='none'">
 			<span class="topbar-title">P2P Chat</span>
-			<div class="status-dot disconnected" id="statusDot"></div>
-			<span class="status-text" id="statusText">Disconnected</span>
+			<div class="status-pill">
+				<div class="status-dot disconnected" id="statusDot"></div>
+				<span class="status-text" id="statusText">Disconnected</span>
+			</div>
 		</div>
+
 		<div class="topbar-right">
-			<button class="btn btn-secondary" id="topbarDocsBtn" onclick="window.open('/Projects/Chat/', '_blank')">Docs</button>
-			<button class="btn btn-secondary hidden" id="topbarDisconnectBtn">Disconnect</button>
+			<!-- Call buttons (visible when connected) -->
+			<div class="call-controls-row" id="callControlsRow">
+				<button class="icon-btn call-btn" id="voiceCallBtn" title="Voice Call" onclick="App.startVoiceCall()">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z"/></svg>
+				</button>
+				<button class="icon-btn call-btn" id="videoCallBtn" title="Video Call" onclick="App.startVideoCall()">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" d="M15.75 10.5 20.47 5.78A.75.75 0 0 1 21.75 6.286v11.428a.75.75 0 0 1-1.28.53L15.75 13.5M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z"/></svg>
+				</button>
+				<button class="icon-btn call-btn" id="screenShareBtn" title="Screen Share" onclick="App.startScreenShare()">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0H3"/></svg>
+				</button>
+			</div>
+
+			<!-- Docs, Settings -->
+			<button class="icon-btn" title="Documentation" onclick="window.open('/Projects/Chat/', '_blank')">
+				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"/></svg>
+			</button>
+			<button class="icon-btn" title="Settings" id="settingsBtn" onclick="App.openSettings()">
+				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+			</button>
 		</div>
 	</div>
 
-	<!-- ── Main layout ────────────────────────────────────────── -->
+	<!-- ── Main ──────────────────────────────────────────────────── -->
 	<div class="main">
 
-		<!-- ── Sidebar ──────────────────────────────────────── -->
+		<!-- Sidebar -->
 		<div class="sidebar">
 
-			<!-- Mode tabs -->
 			<div class="sidebar-section">
-				<div class="sidebar-label">Connection Mode</div>
+				<div class="sidebar-label">Mode</div>
 				<div class="mode-tabs">
-					<button class="mode-tab active" id="tabFirebase" onclick="switchMode('firebase')">Firebase</button>
-					<button class="mode-tab" id="tabDirect" onclick="switchMode('direct')">Direct</button>
+					<button class="mode-tab active" id="tabFirebase" onclick="App.switchMode('firebase')">Firebase</button>
+					<button class="mode-tab" id="tabDirect" onclick="App.switchMode('direct')">Direct</button>
 				</div>
 			</div>
 
-			<!-- Firebase mode controls -->
+			<!-- Firebase sidebar -->
 			<div class="sidebar-section" id="firebaseSidebar">
 				<div class="sidebar-label">Account</div>
-				<div id="fbAuthCard" class="gap-col hidden">
-					<!-- Populated by JS -->
-				</div>
+				<div id="fbAuthCard" class="gap-col hidden"></div>
 				<div id="fbSignInPrompt" class="gap-col">
-					<span style="font-size:0.78rem;color:var(--dim)">Sign in to use Firebase signaling</span>
-					<button class="btn btn-secondary btn-full" onclick="App.signInGoogle()">
-						<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M15.545 6.558a9.42 9.42 0 0 1 .139 1.626c0 2.434-.87 4.492-2.384 5.885h.002C11.978 15.292 10.158 16 8 16A8 8 0 1 1 8 0a7.689 7.689 0 0 1 5.352 2.082l-2.284 2.284A4.347 4.347 0 0 0 8 3.166c-2.087 0-3.86 1.408-4.492 3.304a4.792 4.792 0 0 0 0 3.063h.003c.635 1.893 2.405 3.301 4.492 3.301 1.078 0 2.004-.276 2.722-.764h-.003a3.702 3.702 0 0 0 1.599-2.431H8v-3.08h7.545z" fill="currentColor"/></svg>
+					<span style="font-size:0.76rem;color:var(--dim);margin-bottom:2px">Sign in for Firebase mode</span>
+					<button class="sign-in-btn" onclick="App.signInGoogle()">
+						<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23F44336' d='M15.5 8.15c0-.5-.04-1.01-.13-1.5H8v2.84h4.21a3.6 3.6 0 0 1-1.56 2.37v1.97h2.53C14.7 12.35 15.5 10.4 15.5 8.15z'/%3E%3Cpath fill='%234CAF50' d='M8 16c2.14 0 3.94-.71 5.25-1.92l-2.53-1.96c-.71.48-1.62.76-2.72.76-2.09 0-3.86-1.41-4.49-3.3H.9v2.03A7.99 7.99 0 0 0 8 16z'/%3E%3Cpath fill='%23FFC107' d='M3.51 9.58A4.8 4.8 0 0 1 3.26 8c0-.55.09-1.08.25-1.58V4.39H.9A8 8 0 0 0 0 8c0 1.29.31 2.51.9 3.61l2.61-2.03z'/%3E%3Cpath fill='%231565C0' d='M8 3.18c1.17 0 2.23.4 3.06 1.2L13.6 1.8C12.09.4 10.19-.4 8 0a8 8 0 0 0-7.1 4.39l2.62 2.03C4.14 4.6 5.91 3.18 8 3.18z'/%3E%3C/svg%3E" alt="">
 						Sign in with Google
 					</button>
-					<button class="btn btn-secondary btn-full" onclick="App.signInGitHub()">
-						<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+					<button class="sign-in-btn" onclick="App.signInGitHub()">
+						<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
 						Sign in with GitHub
 					</button>
 				</div>
 
-				<!-- Room controls (shown when signed in) -->
-				<div id="fbRoomControls" class="gap-col hidden" style="margin-top:14px">
-					<div class="sidebar-label" style="margin-top:4px">Room</div>
-					<div class="field-group">
-						<input type="text" class="field-input" id="roomIdInput" placeholder="room-id" maxlength="32">
-					</div>
+				<div id="fbRoomControls" class="gap-col hidden" style="margin-top:12px">
+					<div class="sidebar-label" style="margin-top:2px">Room</div>
+					<input type="text" class="field-input" id="roomIdInput" placeholder="room-id">
 					<div class="gap-row">
 						<button class="btn btn-primary" style="flex:1" onclick="App.createRoom()">Create</button>
 						<button class="btn btn-secondary" style="flex:1" onclick="App.joinRoom()">Join</button>
@@ -546,114 +356,85 @@
 				</div>
 			</div>
 
-			<!-- Direct mode controls -->
+			<!-- Direct sidebar -->
 			<div class="sidebar-section hidden" id="directSidebar">
-				<div class="sidebar-label">Step 1 — Generate Offer</div>
-				<button class="btn btn-primary btn-full" id="directOfferBtn" onclick="App.directCreateOffer()">Generate Offer SDP</button>
+				<div class="sidebar-label">Step 1 — Your Offer</div>
+				<button class="btn btn-primary btn-full" onclick="App.directCreateOffer()">Generate Offer SDP</button>
 
 				<div class="field-group hidden" id="directOfferGroup" style="margin-top:10px">
-					<label class="field-label">Your Offer (share this)</label>
+					<label class="field-label">Share this with remote peer</label>
 					<div class="copy-block">
-						<textarea class="field-input" id="directOfferSDP" readonly rows="4"></textarea>
-						<button class="copy-block-btn" onclick="App.copyField('directOfferSDP')">copy</button>
+						<textarea class="field-input" id="directOfferSDP" readonly rows="3"></textarea>
+						<button class="copy-btn-inline" onclick="App.copyField('directOfferSDP')">copy</button>
 					</div>
 				</div>
 
 				<div class="field-group hidden" id="directAnswerInputGroup" style="margin-top:10px">
 					<label class="field-label">Step 2 — Paste Answer SDP</label>
 					<div class="copy-block">
-						<textarea class="field-input" id="directAnswerInput" placeholder="Paste remote answer here…" rows="4"></textarea>
+						<textarea class="field-input" id="directAnswerInput" placeholder="Paste answer here…" rows="3"></textarea>
 					</div>
 					<button class="btn btn-primary btn-full" onclick="App.directSetAnswer()">Connect</button>
 				</div>
 
-				<div style="border-top:1px solid var(--border);margin:16px 0;"></div>
+				<div style="border-top:1px solid var(--border);margin:14px 0"></div>
 
-				<div class="sidebar-label">Or — Answer a Remote Offer</div>
-				<div class="field-group">
-					<div class="copy-block">
-						<textarea class="field-input" id="directRemoteOffer" placeholder="Paste remote offer here…" rows="4"></textarea>
-					</div>
-					<button class="btn btn-secondary btn-full" onclick="App.directAnswerOffer()">Create Answer SDP</button>
+				<div class="sidebar-label">Or Answer a Remote Offer</div>
+				<div class="copy-block">
+					<textarea class="field-input" id="directRemoteOffer" placeholder="Paste remote offer…" rows="3"></textarea>
 				</div>
+				<button class="btn btn-secondary btn-full" style="margin-top:6px" onclick="App.directAnswerOffer()">Create Answer SDP</button>
 
 				<div class="field-group hidden" id="directAnswerOutputGroup" style="margin-top:10px">
-					<label class="field-label">Your Answer (share this back)</label>
+					<label class="field-label">Send this back to caller</label>
 					<div class="copy-block">
-						<textarea class="field-input" id="directAnswerSDP" readonly rows="4"></textarea>
-						<button class="copy-block-btn" onclick="App.copyField('directAnswerSDP')">copy</button>
+						<textarea class="field-input" id="directAnswerSDP" readonly rows="3"></textarea>
+						<button class="copy-btn-inline" onclick="App.copyField('directAnswerSDP')">copy</button>
 					</div>
 				</div>
 			</div>
+		</div>
 
-		</div><!-- /sidebar -->
-
-		<!-- ── Chat area ──────────────────────────────────────── -->
+		<!-- Chat area -->
 		<div class="chat-area">
-
-			<!-- Auth/connecting panels -->
 			<div class="panel active" id="panelWelcome">
 				<div class="panel-title">Welcome</div>
-				<p class="panel-sub">Choose a mode in the sidebar: <strong>Firebase</strong> for room-based signaling with Google or GitHub auth, or <strong>Direct</strong> for server-free peer-to-peer via manual SDP exchange.</p>
-				<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
-					<button class="btn btn-primary" onclick="switchMode('firebase')">Firebase Mode</button>
-					<button class="btn btn-secondary" onclick="switchMode('direct')">Direct Mode</button>
+				<p class="panel-sub">Use <strong>Firebase</strong> mode to join rooms with auth, or <strong>Direct</strong> mode for server-free SDP exchange. Open Settings to customise the background and enable encryption.</p>
+				<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:4px">
+					<button class="btn btn-primary" onclick="App.switchMode('firebase')">Firebase Mode</button>
+					<button class="btn btn-secondary" onclick="App.switchMode('direct')">Direct Mode</button>
 				</div>
 			</div>
 
-			<!-- Messages view (hidden until connected) -->
-			<div id="chatView" class="hidden" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
-				<div class="messages" id="messages">
-					<div class="system-msg">Connection established ✓</div>
+			<div class="chat-view" id="chatView">
+				<div class="messages" id="messages"
+					ondragover="event.preventDefault()"
+					ondrop="App.handleDrop(event)">
 				</div>
 				<div class="input-bar">
-					<input type="text" id="messageInput" placeholder="Type a message…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){App.sendMessage();event.preventDefault();}">
-					<button class="btn btn-primary" onclick="App.sendMessage()">
-						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m22 2-11 11"/><path d="M22 2 15 22 11 13 2 9l20-7z"/></svg>
+					<!-- Attach file -->
+					<button class="icon-btn" title="Attach file" onclick="App.openFilePicker()" style="margin-bottom:1px">
+						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13"/></svg>
+					</button>
+					<textarea id="messageInput" placeholder="Type a message… (Enter to send)" rows="1"
+						onkeydown="if(event.key==='Enter'&&!event.shiftKey){App.sendMessage();event.preventDefault();}"
+						oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,140)+'px'"></textarea>
+					<button class="icon-btn active" title="Send" onclick="App.sendMessage()" style="margin-bottom:1px">
+						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m22 2-11 11M22 2 15 22l-4-9-9-4 20-7z"/></svg>
 					</button>
 				</div>
 			</div>
+		</div>
+	</div>
+</div>
 
-		</div><!-- /chat-area -->
-	</div><!-- /main -->
-</div><!-- /app-shell -->
+<!-- Hidden file input -->
+<input type="file" id="fileInput" multiple style="display:none" onchange="App.handleFileSelect(this.files)">
 
 <!-- Toast -->
-<div class="toast" id="toast"></div>
+<div id="toast"></div>
 
+<!-- App logic -->
 <script type="module" src="app.js"></script>
-
-<script type="module">
-	import { cubicGradient } from 'https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js';
-	document.body.style.background = cubicGradient({
-		direction: 'to bottom right',
-		start: '#000000',
-		end: '#000d1a',
-		steps: 20,
-		power: 2
-	});
-</script>
-
-<script>
-	// Expose mode switcher globally for onclick attributes
-	function switchMode(mode) {
-		if (window.App) window.App.switchMode(mode);
-		const tabFb = document.getElementById('tabFirebase');
-		const tabDr = document.getElementById('tabDirect');
-		const fbSb  = document.getElementById('firebaseSidebar');
-		const drSb  = document.getElementById('directSidebar');
-		if (mode === 'firebase') {
-			tabFb.classList.add('active');
-			tabDr.classList.remove('active');
-			fbSb.classList.remove('hidden');
-			drSb.classList.add('hidden');
-		} else {
-			tabDr.classList.add('active');
-			tabFb.classList.remove('active');
-			drSb.classList.remove('hidden');
-			fbSb.classList.add('hidden');
-		}
-	}
-</script>
 </body>
 </html>
