@@ -12,14 +12,14 @@
  */
 
 // ─── ⚠ Firebase Config — replace with your project's values ──────────────────
-// https://console.firebase.google.com → Project settings → Your apps → Web
-const FIREBASE_CONFIG = {
-	apiKey:            'YOUR_API_KEY',
-	authDomain:        'YOUR_PROJECT_ID.firebaseapp.com',
-	projectId:         'YOUR_PROJECT_ID',
-	storageBucket:     'YOUR_PROJECT_ID.appspot.com',
-	messagingSenderId: 'YOUR_SENDER_ID',
-	appId:             'YOUR_APP_ID',
+const firebaseConfig = {
+  apiKey: "AIzaSyC_v49m7e5xt-FCWs0DSq7aGU7gD1aiTh4",
+  authDomain: "proelectriccoder.firebaseapp.com",
+  projectId: "proelectriccoder",
+  storageBucket: "proelectriccoder.firebasestorage.app",
+  messagingSenderId: "629115974151",
+  appId: "1:629115974151:web:636737d123e4e8685c70a2",
+  measurementId: "G-WEXXNE0J6Q"
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
