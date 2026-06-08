@@ -13,14 +13,15 @@
 
 // ─── ⚠ Firebase Config — replace with your project's values ──────────────────
 const firebaseConfig = {
-  apiKey: "AIzaSyC_v49m7e5xt-FCWs0DSq7aGU7gD1aiTh4",
-  authDomain: "proelectriccoder.firebaseapp.com",
-  projectId: "proelectriccoder",
-  storageBucket: "proelectriccoder.firebasestorage.app",
-  messagingSenderId: "629115974151",
-  appId: "1:629115974151:web:636737d123e4e8685c70a2",
-  measurementId: "G-WEXXNE0J6Q"
+	apiKey: "AIzaSyC_v49m7e5xt-FCWs0DSq7aGU7gD1aiTh4",
+	authDomain: "proelectriccoder.firebaseapp.com",
+	projectId: "proelectriccoder",
+	storageBucket: "proelectriccoder.firebasestorage.app",
+	messagingSenderId: "629115974151",
+	appId: "1:629115974151:web:636737d123e4e8685c70a2",
+	measurementId: "G-WEXXNE0J6Q"
 };
+firebase.initializeApp(firebaseConfig);
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { ChatEngine, DirectEngine } from '../engine.js';
