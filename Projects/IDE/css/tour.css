@@ -1,0 +1,123 @@
+/* ── DeepBlue IDE — Onboarding Tour Styles ─────────────────────────────────── */
+
+.db-tour-overlay {
+	position: fixed;
+	top: 0; left: 0;
+	width: 100vw; height: 100vh;
+	z-index: 9998;
+	pointer-events: auto;
+	transition: opacity 0.3s ease;
+	opacity: 0;
+}
+
+.db-tour-spotlight {
+	position: absolute;
+	border-radius: var(--radius-md, 8px);
+	box-shadow: 0 0 0 100vmax rgba(0,0,0,0.75), 0 0 15px 2px rgba(0,229,255,0.4);
+	transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+	pointer-events: none;
+	z-index: 9999;
+	border: 2px solid var(--accent, #00e5ff);
+}
+
+.db-tour-tooltip {
+	position: absolute;
+	width: 320px;
+	background: var(--bg-panel, #111720);
+	border: 1px solid var(--border, #283548);
+	border-radius: var(--radius-lg, 12px);
+	box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+	color: var(--text-main, #e2f1f8);
+	padding: 20px;
+	z-index: 10000;
+	transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+	opacity: 0;
+	transform: translateY(10px);
+	pointer-events: auto;
+}
+
+.db-tour-tooltip.visible {
+	opacity: 1;
+	transform: translateY(0);
+}
+
+.db-tour-title {
+	font-size: 1.1rem;
+	font-weight: bold;
+	margin-bottom: 10px;
+	color: var(--accent, #00e5ff);
+}
+
+.db-tour-message {
+	font-size: 0.9rem;
+	line-height: 1.5;
+	color: var(--text-muted, #7b8ea5);
+	margin-bottom: 20px;
+}
+
+.db-tour-message code {
+	background: rgba(255,255,255,0.1);
+	padding: 2px 5px;
+	border-radius: 4px;
+	color: var(--text-main, #e2f1f8);
+	font-family: monospace;
+}
+
+.db-tour-nav {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.db-tour-dots {
+	display: flex;
+	gap: 4px;
+}
+
+.db-tour-dot {
+	width: 6px; height: 6px;
+	border-radius: 50%;
+	background: var(--text-muted, #7b8ea5);
+	opacity: 0.3;
+	transition: 0.2s;
+}
+
+.db-tour-dot.active {
+	opacity: 1;
+	background: var(--accent, #00e5ff);
+	transform: scale(1.2);
+}
+
+.db-tour-buttons {
+	display: flex;
+	gap: 8px;
+}
+
+.db-tour-btn {
+	padding: 6px 12px;
+	border-radius: var(--radius-sm, 4px);
+	font-size: 0.85rem;
+	cursor: pointer;
+	border: none;
+	font-weight: 500;
+	transition: 0.2s;
+}
+
+.db-tour-btn-ghost {
+	background: transparent;
+	color: var(--text-muted, #7b8ea5);
+}
+
+.db-tour-btn-ghost:hover {
+	color: var(--text-main, #e2f1f8);
+}
+
+.db-tour-btn-primary {
+	background: var(--accent, #00e5ff);
+	color: #000;
+}
+
+.db-tour-btn-primary:hover {
+	opacity: 0.9;
+	transform: scale(1.05);
+}
