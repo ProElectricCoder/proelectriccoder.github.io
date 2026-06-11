@@ -8,79 +8,53 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=JetBrains+Mono:wght@300;400;500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
 	<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 	<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 	<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" defer></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-autoloader.min.js" defer></script>
 	<style>
 		*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 		html,body{height:100%;overflow:hidden}
-
-		:root {
-			--tp: #00ffff; --ts: #3d6eff; --ta: #00ff99;
-			--tb: rgba(0,255,255,.12); --tbh: rgba(0,255,255,.28);
-			--tbg: rgba(0,255,255,.11); --tbb: rgba(0,255,255,.18);
-			--tg: rgba(0,255,255,.25);
-			--text:#e8edf8; --dim:rgba(232,237,248,.55); --faint:rgba(232,237,248,.25);
+		:root{
+			--tp:#00ffff;--ts:#3d6eff;--ta:#00ff99;
+			--tb:rgba(0,255,255,.12);--tbh:rgba(0,255,255,.28);
+			--tbg:rgba(0,255,255,.11);--tbb:rgba(0,255,255,.18);--tg:rgba(0,255,255,.25);
+			--text:#e8edf8;--dim:rgba(232,237,248,.55);--faint:rgba(232,237,248,.25);
 		}
-
 		body{font-family:'DM Sans',sans-serif;color:var(--text)}
-
-		/* ── Gradient background layers ── */
 		.grad-bg{position:fixed;inset:0;z-index:0;pointer-events:none;transition:opacity .45s ease}
 		#gradBg2{opacity:0}
 		.noise{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.025;
 			background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-
-		/* ── Sidebar backdrop (mobile) ── */
-		.sb-backdrop{display:none;position:fixed;inset:0;z-index:199;background:rgba(0,0,0,.65);
-			opacity:0;pointer-events:none;transition:opacity .28s ease}
+		.sb-backdrop{display:none;position:fixed;inset:0;z-index:199;background:rgba(0,0,0,.65);opacity:0;pointer-events:none;transition:opacity .28s ease}
 		.sb-backdrop.open{opacity:1;pointer-events:auto}
-
-		/* ── App shell ── */
 		.app{position:relative;z-index:2;display:flex;height:100vh;overflow:hidden}
-
-		/* ── Nav rail ── */
-		.nav{width:60px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;
-			padding:12px 0;gap:4px;background:rgba(0,0,0,.55);
-			border-right:1px solid rgba(255,255,255,.05);z-index:10}
+		/* Nav */
+		.nav{width:60px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px;background:rgba(0,0,0,.55);border-right:1px solid rgba(255,255,255,.05);z-index:10}
 		.nav-logo{width:28px;height:28px;margin-bottom:10px;opacity:.75;flex-shrink:0}
-		.nav-btn{width:40px;height:40px;border-radius:10px;border:none;background:transparent;
-			color:var(--dim);display:flex;align-items:center;justify-content:center;
-			cursor:pointer;transition:background .15s,color .15s;flex-shrink:0}
+		.nav-btn{width:40px;height:40px;border-radius:10px;border:none;background:transparent;color:var(--dim);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,color .15s;flex-shrink:0}
 		.nav-btn:hover{background:rgba(255,255,255,.08);color:var(--text)}
 		.nav-btn.active{background:rgba(0,255,255,.1);color:var(--tp)}
 		.nav-btn svg{width:18px;height:18px}
 		.nav-spacer{flex:1}
-
-		/* ── Sidebar ── */
-		.sidebar{width:272px;flex-shrink:0;display:flex;flex-direction:column;
-			background:rgba(0,0,0,.32);border-right:1px solid rgba(255,255,255,.05);overflow:hidden}
-		.sidebar-head{padding:13px 12px 8px;display:flex;align-items:center;gap:8px;
-			border-bottom:1px solid rgba(255,255,255,.05)}
+		/* Sidebar */
+		.sidebar{width:272px;flex-shrink:0;display:flex;flex-direction:column;background:rgba(0,0,0,.32);border-right:1px solid rgba(255,255,255,.05);overflow:hidden}
+		.sidebar-head{padding:13px 12px 8px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,.05)}
 		.sidebar-title{font-family:'Syne',sans-serif;font-size:.88rem;font-weight:800;flex:1}
 		.search-wrap{padding:8px 10px 4px}
-		.search-input{width:100%;background:rgba(255,255,255,.04);
-			border:1px solid rgba(255,255,255,.08);border-radius:8px;color:var(--text);
-			font-family:'DM Sans',sans-serif;font-size:.8rem;padding:7px 10px;outline:none;
-			transition:border-color .2s}
+		.search-input{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.8rem;padding:7px 10px;outline:none;transition:border-color .2s}
 		.search-input:focus{border-color:var(--tp)}
 		.search-input::placeholder{color:var(--faint)}
 		.chat-list{flex:1;overflow-y:auto;padding:4px 0 14px}
-		.list-lbl{font-family:'JetBrains Mono',monospace;font-size:.57rem;letter-spacing:.18em;
-			text-transform:uppercase;color:var(--faint);padding:10px 14px 4px}
-		.chat-item{display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;
-			transition:background .15s;border-left:2px solid transparent}
+		.list-lbl{font-family:'JetBrains Mono',monospace;font-size:.57rem;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);padding:10px 14px 4px}
+		.chat-item{display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;transition:background .15s;border-left:2px solid transparent}
 		.chat-item:hover{background:rgba(255,255,255,.03)}
-		.chat-item.active{background:rgba(0,255,255,.04);border-left-color:var(--tp);
-			transition:background .35s,border-left-color .35s}
-		.ci-av{width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;
-			align-items:center;justify-content:center;font-family:'Syne',sans-serif;
-			font-size:.9rem;font-weight:800;background:rgba(255,255,255,.07);
-			border:1.5px solid rgba(255,255,255,.1);position:relative;transition:border-color .35s}
+		.chat-item.active{background:rgba(0,255,255,.04);border-left-color:var(--tp);transition:background .35s,border-left-color .35s}
+		.ci-av{width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:.9rem;font-weight:800;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.1);position:relative;transition:border-color .35s}
 		.chat-item.active .ci-av{border-color:var(--tp)}
-		.ci-dot{position:absolute;bottom:0;right:0;width:9px;height:9px;border-radius:50%;
-			background:var(--faint);border:2px solid rgba(0,0,0,.5);
-			transition:background .35s,box-shadow .35s}
+		.ci-dot{position:absolute;bottom:0;right:0;width:9px;height:9px;border-radius:50%;background:var(--faint);border:2px solid rgba(0,0,0,.5);transition:background .35s,box-shadow .35s}
 		.ci-dot.on{background:var(--ta);box-shadow:0 0 4px var(--ta)}
 		.ci-dot.call{background:#22c55e;box-shadow:0 0 5px #22c55e;animation:callpulse 1s ease-in-out infinite}
 		@keyframes callpulse{0%,100%{opacity:1}50%{opacity:.4}}
@@ -89,99 +63,92 @@
 		.ci-prev{font-size:.71rem;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
 		.ci-meta{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
 		.ci-time{font-family:'JetBrains Mono',monospace;font-size:.59rem;color:var(--faint)}
-		.ci-badge{background:var(--tp);color:#000;font-family:'JetBrains Mono',monospace;
-			font-size:.6rem;font-weight:700;border-radius:10px;padding:1px 6px;
-			min-width:18px;text-align:center;transition:background .35s}
-
-		/* ── Content area ── */
+		.ci-badge{background:var(--tp);color:#000;font-family:'JetBrains Mono',monospace;font-size:.6rem;font-weight:700;border-radius:10px;padding:1px 6px;min-width:18px;text-align:center;transition:background .35s}
+		/* Content */
 		.content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
-
-		/* ── Welcome panel ── */
-		.welcome{flex:1;display:flex;flex-direction:column;align-items:center;
-			justify-content:center;text-align:center;padding:40px;gap:16px}
+		.welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px;gap:16px}
 		.welcome-icon{font-size:3rem;opacity:.4;margin-bottom:4px}
 		.welcome-title{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800}
 		.welcome-sub{font-size:.83rem;color:var(--dim);max-width:340px;line-height:1.65}
-
-		/* ── Chat view ── */
 		.chat-view{flex:1;display:flex;flex-direction:column;overflow:hidden}
-
-		/* ── Topbar ── */
-		.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 12px;
-			height:54px;background:rgba(0,0,0,.5);backdrop-filter:blur(16px);
-			border-bottom:1px solid var(--tb);flex-shrink:0;gap:8px;transition:border-color .35s}
+		/* Topbar */
+		.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 12px;height:54px;background:rgba(0,0,0,.5);backdrop-filter:blur(16px);border-bottom:1px solid var(--tb);flex-shrink:0;gap:8px;transition:border-color .35s}
 		.topbar-l{display:flex;align-items:center;gap:9px;min-width:0;flex:1}
-		.tb-av{width:33px;height:33px;border-radius:50%;background:rgba(255,255,255,.07);
-			border:1.5px solid var(--tbh);display:flex;align-items:center;justify-content:center;
-			font-family:'Syne',sans-serif;font-size:.82rem;font-weight:800;flex-shrink:0;
-			transition:border-color .35s}
-		.tb-name{font-family:'Syne',sans-serif;font-size:.87rem;font-weight:800;
-			overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-		.tb-status{display:flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;
-			font-size:.62rem;color:var(--dim)}
-		.status-dot{width:6px;height:6px;border-radius:50%;background:var(--faint);
-			transition:background .35s,box-shadow .35s}
+		.tb-av{width:33px;height:33px;border-radius:50%;background:rgba(255,255,255,.07);border:1.5px solid var(--tbh);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:.82rem;font-weight:800;flex-shrink:0;transition:border-color .35s}
+		.tb-name{font-family:'Syne',sans-serif;font-size:.87rem;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+		.tb-status{display:flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--dim)}
+		.status-dot{width:6px;height:6px;border-radius:50%;background:var(--faint);transition:background .35s,box-shadow .35s}
 		.status-dot.connected{background:var(--ta);box-shadow:0 0 5px var(--ta)}
 		.status-dot.connecting{background:var(--tp);animation:blink 1s ease-in-out infinite}
 		@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
 		.topbar-r{display:flex;align-items:center;gap:3px;flex-shrink:0}
-
-		/* ── Icon buttons ── */
-		.icon-btn{width:34px;height:34px;border-radius:8px;border:1px solid var(--tb);
-			background:rgba(255,255,255,.04);color:var(--dim);display:flex;align-items:center;
-			justify-content:center;cursor:pointer;transition:background .18s,color .18s,border-color .18s}
+		/* Buttons */
+		.icon-btn{width:34px;height:34px;border-radius:8px;border:1px solid var(--tb);background:rgba(255,255,255,.04);color:var(--dim);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .18s,color .18s,border-color .18s}
 		.icon-btn:hover{background:rgba(255,255,255,.09);color:var(--text);border-color:var(--tbh)}
 		.icon-btn.active{background:rgba(0,255,255,.08);color:var(--tp);border-color:rgba(0,255,255,.25)}
-		.icon-btn.danger{background:rgba(255,68,85,.12);color:#ff4455;border-color:rgba(255,68,85,.25)}
 		.icon-btn svg{width:15px;height:15px}
 		.icon-btn:disabled{opacity:.28;cursor:not-allowed;pointer-events:none}
-
-		/* ── Messages ── */
-		.messages{flex:1;overflow-y:auto;padding:16px 16px;display:flex;flex-direction:column;gap:5px}
+		/* Messages */
+		.messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:5px}
 		.msg{display:flex;flex-direction:column;gap:2px;max-width:74%}
 		.msg.mine{align-self:flex-end;align-items:flex-end}
 		.msg.theirs{align-self:flex-start;align-items:flex-start}
 		.msg-meta{font-family:'JetBrains Mono',monospace;font-size:.59rem;color:var(--faint);padding:0 4px}
-		.msg-bubble{padding:8px 12px;border-radius:13px;font-size:.85rem;line-height:1.5;
-			word-break:break-word;transition:background .35s,border-color .35s}
+		.msg-bubble{padding:8px 12px;border-radius:13px;font-size:.85rem;line-height:1.5;word-break:break-word;transition:background .35s,border-color .35s}
 		.msg.mine .msg-bubble{background:var(--tbg);border:1px solid var(--tbb);border-bottom-right-radius:4px}
 		.msg.theirs .msg-bubble{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);border-bottom-left-radius:4px}
-		.sys-msg{align-self:center;font-family:'JetBrains Mono',monospace;font-size:.62rem;
-			color:var(--faint);background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);
-			border-radius:20px;padding:3px 12px;margin:3px 0}
-
-		/* ── Input bar ── */
-		.input-bar{display:flex;gap:8px;padding:10px 12px;background:rgba(0,0,0,.42);
-			border-top:1px solid var(--tb);flex-shrink:0;align-items:flex-end;transition:border-color .35s}
-		.msg-input{flex:1;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);
-			border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.87rem;
-			padding:9px 12px;outline:none;resize:none;min-height:40px;max-height:130px;
-			overflow-y:auto;line-height:1.45;transition:border-color .2s}
+		.sys-msg{align-self:center;font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--faint);background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:20px;padding:3px 12px;margin:3px 0}
+		/* Input */
+		.input-bar{display:flex;flex-direction:column;background:rgba(0,0,0,.42);border-top:1px solid var(--tb);flex-shrink:0;transition:border-color .35s}
+		.input-row{display:flex;gap:8px;padding:10px 12px;align-items:flex-end}
+		.msg-input{flex:1;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.87rem;padding:9px 12px;outline:none;resize:none;min-height:40px;max-height:130px;overflow-y:auto;line-height:1.45;transition:border-color .2s}
 		.msg-input:focus{border-color:var(--tp)}
 		.msg-input::placeholder{color:var(--faint)}
-
-		/* ── File card ── */
-		.file-card{display:flex;align-items:center;gap:11px;background:rgba(255,255,255,.04);
-			border:1px solid var(--tb);border-radius:11px;padding:11px 13px;
-			min-width:190px;max-width:270px;transition:border-color .35s}
-		.file-icon-wrap{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
-			justify-content:center;flex-shrink:0}
-		.file-icon-wrap svg{width:20px;height:20px}
-		.file-name{font-size:.81rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-		.file-size{font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--faint);margin-top:2px}
-		.preview-img{max-width:250px;max-height:190px;border-radius:10px;cursor:zoom-in;display:block;object-fit:cover}
-
-		/* ── Badges ── */
-		.enc-badge{display:inline-flex;align-items:center;gap:3px;font-family:'JetBrains Mono',monospace;
-			font-size:.59rem;color:var(--ta);background:rgba(0,255,136,.07);
-			border:1px solid rgba(0,255,136,.18);border-radius:4px;padding:1px 5px;
-			margin-left:4px;vertical-align:middle;transition:color .35s,background .35s}
-
-		/* ── Buttons ── */
-		.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
-			padding:7px 13px;border-radius:8px;font-family:'JetBrains Mono',monospace;
-			font-size:.72rem;font-weight:500;letter-spacing:.03em;cursor:pointer;border:none;
-			transition:all .18s;white-space:nowrap}
+		/* File Queue */
+		.fq-wrap{display:none;flex-wrap:wrap;gap:8px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.05)}
+		.fq-wrap.has-files{display:flex}
+		.fq-item{position:relative;width:60px;flex-shrink:0}
+		.fq-thumb{width:60px;height:60px;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center}
+		.fq-thumb img{width:100%;height:100%;object-fit:cover}
+		.fq-thumb .fq-svg{width:24px;height:24px}
+		.fq-lbl{font-size:.56rem;font-family:'JetBrains Mono',monospace;color:var(--faint);margin-top:3px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+		.fq-rm{position:absolute;top:-5px;right:-5px;width:17px;height:17px;border-radius:50%;background:#ff4455;border:none;color:#fff;font-size:.65rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;line-height:1;padding:0}
+		.fq-rm:hover{background:#cc2233}
+		/* File Preview Cards */
+		.fp-bubble{padding:0!important;overflow:hidden;min-width:210px;max-width:360px;background:none!important;border:none!important}
+		.fp-card{border-radius:12px;overflow:hidden;background:rgba(0,0,0,.45);border:1px solid var(--tb);transition:border-color .35s;width:100%}
+		.fp-preview{overflow:hidden}
+		.fp-preview img{width:100%;max-height:280px;object-fit:cover;display:block;cursor:zoom-in;transition:opacity .2s}
+		.fp-preview img:hover{opacity:.88}
+		.fp-preview video{width:100%;max-height:260px;display:block;background:#000}
+		.fp-preview.fp-audio{padding:12px 14px}
+		.fp-preview.fp-audio audio{width:100%}
+		.fp-preview.fp-doc{height:260px;background:#f5f5f5}
+		.fp-preview.fp-doc iframe{width:100%;height:100%;border:none;display:block}
+		.fp-code-wrap{max-height:260px;overflow:auto;background:#0d1117}
+		.fp-code-wrap::-webkit-scrollbar{width:5px;height:5px}
+		.fp-code-wrap::-webkit-scrollbar-track{background:transparent}
+		.fp-code-wrap::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:3px}
+		.fp-pre{margin:0;padding:12px 14px;font-size:.72rem;font-family:'JetBrains Mono',monospace;line-height:1.55;white-space:pre;color:#e8edf8}
+		.fp-pre code{font-family:inherit;background:none!important;padding:0!important;font-size:inherit!important;color:inherit}
+		.fp-spinner{padding:22px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--faint)}
+		.fp-err{padding:12px;font-size:.72rem;color:#ff4455;font-family:'JetBrains Mono',monospace}
+		.fp-info{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid rgba(255,255,255,.06)}
+		.fp-icon{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+		.fp-icon svg{width:18px;height:18px}
+		.fp-meta{flex:1;min-width:0}
+		.fp-fname{font-size:.8rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+		.fp-fsize{font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--faint);margin-top:1px}
+		.fp-dl{width:30px;height:30px;border-radius:7px;background:rgba(0,255,255,.08);border:1px solid rgba(0,255,255,.2);display:flex;align-items:center;justify-content:center;color:var(--tp);text-decoration:none;flex-shrink:0;transition:background .15s,border-color .35s}
+		.fp-dl:hover{background:rgba(0,255,255,.18)}
+		.fp-dl svg{width:14px;height:14px}
+		.fp-bar{height:3px;background:rgba(255,255,255,.06)}
+		.fp-bar-fill{height:100%;background:var(--tp);transition:width .15s ease,background .35s}
+		.fp-sending .fp-meta{opacity:.7}
+		/* Badges */
+		.enc-badge{display:inline-flex;align-items:center;gap:3px;font-family:'JetBrains Mono',monospace;font-size:.59rem;color:var(--ta);background:rgba(0,255,136,.07);border:1px solid rgba(0,255,136,.18);border-radius:4px;padding:1px 5px;margin-left:4px;vertical-align:middle;transition:color .35s,background .35s}
+		/* Generic buttons */
+		.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:7px 13px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:.72rem;font-weight:500;letter-spacing:.03em;cursor:pointer;border:none;transition:all .18s;white-space:nowrap}
 		.btn-p{background:var(--tp);color:#000;transition:background .35s,filter .15s}
 		.btn-p:hover{filter:brightness(1.1)}
 		.btn-s{background:rgba(255,255,255,.06);color:var(--dim);border:1px solid rgba(255,255,255,.11)}
@@ -192,143 +159,88 @@
 		.btn:disabled{opacity:.3;cursor:not-allowed}
 		.row{display:flex;gap:7px}
 		.col{display:flex;flex-direction:column;gap:7px}
-
-		/* ── Form fields ── */
-		.f-lbl{font-family:'JetBrains Mono',monospace;font-size:.59rem;letter-spacing:.12em;
-			text-transform:uppercase;color:var(--faint);margin-bottom:4px}
-		.f-in{width:100%;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.1);
-			border-radius:7px;color:var(--text);font-family:'JetBrains Mono',monospace;
-			font-size:.77rem;padding:7px 10px;outline:none;transition:border-color .2s}
+		/* Form */
+		.f-lbl{font-family:'JetBrains Mono',monospace;font-size:.59rem;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:4px}
+		.f-in{width:100%;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.1);border-radius:7px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.77rem;padding:7px 10px;outline:none;transition:border-color .2s}
 		.f-in:focus{border-color:var(--tp)}
 		.f-in::placeholder{color:var(--faint)}
 		textarea.f-in{resize:vertical;min-height:66px;line-height:1.45;font-size:.7rem}
 		.f-grp{display:flex;flex-direction:column;gap:4px}
 		.copy-block{position:relative}
-		.copy-btn{position:absolute;top:7px;right:7px;background:rgba(0,255,255,.08);
-			border:1px solid rgba(0,255,255,.18);border-radius:4px;color:var(--tp);
-			font-family:'JetBrains Mono',monospace;font-size:.6rem;padding:2px 6px;cursor:pointer}
+		.copy-btn{position:absolute;top:7px;right:7px;background:rgba(0,255,255,.08);border:1px solid rgba(0,255,255,.18);border-radius:4px;color:var(--tp);font-family:'JetBrains Mono',monospace;font-size:.6rem;padding:2px 6px;cursor:pointer}
 		.copy-btn:hover{background:rgba(0,255,255,.18)}
-
-		/* ── Tabs ── */
-		.tabs{display:flex;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);
-			border-radius:8px;overflow:hidden}
-		.tab{flex:1;padding:7px;border:none;background:none;color:var(--dim);
-			font-family:'JetBrains Mono',monospace;font-size:.7rem;cursor:pointer;transition:all .18s}
+		.tabs{display:flex;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:8px;overflow:hidden}
+		.tab{flex:1;padding:7px;border:none;background:none;color:var(--dim);font-family:'JetBrains Mono',monospace;font-size:.7rem;cursor:pointer;transition:all .18s}
 		.tab.active{background:rgba(0,255,255,.07);color:var(--tp)}
-
-		/* ── Toggle ── */
 		.toggle{position:relative;width:36px;height:20px;cursor:pointer;flex-shrink:0}
 		.toggle input{opacity:0;width:0;height:0;position:absolute}
-		.toggle-track{position:absolute;inset:0;background:rgba(255,255,255,.1);
-			border:1px solid rgba(255,255,255,.12);border-radius:10px;transition:all .2s}
+		.toggle-track{position:absolute;inset:0;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.12);border-radius:10px;transition:all .2s}
 		.toggle input:checked~.toggle-track{background:var(--ta);border-color:var(--ta)}
-		.toggle-thumb{position:absolute;top:2px;left:2px;width:14px;height:14px;
-			background:#fff;border-radius:50%;transition:transform .2s}
+		.toggle-thumb{position:absolute;top:2px;left:2px;width:14px;height:14px;background:#fff;border-radius:50%;transition:transform .2s}
 		.toggle input:checked~.toggle-thumb{transform:translateX(16px)}
-
-		/* ── Theme swatches ── */
 		.theme-swatches{display:flex;gap:8px;flex-wrap:wrap}
-		.t-sw{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;
-			transition:transform .15s,border-color .15s}
+		.t-sw{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .15s,border-color .15s}
 		.t-sw:hover{transform:scale(1.18)}
 		.t-sw.active{border-color:#fff}
-
-		/* ── Auth ── */
-		.auth-card{display:flex;align-items:center;gap:9px;padding:9px 11px;
-			background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:8px}
-		.auth-av{width:26px;height:26px;border-radius:50%;object-fit:cover;
-			background:rgba(255,255,255,.1);flex-shrink:0}
+		.auth-card{display:flex;align-items:center;gap:9px;padding:9px 11px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:8px}
+		.auth-av{width:26px;height:26px;border-radius:50%;object-fit:cover;background:rgba(255,255,255,.1);flex-shrink:0}
 		.auth-name{font-size:.79rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
-		.sign-in-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:9px;
-			border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);
-			color:var(--text);font-size:.83rem;cursor:pointer;transition:all .18s;width:100%}
+		.sign-in-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--text);font-size:.83rem;cursor:pointer;transition:all .18s;width:100%}
 		.sign-in-btn:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18)}
 		.sign-in-btn img,.sign-in-btn svg{width:16px;height:16px;flex-shrink:0}
-		.note-box{display:flex;gap:10px;background:rgba(0,255,255,.04);border:1px solid rgba(0,255,255,.12);
-			border-radius:8px;padding:12px 14px;font-size:.8rem;color:var(--dim);line-height:1.6;
-			transition:border-color .35s}
-
-		/* ── Toast ── */
-		#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(10px);
-			background:rgba(0,0,0,.92);border:1px solid var(--tbh);border-radius:8px;padding:8px 16px;
-			font-family:'JetBrains Mono',monospace;font-size:.73rem;color:var(--text);opacity:0;
-			transition:all .22s ease;z-index:9999;pointer-events:none;white-space:nowrap}
+		.note-box{display:flex;gap:10px;background:rgba(0,255,255,.04);border:1px solid rgba(0,255,255,.12);border-radius:8px;padding:12px 14px;font-size:.8rem;color:var(--dim);line-height:1.6;transition:border-color .35s}
+		#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(10px);background:rgba(0,0,0,.92);border:1px solid var(--tbh);border-radius:8px;padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:.73rem;color:var(--text);opacity:0;transition:all .22s ease;z-index:9999;pointer-events:none;white-space:nowrap}
 		#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-
-		/* ── Scrollbar ── */
 		::-webkit-scrollbar{width:4px;height:4px}
 		::-webkit-scrollbar-track{background:transparent}
 		::-webkit-scrollbar-thumb{background:rgba(0,255,255,.1);border-radius:3px}
-
 		.hidden{display:none!important}
-
-		/* ══════════════════════════════════════════════════════════
-		   MOBILE  (≤ 700 px)
-		══════════════════════════════════════════════════════════ */
-		@media (max-width:700px) {
-			/* Hide desktop nav rail */
+		/* Prism overrides */
+		pre[class*="language-"],code[class*="language-"]{background:none;text-shadow:none;font-size:.72rem;font-family:'JetBrains Mono',monospace}
+		.token.comment,.token.prolog,.token.doctype,.token.cdata{color:#6a9955}
+		/* Mobile */
+		@media(max-width:700px){
 			.nav{display:none}
-
-			/* Sidebar becomes a full-screen slide-over */
-			.sidebar{
-				position:fixed;inset:0;z-index:200;width:100%;max-width:340px;
-				transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);
-				background:rgba(0,0,0,.96);backdrop-filter:blur(20px);
-				border-right:1px solid rgba(255,255,255,.08)
-			}
+			.sidebar{position:fixed;inset:0;z-index:200;width:100%;max-width:340px;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);background:rgba(0,0,0,.96);backdrop-filter:blur(20px);border-right:1px solid rgba(255,255,255,.08)}
 			.sidebar.open{transform:translateX(0)}
 			.sb-backdrop{display:block}
-
-			/* Show mobile-only elements */
 			.mobile-only{display:flex!important}
-
-			/* Tighten up the topbar */
 			.topbar{padding:0 10px;height:52px}
-			.messages{padding:12px 12px}
-			.input-bar{padding:8px 10px}
+			.messages{padding:12px}
+			.input-row{padding:8px 10px}
 		}
-		@media (min-width:701px) {
+		@media(min-width:701px){
 			.mobile-only{display:none!important}
 			.sb-backdrop{display:none!important}
 		}
 	</style>
 </head>
 <body>
-
-<!-- Gradient backgrounds -->
 <div id="gradBg1" class="grad-bg"></div>
 <div id="gradBg2" class="grad-bg"></div>
 <div class="noise"></div>
-
-<!-- Mobile sidebar backdrop -->
 <div id="sidebarBackdrop" class="sb-backdrop" onclick="App.closeSidebar()"></div>
 
 <div class="app">
-
-	<!-- ══ Nav rail (desktop) ════════════════════════════════════ -->
+	<!-- Nav rail -->
 	<nav class="nav">
 		<img src="/Favicon.svg" alt="" class="nav-logo" onerror="this.style.display='none'">
-
 		<button class="nav-btn" title="New direct chat" onclick="App.newChat('direct')">
 			<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z"/></svg>
 		</button>
-
 		<button class="nav-btn" title="Join a room" onclick="App.newChat('room')">
 			<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"/></svg>
 		</button>
-
 		<button class="nav-btn" title="New group" onclick="App.newChat('group')">
 			<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z"/></svg>
 		</button>
-
 		<div class="nav-spacer"></div>
-
 		<button class="nav-btn" title="Settings" onclick="App.openSettings()">
 			<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
 		</button>
 	</nav>
 
-	<!-- ══ Sidebar ═══════════════════════════════════════════════ -->
+	<!-- Sidebar -->
 	<div class="sidebar" id="sidebar">
 		<div class="sidebar-head">
 			<span class="sidebar-title">Chats</span>
@@ -336,7 +248,6 @@
 				<button class="nav-btn" style="width:28px;height:28px;border-radius:7px" title="New chat" onclick="App.newChat('direct')">
 					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
 				</button>
-				<!-- Close button — mobile only -->
 				<button class="nav-btn mobile-only" style="width:28px;height:28px;border-radius:7px" title="Close" onclick="App.closeSidebar()">
 					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
 				</button>
@@ -348,27 +259,19 @@
 		<div class="chat-list" id="chatList"></div>
 	</div>
 
-	<!-- ══ Content area ══════════════════════════════════════════ -->
+	<!-- Content -->
 	<div class="content">
-
-		<!-- Welcome panel -->
+		<!-- Welcome -->
 		<div id="welcomePanel" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
-			<!-- Mobile header bar -->
-			<div class="mobile-only" style="padding:0 12px;height:52px;background:rgba(0,0,0,.5);
-				backdrop-filter:blur(16px);border-bottom:1px solid var(--tb);flex-shrink:0;
-				align-items:center;justify-content:space-between;gap:10px">
-				<button class="icon-btn" onclick="App.openSidebar()">
-					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
-				</button>
+			<div class="mobile-only" style="padding:0 12px;height:52px;background:rgba(0,0,0,.5);backdrop-filter:blur(16px);border-bottom:1px solid var(--tb);flex-shrink:0;align-items:center;justify-content:space-between;gap:10px">
+				<button class="icon-btn" onclick="App.openSidebar()"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg></button>
 				<span style="font-family:'Syne',sans-serif;font-size:.88rem;font-weight:800">P2P Chat</span>
-				<button class="icon-btn active" onclick="App.newChat('direct')">
-					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-				</button>
+				<button class="icon-btn active" onclick="App.newChat('direct')"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg></button>
 			</div>
 			<div class="welcome" style="flex:1">
 				<div class="welcome-icon">💬</div>
 				<h1 style="font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800">P2P Chat</h1>
-				<p style="font-size:.83rem;color:var(--dim);max-width:340px;line-height:1.65">WebRTC peer-to-peer messaging. No servers, no tracking. Start a new chat using the panel on the left.</p>
+				<p style="font-size:.83rem;color:var(--dim);max-width:340px;line-height:1.65">WebRTC peer-to-peer messaging. No servers, no tracking.</p>
 				<div class="row" style="flex-wrap:wrap;justify-content:center;margin-top:6px;gap:8px">
 					<button class="btn btn-p" onclick="App.newChat('direct')">Direct Chat</button>
 					<button class="btn btn-s" onclick="App.newChat('room')">Join Room</button>
@@ -379,21 +282,15 @@
 
 		<!-- Chat view -->
 		<div class="chat-view hidden" id="chatView">
-
-			<!-- Topbar -->
 			<div class="topbar" id="topbar">
 				<div class="topbar-l">
-					<!-- Hamburger — mobile only -->
 					<button class="icon-btn mobile-only" style="flex-shrink:0;margin-right:2px" onclick="App.openSidebar()">
 						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
 					</button>
 					<div class="tb-av" id="topbarAv"></div>
 					<div style="min-width:0">
 						<div class="tb-name" id="topbarName">—</div>
-						<div class="tb-status">
-							<div class="status-dot" id="statusDot"></div>
-							<span id="statusText">Disconnected</span>
-						</div>
+						<div class="tb-status"><div class="status-dot" id="statusDot"></div><span id="statusText">Disconnected</span></div>
 					</div>
 				</div>
 				<div class="topbar-r" id="topbarR">
@@ -402,9 +299,6 @@
 					</button>
 					<button class="icon-btn" id="btnVideo" title="Video call" onclick="App.startCall('video')" disabled>
 						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" d="M15.75 10.5 20.47 5.78A.75.75 0 0 1 21.75 6.286v11.428a.75.75 0 0 1-1.28.53L15.75 13.5M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z"/></svg>
-					</button>
-					<button class="icon-btn" id="btnScreen" title="Screen share" onclick="App.startCall('screen')" disabled>
-						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0H3"/></svg>
 					</button>
 					<button class="icon-btn" id="btnTheme" title="Chat theme" onclick="App.openThemePicker()">
 						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.098 19.902a3.75 3.75 0 0 0 5.304 0l6.401-6.402M6.75 21A3.75 3.75 0 0 1 3 17.25V4.125C3 3.504 3.504 3 4.125 3h5.25c.621 0 1.125.504 1.125 1.125v4.072M6.75 21a3.75 3.75 0 0 0 3.75-3.75V8.197M6.75 21h13.125c.621 0 1.125-.504 1.125-1.125v-5.25c0-.621-.504-1.125-1.125-1.125h-4.072M10.5 8.197l2.88-2.88c.438-.439 1.15-.439 1.59 0l3.712 3.713c.44.44.44 1.152 0 1.59l-2.879 2.88M6.75 17.25h.008v.008H6.75v-.008Z"/></svg>
@@ -415,34 +309,29 @@
 				</div>
 			</div>
 
-			<!-- Messages -->
-			<div class="messages" id="messages"
-				ondragover="event.preventDefault()"
-				ondrop="App.handleDrop(event)"></div>
+			<div class="messages" id="messages" ondragover="event.preventDefault()" ondrop="App.handleDrop(event)"></div>
 
-			<!-- Input bar -->
 			<div class="input-bar">
-				<button class="icon-btn" title="Attach file" onclick="App.openFilePicker()" style="margin-bottom:1px">
-					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13"/></svg>
-				</button>
-				<textarea id="msgInput" class="msg-input" placeholder="Type a message…" rows="1"
-					onkeydown="if(event.key==='Enter'&&!event.shiftKey){App.sendMsg();event.preventDefault();}"
-					oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,130)+'px'"></textarea>
-				<button class="icon-btn active" title="Send" onclick="App.sendMsg()" style="margin-bottom:1px">
-					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m22 2-11 11M22 2 15 22l-4-9-9-4 20-7z"/></svg>
-				</button>
+				<div class="fq-wrap" id="fqWrap"></div>
+				<div class="input-row">
+					<button class="icon-btn" title="Attach file" onclick="App.openFilePicker()" style="margin-bottom:1px">
+						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13"/></svg>
+					</button>
+					<textarea id="msgInput" class="msg-input" placeholder="Type a message…" rows="1"
+						onkeydown="if(event.key==='Enter'&&!event.shiftKey){App.sendMsg();event.preventDefault();}"
+						oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,130)+'px'"></textarea>
+					<button class="icon-btn active" title="Send" onclick="App.sendMsg()" style="margin-bottom:1px">
+						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m22 2-11 11M22 2 15 22l-4-9-9-4 20-7z"/></svg>
+					</button>
+				</div>
 			</div>
 		</div>
 	</div>
 </div>
 
-<!-- Hidden file input -->
 <input type="file" id="fileInput" multiple style="display:none" onchange="App.handleFileSelect(this.files)">
-<!-- Toast -->
 <div id="toast"></div>
-<!-- Injected panels (settings, modals, call overlay, etc.) -->
 <div id="panels"></div>
-
 <script type="module" src="app.js"></script>
 </body>
 </html>
