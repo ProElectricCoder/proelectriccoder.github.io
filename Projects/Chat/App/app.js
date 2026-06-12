@@ -202,6 +202,7 @@ const S={
 	avatarUrl:localStorage.getItem('pec_avatar')||'',
 	encEnabled:false,cubicGradFn:null,gradActive:1,
 	callSessId:null,callTimer:null,callStarted:null,filterQ:'',
+	wakeLockEnabled:localStorage.getItem('pec_wakelock')==='true',wakeLockObj:null,
 };
 function makeSess(opts){
 	return{
@@ -1124,6 +1125,13 @@ function injectPanels(){
 			<button class="btn btn-p btn-full" onclick="App.saveName()">Save Name</button>
 		</div>
 		<div class="panel-section">
+			<div class="panel-section-lbl">Preferences</div>
+			<div class="sp-row">
+				<div class="col" style="gap:2px"><span class="sp-label">Keep screen awake</span><span style="font-size:.65rem;color:var(--faint)">Prevents mobile disconnects</span></div>
+				<label class="toggle"><input type="checkbox" id="spWakeToggle" onchange="App.handleWakeToggle()"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+			</div>
+		</div>
+		<div class="panel-section">
 			<div class="panel-section-lbl">Message Encryption (AES-256-GCM)</div>
 			<div class="sp-row" style="margin-bottom:12px"><span class="sp-label">Enable encryption</span>
 				<label class="toggle"><input type="checkbox" id="spEncToggle" onchange="App.handleEncToggle()"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
@@ -1271,6 +1279,7 @@ function injectPanels(){
 function openSettings(){
 	const o=el('settingsOverlay');if(!o)return;
 	const ni=el('spName');if(ni)ni.value=S.displayName;
+	const wt=el('spWakeToggle');if(wt)wt.checked=S.wakeLockEnabled;
 	const aw=el('spAvatarWrap');
 	if(aw){
 		const letter=(S.displayName[0]||'?').toUpperCase();
@@ -1403,6 +1412,17 @@ function bufB64(ab){const u8=new Uint8Array(ab);let s='';const B=8192;for(let i=
 function b64Buf(b64){const bin=atob(b64);const u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);return u8.buffer;}
 let _toastTmr=null;
 function toast(msg,ms=3000){const e=el('toast');if(!e)return;e.textContent=msg;e.classList.add('show');clearTimeout(_toastTmr);_toastTmr=setTimeout(()=>e.classList.remove('show'),ms);}
+
+async function requestWakeLock(){
+	if(!S.wakeLockEnabled||!('wakeLock' in navigator))return;
+	try{S.wakeLockObj=await navigator.wakeLock.request('screen');}catch(e){console.warn('Wake Lock failed:',e);}
+}
+function releaseWakeLock(){
+	if(S.wakeLockObj){S.wakeLockObj.release().catch(()=>{});S.wakeLockObj=null;}
+}
+document.addEventListener('visibilitychange',()=>{
+	if(document.visibilityState==='visible'&&S.wakeLockEnabled)requestWakeLock();
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 22. window.App
@@ -1685,6 +1705,11 @@ window.App={
 		const sess=getActiveSess();if(sess?.connected)safeSend(sess,{type:'display-name',displayName:n});
 		toast('Name saved');
 	},
+	handleWakeToggle(){
+		S.wakeLockEnabled=el('spWakeToggle')?.checked;
+		localStorage.setItem('pec_wakelock',S.wakeLockEnabled);
+		if(S.wakeLockEnabled)requestWakeLock();else releaseWakeLock();
+	},
 	handleEncToggle(){
 		const on=el('spEncToggle')?.checked;
 		el('spEncPwRow').style.display=on?'block':'none';
@@ -1723,6 +1748,7 @@ window.App={
 	try{const mod=await import('https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js');S.cubicGradFn=mod.cubicGradient;}catch{}
 	applyTheme('void', null, false);
 	initFirebase();
+	if(S.wakeLockEnabled)requestWakeLock();
 	try{
 		const saved=await DB.getSessions();
 		for(const sd of saved){const sess=makeSess(sd);S.sessions.set(sess.id,sess);}
