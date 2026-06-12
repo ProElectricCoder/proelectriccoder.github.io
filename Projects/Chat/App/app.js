@@ -1,7 +1,7 @@
 /**
- * app.js — P2P Chat v3.4.1
- * Multi-chat · Direct Media Capture · Chat Customization · Real-time Audio Visualization
- * FIXED: 2-Way Audio Transceivers & Web Audio Context Hijacking
+ * app.js — P2P Chat v3.4.2
+ * Multi-chat · Direct Media Capture · Real-time Audio Visualization
+ * FIXED: 2-Way Audio Transceivers & Web Audio Context UI Wiping Bug
  */
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -218,7 +218,7 @@ function makeSess(opts){
 		call:{
 			mediaPc:null,localStream:null,remoteStream:null,type:null,sourceType:null,
 			state:'idle',muted:false,camOff:false,incoming:null,iceQueue:[],
-			audioCtx:null,audioAnalyser:null,audioSource:null,audioDrawTimer:null // audio visualizer state
+			audioCtx:null,audioAnalyser:null,audioSource:null,audioDrawTimer:null 
 		},
 	};
 }
@@ -501,7 +501,6 @@ async function handleMsg(sess,data,peerId){
 					}
 					sess.call.iceQueue = [];
 				}
-				// Handled by onconnectionstatechange, but we guarantee the state UI update here as a fallback
 				setCallStatusTxt('In call · '+(sess.call.type||''));
 			}break;
 		case'call-ice':
@@ -785,12 +784,16 @@ async function initiateCall(type){
 	try{
 		const stream=await getStream(type);
 		sess.call.localStream=stream;
+		
+		// CRITICAL FIX: Build overlay FIRST so it doesn't overwrite ontrack event results!
+		showCallOverlay(sess,stream);
+		
 		sess.call.mediaPc=buildMediaPC(sess);
 		stream.getTracks().forEach(t=>sess.call.mediaPc.addTrack(t,stream));
 		const offer=await sess.call.mediaPc.createOffer();
 		await sess.call.mediaPc.setLocalDescription(offer);
 		safeSend(sess,{type:'call-offer',sdp:offer.sdp,callType:type,displayName:S.displayName});
-		showCallOverlay(sess,stream);
+		
 		setCallStatusTxt('Ringing…');
 		addSysMsg(sess,`Calling (${type})…`);
 	}catch(e){
@@ -872,6 +875,10 @@ async function acceptCall(){
 	try{
 		const stream=await getStream(data.callType==='screen'?'audio':data.callType);
 		sess.call.localStream=stream;
+		
+		// CRITICAL FIX: Build overlay FIRST so it doesn't overwrite ontrack event results!
+		showCallOverlay(sess,stream);
+		
 		sess.call.mediaPc=buildMediaPC(sess);
 		
 		// CRITICAL FIX: Add tracks before setRemoteDescription to prevent disjointed 1-way sendrecv mappings
@@ -891,7 +898,6 @@ async function acceptCall(){
 		await sess.call.mediaPc.setLocalDescription(answer);
 		safeSend(sess,{type:'call-answer',sdp:answer.sdp});
 		
-		showCallOverlay(sess,stream);
 		setCallStatusTxt('Connecting…');
 		addSysMsg(sess,`Call started (${data.callType})`);
 	}catch(e){
@@ -993,7 +999,15 @@ function showCallOverlay(sess,localStream){
 	ov.classList.add('active');
 	sess.call.sourceType=type==='screen'?'screen':(type==='video'?'camera':null);
 	const rv=el('callRemoteVid'),ab=el('callAudioBg'),lv=el('callLocalVid');
-	if(rv){rv.srcObject=null;rv.style.display='none';}
+	
+	// CRITICAL FIX: Only clear the remote video if it isn't currently playing the stream
+	if(rv && !sess.call.remoteStream){
+		rv.srcObject=null;
+		rv.style.display='none';
+	} else if (rv && sess.call.remoteStream && sess.call.remoteStream.getVideoTracks().length > 0) {
+		rv.style.display='block';
+	}
+
 	if(ab){
 		const names=[...sess.peers.values()].map(p=>p.name).join(', ')||'Peer';
 		ab.style.display='flex';
@@ -1144,7 +1158,7 @@ function injectPanels(){
 		</div>
 		<div class="panel-section"><div class="panel-section-lbl">Sign In (for Firebase rooms)</div><div id="spAuthArea"></div></div>
 		<div class="panel-section"><div class="panel-section-lbl">About</div>
-			<div style="font-size:.78rem;color:rgba(232,237,248,.4);line-height:1.7">P2P Chat v3.4.1 · ProElectricCoder<br>WebRTC + Firebase signaling<br>
+			<div style="font-size:.78rem;color:rgba(232,237,248,.4);line-height:1.7">P2P Chat v3.4.2 · ProElectricCoder<br>WebRTC + Firebase signaling<br>
 				<a href="/Projects/Chat/" target="_blank" style="color:var(--tp);text-decoration:none">Documentation →</a>
 			</div>
 		</div>
