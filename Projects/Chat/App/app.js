@@ -1,6 +1,7 @@
 /**
- * app.js — P2P Chat v3.4
+ * app.js — P2P Chat v3.4.1
  * Multi-chat · Direct Media Capture · Chat Customization · Real-time Audio Visualization
+ * FIXED: 2-Way Audio Transceivers & Web Audio Context Hijacking
  */
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -499,8 +500,8 @@ async function handleMsg(sess,data,peerId){
 					}
 					sess.call.iceQueue = [];
 				}
-				sess.call.state='active';setCallStatusTxt('In call · '+(sess.call.type||''));startCallTimer();
-				if(sess.call.remoteStream) App.startAudioVisualizer(sess.call.remoteStream);
+				// Handled by onconnectionstatechange, but we guarantee the state UI update here as a fallback
+				setCallStatusTxt('In call · '+(sess.call.type||''));
 			}break;
 		case'call-ice':
 			if (data.candidate) {
@@ -835,7 +836,7 @@ function buildMediaPC(sess){
 	};
 	
 	pc.onnegotiationneeded=async()=>{
-		if(sess.call.state!=='active')return;
+		if(sess.call.state!=='active' || pc.signalingState !== 'stable') return;
 		try{
 			const offer=await pc.createOffer();
 			await pc.setLocalDescription(offer);
@@ -865,14 +866,17 @@ async function acceptCall(){
 	closeIncomingDialog();
 	const sess=S.sessions.get(S.callSessId);if(!sess?.call.incoming)return;
 	const data=sess.call.incoming;
-	sess.call.type=data.callType;sess.call.state='active';
+	sess.call.type=data.callType;
+	sess.call.state='connecting';
 	try{
 		const stream=await getStream(data.callType==='screen'?'audio':data.callType);
 		sess.call.localStream=stream;
 		sess.call.mediaPc=buildMediaPC(sess);
 		
-		await sess.call.mediaPc.setRemoteDescription(new RTCSessionDescription({type:'offer',sdp:data.sdp}));
+		// CRITICAL FIX: Add tracks before setRemoteDescription to prevent disjointed 1-way sendrecv mappings
 		stream.getTracks().forEach(t=>sess.call.mediaPc.addTrack(t,stream));
+		
+		await sess.call.mediaPc.setRemoteDescription(new RTCSessionDescription({type:'offer',sdp:data.sdp}));
 		
 		if (sess.call.iceQueue && sess.call.iceQueue.length > 0) {
 			console.log(`[WebRTC Call] Applying ${sess.call.iceQueue.length} queued ICE candidates to Answer-side PC`);
@@ -885,9 +889,9 @@ async function acceptCall(){
 		const answer=await sess.call.mediaPc.createAnswer();
 		await sess.call.mediaPc.setLocalDescription(answer);
 		safeSend(sess,{type:'call-answer',sdp:answer.sdp});
+		
 		showCallOverlay(sess,stream);
-		setCallStatusTxt('In call · '+data.callType);
-		startCallTimer();
+		setCallStatusTxt('Connecting…');
 		addSysMsg(sess,`Call started (${data.callType})`);
 	}catch(e){
 		console.error('[WebRTC Call] Accept call sequence failure:', e);
@@ -1032,6 +1036,7 @@ function showIncomingDialog(sess,data){
 function closeIncomingDialog(){el('incomingDialog')?.classList.remove('active');}
 function setCallStatusTxt(txt){const e=el('callAudioStatus');if(e)e.textContent=txt;}
 function startCallTimer(){
+	stopCallTimer();
 	S.callStarted=Date.now();
 	S.callTimer=setInterval(()=>{
 		const s=Math.floor((Date.now()-S.callStarted)/1000);
@@ -1131,7 +1136,7 @@ function injectPanels(){
 		</div>
 		<div class="panel-section"><div class="panel-section-lbl">Sign In (for Firebase rooms)</div><div id="spAuthArea"></div></div>
 		<div class="panel-section"><div class="panel-section-lbl">About</div>
-			<div style="font-size:.78rem;color:rgba(232,237,248,.4);line-height:1.7">P2P Chat v3.4 · ProElectricCoder<br>WebRTC + Firebase signaling<br>
+			<div style="font-size:.78rem;color:rgba(232,237,248,.4);line-height:1.7">P2P Chat v3.4.1 · ProElectricCoder<br>WebRTC + Firebase signaling<br>
 				<a href="/Projects/Chat/" target="_blank" style="color:var(--tp);text-decoration:none">Documentation →</a>
 			</div>
 		</div>
@@ -1611,7 +1616,9 @@ window.App={
 			const analyser = ctx.createAnalyser();
 			analyser.fftSize = 256;
 			
-			const source = ctx.createMediaStreamSource(stream);
+			// Clone the stream to prevent Web Audio API from hijacking/muting the HTMLVideoElement audio
+			const clone = stream.clone();
+			const source = ctx.createMediaStreamSource(clone);
 			source.connect(analyser);
 
 			const callSess = S.sessions.get(S.callSessId);
