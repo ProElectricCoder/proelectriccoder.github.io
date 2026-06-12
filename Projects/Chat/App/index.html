@@ -19,7 +19,7 @@
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-autoloader.min.js" defer></script>
 	<style>
 		*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-		html,body{height:100%;overflow:hidden}
+		html,body{height: 100dvh; max-height: 100dvh; overflow:hidden}
 		:root{
 			--tp:#00ffff;--ts:#3d6eff;--ta:#00ff99;
 			--tb:rgba(0,255,255,.12);--tbh:rgba(0,255,255,.28);
@@ -31,9 +31,12 @@
 		#gradBg2{opacity:0}
 		.noise{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.025;
 			background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+		
+		/* Fixed layering for backdrop on mobile */
 		.sb-backdrop{display:none;position:absolute;inset:0;z-index:199;background:rgba(0,0,0,.65);opacity:0;pointer-events:none;transition:opacity .28s ease}
 		.sb-backdrop.open{opacity:1;pointer-events:auto}
-		.app{position:relative;z-index:2;display:flex;height:100vh;overflow:hidden}
+		
+		.app{position:relative;z-index:2;display:flex;height: 100dvh; max-height: 100dvh; overflow:hidden}
 		/* Nav */
 		.nav{width:60px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px;background:rgba(0,0,0,.55);border-right:1px solid rgba(255,255,255,.05);z-index:10}
 		.nav-logo{width:28px;height:28px;margin-bottom:10px;opacity:.75;flex-shrink:0}
@@ -101,12 +104,66 @@
 		.msg.mine .msg-bubble{background:var(--tbg);border:1px solid var(--tbb);border-bottom-right-radius:4px}
 		.msg.theirs .msg-bubble{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);border-bottom-left-radius:4px}
 		.sys-msg{align-self:center;font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--faint);background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:20px;padding:3px 12px;margin:3px 0}
-		/* Input */
-		.input-bar{display:flex;flex-direction:column;background:rgba(0,0,0,.42);border-top:1px solid var(--tb);flex-shrink:0;transition:border-color .35s}
+		/* Input Bar Sizing & safe area adjustment */
+		.input-bar{display:flex;flex-direction:column;background:rgba(0,0,0,.42);border-top:1px solid var(--tb);flex-shrink:0;transition:border-color .35s;padding-bottom:calc(env(safe-area-inset-bottom) + 4px)}
 		.input-row{display:flex;gap:6px;padding:10px 12px;align-items:flex-end}
 		.msg-input{flex:1;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.87rem;padding:9px 12px;outline:none;resize:none;min-height:40px;max-height:130px;overflow-y:auto;line-height:1.45;transition:border-color .2s}
 		.msg-input:focus{border-color:var(--tp)}
 		.msg-input::placeholder{color:var(--faint)}
+		
+		/* WhatsApp-Style Call Card UI */
+		.message-call-card {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			background: rgba(255, 255, 255, 0.05);
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			border-radius: 12px;
+			padding: 10px 14px;
+			margin: 4px 0;
+			width: 100%;
+			max-width: 260px;
+		}
+		.call-icon-frame {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			width: 36px;
+			height: 36px;
+			border-radius: 50%;
+			background: rgba(255, 255, 255, 0.1);
+			font-size: 1.1rem;
+		}
+		.message-call-card.missed .call-icon-frame,
+		.message-call-card.declined .call-icon-frame,
+		.message-call-card.cancelled .call-icon-frame {
+			background: rgba(239, 68, 68, 0.15);
+			color: #ef4444;
+		}
+		.message-call-card.completed .call-icon-frame {
+			background: rgba(34, 197, 94, 0.15);
+			color: #22c55e;
+		}
+		.call-info-details {
+			display: flex;
+			flex-direction: column;
+			gap: 2px;
+			min-width: 0;
+			flex: 1;
+		}
+		.call-title-text {
+			font-weight: 600;
+			font-size: 0.82rem;
+			color: var(--text);
+		}
+		.call-meta-text {
+			font-size: 0.72rem;
+			color: var(--dim);
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+		
 		/* File Queue */
 		.fq-wrap{display:none;flex-wrap:wrap;gap:8px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.05)}
 		.fq-wrap.has-files{display:flex}
@@ -225,7 +282,7 @@
 <div id="gradBg2" class="grad-bg"></div>
 <div class="noise"></div>
 
-<!-- By moving .sb-backdrop INSIDE .app, it perfectly layers under the .sidebar on mobile! -->
+<!-- Backdrop layers reside inside the app stacking context layout -->
 <div class="app">
 	<div id="sidebarBackdrop" class="sb-backdrop" onclick="App.closeSidebar()"></div>
 
@@ -252,6 +309,7 @@
 		<div class="sidebar-head">
 			<span class="sidebar-title">Chats</span>
 			<div class="row" style="gap:4px">
+				<!-- Added Mobile Settings Trigger in Sidebar Head -->
 				<button class="nav-btn mobile-only" style="width:28px;height:28px;border-radius:7px" title="Settings" onclick="App.openSettings()">
 					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
 				</button>
