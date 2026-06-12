@@ -1,7 +1,6 @@
 /**
- * app.js — P2P Chat v3.2.0
- * Multi-chat · IndexedDB · 6 themes · Groups · Calls · GZIP files · Preview cards
- * Pure P2P with robust ICE Candidate Queueing & Error Logging
+ * app.js — P2P Chat v3.3
+ * Multi-chat · Direct Media Capture · Chat Customization · Real-time Custom BGs
  */
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -22,6 +21,7 @@ import { ChatEngine, DirectEngine } from '../engine.js';
 // 2. CONSTANTS & THEMES
 // ═══════════════════════════════════════════════════════════════════════════
 const CHUNK_SIZE = 32 * 1024;
+const MC = { stream: null, recorder: null, chunks: [], type: null }; // Media Capture State
 
 const THEMES = {
 	void:     {name:'Void',     primary:'#00ffff',secondary:'#3d6eff',accent:'#00ff99',gradEnd:'#002233'},
@@ -92,7 +92,7 @@ const DB = {
 	async _open(){
 		if(this._db)return this._db;
 		this._db=await new Promise((res,rej)=>{
-			const r=indexedDB.open('PECChatDB',2);
+			const r=indexedDB.open('PECChatDB',3); // DB incremented for schema fields
 			r.onupgradeneeded=e=>{
 				const d=e.target.result;
 				if(!d.objectStoreNames.contains('sessions'))d.createObjectStore('sessions',{keyPath:'id'});
@@ -113,6 +113,7 @@ const DB = {
 			id:s.id,name:s.name,type:s.type,isGroup:s.isGroup,theme:s.theme,
 			createdAt:s.createdAt,lastActivity:s.lastActivity,lastMessage:s.lastMessage,
 			roomId:s.roomId||null,groupName:s.groupName||null,
+			peerName:s.peerName||null,peerAvatar:s.peerAvatar||null,bg:s.bg||null
 		}));
 	},
 	async saveMessage(m){
@@ -120,7 +121,7 @@ const DB = {
 		const toSave={...m};
 		if(toSave.file){
 			toSave.file={...toSave.file};
-			delete toSave.file.blobUrl; // session-only URL, not persisted
+			delete toSave.file.blobUrl;
 			if(toSave.file.dataUrl&&(toSave.file.size>512*1024||!toSave.file.mime?.startsWith('image/')))
 				delete toSave.file.dataUrl;
 		}
@@ -208,6 +209,7 @@ function makeSess(opts){
 		isGroup:opts.isGroup||false,theme:opts.theme||'void',
 		createdAt:opts.createdAt||Date.now(),lastActivity:opts.lastActivity||Date.now(),
 		lastMessage:opts.lastMessage||null,roomId:opts.roomId||null,groupName:opts.groupName||null,
+		peerName:opts.peerName||null,peerAvatar:opts.peerAvatar||null,bg:opts.bg||null,
 		isHost:false,engine:null,connected:false,
 		peers:new Map(),messages:[],unread:0,
 		inFiles:new Map(),
@@ -353,14 +355,19 @@ function getBatchSiblings(sess,batchId,excludeId){
 // ═══════════════════════════════════════════════════════════════════════════
 // 10. THEME MANAGER
 // ═══════════════════════════════════════════════════════════════════════════
-function applyTheme(themeId,animate=true){
+function applyTheme(themeId,sess=null,animate=true){
 	const th=THEMES[themeId]||THEMES.void;
 	const root=document.documentElement;
 	root.style.setProperty('--tp',th.primary);root.style.setProperty('--ts',th.secondary);
 	root.style.setProperty('--ta',th.accent);root.style.setProperty('--tb',rgba(th.primary,.12));
 	root.style.setProperty('--tbh',rgba(th.primary,.28));root.style.setProperty('--tbg',rgba(th.primary,.11));
 	root.style.setProperty('--tbb',rgba(th.primary,.18));root.style.setProperty('--tg',rgba(th.primary,.25));
-	const grad=computeGrad(th.gradEnd);
+	
+	const bgE = sess?.bg?.endColor || th.gradEnd;
+	const bgP = sess?.bg?.power || 2.5;
+	const bgS = sess?.bg?.steps || 20;
+	const grad=computeGrad(bgE, bgP, bgS);
+	
 	const bg1=el('gradBg1'),bg2=el('gradBg2');
 	if(!bg1||!bg2||!animate){if(bg1)bg1.style.background=grad;return;}
 	if(S.gradActive===1){
@@ -373,9 +380,9 @@ function applyTheme(themeId,animate=true){
 		setTimeout(()=>{bg2.style.transition='none';bg2.style.opacity='0';setTimeout(()=>{bg2.style.transition='';}  ,50);S.gradActive=1;},460);
 	}
 }
-function computeGrad(endColor){
+function computeGrad(endColor, power=2.5, steps=20){
 	if(!S.cubicGradFn)return`linear-gradient(to bottom right,#000000,${endColor})`;
-	return S.cubicGradFn({direction:'to bottom right',start:'#000000',end:endColor,steps:20,power:2.5}).css;
+	return S.cubicGradFn({direction:'to bottom right',start:'#000000',end:endColor,steps,power}).css;
 }
 function rgba(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return`rgba(${r},${g},${b},${a})`;}
 
@@ -389,7 +396,7 @@ async function selectSess(id,closeSidebar=true){
 	if(S.activeId===id){if(closeSidebar&&isMobile())closeSidebarUI();return;}
 	const prev=getActiveSess();if(prev){prev.unread=0;renderChatList();}
 	S.activeId=id;sess.unread=0;
-	applyTheme(sess.theme);renderTopbar(sess);
+	applyTheme(sess.theme, sess);renderTopbar(sess);
 	await renderMessages(sess);
 	el('welcomePanel').style.display='none';
 	const cv=el('chatView');cv.classList.remove('hidden');cv.style.display='flex';
@@ -402,7 +409,7 @@ async function deleteSess(id){
 	sess.engine?.disconnect();S.sessions.delete(id);await DB.deleteSession(id);
 	if(S.activeId===id){
 		S.activeId=null;el('chatView').classList.add('hidden');
-		el('welcomePanel').style.display='';applyTheme('void');
+		el('welcomePanel').style.display='';applyTheme('void', null, false);
 	}
 	renderChatList();
 }
@@ -410,7 +417,7 @@ async function deleteSess(id){
 function setThemeForSess(sessId,themeId){
 	const sess=S.sessions.get(sessId);if(!sess)return;
 	sess.theme=themeId;DB.saveSession(sess);DB.updateSession(sessId,{theme:themeId});
-	if(S.activeId===sessId)applyTheme(themeId);renderChatList();
+	if(S.activeId===sessId)applyTheme(themeId, sess);renderChatList();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -451,6 +458,9 @@ async function handleMsg(sess,data,peerId){
 	switch(data.type){
 		case'handshake':
 			sess.peers.set(peerId,{name:data.displayName||'Peer',avatar:data.avatarUrl||''});
+			sess.peerName = data.displayName || 'Peer';
+			sess.peerAvatar = data.avatarUrl || '';
+			DB.saveSession(sess);
 			addSysMsg(sess,`${data.displayName||'Peer'} joined`);
 			if(S.activeId===sess.id)renderTopbar(sess);renderChatList();break;
 		case'group-members':
@@ -527,6 +537,8 @@ async function handleMsg(sess,data,peerId){
 		case'display-name':{
 			const old=sess.peers.get(peerId)?.name||'Peer';
 			if(sess.peers.has(peerId))sess.peers.get(peerId).name=data.displayName;
+			sess.peerName = data.displayName; DB.saveSession(sess);
+			if(S.activeId===sess.id)renderTopbar(sess);
 			addSysMsg(sess,`${old} → ${data.displayName}`);break;
 		}
 	}
@@ -552,12 +564,23 @@ function renderChatList(){
 		const unreadBadge=s.unread>0?`<div class="ci-badge">${s.unread>99?'99+':s.unread}</div>`:'';
 		const time=s.lastActivity?relTime(s.lastActivity):'';
 		const type=s.isGroup?'👥':(s.type==='direct'?'⚡':'🔗');
+		
+		let avHtml = `${initials}<div class="${dotClass}"></div>`;
+		if (s.type === 'direct' && s.peerAvatar) {
+			avHtml = `<img src="${escH(s.peerAvatar)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none'"><div class="${dotClass}"></div>`;
+		}
+		
+		let nameHtml = escH(s.name);
+		if (s.type === 'direct' && s.peerName) {
+			nameHtml += ` <span style="opacity:0.5;font-size:0.8em;font-weight:400">• ${escH(s.peerName)}</span>`;
+		}
+
 		return`<div class="chat-item${isActive?' active':''}" onclick="App.selectChat('${s.id}')">
 			<div class="ci-av" style="color:${th.primary};border-color:${isActive?th.primary:'rgba(255,255,255,.1)'}">
-				${initials}<div class="${dotClass}"></div>
+				${avHtml}
 			</div>
 			<div class="ci-info">
-				<div class="ci-name">${escH(s.name)} <span style="opacity:.4;font-size:.7em">${type}</span></div>
+				<div class="ci-name">${nameHtml} <span style="opacity:.4;font-size:.7em">${type}</span></div>
 				<div class="ci-prev">${escH(s.lastMessage||(s.connected?'Connected':'Not connected'))}</div>
 			</div>
 			<div class="ci-meta"><div class="ci-time">${time}</div>${unreadBadge}</div>
@@ -569,8 +592,17 @@ function renderTopbar(sess){
 	const avEl=el('topbarAv'),nameEl=el('topbarName'),dotEl=el('statusDot'),txtEl=el('statusText');
 	if(!avEl)return;
 	const th=THEMES[sess.theme]||THEMES.void;
-	avEl.textContent=sess.name.slice(0,2).toUpperCase();avEl.style.color=th.primary;
-	nameEl.textContent=sess.name;
+	
+	if (sess.type === 'direct' && sess.peerAvatar) {
+		avEl.innerHTML = `<img src="${escH(sess.peerAvatar)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none'">`;
+		avEl.style.border = 'none';
+	} else {
+		avEl.innerHTML = sess.name.slice(0,2).toUpperCase();
+		avEl.style.color = th.primary;
+		avEl.style.border = '';
+	}
+	
+	nameEl.innerHTML = escH(sess.name) + (sess.type === 'direct' && sess.peerName ? ` <span style="opacity:0.5;font-size:0.8em;font-weight:400">• ${escH(sess.peerName)}</span>` : '');
 	dotEl.className='status-dot '+(sess.connected?'connected':'');
 	txtEl.textContent=sess.connected?`${sess.peers.size} peer${sess.peers.size!==1?'s':''} connected`:'Disconnected';
 	enableCallBtns(sess.connected&&!sess.isGroup);
@@ -679,7 +711,7 @@ function addSendingFileBubble(sess,meta,url,xferId,batchId){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 16. MEDIA CALLS
+// 16. MEDIA CALLS & QUEUE
 // ═══════════════════════════════════════════════════════════════════════════
 function updateXferProgress(msgId,pct){
 	const d=document.querySelector(`[data-msg-id="${msgId}"]`);if(!d)return;
@@ -739,7 +771,7 @@ function renderFileBubbleFromMsg(container,m){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 16. MEDIA CALLS
+// 17. WEBRTC CALLING ENGINE
 // ═══════════════════════════════════════════════════════════════════════════
 async function initiateCall(type){
 	const sess=getActiveSess();
@@ -748,7 +780,7 @@ async function initiateCall(type){
 	if(sess.isGroup){toast('Calls in direct sessions only');return;}
 	if(S.callSessId!==null){toast('End current call first');return;}
 	sess.call.type=type;sess.call.state='calling';S.callSessId=sess.id;
-	sess.call.iceQueue = []; // Clear current candidate queue
+	sess.call.iceQueue = []; 
 	try{
 		const stream=await getStream(type);
 		sess.call.localStream=stream;
@@ -779,20 +811,25 @@ function buildMediaPC(sess){
 		console.error('[WebRTC Call ICE Error Handler] Target:', evt.url, 'Code:', evt.errorCode, 'Message:', evt.errorText);
 	};
 	
-	// Critical fix: robust ontrack accumulates into a single MediaStream
 	pc.ontrack=evt=>{
 		const rv=el('callRemoteVid');if(!rv)return;
-		if(!remoteStream){remoteStream=new MediaStream();rv.srcObject=remoteStream;}
+		if(!remoteStream) remoteStream=new MediaStream();
+		
 		const existing=remoteStream.getTracks().find(t=>t.kind===evt.track.kind);
 		if(existing)remoteStream.removeTrack(existing);
+		
 		remoteStream.addTrack(evt.track);
+		rv.srcObject = remoteStream; // Force pipeline refresh
 		rv.play().catch(e => console.error('[WebRTC Call] Error auto-playing remote stream:', e));
+		
 		if(evt.track.kind==='video'){
 			rv.style.display='block';
 			const ab=el('callAudioBg');if(ab)ab.style.display='none';
+		} else {
+			console.log(`[WebRTC Media] Received remote audio track: ${evt.track.label}`);
 		}
 	};
-	// Renegotiation for source toggle (addTrack during active call)
+	
 	pc.onnegotiationneeded=async()=>{
 		if(sess.call.state!=='active')return;
 		try{
@@ -801,6 +838,7 @@ function buildMediaPC(sess){
 			safeSend(sess,{type:'call-renego',sdp:offer.sdp});
 		}catch(e){console.error('[WebRTC Call PC Renegotiation error]',e);}
 	};
+	
 	pc.onconnectionstatechange=()=>{
 		const s=pc.connectionState;
 		console.log(`[WebRTC Call] Connection state for PC changed: "${s}"`);
@@ -828,11 +866,9 @@ async function acceptCall(){
 		sess.call.localStream=stream;
 		sess.call.mediaPc=buildMediaPC(sess);
 		
-		// SetRemoteDescription FIRST to establish target schema, then addTrack & drain queued ICE candidates
 		await sess.call.mediaPc.setRemoteDescription(new RTCSessionDescription({type:'offer',sdp:data.sdp}));
 		stream.getTracks().forEach(t=>sess.call.mediaPc.addTrack(t,stream));
 		
-		// Process queued candidates generated while the dialog was active
 		if (sess.call.iceQueue && sess.call.iceQueue.length > 0) {
 			console.log(`[WebRTC Call] Applying ${sess.call.iceQueue.length} queued ICE candidates to Answer-side PC`);
 			for (const cand of sess.call.iceQueue) {
@@ -875,8 +911,11 @@ function endCallInternal(sess,notify=true){
 
 async function getStream(type){
 	try {
-		if(type==='video') return await navigator.mediaDevices.getUserMedia({video:true,audio:true});
-		return await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+		const constraints = type==='video' ? {video:true,audio:true} : {audio:true,video:false};
+		const stream = await navigator.mediaDevices.getUserMedia(constraints);
+		console.log(`[WebRTC Media] Captured ${stream.getTracks().length} local tracks for ${type}.`);
+		stream.getTracks().forEach(t => console.log(`[WebRTC Media] Local Track: ${t.kind} - ${t.label} (enabled: ${t.enabled})`));
+		return stream;
 	} catch (err) {
 		console.error(`[WebRTC Call] navigator.mediaDevices.getUserMedia failed for "${type}":`, err);
 		throw err;
@@ -944,7 +983,14 @@ function showCallOverlay(sess,localStream){
 	if(ab){
 		const names=[...sess.peers.values()].map(p=>p.name).join(', ')||'Peer';
 		ab.style.display='flex';
-		const ini=el('callAudioInitial');if(ini)ini.textContent=(names[0]||'P').toUpperCase();
+		const ini=el('callAudioInitial');
+		if(ini){
+			if(sess.type === 'direct' && sess.peerAvatar) {
+				ini.innerHTML = `<img src="${escH(sess.peerAvatar)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none'">`;
+			} else {
+				ini.textContent=(names[0]||'P').toUpperCase();
+			}
+		}
 		const pn=el('callAudioName');if(pn)pn.textContent=names;
 	}
 	if(lv){
@@ -986,7 +1032,7 @@ function startCallTimer(){
 function stopCallTimer(){if(S.callTimer){clearInterval(S.callTimer);S.callTimer=null;}S.callStarted=null;const t=el('callTimer');if(t)t.textContent='00:00';}
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 17. INJECTED PANELS
+// 18. INJECTED PANELS
 // ═══════════════════════════════════════════════════════════════════════════
 function injectPanels(){
 	const css=document.createElement('style');
@@ -1015,7 +1061,7 @@ function injectPanels(){
 .call-overlay.active{display:flex}
 .call-remote-vid{width:100%;height:100%;object-fit:cover;display:none;position:absolute;inset:0}
 .call-audio-bg{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;position:relative;background:linear-gradient(to bottom,#000d1a,#000)}
-.call-rings{position:absolute;width:120px;height:120px}
+.call-rings{position:absolute;inset:0;pointer-events:none}
 .call-ring{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(0,255,255,.3);animation:callring 2.4s ease-out infinite}
 .call-ring:nth-child(2){animation-delay:.8s}.call-ring:nth-child(3){animation-delay:1.6s}
 @keyframes callring{0%{transform:scale(1);opacity:.7}100%{transform:scale(2.8);opacity:0}}
@@ -1073,7 +1119,7 @@ function injectPanels(){
 		</div>
 		<div class="panel-section"><div class="panel-section-lbl">Sign In (for Firebase rooms)</div><div id="spAuthArea"></div></div>
 		<div class="panel-section"><div class="panel-section-lbl">About</div>
-			<div style="font-size:.78rem;color:rgba(232,237,248,.4);line-height:1.7">P2P Chat v3.2 · ProElectricCoder<br>WebRTC + Firebase signaling<br>
+			<div style="font-size:.78rem;color:rgba(232,237,248,.4);line-height:1.7">P2P Chat v3.3 · ProElectricCoder<br>WebRTC + Firebase signaling<br>
 				<a href="/Projects/Chat/" target="_blank" style="color:var(--tp);text-decoration:none">Documentation →</a>
 			</div>
 		</div>
@@ -1120,13 +1166,15 @@ function injectPanels(){
 	nc.addEventListener('click',e=>{if(e.target===nc)App.closeNewChat();});
 	document.getElementById('panels').appendChild(nc);
 
-	// Call overlay
+	// Call overlay (Circle animation fix applied here)
 	const co=document.createElement('div');co.id='callOverlay';co.className='call-overlay';
 	co.innerHTML=`
 	<video id="callRemoteVid" class="call-remote-vid" autoplay playsinline></video>
 	<div id="callAudioBg" class="call-audio-bg">
-		<div class="call-rings"><div class="call-ring"></div><div class="call-ring"></div><div class="call-ring"></div></div>
-		<div class="call-audio-av" id="callAudioInitial">P</div>
+		<div style="position:relative;width:120px;height:120px;display:flex;align-items:center;justify-content:center">
+			<div class="call-rings"><div class="call-ring"></div><div class="call-ring"></div><div class="call-ring"></div></div>
+			<div class="call-audio-av" id="callAudioInitial">P</div>
+		</div>
 		<div class="call-audio-peer" id="callAudioName">Peer</div>
 		<div class="call-audio-status" id="callAudioStatus">Connecting…</div>
 		<div class="call-timer-wrap" id="callTimer">00:00</div>
@@ -1173,13 +1221,14 @@ function injectPanels(){
 	document.body.appendChild(tp);
 	document.addEventListener('click',e=>{if(tp.classList.contains('open')&&!tp.contains(e.target)&&e.target.id!=='btnTheme')tp.classList.remove('open');});
 
-	// Chat info panel
+	// Chat info panel (With chat rename & background editors)
 	const ci=document.createElement('div');ci.id='chatInfoOverlay';ci.className='panel-overlay';
 	ci.innerHTML=`<div class="panel-drawer">
 	<div class="panel-head"><span class="panel-head-title">Chat Info</span><button class="panel-close" onclick="App.closeChatInfo()">✕</button></div>
 	<div class="panel-body">
 		<div class="panel-section" id="ciDetails"></div>
-		<div class="panel-section"><div class="panel-section-lbl">Theme</div><div class="theme-swatches" id="ciThemeSwatches"></div></div>
+		<div class="panel-section" id="ciBgConf"></div>
+		<div class="panel-section"><div class="panel-section-lbl">Theme Presets</div><div class="theme-swatches" id="ciThemeSwatches"></div></div>
 		<div class="panel-section"><div class="panel-section-lbl">Members</div><div id="ciMembers" style="font-size:.82rem;color:var(--dim);line-height:1.8"></div></div>
 		<div class="panel-section col" style="gap:8px">
 			<button class="btn btn-d btn-full" id="ciDisconnectBtn" onclick="App.ciDisconnect()">Disconnect</button>
@@ -1188,10 +1237,20 @@ function injectPanels(){
 	</div></div>`;
 	ci.addEventListener('click',e=>{if(e.target===ci)App.closeChatInfo();});
 	document.getElementById('panels').appendChild(ci);
+
+	// Direct Media Capture Modal
+	const capM = document.createElement('div'); capM.id = 'captureModal'; capM.className = 'modal-overlay';
+	capM.innerHTML = `
+	<div class="modal-box" style="max-width:340px; padding: 20px;">
+		<video id="mcVideo" autoplay playsinline muted style="width:100%; border-radius:10px; background:#000; display:none; max-height:300px; object-fit:cover; margin-bottom:14px;"></video>
+		<div id="mcAudioVis" style="display:none; font-size:3.5rem; margin:20px 0; text-align:center; animation: pulseMedia 1.5s infinite alternate;">🎙️</div>
+		<div id="mcActions" class="col" style="width:100%; gap:8px;"></div>
+	</div>`;
+	document.getElementById('panels').appendChild(capM);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 18. PANEL LOGIC
+// 19. PANEL LOGIC & CONFIG
 // ═══════════════════════════════════════════════════════════════════════════
 function openSettings(){
 	const o=el('settingsOverlay');if(!o)return;
@@ -1250,18 +1309,43 @@ function openThemePicker(){
 }
 function openChatInfo(){
 	const sess=getActiveSess();if(!sess)return;
+	
 	const d=el('ciDetails');
-	if(d)d.innerHTML=`<div class="panel-section-lbl">Details</div>
+	if(d) {
+		d.innerHTML=`
+		<div class="panel-section-lbl">Chat Name</div>
+		<div class="row" style="margin-bottom:12px">
+			<input class="f-in" id="ciChatName" value="${escH(sess.name)}" placeholder="Name this chat...">
+			<button class="btn btn-s" onclick="App.renameChat()">Save</button>
+		</div>
+		<div class="panel-section-lbl">Details</div>
 		<div class="col" style="gap:6px;font-size:.82rem;color:var(--dim)">
-			<div><span style="color:var(--faint)">Name:</span> ${escH(sess.name)}</div>
 			<div><span style="color:var(--faint)">Type:</span> ${sess.isGroup?'Group':sess.type==='direct'?'Direct':'Firebase Room'}</div>
 			${sess.roomId?`<div><span style="color:var(--faint)">Room ID:</span> <code style="font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--tp)">${escH(sess.roomId)}</code></div>`:''}
 			<div><span style="color:var(--faint)">Status:</span> ${sess.connected?'<span style="color:var(--ta)">Connected</span>':'Disconnected'}</div>
 		</div>`;
+	}
+
+	const bgEnd = sess.bg?.endColor || THEMES[sess.theme]?.gradEnd || '#000000';
+	const bgPow = sess.bg?.power || 2.5;
+	const bgSteps = sess.bg?.steps || 20;
+	
+	const bgConf = el('ciBgConf');
+	if(bgConf) {
+		bgConf.innerHTML = `
+		<div class="panel-section-lbl">Background Edit</div>
+		<div class="col" style="gap:10px;font-size:.8rem;color:var(--dim)">
+			<div class="row" style="align-items:center"><label style="width:45px">Color</label><input type="color" id="ciBgColor" value="${bgEnd}" onchange="App.updateBg()" style="width:100%;height:26px;padding:0;border:1px solid rgba(255,255,255,0.1);background:none;cursor:pointer;border-radius:4px"></div>
+			<div class="row" style="align-items:center"><label style="width:45px">Curve</label><input type="range" id="ciBgPower" min="0.5" max="5.0" step="0.1" value="${bgPow}" onchange="App.updateBg()" oninput="document.getElementById('ciPowVal').textContent=this.value;App.previewBg()" style="flex:1"><span id="ciPowVal" style="width:24px;text-align:right">${bgPow}</span></div>
+			<div class="row" style="align-items:center"><label style="width:45px">Steps</label><input type="range" id="ciBgSteps" min="2" max="50" step="1" value="${bgSteps}" onchange="App.updateBg()" oninput="document.getElementById('ciStepVal').textContent=this.value;App.previewBg()" style="flex:1"><span id="ciStepVal" style="width:24px;text-align:right">${bgSteps}</span></div>
+		</div>`;
+	}
+
 	const cs=el('ciThemeSwatches');
 	if(cs)cs.innerHTML=Object.entries(THEMES).map(([id,th])=>
 		`<div class="t-sw${sess.theme===id?' active':''}" title="${th.name}" style="background:${th.primary}" onclick="App.pickTheme('${id}');App.closeChatInfo()"></div>`
 	).join('');
+	
 	const cm=el('ciMembers');
 	if(cm){
 		const members=[...sess.peers.entries()];
@@ -1274,7 +1358,7 @@ function openChatInfo(){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 19. FIREBASE AUTH
+// 20. FIREBASE AUTH
 // ═══════════════════════════════════════════════════════════════════════════
 function initFirebase(){
 	firebase.auth().onAuthStateChanged(user=>{
@@ -1288,7 +1372,7 @@ function initFirebase(){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 20. UTILITIES
+// 21. UTILITIES
 // ═══════════════════════════════════════════════════════════════════════════
 function el(id){return document.getElementById(id);}
 function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -1305,14 +1389,14 @@ let _toastTmr=null;
 function toast(msg,ms=3000){const e=el('toast');if(!e)return;e.textContent=msg;e.classList.add('show');clearTimeout(_toastTmr);_toastTmr=setTimeout(()=>e.classList.remove('show'),ms);}
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 21. window.App
+// 22. window.App
 // ═══════════════════════════════════════════════════════════════════════════
 window.App={
 	openSidebar(){openSidebarUI();},
 	closeSidebar(){closeSidebarUI();},
 	filterChats(q){S.filterQ=q;renderChatList();},
 	async selectChat(id){await selectSess(id,true);},
-	pickTheme(id){const sess=getActiveSess();if(!sess)return;setThemeForSess(sess.id,id);el('themePicker')?.classList.remove('open');renderChatList();},
+	pickTheme(id){const sess=getActiveSess();if(!sess)return;setThemeForSess(sess.id,id);el('themePicker')?.classList.remove('open');},
 	newChat(tab){openNewChat(tab);},
 	closeNewChat(){el('newChatModal')?.classList.remove('open');NC.pendingEngine=null;NC.pendingSessId=null;},
 	ncSwitchTab(t){ncSwitchTab(t);},
@@ -1403,6 +1487,95 @@ window.App={
 			for(const{file}of toSend)await sendFile(file,sess,batchId);
 		}
 	},
+	renameChat(){
+		const sess = getActiveSess(); if(!sess) return;
+		const newName = el('ciChatName')?.value.trim();
+		if(newName) {
+			sess.name = newName;
+			DB.saveSession(sess);
+			renderChatList();
+			renderTopbar(sess);
+			toast('Chat renamed');
+		}
+	},
+	previewBg(){
+		const e = el('ciBgColor').value;
+		const p = parseFloat(el('ciBgPower').value);
+		const s = parseInt(el('ciBgSteps').value);
+		const grad = computeGrad(e, p, s);
+		el('gradBg1').style.background = grad;
+		el('gradBg2').style.background = grad;
+	},
+	updateBg(){
+		const sess = getActiveSess(); if(!sess) return;
+		if(!sess.bg) sess.bg = {};
+		sess.bg.endColor = el('ciBgColor').value;
+		sess.bg.power = parseFloat(el('ciBgPower').value);
+		sess.bg.steps = parseInt(el('ciBgSteps').value);
+		DB.saveSession(sess);
+		applyTheme(sess.theme, sess);
+	},
+	async openCapture(type) {
+		MC.type = type;
+		const mo = el('captureModal'); mo.classList.add('open');
+		const vid = el('mcVideo'); const vis = el('mcAudioVis'); const acts = el('mcActions');
+		vid.style.display = type === 'audio' ? 'none' : 'block';
+		vis.style.display = type === 'audio' ? 'block' : 'none';
+		acts.innerHTML = `<div style="text-align:center;font-size:0.8rem;color:var(--faint)">Accessing media...</div>`;
+		try {
+			MC.stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type !== 'audio' });
+			if (type !== 'audio') vid.srcObject = MC.stream;
+			if (type === 'camera') {
+				acts.innerHTML = `
+					<button class="btn btn-p btn-full" onclick="App.capturePhoto()">📸 Take Photo</button>
+					<button class="btn btn-d btn-full" style="background:rgba(255,68,85,.15)" onclick="App.startRecord('video')">🔴 Record Video</button>
+					<button class="btn btn-s btn-full" onclick="App.closeCapture()">Cancel</button>`;
+			} else {
+				acts.innerHTML = `
+					<button class="btn btn-d btn-full" style="background:rgba(255,68,85,.15)" onclick="App.startRecord('audio')">🔴 Record Audio</button>
+					<button class="btn btn-s btn-full" onclick="App.closeCapture()">Cancel</button>`;
+			}
+		} catch (e) {
+			acts.innerHTML = `<div style="color:#ff4455;font-size:0.8rem;margin-bottom:10px;text-align:center">Error: ${e.message}</div><button class="btn btn-s btn-full" onclick="App.closeCapture()">Close</button>`;
+		}
+	},
+	closeCapture() {
+		el('captureModal')?.classList.remove('open');
+		if (MC.stream) MC.stream.getTracks().forEach(t => t.stop());
+		MC.stream = null; MC.recorder = null; MC.chunks = [];
+	},
+	capturePhoto() {
+		const vid = el('mcVideo');
+		const canvas = document.createElement('canvas');
+		canvas.width = vid.videoWidth; canvas.height = vid.videoHeight;
+		canvas.getContext('2d').drawImage(vid, 0, 0);
+		canvas.toBlob(blob => {
+			const file = new File([blob], `Photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+			FQ.add([file]);
+			App.closeCapture();
+		}, 'image/jpeg', 0.9);
+	},
+	startRecord(recType) {
+		MC.chunks = [];
+		try {
+			MC.recorder = new MediaRecorder(MC.stream);
+			MC.recorder.ondataavailable = e => { if (e.data.size > 0) MC.chunks.push(e.data); };
+			MC.recorder.onstop = () => {
+				const ext = recType === 'audio' ? 'webm' : 'webm';
+				const mime = recType === 'audio' ? 'audio/webm' : 'video/webm';
+				const file = new File(MC.chunks, `${recType.charAt(0).toUpperCase() + recType.slice(1)}_${Date.now()}.${ext}`, { type: mime });
+				FQ.add([file]);
+				App.closeCapture();
+			};
+			MC.recorder.start();
+			el('mcActions').innerHTML = `<button class="btn btn-d btn-full" onclick="App.stopRecord()">⏹ Stop Recording</button>`;
+		} catch (e) {
+			toast('MediaRecorder error: ' + e.message);
+		}
+	},
+	stopRecord() {
+		if (MC.recorder && MC.recorder.state !== 'inactive') MC.recorder.stop();
+	},
 	openFilePicker(){el('fileInput')?.click();},
 	handleFileSelect(fs){FQ.add([...fs]);},
 	handleDrop(e){e.preventDefault();FQ.add([...(e.dataTransfer.files||[])]);},
@@ -1453,12 +1626,12 @@ window.App={
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 22. INIT
+// 23. INIT
 // ═══════════════════════════════════════════════════════════════════════════
 (async function init(){
 	injectPanels();
 	try{const mod=await import('https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js');S.cubicGradFn=mod.cubicGradient;}catch{}
-	applyTheme('void',false);
+	applyTheme('void', null, false);
 	initFirebase();
 	try{
 		const saved=await DB.getSessions();
