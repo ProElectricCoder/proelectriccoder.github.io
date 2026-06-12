@@ -1746,7 +1746,18 @@ window.App={
 	closeChatInfo(){el('chatInfoOverlay')?.classList.remove('open');},
 	ciDisconnect(){
 		const sess=getActiveSess();if(!sess)return;
-		if(sess.connected){sess.engine?.disconnect();sess.connected=false;setStatus('disconnected','Disconnected');enableCallBtns(false);}
+		if(sess.connected){
+			sess.engine?.disconnect();sess.connected=false;setStatus('disconnected','Disconnected');enableCallBtns(false);
+		} else {
+			if(sess.type === 'direct') { toast('Create a new offer to reconnect direct chats'); return; }
+			if(!S.user) { toast('Sign in to reconnect to rooms'); return; }
+			const eng = new ChatEngine({relay: sess.isGroup});
+			eng.init(firebase.firestore());
+			bindEngine(sess, eng);
+			setStatus('connecting', 'Reconnecting...');
+			if(sess.isHost) eng.createRoom(sess.roomId).catch(e => toast(e.message));
+			else eng.joinRoom(sess.roomId).catch(e => toast(e.message));
+		}
 		this.closeChatInfo();renderChatList();
 	},
 	ciDelete(){const sess=getActiveSess();if(sess){this.closeChatInfo();deleteSess(sess.id);}},
