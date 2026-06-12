@@ -1,6 +1,8 @@
 /**
- * app.js — P2P Chat v3.5.1
- * FIXED: Missing addSysMsg ReferenceError & Unified WhatsApp Call Logs
+ * app.js — P2P Chat v3.5
+ * Multi-chat · Direct Media Capture · Real-time Audio Visualization
+ * FIXED: Mobile layout bottom bars, dynamic PWA configurations, Reconnect loops,
+ * and unified WhatsApp-style dynamic call cards with synthetic Audio ringtone generator.
  */
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -43,6 +45,7 @@ const CallAudio = {
 		this.ctx = new (window.AudioContext || window.webkitAudioContext)();
 		const triggerRing = () => {
 			if (!this.ctx) return;
+			// Dual-frequency classic USA/Europe warble ring
 			this.playTone(440, 480, 0.4);
 			setTimeout(() => this.playTone(440, 480, 0.4), 600);
 		};
@@ -550,7 +553,7 @@ async function handleMsg(sess,data,peerId){
 					}
 					sess.call.iceQueue = [];
 				}
-				updateCallLogStatus(sess, 'connected');
+				// Handled strictly by connectionstatechange, but we preemptively label the call
 				setCallStatusTxt('In call · '+(sess.call.type||''));
 			}break;
 		case'call-ice':
@@ -562,7 +565,6 @@ async function handleMsg(sess,data,peerId){
 				} else {
 					if (!sess.call.iceQueue) sess.call.iceQueue = [];
 					sess.call.iceQueue.push(data.candidate);
-					console.log(`[WebRTC Call] Staged ICE Candidate. Queue length: ${sess.call.iceQueue.length}`);
 				}
 			}
 			break;
@@ -581,7 +583,8 @@ async function handleMsg(sess,data,peerId){
 				catch(e){console.error('[WebRTC Renegotiation Answer Error]',e);}
 			}break;
 		case'call-end':
-			updateCallLogStatus(sess, 'completed');
+			if (sess.call.state === 'ringing') updateCallLogStatus(sess, 'missed');
+			else updateCallLogStatus(sess, 'completed');
 			endCallInternal(sess,false);break;
 		case'call-reject':
 			updateCallLogStatus(sess, data.reason === 'busy' ? 'busy' : 'declined');
@@ -597,12 +600,6 @@ async function handleMsg(sess,data,peerId){
 }
 function peerName(sess,peerId){return sess.peers.get(peerId)?.name||'Peer';}
 function safeSend(sess,data){if(!sess?.engine||!sess.connected)return;try{sess.engine.send(data);}catch(e){console.error('[send]',e);}}
-
-function addSysMsg(sess,text){
-	const m={id:'sys_'+Date.now()+'_'+uid(),sessionId:sess.id,type:'system',content:text,sender:'',mine:false,timestamp:Date.now(),enc:false};
-	sess.messages.push(m);DB.saveMessage(m);
-	if(S.activeId===sess.id){const c=el('messages');if(c){renderMsgItem(c,m);c.scrollTop=c.scrollHeight;}}
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 15. CHAT RENDERING
@@ -694,12 +691,13 @@ function renderMsgItem(container,m){
 		const title = m.isVideo ? 'Video Call' : 'Voice Call';
 		let metaLabel = '';
 		switch (m.status) {
-			case 'calling': metaLabel = 'Calling...'; break;
-			case 'ringing': metaLabel = 'Ringing...'; break;
-			case 'declined': metaLabel = 'Call Declined'; break;
-			case 'cancelled': metaLabel = 'Call Cancelled'; break;
-			case 'missed': metaLabel = 'Missed Call'; break;
-			case 'completed': metaLabel = `Completed (${formatCallDuration(m.duration)})`; break;
+			case 'calling': metaLabel = 'Outgoing call...'; break;
+			case 'ringing': metaLabel = 'Incoming call...'; break;
+			case 'declined': metaLabel = 'Call declined'; break;
+			case 'cancelled': metaLabel = 'Call cancelled'; break;
+			case 'missed': metaLabel = 'Missed call'; break;
+			case 'busy': metaLabel = 'User busy'; break;
+			case 'completed': metaLabel = `Answered (${formatCallDuration(m.duration)})`; break;
 		}
 
 		d.innerHTML = `
@@ -731,6 +729,11 @@ function addBubble(sess,text,sender,mine,enc=false){
 	if(S.activeId===sess.id){const c=el('messages');if(c){renderMsgItem(c,m);c.scrollTop=c.scrollHeight;}renderChatList();}
 	else renderChatList();
 }
+function addSysMsg(sess,text){
+	const m={id:'sys_'+Date.now()+'_'+uid(),sessionId:sess.id,type:'system',content:text,sender:'',mine:false,timestamp:Date.now(),enc:false};
+	sess.messages.push(m);DB.saveMessage(m);
+	if(S.activeId===sess.id){const c=el('messages');if(c){renderMsgItem(c,m);c.scrollTop=c.scrollHeight;}}
+}
 
 function formatCallDuration(ms) {
 	if (!ms) return '0s';
@@ -756,7 +759,8 @@ function initCallLogMessage(sess, isVideo, isIncoming, remoteName) {
 		duration: 0,
 		sender: isIncoming ? remoteName : S.displayName,
 		mine: !isIncoming,
-		timestamp: Date.now()
+		timestamp: Date.now(),
+		enc: false
 	};
 	
 	if (isIncoming) {
@@ -764,7 +768,7 @@ function initCallLogMessage(sess, isVideo, isIncoming, remoteName) {
 	}
 	
 	sess.messages.push(m);
-	sess.lastMessage = isVideo ? '📹 Call' : '📞 Call';
+	sess.lastMessage = isVideo ? '📹 Video Call' : '📞 Voice Call';
 	sess.lastActivity = m.timestamp;
 	DB.saveMessage(m);
 	DB.updateSession(sess.id, { lastMessage: sess.lastMessage, lastActivity: sess.lastActivity });
@@ -787,8 +791,8 @@ function updateCallLogStatus(sess, newStatus) {
 	if (newStatus === 'connected') {
 		CallAudio.stopRing();
 		S.callStartTimeStamp = Date.now();
-		m.status = 'completed';
-	} else if (['declined', 'cancelled', 'missed', 'completed'].includes(newStatus)) {
+		m.status = 'completed'; // Prepare for valid completion
+	} else if (['declined', 'cancelled', 'missed', 'busy', 'completed'].includes(newStatus)) {
 		CallAudio.stopRing();
 		if (newStatus === 'completed' && S.callStartTimeStamp) {
 			m.duration = Date.now() - S.callStartTimeStamp;
@@ -812,7 +816,7 @@ function updateCallLogStatus(sess, newStatus) {
 		}
 	}
 	
-	if (['declined', 'cancelled', 'missed', 'completed'].includes(newStatus)) {
+	if (['declined', 'cancelled', 'missed', 'busy', 'completed'].includes(newStatus)) {
 		S.activeCallLogId = null;
 		S.callStartTimeStamp = null;
 	}
@@ -995,14 +999,12 @@ function buildMediaPC(sess){
 		if(existing)remoteStream.removeTrack(existing);
 		
 		remoteStream.addTrack(evt.track);
-		rv.srcObject = remoteStream; // Force pipeline refresh
+		rv.srcObject = remoteStream; 
 		rv.play().catch(e => console.error('[WebRTC Call] Error auto-playing remote stream:', e));
 		
 		if(evt.track.kind==='video'){
 			rv.style.display='block';
 			const ab=el('callAudioBg');if(ab)ab.style.display='none';
-		} else {
-			console.log(`[WebRTC Media] Received remote audio track: ${evt.track.label}`);
 		}
 
 		if (sess.call.state === 'active') {
@@ -1092,7 +1094,10 @@ function endCallInternal(sess,notify=true){
 	if(!sess)sess=S.sessions.get(S.callSessId);if(!sess)return;
 	
 	if(S.activeCallLogId) {
-		updateCallLogStatus(sess, S.callStartTimeStamp ? 'completed' : 'cancelled');
+		let finalState = 'completed';
+		if(sess.call.state === 'calling') finalState = 'cancelled';
+		else if(sess.call.state === 'ringing') finalState = 'missed';
+		updateCallLogStatus(sess, finalState);
 	}
 
 	if(notify&&sess.connected&&sess.call.state!=='idle')safeSend(sess,{type:'call-end'});
@@ -1114,7 +1119,6 @@ async function getStream(type){
 		const constraints = type==='video' ? {video:true,audio:true} : {audio:true,video:false};
 		const stream = await navigator.mediaDevices.getUserMedia(constraints);
 		console.log(`[WebRTC Media] Captured ${stream.getTracks().length} local tracks for ${type}.`);
-		stream.getTracks().forEach(t => console.log(`[WebRTC Media] Local Track: ${t.kind} - ${t.label} (enabled: ${t.enabled})`));
 		return stream;
 	} catch (err) {
 		console.error(`[WebRTC Call] navigator.mediaDevices.getUserMedia failed for "${type}":`, err);
@@ -1825,6 +1829,76 @@ window.App={
 	callToggleCam(){toggleCallCam();},
 	callToggleSource(){callToggleSource();},
 	
+	startAudioVisualizer(stream) {
+		this.stopAudioVisualizer(); 
+		try {
+			const AudioContext = window.AudioContext || window.webkitAudioContext;
+			if(!AudioContext) return;
+			
+			const ctx = new AudioContext();
+			const analyser = ctx.createAnalyser();
+			analyser.fftSize = 256;
+			
+			const clone = stream.clone();
+			const source = ctx.createMediaStreamSource(clone);
+			source.connect(analyser);
+
+			const callSess = S.sessions.get(S.callSessId);
+			if(!callSess) return;
+			
+			callSess.call.audioCtx = ctx;
+			callSess.call.audioAnalyser = analyser;
+			callSess.call.audioSource = source;
+
+			const dataArray = new Uint8Array(analyser.frequencyBinCount);
+			const rings = document.querySelectorAll('.call-ring');
+			rings.forEach(r => r.classList.add('vol-active'));
+
+			function draw() {
+				if (!callSess || callSess.call.state !== 'active') return;
+				callSess.call.audioDrawTimer = requestAnimationFrame(draw);
+				
+				analyser.getByteFrequencyData(dataArray);
+				let sum = 0;
+				for (let i = 0; i < dataArray.length; i++) {
+					sum += dataArray[i];
+				}
+				const avg = sum / dataArray.length; 
+				
+				const intensity = avg / 60; 
+				const scale1 = 1 + (intensity * 0.15); 
+				const scale2 = 1 + (intensity * 0.4);  
+				const scale3 = 1 + (intensity * 0.8);  
+
+				if (rings[0]) rings[0].style.transform = `scale(${Math.min(scale1, 1.5)})`;
+				if (rings[1]) rings[1].style.transform = `scale(${Math.min(scale2, 2.2)})`;
+				if (rings[2]) rings[2].style.transform = `scale(${Math.min(scale3, 3.2)})`;
+			}
+			draw();
+		} catch (e) {
+			console.warn('[WebRTC Media] Audio visualizer could not start:', e);
+		}
+	},
+	
+	stopAudioVisualizer() {
+		const callSess = S.sessions.get(S.callSessId);
+		if(callSess) {
+			if (callSess.call.audioDrawTimer) cancelAnimationFrame(callSess.call.audioDrawTimer);
+			if (callSess.call.audioSource) callSess.call.audioSource.disconnect();
+			if (callSess.call.audioCtx && callSess.call.audioCtx.state !== 'closed') callSess.call.audioCtx.close().catch(e=>e);
+			callSess.call.audioCtx = null; 
+			callSess.call.audioAnalyser = null; 
+			callSess.call.audioSource = null; 
+			callSess.call.audioDrawTimer = null;
+		}
+
+		const rings = document.querySelectorAll('.call-ring');
+		rings.forEach(r => {
+			r.classList.remove('vol-active');
+			r.style.transform = '';
+		});
+	},
+
 	openSettings(){openSettings();},
 	closeSettings(){el('settingsOverlay')?.classList.remove('open');},
 	saveName(){
@@ -1876,10 +1950,6 @@ window.App={
 	ciDelete(){const sess=getActiveSess();if(sess){this.closeChatInfo();deleteSess(sess.id);}},
 	openLightbox(src){el('lbImg').src=src;el('lightbox').classList.add('open');},
 	closeLightbox(){el('lightbox').classList.remove('open');},
-	
-	// Expose audio visualizer handlers for internal methods
-	startAudioVisualizer,
-	stopAudioVisualizer
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
