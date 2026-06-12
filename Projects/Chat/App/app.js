@@ -1,8 +1,6 @@
 /**
- * app.js — P2P Chat v3.5
- * Multi-chat · Direct Media Capture · Real-time Audio Visualization
- * FIXED: Mobile layout bottom bars, dynamic PWA configurations, Reconnect loops,
- * and unified WhatsApp-style dynamic call cards with synthetic Audio ringtone generator.
+ * app.js — P2P Chat v3.5.1
+ * FIXED: Missing addSysMsg ReferenceError & Unified WhatsApp Call Logs
  */
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -23,7 +21,7 @@ import { ChatEngine, DirectEngine } from '../engine.js';
 // 2. CONSTANTS & THEMES
 // ═══════════════════════════════════════════════════════════════════════════
 const CHUNK_SIZE = 32 * 1024;
-const MC = { stream: null, recorder: null, chunks: [], type: null }; // Media Capture State
+const MC = { stream: null, recorder: null, chunks: [], type: null }; 
 
 const THEMES = {
 	void:     {name:'Void',     primary:'#00ffff',secondary:'#3d6eff',accent:'#00ff99',gradEnd:'#002233'},
@@ -45,7 +43,6 @@ const CallAudio = {
 		this.ctx = new (window.AudioContext || window.webkitAudioContext)();
 		const triggerRing = () => {
 			if (!this.ctx) return;
-			// Dual-frequency classic USA/Europe warble ring
 			this.playTone(440, 480, 0.4);
 			setTimeout(() => this.playTone(440, 480, 0.4), 600);
 		};
@@ -98,13 +95,13 @@ const FICONS = {
 	generic: {color:'#64748b',bg:'rgba(100,116,139,.1)', svg:'<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/>'},
 };
 function getFileIcon(mime=''){
-	if(mime.includes('pdf'))                              return FICONS.pdf;
-	if(mime.startsWith('image/'))                         return FICONS.image;
-	if(mime.startsWith('audio/'))                         return FICONS.audio;
-	if(mime.startsWith('video/'))                         return FICONS.video;
-	if(/zip|archive|rar|7z|tar/.test(mime))               return FICONS.archive;
-	if(/spreadsheet|excel|csv/.test(mime))                return FICONS.sheet;
-	if(/presentation|powerpoint/.test(mime))              return FICONS.slides;
+	if(mime.includes('pdf')) return FICONS.pdf;
+	if(mime.startsWith('image/')) return FICONS.image;
+	if(mime.startsWith('audio/')) return FICONS.audio;
+	if(mime.startsWith('video/')) return FICONS.video;
+	if(/zip|archive|rar|7z|tar/.test(mime)) return FICONS.archive;
+	if(/spreadsheet|excel|csv/.test(mime)) return FICONS.sheet;
+	if(/presentation|powerpoint/.test(mime)) return FICONS.slides;
 	if(/javascript|json|html|css|typescript|xml/.test(mime)) return FICONS.code;
 	return FICONS.generic;
 }
@@ -253,7 +250,7 @@ const S={
 	encEnabled:false,cubicGradFn:null,gradActive:1,
 	callSessId:null,callTimer:null,callStarted:null,filterQ:'',
 	wakeLockEnabled:localStorage.getItem('pec_wakelock')==='true',wakeLockObj:null,
-	activeCallLogId:null, callStartTimeStamp:null // WhatsApp call indicators
+	activeCallLogId:null, callStartTimeStamp:null
 };
 function makeSess(opts){
 	return{
@@ -325,6 +322,14 @@ function previewType(mime,name){
 	if(CODE.test(ext))return'code';
 	if(mime.startsWith('text/')||/^(txt|log|csv)$/.test(ext))return'text';
 	return'generic';
+}
+function extToLang(ext){
+	return({js:'javascript',ts:'typescript',jsx:'jsx',tsx:'tsx',py:'python',java:'java',
+		c:'c',cpp:'cpp',cs:'csharp',go:'go',rs:'rust',rb:'ruby',php:'php',json:'json',
+		xml:'xml',yaml:'yaml',yml:'yaml',sh:'bash',bash:'bash',css:'css',scss:'scss',
+		less:'less',html:'markup',htm:'markup',md:'markdown',sql:'sql',graphql:'graphql',
+		vue:'markup',svelte:'markup',toml:'toml',ini:'ini',dockerfile:'docker',
+	})[ext]||'plain';
 }
 
 function buildFileCard(meta,url,sending=false,progress=0,batchFiles=[]){
@@ -531,8 +536,6 @@ async function handleMsg(sess,data,peerId){
 			if(sess.call.state!=='idle'){safeSend(sess,{type:'call-reject',reason:'busy'});return;}
 			if(S.callSessId!==null&&S.callSessId!==sess.id){safeSend(sess,{type:'call-reject',reason:'busy'});return;}
 			sess.call.incoming=data;sess.call.state='ringing';S.callSessId=sess.id;
-			
-			// Initialize local WhatsApp call log message on incoming call
 			initCallLogMessage(sess, data.callType === 'video', true, data.displayName || 'Peer');
 			showIncomingDialog(sess,data);break;
 		case'call-answer':
@@ -547,8 +550,6 @@ async function handleMsg(sess,data,peerId){
 					}
 					sess.call.iceQueue = [];
 				}
-				
-				// Outgoing accepted -> Mark as active
 				updateCallLogStatus(sess, 'connected');
 				setCallStatusTxt('In call · '+(sess.call.type||''));
 			}break;
@@ -581,10 +582,10 @@ async function handleMsg(sess,data,peerId){
 			}break;
 		case'call-end':
 			updateCallLogStatus(sess, 'completed');
-			endCallInternal(sess,false);addSysMsg(sess,'Call ended');break;
+			endCallInternal(sess,false);break;
 		case'call-reject':
 			updateCallLogStatus(sess, data.reason === 'busy' ? 'busy' : 'declined');
-			endCallInternal(sess,false);addSysMsg(sess,'Call declined');break;
+			endCallInternal(sess,false);break;
 		case'display-name':{
 			const old=sess.peers.get(peerId)?.name||'Peer';
 			if(sess.peers.has(peerId))sess.peers.get(peerId).name=data.displayName;
@@ -596,6 +597,12 @@ async function handleMsg(sess,data,peerId){
 }
 function peerName(sess,peerId){return sess.peers.get(peerId)?.name||'Peer';}
 function safeSend(sess,data){if(!sess?.engine||!sess.connected)return;try{sess.engine.send(data);}catch(e){console.error('[send]',e);}}
+
+function addSysMsg(sess,text){
+	const m={id:'sys_'+Date.now()+'_'+uid(),sessionId:sess.id,type:'system',content:text,sender:'',mine:false,timestamp:Date.now(),enc:false};
+	sess.messages.push(m);DB.saveMessage(m);
+	if(S.activeId===sess.id){const c=el('messages');if(c){renderMsgItem(c,m);c.scrollTop=c.scrollHeight;}}
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 15. CHAT RENDERING
@@ -677,7 +684,6 @@ function renderMsgItem(container,m){
 	if(m.type==='system'){const d=document.createElement('div');d.className='sys-msg';d.textContent=m.content;container.appendChild(d);return;}
 	if(m.type==='file'){renderFileBubbleFromMsg(container,m);return;}
 	
-	// WhatsApp Style Call Log Item Rendering
 	if (m.type === 'call_log') {
 		const side = m.mine ? 'mine' : 'theirs';
 		const d = document.createElement('div');
@@ -716,6 +722,14 @@ function renderMsgItem(container,m){
 	d.innerHTML=`<div class="msg-meta">${escH(m.sender)} · ${fmtTime(m.timestamp)}${enc}</div>
 		<div class="msg-bubble">${escH(m.content).replace(/\n/g,'<br>')}</div>`;
 	container.appendChild(d);
+}
+function addBubble(sess,text,sender,mine,enc=false){
+	const m={id:'msg_'+Date.now()+'_'+uid(),sessionId:sess.id,type:'text',content:text,sender,mine,timestamp:Date.now(),enc};
+	sess.messages.push(m);sess.lastMessage=text.slice(0,60);sess.lastActivity=m.timestamp;
+	DB.saveMessage(m);DB.updateSession(sess.id,{lastMessage:sess.lastMessage,lastActivity:sess.lastActivity});
+	if(!mine&&S.activeId!==sess.id){sess.unread++;renderChatList();}
+	if(S.activeId===sess.id){const c=el('messages');if(c){renderMsgItem(c,m);c.scrollTop=c.scrollHeight;}renderChatList();}
+	else renderChatList();
 }
 
 function formatCallDuration(ms) {
@@ -786,7 +800,6 @@ function updateCallLogStatus(sess, newStatus) {
 	
 	DB.saveMessage(m);
 	
-	// Real-time re-render of the specific element
 	const existingEl = document.querySelector(`[data-msg-id="${S.activeCallLogId}"]`);
 	if (existingEl && S.activeId === sess.id) {
 		const parent = existingEl.parentNode;
@@ -869,6 +882,12 @@ function addSendingFileBubble(sess,meta,url,xferId,batchId){
 	return msgId;
 }
 
+function updateXferProgress(msgId,pct){
+	const d=document.querySelector(`[data-msg-id="${msgId}"]`);if(!d)return;
+	const bar=d.querySelector('.fp-bar-fill');if(bar)bar.style.width=(pct*100).toFixed(0)+'%';
+	const pctEl=d.querySelector('.fp-pct');if(pctEl)pctEl.textContent=Math.round(pct*100)+'%';
+}
+
 function finalizeFileBubble(msgId,meta,url,enc,sess,batchId){
 	const d=document.querySelector(`[data-msg-id="${msgId}"]`);
 	if(d){
@@ -935,11 +954,9 @@ async function initiateCall(type){
 		const stream=await getStream(type);
 		sess.call.localStream=stream;
 		
-		// WhatsApp: Initialize Call Card message locally
 		const targetName = [...sess.peers.values()].map(p=>p.name).join(', ')||'Peer';
 		initCallLogMessage(sess, type === 'video', false, targetName);
 		
-		// Build overlay FIRST so it doesn't overwrite ontrack event results!
 		showCallOverlay(sess,stream);
 		
 		sess.call.mediaPc=buildMediaPC(sess);
@@ -1032,12 +1049,9 @@ async function acceptCall(){
 		const stream = await getStream(data.callType==='screen'?'audio':data.callType);
 		sess.call.localStream=stream;
 		
-		// Build overlay FIRST so it doesn't overwrite ontrack event results!
 		showCallOverlay(sess,stream);
 		
 		sess.call.mediaPc=buildMediaPC(sess);
-		
-		// Add tracks before setRemoteDescription to prevent disjointed 1-way sendrecv mappings
 		stream.getTracks().forEach(t=>sess.call.mediaPc.addTrack(t,stream));
 		
 		await sess.call.mediaPc.setRemoteDescription(new RTCSessionDescription({type:'offer',sdp:data.sdp}));
@@ -1084,6 +1098,7 @@ function endCallInternal(sess,notify=true){
 	if(notify&&sess.connected&&sess.call.state!=='idle')safeSend(sess,{type:'call-end'});
 	
 	App.stopAudioVisualizer();
+	CallAudio.stopRing();
 
 	closeIncomingDialog();hideCallOverlay();stopCallTimer();
 	sess.call.localStream?.getTracks().forEach(t=>t.stop());
@@ -1329,7 +1344,7 @@ function injectPanels(){
 		</div>
 		<div class="panel-section"><div class="panel-section-lbl">Sign In (for Firebase rooms)</div><div id="spAuthArea"></div></div>
 		<div class="panel-section"><div class="panel-section-lbl">About</div>
-			<div style="font-size:.78rem;color:rgba(232,237,248,.4);line-height:1.7">P2P Chat v3.5 · ProElectricCoder<br>WebRTC + Firebase signaling<br>
+			<div style="font-size:.78rem;color:rgba(232,237,248,.4);line-height:1.7">P2P Chat v3.5.1 · ProElectricCoder<br>WebRTC + Firebase signaling<br>
 				<a href="/Projects/Chat/" target="_blank" style="color:var(--tp);text-decoration:none">Documentation →</a>
 			</div>
 		</div>
@@ -1805,84 +1820,11 @@ window.App={
 	startCall(type){initiateCall(type);},
 	callAccept(){acceptCall();},
 	callDecline(){rejectCall();},
-	callEnd(){const s=S.sessions.get(S.callSessId);endCallInternal(s,true);if(s)addSysMsg(s,'Call ended');},
+	callEnd(){const s=S.sessions.get(S.callSessId);endCallInternal(s,true);},
 	callToggleMute(){toggleCallMute();},
 	callToggleCam(){toggleCallCam();},
 	callToggleSource(){callToggleSource();},
 	
-	// Start Audio Visualizer
-	startAudioVisualizer(stream) {
-		this.stopAudioVisualizer(); 
-		try {
-			const AudioContext = window.AudioContext || window.webkitAudioContext;
-			if(!AudioContext) return;
-			
-			const ctx = new AudioContext();
-			const analyser = ctx.createAnalyser();
-			analyser.fftSize = 256;
-			
-			// Clone the stream to prevent Web Audio API from hijacking/muting the HTMLVideoElement audio
-			const clone = stream.clone();
-			const source = ctx.createMediaStreamSource(clone);
-			source.connect(analyser);
-
-			const callSess = S.sessions.get(S.callSessId);
-			if(!callSess) return;
-			
-			callSess.call.audioCtx = ctx;
-			callSess.call.audioAnalyser = analyser;
-			callSess.call.audioSource = source;
-
-			const dataArray = new Uint8Array(analyser.frequencyBinCount);
-			const rings = document.querySelectorAll('.call-ring');
-			rings.forEach(r => r.classList.add('vol-active'));
-
-			function draw() {
-				if (!callSess || callSess.call.state !== 'active') return;
-				callSess.call.audioDrawTimer = requestAnimationFrame(draw);
-				
-				analyser.getByteFrequencyData(dataArray);
-				let sum = 0;
-				for (let i = 0; i < dataArray.length; i++) {
-					sum += dataArray[i];
-				}
-				const avg = sum / dataArray.length; 
-				
-				const intensity = avg / 60; 
-				const scale1 = 1 + (intensity * 0.15); 
-				const scale2 = 1 + (intensity * 0.4);  
-				const scale3 = 1 + (intensity * 0.8);  
-
-				if (rings[0]) rings[0].style.transform = `scale(${Math.min(scale1, 1.5)})`;
-				if (rings[1]) rings[1].style.transform = `scale(${Math.min(scale2, 2.2)})`;
-				if (rings[2]) rings[2].style.transform = `scale(${Math.min(scale3, 3.2)})`;
-			}
-			draw();
-		} catch (e) {
-			console.warn('[WebRTC Media] Audio visualizer could not start:', e);
-		}
-	},
-	
-	// Stop Audio Visualizer
-	stopAudioVisualizer() {
-		const callSess = S.sessions.get(S.callSessId);
-		if(callSess) {
-			if (callSess.call.audioDrawTimer) cancelAnimationFrame(callSess.call.audioDrawTimer);
-			if (callSess.call.audioSource) callSess.call.audioSource.disconnect();
-			if (callSess.call.audioCtx && callSess.call.audioCtx.state !== 'closed') callSess.call.audioCtx.close().catch(e=>e);
-			callSess.call.audioCtx = null; 
-			callSess.call.audioAnalyser = null; 
-			callSess.call.audioSource = null; 
-			callSess.call.audioDrawTimer = null;
-		}
-
-		const rings = document.querySelectorAll('.call-ring');
-		rings.forEach(r => {
-			r.classList.remove('vol-active');
-			r.style.transform = '';
-		});
-	},
-
 	openSettings(){openSettings();},
 	closeSettings(){el('settingsOverlay')?.classList.remove('open');},
 	saveName(){
@@ -1934,6 +1876,10 @@ window.App={
 	ciDelete(){const sess=getActiveSess();if(sess){this.closeChatInfo();deleteSess(sess.id);}},
 	openLightbox(src){el('lbImg').src=src;el('lightbox').classList.add('open');},
 	closeLightbox(){el('lightbox').classList.remove('open');},
+	
+	// Expose audio visualizer handlers for internal methods
+	startAudioVisualizer,
+	stopAudioVisualizer
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
