@@ -1,6 +1,6 @@
 /**
- * app.js — P2P Chat v3.3
- * Multi-chat · Direct Media Capture · Chat Customization · Real-time Custom BGs
+ * app.js — P2P Chat v3.4
+ * Multi-chat · Direct Media Capture · Chat Customization · Real-time Audio Visualization
  */
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -92,7 +92,7 @@ const DB = {
 	async _open(){
 		if(this._db)return this._db;
 		this._db=await new Promise((res,rej)=>{
-			const r=indexedDB.open('PECChatDB',3); // DB incremented for schema fields
+			const r=indexedDB.open('PECChatDB',3);
 			r.onupgradeneeded=e=>{
 				const d=e.target.result;
 				if(!d.objectStoreNames.contains('sessions'))d.createObjectStore('sessions',{keyPath:'id'});
@@ -213,9 +213,10 @@ function makeSess(opts){
 		isHost:false,engine:null,connected:false,
 		peers:new Map(),messages:[],unread:0,
 		inFiles:new Map(),
-		call:{mediaPc:null,localStream:null,type:null,sourceType:null,
-		      state:'idle',muted:false,camOff:false,incoming:null,
-		      iceQueue:[] // Queue incoming ICE candidates if the PC isn't initialized yet
+		call:{
+			mediaPc:null,localStream:null,remoteStream:null,type:null,sourceType:null,
+			state:'idle',muted:false,camOff:false,incoming:null,iceQueue:[],
+			audioCtx:null,audioAnalyser:null,audioSource:null,audioDrawTimer:null // audio visualizer state
 		},
 	};
 }
@@ -491,7 +492,6 @@ async function handleMsg(sess,data,peerId){
 				await sess.call.mediaPc.setRemoteDescription(new RTCSessionDescription({type:'answer',sdp:data.sdp})).catch(e => {
 					console.error('[WebRTC Call] Error applying remote Answer SDP:', e);
 				});
-				// Safe application of queued ICE candidates now that remote answer is active
 				if (sess.call.iceQueue && sess.call.iceQueue.length > 0) {
 					console.log(`[WebRTC Call] Applying ${sess.call.iceQueue.length} queued ICE candidates to Offer-side PC`);
 					for (const cand of sess.call.iceQueue) {
@@ -500,16 +500,15 @@ async function handleMsg(sess,data,peerId){
 					sess.call.iceQueue = [];
 				}
 				sess.call.state='active';setCallStatusTxt('In call · '+(sess.call.type||''));startCallTimer();
+				if(sess.call.remoteStream) App.startAudioVisualizer(sess.call.remoteStream);
 			}break;
 		case'call-ice':
 			if (data.candidate) {
-				// Apply candidate immediately if PC is generated and remote description is set
 				if (sess.call.mediaPc && sess.call.mediaPc.remoteDescription) {
 					sess.call.mediaPc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(e => {
 						console.warn('[WebRTC Call] Direct addIceCandidate failed:', e);
 					});
 				} else {
-					// Otherwise, queue candidate so they do not get discarded while callee is accepting the call
 					if (!sess.call.iceQueue) sess.call.iceQueue = [];
 					sess.call.iceQueue.push(data.candidate);
 					console.log(`[WebRTC Call] Staged ICE Candidate. Queue length: ${sess.call.iceQueue.length}`);
@@ -711,7 +710,7 @@ function addSendingFileBubble(sess,meta,url,xferId,batchId){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 16. MEDIA CALLS & QUEUE
+// 16. FILE TRANSFER QUEUE
 // ═══════════════════════════════════════════════════════════════════════════
 function updateXferProgress(msgId,pct){
 	const d=document.querySelector(`[data-msg-id="${msgId}"]`);if(!d)return;
@@ -801,7 +800,7 @@ async function initiateCall(type){
 
 function buildMediaPC(sess){
 	const pc=new RTCPeerConnection({iceServers:[{urls:['stun:stun1.l.google.com:19302','stun:stun2.l.google.com:19302']}]});
-	let remoteStream=null;
+	
 	pc.onicecandidate=evt=>{
 		if(evt.candidate) {
 			safeSend(sess,{type:'call-ice',candidate:evt.candidate.toJSON()});
@@ -813,7 +812,8 @@ function buildMediaPC(sess){
 	
 	pc.ontrack=evt=>{
 		const rv=el('callRemoteVid');if(!rv)return;
-		if(!remoteStream) remoteStream=new MediaStream();
+		if(!sess.call.remoteStream) sess.call.remoteStream=new MediaStream();
+		const remoteStream = sess.call.remoteStream;
 		
 		const existing=remoteStream.getTracks().find(t=>t.kind===evt.track.kind);
 		if(existing)remoteStream.removeTrack(existing);
@@ -827,6 +827,10 @@ function buildMediaPC(sess){
 			const ab=el('callAudioBg');if(ab)ab.style.display='none';
 		} else {
 			console.log(`[WebRTC Media] Received remote audio track: ${evt.track.label}`);
+		}
+
+		if (sess.call.state === 'active') {
+			App.startAudioVisualizer(remoteStream);
 		}
 	};
 	
@@ -846,6 +850,7 @@ function buildMediaPC(sess){
 			sess.call.state='active';
 			setCallStatusTxt('In call · '+(sess.call.type||''));
 			startCallTimer();
+			if (sess.call.remoteStream) App.startAudioVisualizer(sess.call.remoteStream);
 		}
 		if(s==='failed'||s==='closed'){
 			console.error(`[WebRTC Call Failed] PC connection closed/errored out with state: ${s}`);
@@ -901,10 +906,14 @@ function rejectCall(){
 function endCallInternal(sess,notify=true){
 	if(!sess)sess=S.sessions.get(S.callSessId);if(!sess)return;
 	if(notify&&sess.connected&&sess.call.state!=='idle')safeSend(sess,{type:'call-end'});
+	
+	App.stopAudioVisualizer();
+
 	closeIncomingDialog();hideCallOverlay();stopCallTimer();
 	sess.call.localStream?.getTracks().forEach(t=>t.stop());
+	sess.call.remoteStream?.getTracks().forEach(t=>t.stop());
 	try{sess.call.mediaPc?.close();}catch{}
-	sess.call={mediaPc:null,localStream:null,type:null,sourceType:null,state:'idle',muted:false,camOff:false,incoming:null,iceQueue:[]};
+	sess.call={mediaPc:null,localStream:null,remoteStream:null,type:null,sourceType:null,state:'idle',muted:false,camOff:false,incoming:null,iceQueue:[],audioCtx:null,audioAnalyser:null,audioSource:null,audioDrawTimer:null};
 	if(S.callSessId===sess.id)S.callSessId=null;
 	renderChatList();
 }
@@ -1064,8 +1073,11 @@ function injectPanels(){
 .call-rings{position:absolute;inset:0;pointer-events:none}
 .call-ring{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(0,255,255,.3);animation:callring 2.4s ease-out infinite}
 .call-ring:nth-child(2){animation-delay:.8s}.call-ring:nth-child(3){animation-delay:1.6s}
+.call-ring.vol-active{animation:none;transition:transform .08s ease-out;border-color:rgba(0,255,255,.6);opacity:.4}
+.call-ring.vol-active:nth-child(2){border-color:rgba(0,255,255,.4);opacity:.3}
+.call-ring.vol-active:nth-child(3){border-color:rgba(0,255,255,.2);opacity:.2}
 @keyframes callring{0%{transform:scale(1);opacity:.7}100%{transform:scale(2.8);opacity:0}}
-.call-audio-av{width:80px;height:80px;border-radius:50%;background:rgba(0,255,255,.1);border:2px solid rgba(0,255,255,.3);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--tp);z-index:1}
+.call-audio-av{width:80px;height:80px;border-radius:50%;background:rgba(0,255,255,.1);border:2px solid rgba(0,255,255,.3);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--tp);z-index:1;overflow:hidden;}
 .call-audio-peer{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;z-index:1}
 .call-audio-status{font-family:'JetBrains Mono',monospace;font-size:.75rem;color:rgba(232,237,248,.5);z-index:1}
 .call-timer-wrap{font-family:'JetBrains Mono',monospace;font-size:.9rem;color:rgba(232,237,248,.7);letter-spacing:.06em;z-index:1}
@@ -1119,7 +1131,7 @@ function injectPanels(){
 		</div>
 		<div class="panel-section"><div class="panel-section-lbl">Sign In (for Firebase rooms)</div><div id="spAuthArea"></div></div>
 		<div class="panel-section"><div class="panel-section-lbl">About</div>
-			<div style="font-size:.78rem;color:rgba(232,237,248,.4);line-height:1.7">P2P Chat v3.3 · ProElectricCoder<br>WebRTC + Firebase signaling<br>
+			<div style="font-size:.78rem;color:rgba(232,237,248,.4);line-height:1.7">P2P Chat v3.4 · ProElectricCoder<br>WebRTC + Firebase signaling<br>
 				<a href="/Projects/Chat/" target="_blank" style="color:var(--tp);text-decoration:none">Documentation →</a>
 			</div>
 		</div>
@@ -1166,7 +1178,6 @@ function injectPanels(){
 	nc.addEventListener('click',e=>{if(e.target===nc)App.closeNewChat();});
 	document.getElementById('panels').appendChild(nc);
 
-	// Call overlay (Circle animation fix applied here)
 	const co=document.createElement('div');co.id='callOverlay';co.className='call-overlay';
 	co.innerHTML=`
 	<video id="callRemoteVid" class="call-remote-vid" autoplay playsinline></video>
@@ -1221,7 +1232,7 @@ function injectPanels(){
 	document.body.appendChild(tp);
 	document.addEventListener('click',e=>{if(tp.classList.contains('open')&&!tp.contains(e.target)&&e.target.id!=='btnTheme')tp.classList.remove('open');});
 
-	// Chat info panel (With chat rename & background editors)
+	// Chat info panel
 	const ci=document.createElement('div');ci.id='chatInfoOverlay';ci.className='panel-overlay';
 	ci.innerHTML=`<div class="panel-drawer">
 	<div class="panel-head"><span class="panel-head-title">Chat Info</span><button class="panel-close" onclick="App.closeChatInfo()">✕</button></div>
@@ -1588,6 +1599,78 @@ window.App={
 	callToggleMute(){toggleCallMute();},
 	callToggleCam(){toggleCallCam();},
 	callToggleSource(){callToggleSource();},
+	
+	// Start Audio Visualizer
+	startAudioVisualizer(stream) {
+		this.stopAudioVisualizer(); 
+		try {
+			const AudioContext = window.AudioContext || window.webkitAudioContext;
+			if(!AudioContext) return;
+			
+			const ctx = new AudioContext();
+			const analyser = ctx.createAnalyser();
+			analyser.fftSize = 256;
+			
+			const source = ctx.createMediaStreamSource(stream);
+			source.connect(analyser);
+
+			const callSess = S.sessions.get(S.callSessId);
+			if(!callSess) return;
+			
+			callSess.call.audioCtx = ctx;
+			callSess.call.audioAnalyser = analyser;
+			callSess.call.audioSource = source;
+
+			const dataArray = new Uint8Array(analyser.frequencyBinCount);
+			const rings = document.querySelectorAll('.call-ring');
+			rings.forEach(r => r.classList.add('vol-active'));
+
+			function draw() {
+				if (!callSess || callSess.call.state !== 'active') return;
+				callSess.call.audioDrawTimer = requestAnimationFrame(draw);
+				
+				analyser.getByteFrequencyData(dataArray);
+				let sum = 0;
+				for (let i = 0; i < dataArray.length; i++) {
+					sum += dataArray[i];
+				}
+				const avg = sum / dataArray.length; 
+				
+				const intensity = avg / 60; 
+				const scale1 = 1 + (intensity * 0.15); 
+				const scale2 = 1 + (intensity * 0.4);  
+				const scale3 = 1 + (intensity * 0.8);  
+
+				if (rings[0]) rings[0].style.transform = `scale(${Math.min(scale1, 1.5)})`;
+				if (rings[1]) rings[1].style.transform = `scale(${Math.min(scale2, 2.2)})`;
+				if (rings[2]) rings[2].style.transform = `scale(${Math.min(scale3, 3.2)})`;
+			}
+			draw();
+		} catch (e) {
+			console.warn('[WebRTC Media] Audio visualizer could not start:', e);
+		}
+	},
+	
+	// Stop Audio Visualizer
+	stopAudioVisualizer() {
+		const callSess = S.sessions.get(S.callSessId);
+		if(callSess) {
+			if (callSess.call.audioDrawTimer) cancelAnimationFrame(callSess.call.audioDrawTimer);
+			if (callSess.call.audioSource) callSess.call.audioSource.disconnect();
+			if (callSess.call.audioCtx && callSess.call.audioCtx.state !== 'closed') callSess.call.audioCtx.close().catch(e=>e);
+			callSess.call.audioCtx = null; 
+			callSess.call.audioAnalyser = null; 
+			callSess.call.audioSource = null; 
+			callSess.call.audioDrawTimer = null;
+		}
+
+		const rings = document.querySelectorAll('.call-ring');
+		rings.forEach(r => {
+			r.classList.remove('vol-active');
+			r.style.transform = '';
+		});
+	},
+
 	openSettings(){openSettings();},
 	closeSettings(){el('settingsOverlay')?.classList.remove('open');},
 	saveName(){
