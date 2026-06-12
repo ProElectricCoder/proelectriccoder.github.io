@@ -1,6 +1,7 @@
 /**
- * app.js — P2P Chat v3.1
+ * app.js — P2P Chat v3.2.0
  * Multi-chat · IndexedDB · 6 themes · Groups · Calls · GZIP files · Preview cards
+ * Pure P2P with robust ICE Candidate Queueing & Error Logging
  */
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -211,7 +212,9 @@ function makeSess(opts){
 		peers:new Map(),messages:[],unread:0,
 		inFiles:new Map(),
 		call:{mediaPc:null,localStream:null,type:null,sourceType:null,
-		      state:'idle',muted:false,camOff:false,incoming:null},
+		      state:'idle',muted:false,camOff:false,incoming:null,
+		      iceQueue:[] // Queue incoming ICE candidates if the PC isn't initialized yet
+		},
 	};
 }
 function uid(){return Math.random().toString(36).slice(2)+Date.now().toString(36);}
@@ -474,13 +477,34 @@ async function handleMsg(sess,data,peerId){
 			sess.call.incoming=data;sess.call.state='ringing';S.callSessId=sess.id;
 			showIncomingDialog(sess,data);break;
 		case'call-answer':
-			if(sess.call.mediaPc&&sess.call.state==='calling'){
-				await sess.call.mediaPc.setRemoteDescription(new RTCSessionDescription({type:'answer',sdp:data.sdp})).catch(console.error);
+			if(sess.call.mediaPc && sess.call.state==='calling'){
+				await sess.call.mediaPc.setRemoteDescription(new RTCSessionDescription({type:'answer',sdp:data.sdp})).catch(e => {
+					console.error('[WebRTC Call] Error applying remote Answer SDP:', e);
+				});
+				// Safe application of queued ICE candidates now that remote answer is active
+				if (sess.call.iceQueue && sess.call.iceQueue.length > 0) {
+					console.log(`[WebRTC Call] Applying ${sess.call.iceQueue.length} queued ICE candidates to Offer-side PC`);
+					for (const cand of sess.call.iceQueue) {
+						await sess.call.mediaPc.addIceCandidate(new RTCIceCandidate(cand)).catch(e => console.warn('[WebRTC Call] Staged Candidate failure:', e));
+					}
+					sess.call.iceQueue = [];
+				}
 				sess.call.state='active';setCallStatusTxt('In call · '+(sess.call.type||''));startCallTimer();
 			}break;
 		case'call-ice':
-			if(sess.call.mediaPc&&data.candidate)
-				sess.call.mediaPc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(()=>{});
+			if (data.candidate) {
+				// Apply candidate immediately if PC is generated and remote description is set
+				if (sess.call.mediaPc && sess.call.mediaPc.remoteDescription) {
+					sess.call.mediaPc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(e => {
+						console.warn('[WebRTC Call] Direct addIceCandidate failed:', e);
+					});
+				} else {
+					// Otherwise, queue candidate so they do not get discarded while callee is accepting the call
+					if (!sess.call.iceQueue) sess.call.iceQueue = [];
+					sess.call.iceQueue.push(data.candidate);
+					console.log(`[WebRTC Call] Staged ICE Candidate. Queue length: ${sess.call.iceQueue.length}`);
+				}
+			}
 			break;
 		case'call-renego':
 			if(sess.call.mediaPc&&(sess.call.state==='active'||sess.call.state==='calling')){
@@ -489,12 +513,12 @@ async function handleMsg(sess,data,peerId){
 					const ans=await sess.call.mediaPc.createAnswer();
 					await sess.call.mediaPc.setLocalDescription(ans);
 					safeSend(sess,{type:'call-renego-ok',sdp:ans.sdp});
-				}catch(e){console.error('[renego-handle]',e);}
+				}catch(e){console.error('[WebRTC Renegotiation Offer Error]',e);}
 			}break;
 		case'call-renego-ok':
 			if(sess.call.mediaPc&&(sess.call.state==='active'||sess.call.state==='calling')){
 				try{await sess.call.mediaPc.setRemoteDescription(new RTCSessionDescription({type:'answer',sdp:data.sdp}));}
-				catch(e){console.error('[renego-apply]',e);}
+				catch(e){console.error('[WebRTC Renegotiation Answer Error]',e);}
 			}break;
 		case'call-end':
 			endCallInternal(sess,false);addSysMsg(sess,'Call ended by peer');break;
@@ -654,6 +678,9 @@ function addSendingFileBubble(sess,meta,url,xferId,batchId){
 	return msgId;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// 16. MEDIA CALLS
+// ═══════════════════════════════════════════════════════════════════════════
 function updateXferProgress(msgId,pct){
 	const d=document.querySelector(`[data-msg-id="${msgId}"]`);if(!d)return;
 	const bar=d.querySelector('.fp-bar-fill');if(bar)bar.style.width=(pct*100).toFixed(0)+'%';
@@ -721,6 +748,7 @@ async function initiateCall(type){
 	if(sess.isGroup){toast('Calls in direct sessions only');return;}
 	if(S.callSessId!==null){toast('End current call first');return;}
 	sess.call.type=type;sess.call.state='calling';S.callSessId=sess.id;
+	sess.call.iceQueue = []; // Clear current candidate queue
 	try{
 		const stream=await getStream(type);
 		sess.call.localStream=stream;
@@ -732,13 +760,25 @@ async function initiateCall(type){
 		showCallOverlay(sess,stream);
 		setCallStatusTxt('Ringing…');
 		addSysMsg(sess,`Calling (${type})…`);
-	}catch(e){toast('Could not start call: '+e.message);endCallInternal(sess,false);}
+	}catch(e){
+		console.error('[WebRTC Call] Could not initiate calling phase:', e);
+		toast('Could not start call: '+e.message);
+		endCallInternal(sess,false);
+	}
 }
 
 function buildMediaPC(sess){
 	const pc=new RTCPeerConnection({iceServers:[{urls:['stun:stun1.l.google.com:19302','stun:stun2.l.google.com:19302']}]});
 	let remoteStream=null;
-	pc.onicecandidate=evt=>{if(evt.candidate)safeSend(sess,{type:'call-ice',candidate:evt.candidate.toJSON()});};
+	pc.onicecandidate=evt=>{
+		if(evt.candidate) {
+			safeSend(sess,{type:'call-ice',candidate:evt.candidate.toJSON()});
+		}
+	};
+	pc.onicecandidateerror=evt=>{
+		console.error('[WebRTC Call ICE Error Handler] Target:', evt.url, 'Code:', evt.errorCode, 'Message:', evt.errorText);
+	};
+	
 	// Critical fix: robust ontrack accumulates into a single MediaStream
 	pc.ontrack=evt=>{
 		const rv=el('callRemoteVid');if(!rv)return;
@@ -746,7 +786,7 @@ function buildMediaPC(sess){
 		const existing=remoteStream.getTracks().find(t=>t.kind===evt.track.kind);
 		if(existing)remoteStream.removeTrack(existing);
 		remoteStream.addTrack(evt.track);
-		rv.play().catch(()=>{});
+		rv.play().catch(e => console.error('[WebRTC Call] Error auto-playing remote stream:', e));
 		if(evt.track.kind==='video'){
 			rv.style.display='block';
 			const ab=el('callAudioBg');if(ab)ab.style.display='none';
@@ -759,12 +799,21 @@ function buildMediaPC(sess){
 			const offer=await pc.createOffer();
 			await pc.setLocalDescription(offer);
 			safeSend(sess,{type:'call-renego',sdp:offer.sdp});
-		}catch(e){console.error('[renego]',e);}
+		}catch(e){console.error('[WebRTC Call PC Renegotiation error]',e);}
 	};
 	pc.onconnectionstatechange=()=>{
 		const s=pc.connectionState;
-		if(s==='connected'){sess.call.state='active';setCallStatusTxt('In call · '+(sess.call.type||''));startCallTimer();}
-		if(s==='failed'){endCallInternal(sess,true);toast('Call connection failed');}
+		console.log(`[WebRTC Call] Connection state for PC changed: "${s}"`);
+		if(s==='connected'){
+			sess.call.state='active';
+			setCallStatusTxt('In call · '+(sess.call.type||''));
+			startCallTimer();
+		}
+		if(s==='failed'||s==='closed'){
+			console.error(`[WebRTC Call Failed] PC connection closed/errored out with state: ${s}`);
+			endCallInternal(sess,true);
+			toast('Call connection failed');
+		}
 	};
 	return pc;
 }
@@ -778,9 +827,20 @@ async function acceptCall(){
 		const stream=await getStream(data.callType==='screen'?'audio':data.callType);
 		sess.call.localStream=stream;
 		sess.call.mediaPc=buildMediaPC(sess);
-		// Fix: setRemoteDescription FIRST, then addTrack, then createAnswer
+		
+		// SetRemoteDescription FIRST to establish target schema, then addTrack & drain queued ICE candidates
 		await sess.call.mediaPc.setRemoteDescription(new RTCSessionDescription({type:'offer',sdp:data.sdp}));
 		stream.getTracks().forEach(t=>sess.call.mediaPc.addTrack(t,stream));
+		
+		// Process queued candidates generated while the dialog was active
+		if (sess.call.iceQueue && sess.call.iceQueue.length > 0) {
+			console.log(`[WebRTC Call] Applying ${sess.call.iceQueue.length} queued ICE candidates to Answer-side PC`);
+			for (const cand of sess.call.iceQueue) {
+				await sess.call.mediaPc.addIceCandidate(new RTCIceCandidate(cand)).catch(e => console.warn('[WebRTC Call] Staged Candidate failure:', e));
+			}
+			sess.call.iceQueue = [];
+		}
+		
 		const answer=await sess.call.mediaPc.createAnswer();
 		await sess.call.mediaPc.setLocalDescription(answer);
 		safeSend(sess,{type:'call-answer',sdp:answer.sdp});
@@ -789,6 +849,7 @@ async function acceptCall(){
 		startCallTimer();
 		addSysMsg(sess,`Call started (${data.callType})`);
 	}catch(e){
+		console.error('[WebRTC Call] Accept call sequence failure:', e);
 		toast('Could not accept call: '+e.message);
 		safeSend(sess,{type:'call-reject'});
 		endCallInternal(sess,false);
@@ -807,14 +868,19 @@ function endCallInternal(sess,notify=true){
 	closeIncomingDialog();hideCallOverlay();stopCallTimer();
 	sess.call.localStream?.getTracks().forEach(t=>t.stop());
 	try{sess.call.mediaPc?.close();}catch{}
-	sess.call={mediaPc:null,localStream:null,type:null,sourceType:null,state:'idle',muted:false,camOff:false,incoming:null};
+	sess.call={mediaPc:null,localStream:null,type:null,sourceType:null,state:'idle',muted:false,camOff:false,incoming:null,iceQueue:[]};
 	if(S.callSessId===sess.id)S.callSessId=null;
 	renderChatList();
 }
 
 async function getStream(type){
-	if(type==='video')return navigator.mediaDevices.getUserMedia({video:true,audio:true});
-	return navigator.mediaDevices.getUserMedia({audio:true,video:false});
+	try {
+		if(type==='video') return await navigator.mediaDevices.getUserMedia({video:true,audio:true});
+		return await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+	} catch (err) {
+		console.error(`[WebRTC Call] navigator.mediaDevices.getUserMedia failed for "${type}":`, err);
+		throw err;
+	}
 }
 
 async function callToggleSource(){
@@ -848,7 +914,10 @@ async function callToggleSource(){
 		const lv=el('callLocalVid');if(lv){lv.srcObject=sess.call.localStream;lv.classList.add('visible');}
 		const nowScreen=sess.call.sourceType==='screen';
 		if(btn){btn.title=nowScreen?'Switch to Camera':'Share Screen';btn.classList.toggle('active',nowScreen);btn.innerHTML=nowScreen?ICON_CAM:ICON_SCREEN;}
-	}catch(e){toast('Source toggle failed: '+e.message);}
+	}catch(e){
+		console.error('[WebRTC Call] Source shift failure:', e);
+		toast('Source toggle failed: '+e.message);
+	}
 }
 
 function toggleCallMute(){
@@ -1004,7 +1073,7 @@ function injectPanels(){
 		</div>
 		<div class="panel-section"><div class="panel-section-lbl">Sign In (for Firebase rooms)</div><div id="spAuthArea"></div></div>
 		<div class="panel-section"><div class="panel-section-lbl">About</div>
-			<div style="font-size:.78rem;color:rgba(232,237,248,.4);line-height:1.7">P2P Chat v3.1 · ProElectricCoder<br>WebRTC + Firebase signaling<br>
+			<div style="font-size:.78rem;color:rgba(232,237,248,.4);line-height:1.7">P2P Chat v3.2 · ProElectricCoder<br>WebRTC + Firebase signaling<br>
 				<a href="/Projects/Chat/" target="_blank" style="color:var(--tp);text-decoration:none">Documentation →</a>
 			</div>
 		</div>
