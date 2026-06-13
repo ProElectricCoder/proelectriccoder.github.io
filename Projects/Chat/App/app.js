@@ -1,7 +1,6 @@
-/** 
- * app.js — P2P Chat v3.4.2
- * Multi-chat · Direct Media Capture · Real-time Audio Visualization
- * FIXED: 2-Way Audio Transceivers & Web Audio Context UI Wiping Bug
+/**
+ * app.js — P2P Chat v3.5.0
+ * NEW: Synthesized Ringtone · WhatsApp Call Cards · Group Roles · Enhanced BG Editor · Mobile Fix
  */
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -22,7 +21,7 @@ import { ChatEngine, DirectEngine } from '../engine.js';
 // 2. CONSTANTS & THEMES
 // ═══════════════════════════════════════════════════════════════════════════
 const CHUNK_SIZE = 32 * 1024;
-const MC = { stream: null, recorder: null, chunks: [], type: null }; // Media Capture State
+const MC = { stream: null, recorder: null, chunks: [], type: null };
 
 const THEMES = {
 	void:     {name:'Void',     primary:'#00ffff',secondary:'#3d6eff',accent:'#00ff99',gradEnd:'#002233'},
@@ -31,6 +30,58 @@ const THEMES = {
 	amber:    {name:'Amber',    primary:'#f59e0b',secondary:'#d97706',accent:'#fbbf24',gradEnd:'#1a0f00'},
 	crimson:  {name:'Crimson',  primary:'#f43f5e',secondary:'#e11d48',accent:'#fb7185',gradEnd:'#1a0010'},
 	sapphire: {name:'Sapphire', primary:'#3b82f6',secondary:'#1d4ed8',accent:'#60a5fa',gradEnd:'#001133'},
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 2b. RINGTONE ENGINE — Web Audio API, no file deps
+// ═══════════════════════════════════════════════════════════════════════════
+const Ringtone = {
+	_ctx: null, _interval: null, _active: false,
+	start(type = 'incoming') {
+		if (this._active) return;
+		this._active = true;
+		try {
+			const AC = window.AudioContext || window.webkitAudioContext;
+			if (!AC) return;
+			this._ctx = new AC();
+			this._pulse(type);
+			this._interval = setInterval(() => this._pulse(type), type === 'incoming' ? 4200 : 4000);
+		} catch(e) { console.warn('[Ringtone]', e); }
+	},
+	_pulse(type) {
+		if (!this._ctx || !this._active) return;
+		const ctx = this._ctx, t = ctx.currentTime;
+		if (type === 'incoming') {
+			// Classic dual-tone: two short bursts
+			[0, 0.55].forEach(offset => {
+				[880, 960].forEach(freq => {
+					const osc = ctx.createOscillator(), gain = ctx.createGain();
+					osc.type = 'sine'; osc.frequency.value = freq;
+					osc.connect(gain); gain.connect(ctx.destination);
+					gain.gain.setValueAtTime(0, t + offset);
+					gain.gain.linearRampToValueAtTime(0.13, t + offset + 0.01);
+					gain.gain.setValueAtTime(0.13, t + offset + 0.36);
+					gain.gain.linearRampToValueAtTime(0, t + offset + 0.43);
+					osc.start(t + offset); osc.stop(t + offset + 0.45);
+				});
+			});
+		} else {
+			// Outgoing ringback: soft single tone
+			const osc = ctx.createOscillator(), gain = ctx.createGain();
+			osc.type = 'sine'; osc.frequency.value = 440;
+			osc.connect(gain); gain.connect(ctx.destination);
+			gain.gain.setValueAtTime(0, t);
+			gain.gain.linearRampToValueAtTime(0.06, t + 0.02);
+			gain.gain.setValueAtTime(0.06, t + 1.2);
+			gain.gain.linearRampToValueAtTime(0, t + 1.3);
+			osc.start(t); osc.stop(t + 1.35);
+		}
+	},
+	stop() {
+		this._active = false;
+		if (this._interval) { clearInterval(this._interval); this._interval = null; }
+		if (this._ctx) { this._ctx.close().catch(() => {}); this._ctx = null; }
+	}
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -114,7 +165,10 @@ const DB = {
 			id:s.id,name:s.name,type:s.type,isGroup:s.isGroup,theme:s.theme,
 			createdAt:s.createdAt,lastActivity:s.lastActivity,lastMessage:s.lastMessage,
 			roomId:s.roomId||null,groupName:s.groupName||null,
-			peerName:s.peerName||null,peerAvatar:s.peerAvatar||null,bg:s.bg||null
+			peerName:s.peerName||null,peerAvatar:s.peerAvatar||null,bg:s.bg||null,
+			myRole:s.myRole||'member',groupIcon:s.groupIcon||null,
+			groupOwner:s.groupOwner||null,groupManagers:s.groupManagers||[],
+			membersData:s.membersData||{}
 		}));
 	},
 	async saveMessage(m){
@@ -212,13 +266,17 @@ function makeSess(opts){
 		createdAt:opts.createdAt||Date.now(),lastActivity:opts.lastActivity||Date.now(),
 		lastMessage:opts.lastMessage||null,roomId:opts.roomId||null,groupName:opts.groupName||null,
 		peerName:opts.peerName||null,peerAvatar:opts.peerAvatar||null,bg:opts.bg||null,
+		myRole:opts.myRole||'member',groupIcon:opts.groupIcon||null,
+		groupOwner:opts.groupOwner||null,groupManagers:opts.groupManagers||[],
+		membersData:opts.membersData||{},
 		isHost:false,engine:null,connected:false,
 		peers:new Map(),messages:[],unread:0,
-		inFiles:new Map(),
+		inFiles:new Map(),_metaUnsub:null,
 		call:{
 			mediaPc:null,localStream:null,remoteStream:null,type:null,sourceType:null,
 			state:'idle',muted:false,camOff:false,incoming:null,iceQueue:[],
-			audioCtx:null,audioAnalyser:null,audioSource:null,audioDrawTimer:null 
+			audioCtx:null,audioAnalyser:null,audioSource:null,audioDrawTimer:null,
+			cardMsgId:null,callStartedAt:null
 		},
 	};
 }
@@ -283,7 +341,6 @@ function extToLang(ext){
 		vue:'markup',svelte:'markup',toml:'toml',ini:'ini',dockerfile:'docker',
 	})[ext]||'plain';
 }
-
 function buildFileCard(meta,url,sending=false,progress=0,batchFiles=[]){
 	const pt=previewType(meta.mime,meta.name);
 	const fi=getFileIcon(meta.mime);
@@ -291,21 +348,11 @@ function buildFileCard(meta,url,sending=false,progress=0,batchFiles=[]){
 	let preview='';
 	if(url&&pt!=='generic'){
 		switch(pt){
-			case'image':
-				preview=`<div class="fp-preview"><img src="${url}" alt="${escH(meta.name)}" loading="lazy" onclick="App.openLightbox('${url}')"></div>`;
-				break;
-			case'video':
-				preview=`<div class="fp-preview"><video src="${url}" controls preload="metadata"></video></div>`;
-				break;
-			case'audio':
-				preview=`<div class="fp-preview fp-audio"><audio src="${url}" controls></audio></div>`;
-				break;
-			case'pdf':
-				preview=`<div class="fp-preview fp-doc"><iframe src="${url}" sandbox="allow-scripts allow-same-origin" title="${escH(meta.name)}"></iframe></div>`;
-				break;
-			case'html':
-				preview=`<div class="fp-preview fp-doc fp-html-lazy" data-src="${url}" data-batch="${batchAttr}"><div class="fp-spinner">Loading preview…</div></div>`;
-				break;
+			case'image': preview=`<div class="fp-preview"><img src="${url}" alt="${escH(meta.name)}" loading="lazy" onclick="App.openLightbox('${url}')"></div>`;break;
+			case'video': preview=`<div class="fp-preview"><video src="${url}" controls preload="metadata"></video></div>`;break;
+			case'audio': preview=`<div class="fp-preview fp-audio"><audio src="${url}" controls></audio></div>`;break;
+			case'pdf':   preview=`<div class="fp-preview fp-doc"><iframe src="${url}" sandbox="allow-scripts allow-same-origin" title="${escH(meta.name)}"></iframe></div>`;break;
+			case'html':  preview=`<div class="fp-preview fp-doc fp-html-lazy" data-src="${url}" data-batch="${batchAttr}"><div class="fp-spinner">Loading preview…</div></div>`;break;
 			case'code':
 			case'text':{
 				const ext=(meta.name.split('.').pop()||'').toLowerCase();
@@ -322,7 +369,6 @@ function buildFileCard(meta,url,sending=false,progress=0,batchFiles=[]){
 	const bar=sending?`<div class="fp-bar"><div class="fp-bar-fill" style="width:${progress*100}%"></div></div>`:'';
 	return`<div class="fp-card${sending?' fp-sending':''}">${preview}${info}${bar}</div>`;
 }
-
 function loadLazy(root){
 	if(!root||!root.querySelectorAll)return;
 	root.querySelectorAll('.fp-html-lazy[data-src]').forEach(async el=>{
@@ -347,7 +393,6 @@ function loadLazy(root){
 		}catch{el.innerHTML=`<div class="fp-err">Preview unavailable</div>`;}
 	});
 }
-
 function getBatchSiblings(sess,batchId,excludeId){
 	if(!batchId||!sess)return[];
 	return sess.messages
@@ -365,12 +410,12 @@ function applyTheme(themeId,sess=null,animate=true){
 	root.style.setProperty('--ta',th.accent);root.style.setProperty('--tb',rgba(th.primary,.12));
 	root.style.setProperty('--tbh',rgba(th.primary,.28));root.style.setProperty('--tbg',rgba(th.primary,.11));
 	root.style.setProperty('--tbb',rgba(th.primary,.18));root.style.setProperty('--tg',rgba(th.primary,.25));
-	
-	const bgE = sess?.bg?.endColor || th.gradEnd;
-	const bgP = sess?.bg?.power || 2.5;
-	const bgS = sess?.bg?.steps || 20;
-	const grad=computeGrad(bgE, bgP, bgS);
-	
+	const bgE   = sess?.bg?.endColor   || th.gradEnd;
+	const bgSt  = sess?.bg?.startColor || '#000000';
+	const bgP   = sess?.bg?.power      ?? 2.5;
+	const bgS   = sess?.bg?.steps      ?? 20;
+	const bgDir = sess?.bg?.direction  || 'to bottom right';
+	const grad  = computeGrad(bgE,bgP,bgS,bgDir,bgSt);
 	const bg1=el('gradBg1'),bg2=el('gradBg2');
 	if(!bg1||!bg2||!animate){if(bg1)bg1.style.background=grad;return;}
 	if(S.gradActive===1){
@@ -383,11 +428,81 @@ function applyTheme(themeId,sess=null,animate=true){
 		setTimeout(()=>{bg2.style.transition='none';bg2.style.opacity='0';setTimeout(()=>{bg2.style.transition='';}  ,50);S.gradActive=1;},460);
 	}
 }
-function computeGrad(endColor, power=2.5, steps=20){
-	if(!S.cubicGradFn)return`linear-gradient(to bottom right,#000000,${endColor})`;
-	return S.cubicGradFn({direction:'to bottom right',start:'#000000',end:endColor,steps,power}).css;
+function computeGrad(endColor,power=2.5,steps=20,direction='to bottom right',startColor='#000000'){
+	if(!S.cubicGradFn)return`linear-gradient(${direction},${startColor},${endColor})`;
+	return S.cubicGradFn({direction,start:startColor,end:endColor,steps,power}).css;
 }
 function rgba(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return`rgba(${r},${g},${b},${a})`;}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 10b. CALL CARD SYSTEM (WhatsApp-style)
+// ═══════════════════════════════════════════════════════════════════════════
+function buildCallCard(cd){
+	if(!cd)return'';
+	const{callType='audio',status='calling',duration=0}=cd;
+	const isVid=callType==='video';
+	const icons={calling:'📞',active:'📞',completed:isVid?'📹':'📞',declined:'📵',missed:'📵',cancelled:'📞'};
+	const titles={audio:'Voice Call',video:'Video Call',screen:'Screen Share'};
+	const dur=duration>0?`${Math.floor(duration/60)}:${String(duration%60).padStart(2,'0')}`:'';
+	const metas={calling:'Calling…',active:'In call…',completed:dur||'Call ended',declined:'Declined',missed:'Missed call',cancelled:'Cancelled'};
+	return`<div class="call-card ${status}">
+		<div class="call-card-icon">${icons[status]||'📞'}</div>
+		<div class="call-card-body">
+			<div class="call-card-title">${titles[callType]||'Voice Call'}</div>
+			<div class="call-card-meta">${metas[status]||status}</div>
+		</div>
+	</div>`;
+}
+function createCallCard(sess,mine,callType,status,duration=0){
+	const msgId='call_'+Date.now()+'_'+uid();
+	const sender=mine?S.displayName:(sess.peerName||peerName(sess,'remote'));
+	const callData={callType,status,duration};
+	const m={id:msgId,sessionId:sess.id,type:'call',content:(callType==='video'?'📹':'📞')+' '+status,
+		sender,mine,timestamp:Date.now(),enc:false,callData};
+	sess.messages.push(m);
+	sess.lastMessage=(callType==='video'?'📹 Video Call':'📞 Voice Call');
+	sess.lastActivity=m.timestamp;
+	DB.saveMessage(m);
+	DB.updateSession(sess.id,{lastMessage:sess.lastMessage,lastActivity:sess.lastActivity});
+	if(S.activeId===sess.id){
+		const c=el('messages');
+		if(c){renderCallCardFromMsg(c,m);c.scrollTop=c.scrollHeight;}
+	}
+	renderChatList();
+	return msgId;
+}
+function updateCallCard(sess,msgId,status,duration=0){
+	const m=sess.messages.find(x=>x.id===msgId);
+	if(m&&m.callData){m.callData.status=status;m.callData.duration=duration;DB.saveMessage(m);}
+	const wrapper=document.querySelector(`[data-msg-id="${msgId}"]`);
+	if(wrapper){
+		const bubble=wrapper.querySelector('.msg-bubble');
+		if(bubble)bubble.innerHTML=buildCallCard(m?.callData||{callType:'audio',status,duration});
+	}
+}
+function renderCallCardFromMsg(container,m){
+	const side=m.mine?'mine':'theirs';
+	const d=document.createElement('div');
+	d.className=`msg ${side}`;d.dataset.msgId=m.id;
+	d.innerHTML=`<div class="msg-meta">${escH(m.sender)} · ${fmtTime(m.timestamp)}</div>
+		<div class="msg-bubble" style="padding:0;background:none!important;border:none!important">${buildCallCard(m.callData)}</div>`;
+	container.appendChild(d);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 10c. BACKGROUND DIRECTION GRID
+// ═══════════════════════════════════════════════════════════════════════════
+const DIR_GRID=[
+	['to top left','↖'],['to top','↑'],['to top right','↗'],
+	['to left','←'],null,['to right','→'],
+	['to bottom left','↙'],['to bottom','↓'],['to bottom right','↘'],
+];
+function makeDirGrid(cur){
+	return DIR_GRID.map(d=>d===null
+		?'<div style="width:36px;height:36px"></div>'
+		:`<button class="bg-dir-btn${d[0]===cur?' active':''}" onclick="App.setBgDir('${d[0]}')" title="${d[0]}">${d[1]}</button>`
+	).join('');
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 11. SESSION MANAGEMENT
@@ -399,7 +514,7 @@ async function selectSess(id,closeSidebar=true){
 	if(S.activeId===id){if(closeSidebar&&isMobile())closeSidebarUI();return;}
 	const prev=getActiveSess();if(prev){prev.unread=0;renderChatList();}
 	S.activeId=id;sess.unread=0;
-	applyTheme(sess.theme, sess);renderTopbar(sess);
+	applyTheme(sess.theme,sess);renderTopbar(sess);
 	await renderMessages(sess);
 	el('welcomePanel').style.display='none';
 	const cv=el('chatView');cv.classList.remove('hidden');cv.style.display='flex';
@@ -409,10 +524,12 @@ async function selectSess(id,closeSidebar=true){
 
 async function deleteSess(id){
 	const sess=S.sessions.get(id);if(!sess)return;
-	sess.engine?.disconnect();S.sessions.delete(id);await DB.deleteSession(id);
+	sess._metaUnsub?.();
+	sess.engine?.disconnect();
+	S.sessions.delete(id);await DB.deleteSession(id);
 	if(S.activeId===id){
 		S.activeId=null;el('chatView').classList.add('hidden');
-		el('welcomePanel').style.display='';applyTheme('void', null, false);
+		el('welcomePanel').style.display='';applyTheme('void',null,false);
 	}
 	renderChatList();
 }
@@ -420,7 +537,7 @@ async function deleteSess(id){
 function setThemeForSess(sessId,themeId){
 	const sess=S.sessions.get(sessId);if(!sess)return;
 	sess.theme=themeId;DB.saveSession(sess);DB.updateSession(sessId,{theme:themeId});
-	if(S.activeId===sessId)applyTheme(themeId, sess);renderChatList();
+	if(S.activeId===sessId)applyTheme(themeId,sess);renderChatList();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -461,8 +578,8 @@ async function handleMsg(sess,data,peerId){
 	switch(data.type){
 		case'handshake':
 			sess.peers.set(peerId,{name:data.displayName||'Peer',avatar:data.avatarUrl||''});
-			sess.peerName = data.displayName || 'Peer';
-			sess.peerAvatar = data.avatarUrl || '';
+			sess.peerName=data.displayName||'Peer';
+			sess.peerAvatar=data.avatarUrl||'';
 			DB.saveSession(sess);
 			addSysMsg(sess,`${data.displayName||'Peer'} joined`);
 			if(S.activeId===sess.id)renderTopbar(sess);renderChatList();break;
@@ -477,45 +594,32 @@ async function handleMsg(sess,data,peerId){
 			}
 			addBubble(sess,txt,data.displayName||peerName(sess,peerId),false,enc);break;
 		}
-		case'file-meta':
-			sess.inFiles.set(data.id,{meta:data,chunks:[]});break;
-		case'file-chunk':{
-			const f=sess.inFiles.get(data.id);if(f)f.chunks.push(data.data);break;
-		}
-		case'file-done':
-			await receiveFile(sess,data.id,peerId);break;
+		case'file-meta': sess.inFiles.set(data.id,{meta:data,chunks:[]});break;
+		case'file-chunk':{const f=sess.inFiles.get(data.id);if(f)f.chunks.push(data.data);break;}
+		case'file-done': await receiveFile(sess,data.id,peerId);break;
 		case'call-offer':
 			if(sess.call.state!=='idle'){safeSend(sess,{type:'call-reject',reason:'busy'});return;}
 			if(S.callSessId!==null&&S.callSessId!==sess.id){safeSend(sess,{type:'call-reject',reason:'busy'});return;}
 			sess.call.incoming=data;sess.call.state='ringing';S.callSessId=sess.id;
 			showIncomingDialog(sess,data);break;
 		case'call-answer':
-			if(sess.call.mediaPc && sess.call.state==='calling'){
-				await sess.call.mediaPc.setRemoteDescription(new RTCSessionDescription({type:'answer',sdp:data.sdp})).catch(e => {
-					console.error('[WebRTC Call] Error applying remote Answer SDP:', e);
-				});
-				if (sess.call.iceQueue && sess.call.iceQueue.length > 0) {
-					console.log(`[WebRTC Call] Applying ${sess.call.iceQueue.length} queued ICE candidates to Offer-side PC`);
-					for (const cand of sess.call.iceQueue) {
-						await sess.call.mediaPc.addIceCandidate(new RTCIceCandidate(cand)).catch(e => console.warn('[WebRTC Call] Staged Candidate failure:', e));
-					}
-					sess.call.iceQueue = [];
+			if(sess.call.mediaPc&&sess.call.state==='calling'){
+				await sess.call.mediaPc.setRemoteDescription(new RTCSessionDescription({type:'answer',sdp:data.sdp})).catch(e=>console.error('[WebRTC] Answer SDP error:',e));
+				if(sess.call.iceQueue?.length){
+					for(const cand of sess.call.iceQueue)await sess.call.mediaPc.addIceCandidate(new RTCIceCandidate(cand)).catch(()=>{});
+					sess.call.iceQueue=[];
 				}
 				setCallStatusTxt('In call · '+(sess.call.type||''));
 			}break;
 		case'call-ice':
-			if (data.candidate) {
-				if (sess.call.mediaPc && sess.call.mediaPc.remoteDescription) {
-					sess.call.mediaPc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(e => {
-						console.warn('[WebRTC Call] Direct addIceCandidate failed:', e);
-					});
-				} else {
-					if (!sess.call.iceQueue) sess.call.iceQueue = [];
+			if(data.candidate){
+				if(sess.call.mediaPc&&sess.call.mediaPc.remoteDescription){
+					sess.call.mediaPc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(()=>{});
+				}else{
+					if(!sess.call.iceQueue)sess.call.iceQueue=[];
 					sess.call.iceQueue.push(data.candidate);
-					console.log(`[WebRTC Call] Staged ICE Candidate. Queue length: ${sess.call.iceQueue.length}`);
 				}
-			}
-			break;
+			}break;
 		case'call-renego':
 			if(sess.call.mediaPc&&(sess.call.state==='active'||sess.call.state==='calling')){
 				try{
@@ -523,21 +627,36 @@ async function handleMsg(sess,data,peerId){
 					const ans=await sess.call.mediaPc.createAnswer();
 					await sess.call.mediaPc.setLocalDescription(ans);
 					safeSend(sess,{type:'call-renego-ok',sdp:ans.sdp});
-				}catch(e){console.error('[WebRTC Renegotiation Offer Error]',e);}
+				}catch(e){console.error('[WebRTC] Renego error',e);}
 			}break;
 		case'call-renego-ok':
 			if(sess.call.mediaPc&&(sess.call.state==='active'||sess.call.state==='calling')){
-				try{await sess.call.mediaPc.setRemoteDescription(new RTCSessionDescription({type:'answer',sdp:data.sdp}));}
-				catch(e){console.error('[WebRTC Renegotiation Answer Error]',e);}
+				try{await sess.call.mediaPc.setRemoteDescription(new RTCSessionDescription({type:'answer',sdp:data.sdp}));}catch(e){console.error('[WebRTC] Renego-ok error',e);}
 			}break;
-		case'call-end':
-			endCallInternal(sess,false);addSysMsg(sess,'Call ended by peer');break;
-		case'call-reject':
-			endCallInternal(sess,false);addSysMsg(sess,'Call declined');break;
+		case'call-end':{
+			// Peer ended the call
+			const wasActive=sess.call.state==='active';
+			const dur=wasActive&&S.callStarted?Math.floor((Date.now()-S.callStarted)/1000):0;
+			if(sess.call.state==='ringing'&&!sess.call.cardMsgId){
+				// Caller cancelled before we picked up → missed
+				const cid=createCallCard(sess,false,sess.call.incoming?.callType||'audio','missed',0);
+				sess.call.cardMsgId=cid;
+			}else if(sess.call.cardMsgId){
+				updateCallCard(sess,sess.call.cardMsgId,wasActive?'completed':'cancelled',dur);
+			}
+			endCallInternal(sess,false,null,true);
+			break;
+		}
+		case'call-reject':{
+			// Peer rejected our outgoing call
+			if(sess.call.cardMsgId)updateCallCard(sess,sess.call.cardMsgId,'declined',0);
+			endCallInternal(sess,false,null,true);
+			break;
+		}
 		case'display-name':{
 			const old=sess.peers.get(peerId)?.name||'Peer';
 			if(sess.peers.has(peerId))sess.peers.get(peerId).name=data.displayName;
-			sess.peerName = data.displayName; DB.saveSession(sess);
+			sess.peerName=data.displayName;DB.saveSession(sess);
 			if(S.activeId===sess.id)renderTopbar(sess);
 			addSysMsg(sess,`${old} → ${data.displayName}`);break;
 		}
@@ -564,17 +683,15 @@ function renderChatList(){
 		const unreadBadge=s.unread>0?`<div class="ci-badge">${s.unread>99?'99+':s.unread}</div>`:'';
 		const time=s.lastActivity?relTime(s.lastActivity):'';
 		const type=s.isGroup?'👥':(s.type==='direct'?'⚡':'🔗');
-		
-		let avHtml = `${initials}<div class="${dotClass}"></div>`;
-		if (s.type === 'direct' && s.peerAvatar) {
-			avHtml = `<img src="${escH(s.peerAvatar)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none'"><div class="${dotClass}"></div>`;
+		// Avatar: group icon > peer avatar > initials
+		let avHtml=`${initials}<div class="${dotClass}"></div>`;
+		if(s.isGroup&&s.groupIcon){
+			avHtml=`<img src="${escH(s.groupIcon)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none'"><div class="${dotClass}"></div>`;
+		}else if(s.type==='direct'&&s.peerAvatar){
+			avHtml=`<img src="${escH(s.peerAvatar)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none'"><div class="${dotClass}"></div>`;
 		}
-		
-		let nameHtml = escH(s.name);
-		if (s.type === 'direct' && s.peerName) {
-			nameHtml += ` <span style="opacity:0.5;font-size:0.8em;font-weight:400">• ${escH(s.peerName)}</span>`;
-		}
-
+		let nameHtml=escH(s.name);
+		if(s.type==='direct'&&s.peerName){nameHtml+=` <span style="opacity:0.5;font-size:0.8em;font-weight:400">• ${escH(s.peerName)}</span>`;}
 		return`<div class="chat-item${isActive?' active':''}" onclick="App.selectChat('${s.id}')">
 			<div class="ci-av" style="color:${th.primary};border-color:${isActive?th.primary:'rgba(255,255,255,.1)'}">
 				${avHtml}
@@ -592,17 +709,17 @@ function renderTopbar(sess){
 	const avEl=el('topbarAv'),nameEl=el('topbarName'),dotEl=el('statusDot'),txtEl=el('statusText');
 	if(!avEl)return;
 	const th=THEMES[sess.theme]||THEMES.void;
-	
-	if (sess.type === 'direct' && sess.peerAvatar) {
-		avEl.innerHTML = `<img src="${escH(sess.peerAvatar)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none'">`;
-		avEl.style.border = 'none';
-	} else {
-		avEl.innerHTML = sess.name.slice(0,2).toUpperCase();
-		avEl.style.color = th.primary;
-		avEl.style.border = '';
+	if(sess.isGroup&&sess.groupIcon){
+		avEl.innerHTML=`<img src="${escH(sess.groupIcon)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none'">`;
+		avEl.style.border='none';
+	}else if(sess.type==='direct'&&sess.peerAvatar){
+		avEl.innerHTML=`<img src="${escH(sess.peerAvatar)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none'">`;
+		avEl.style.border='none';
+	}else{
+		avEl.innerHTML=sess.name.slice(0,2).toUpperCase();
+		avEl.style.color=th.primary;avEl.style.border='';
 	}
-	
-	nameEl.innerHTML = escH(sess.name) + (sess.type === 'direct' && sess.peerName ? ` <span style="opacity:0.5;font-size:0.8em;font-weight:400">• ${escH(sess.peerName)}</span>` : '');
+	nameEl.innerHTML=escH(sess.name)+(sess.type==='direct'&&sess.peerName?` <span style="opacity:0.5;font-size:0.8em;font-weight:400">• ${escH(sess.peerName)}</span>`:'');
 	dotEl.className='status-dot '+(sess.connected?'connected':'');
 	txtEl.textContent=sess.connected?`${sess.peers.size} peer${sess.peers.size!==1?'s':''} connected`:'Disconnected';
 	enableCallBtns(sess.connected&&!sess.isGroup);
@@ -614,7 +731,6 @@ function setStatus(state,text){
 function enableCallBtns(on){
 	['btnVoice','btnVideo'].forEach(id=>{const b=el(id);if(b)b.disabled=!on;});
 }
-
 async function renderMessages(sess){
 	const container=el('messages');if(!container)return;
 	container.innerHTML='';
@@ -625,6 +741,7 @@ async function renderMessages(sess){
 function renderMsgItem(container,m){
 	if(m.type==='system'){const d=document.createElement('div');d.className='sys-msg';d.textContent=m.content;container.appendChild(d);return;}
 	if(m.type==='file'){renderFileBubbleFromMsg(container,m);return;}
+	if(m.type==='call'){renderCallCardFromMsg(container,m);return;}
 	const side=m.mine?'mine':'theirs';
 	const enc=m.enc?'<span class="enc-badge">🔒 enc</span>':'';
 	const d=document.createElement('div');d.className=`msg ${side}`;
@@ -674,12 +791,9 @@ async function sendFile(file,sess,batchId){
 		safeSend(sess,{type:'file-done',id:xferId});
 		finalizeFileBubble(msgId,meta,localUrl,isEnc,sess,batchId);
 	}catch(e){
-		toast('Send failed: '+e.message);
-		URL.revokeObjectURL(localUrl);
-		removeFileBubble(msgId);
+		toast('Send failed: '+e.message);URL.revokeObjectURL(localUrl);removeFileBubble(msgId);
 	}
 }
-
 async function receiveFile(sess,id,peerId){
 	const entry=sess.inFiles.get(id);if(!entry)return;
 	sess.inFiles.delete(id);
@@ -696,7 +810,6 @@ async function receiveFile(sess,id,peerId){
 	const url=URL.createObjectURL(blob);
 	addFileBubble(sess,{name:meta.name,size:meta.origSize||meta.size,mime:meta.mime},url,false,meta.encrypted,meta.batchId||null,peerId);
 }
-
 function addSendingFileBubble(sess,meta,url,xferId,batchId){
 	const msgId='msg_'+Date.now()+'_'+uid();
 	if(S.activeId===sess.id){
@@ -711,30 +824,23 @@ function addSendingFileBubble(sess,meta,url,xferId,batchId){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 16. FILE TRANSFER QUEUE
+// 16. FILE TRANSFER HELPERS
 // ═══════════════════════════════════════════════════════════════════════════
 function updateXferProgress(msgId,pct){
 	const d=document.querySelector(`[data-msg-id="${msgId}"]`);if(!d)return;
 	const bar=d.querySelector('.fp-bar-fill');if(bar)bar.style.width=(pct*100).toFixed(0)+'%';
 	const pctEl=d.querySelector('.fp-pct');if(pctEl)pctEl.textContent=Math.round(pct*100)+'%';
 }
-
 function finalizeFileBubble(msgId,meta,url,enc,sess,batchId){
 	const d=document.querySelector(`[data-msg-id="${msgId}"]`);
-	if(d){
-		const bub=d.querySelector('.msg-bubble');
-		if(bub){bub.innerHTML=buildFileCard(meta,url,false,0,getBatchSiblings(sess,batchId,msgId));loadLazy(bub);}
-	}
-	const m={id:msgId,sessionId:sess.id,type:'file',content:meta.name,
-		sender:S.displayName,mine:true,timestamp:Date.now(),enc,
+	if(d){const bub=d.querySelector('.msg-bubble');if(bub){bub.innerHTML=buildFileCard(meta,url,false,0,getBatchSiblings(sess,batchId,msgId));loadLazy(bub);}}
+	const m={id:msgId,sessionId:sess.id,type:'file',content:meta.name,sender:S.displayName,mine:true,timestamp:Date.now(),enc,
 		file:{name:meta.name,size:meta.size,mime:meta.mime,blobUrl:url,batchId:batchId||null}};
 	sess.messages.push(m);sess.lastMessage='📎 '+meta.name;sess.lastActivity=m.timestamp;
 	DB.saveMessage(m);DB.updateSession(sess.id,{lastMessage:sess.lastMessage,lastActivity:sess.lastActivity});
 	renderChatList();
 }
-
 function removeFileBubble(msgId){document.querySelector(`[data-msg-id="${msgId}"]`)?.remove();}
-
 function addFileBubble(sess,meta,url,mine,enc,batchId,peerId){
 	const sender=mine?S.displayName:peerName(sess,peerId||'remote');
 	const m={id:'file_'+Date.now()+'_'+uid(),sessionId:sess.id,type:'file',content:meta.name,
@@ -753,17 +859,13 @@ function addFileBubble(sess,meta,url,mine,enc,batchId,peerId){
 	}
 	renderChatList();
 }
-
 function renderFileBubbleFromMsg(container,m){
 	const side=m.mine?'mine':'theirs';
 	const enc=m.enc?'<span class="enc-badge">🔒 enc</span>':'';
 	const meta=m.file||{name:m.content,size:0,mime:'application/octet-stream'};
 	const url=meta.blobUrl||meta.dataUrl||null;
 	const batchFiles=[];
-	if(meta.batchId&&m.sessionId){
-		const sess=S.sessions.get(m.sessionId);
-		if(sess)batchFiles.push(...getBatchSiblings(sess,meta.batchId,m.id));
-	}
+	if(meta.batchId&&m.sessionId){const sess=S.sessions.get(m.sessionId);if(sess)batchFiles.push(...getBatchSiblings(sess,meta.batchId,m.id));}
 	const d=document.createElement('div');d.className=`msg ${side}`;d.dataset.msgId=m.id;
 	d.innerHTML=`<div class="msg-meta">${escH(m.sender)} · ${fmtTime(m.timestamp)}${enc}</div>
 		<div class="msg-bubble fp-bubble">${buildFileCard(meta,url,false,0,batchFiles)}</div>`;
@@ -779,87 +881,61 @@ async function initiateCall(type){
 	if(sess.call.state!=='idle'){toast('Already in a call');return;}
 	if(sess.isGroup){toast('Calls in direct sessions only');return;}
 	if(S.callSessId!==null){toast('End current call first');return;}
-	sess.call.type=type;sess.call.state='calling';S.callSessId=sess.id;
-	sess.call.iceQueue = []; 
+	sess.call.type=type;sess.call.state='calling';S.callSessId=sess.id;sess.call.iceQueue=[];
 	try{
 		const stream=await getStream(type);
 		sess.call.localStream=stream;
-		
-		// CRITICAL FIX: Build overlay FIRST so it doesn't overwrite ontrack event results!
 		showCallOverlay(sess,stream);
-		
 		sess.call.mediaPc=buildMediaPC(sess);
 		stream.getTracks().forEach(t=>sess.call.mediaPc.addTrack(t,stream));
 		const offer=await sess.call.mediaPc.createOffer();
 		await sess.call.mediaPc.setLocalDescription(offer);
 		safeSend(sess,{type:'call-offer',sdp:offer.sdp,callType:type,displayName:S.displayName});
-		
+		// Create call card + start outgoing ringback
+		sess.call.cardMsgId=createCallCard(sess,true,type,'calling');
+		Ringtone.start('outgoing');
 		setCallStatusTxt('Ringing…');
-		addSysMsg(sess,`Calling (${type})…`);
 	}catch(e){
-		console.error('[WebRTC Call] Could not initiate calling phase:', e);
+		console.error('[WebRTC] initiateCall error:',e);
 		toast('Could not start call: '+e.message);
-		endCallInternal(sess,false);
+		endCallInternal(sess,false,'cancelled',true);
 	}
 }
 
 function buildMediaPC(sess){
 	const pc=new RTCPeerConnection({iceServers:[{urls:['stun:stun1.l.google.com:19302','stun:stun2.l.google.com:19302']}]});
-	
-	pc.onicecandidate=evt=>{
-		if(evt.candidate) {
-			safeSend(sess,{type:'call-ice',candidate:evt.candidate.toJSON()});
-		}
-	};
-	pc.onicecandidateerror=evt=>{
-		console.error('[WebRTC Call ICE Error Handler] Target:', evt.url, 'Code:', evt.errorCode, 'Message:', evt.errorText);
-	};
-	
+	pc.onicecandidate=evt=>{if(evt.candidate)safeSend(sess,{type:'call-ice',candidate:evt.candidate.toJSON()});};
+	pc.onicecandidateerror=evt=>console.error('[ICE error]',evt.errorCode,evt.errorText);
 	pc.ontrack=evt=>{
 		const rv=el('callRemoteVid');if(!rv)return;
-		if(!sess.call.remoteStream) sess.call.remoteStream=new MediaStream();
-		const remoteStream = sess.call.remoteStream;
-		
-		const existing=remoteStream.getTracks().find(t=>t.kind===evt.track.kind);
-		if(existing)remoteStream.removeTrack(existing);
-		
-		remoteStream.addTrack(evt.track);
-		rv.srcObject = remoteStream; // Force pipeline refresh
-		rv.play().catch(e => console.error('[WebRTC Call] Error auto-playing remote stream:', e));
-		
-		if(evt.track.kind==='video'){
-			rv.style.display='block';
-			const ab=el('callAudioBg');if(ab)ab.style.display='none';
-		} else {
-			console.log(`[WebRTC Media] Received remote audio track: ${evt.track.label}`);
-		}
-
-		if (sess.call.state === 'active') {
-			App.startAudioVisualizer(remoteStream);
-		}
+		if(!sess.call.remoteStream)sess.call.remoteStream=new MediaStream();
+		const rs=sess.call.remoteStream;
+		const existing=rs.getTracks().find(t=>t.kind===evt.track.kind);
+		if(existing)rs.removeTrack(existing);
+		rs.addTrack(evt.track);
+		rv.srcObject=rs;rv.play().catch(()=>{});
+		if(evt.track.kind==='video'){rv.style.display='block';const ab=el('callAudioBg');if(ab)ab.style.display='none';}
+		if(sess.call.state==='active')App.startAudioVisualizer(rs);
 	};
-	
 	pc.onnegotiationneeded=async()=>{
-		if(sess.call.state!=='active' || pc.signalingState !== 'stable') return;
-		try{
-			const offer=await pc.createOffer();
-			await pc.setLocalDescription(offer);
-			safeSend(sess,{type:'call-renego',sdp:offer.sdp});
-		}catch(e){console.error('[WebRTC Call PC Renegotiation error]',e);}
+		if(sess.call.state!=='active'||pc.signalingState!=='stable')return;
+		try{const offer=await pc.createOffer();await pc.setLocalDescription(offer);safeSend(sess,{type:'call-renego',sdp:offer.sdp});}
+		catch(e){console.error('[WebRTC] renegotiation error',e);}
 	};
-	
 	pc.onconnectionstatechange=()=>{
 		const s=pc.connectionState;
-		console.log(`[WebRTC Call] Connection state for PC changed: "${s}"`);
+		console.log(`[WebRTC] Connection state: "${s}"`);
 		if(s==='connected'){
+			Ringtone.stop();
 			sess.call.state='active';
+			sess.call.callStartedAt=Date.now();
 			setCallStatusTxt('In call · '+(sess.call.type||''));
 			startCallTimer();
-			if (sess.call.remoteStream) App.startAudioVisualizer(sess.call.remoteStream);
+			if(sess.call.cardMsgId)updateCallCard(sess,sess.call.cardMsgId,'active',0);
+			if(sess.call.remoteStream)App.startAudioVisualizer(sess.call.remoteStream);
 		}
 		if(s==='failed'||s==='closed'){
-			console.error(`[WebRTC Call Failed] PC connection closed/errored out with state: ${s}`);
-			endCallInternal(sess,true);
+			endCallInternal(sess,true,'cancelled',false);
 			toast('Call connection failed');
 		}
 	};
@@ -867,118 +943,115 @@ function buildMediaPC(sess){
 }
 
 async function acceptCall(){
-	closeIncomingDialog();
+	closeIncomingDialog(); // also stops ringtone
 	const sess=S.sessions.get(S.callSessId);if(!sess?.call.incoming)return;
 	const data=sess.call.incoming;
-	sess.call.type=data.callType;
-	sess.call.state='connecting';
+	sess.call.type=data.callType;sess.call.state='connecting';
 	try{
 		const stream=await getStream(data.callType==='screen'?'audio':data.callType);
 		sess.call.localStream=stream;
-		
-		// CRITICAL FIX: Build overlay FIRST so it doesn't overwrite ontrack event results!
 		showCallOverlay(sess,stream);
-		
 		sess.call.mediaPc=buildMediaPC(sess);
-		
-		// CRITICAL FIX: Add tracks before setRemoteDescription to prevent disjointed 1-way sendrecv mappings
 		stream.getTracks().forEach(t=>sess.call.mediaPc.addTrack(t,stream));
-		
 		await sess.call.mediaPc.setRemoteDescription(new RTCSessionDescription({type:'offer',sdp:data.sdp}));
-		
-		if (sess.call.iceQueue && sess.call.iceQueue.length > 0) {
-			console.log(`[WebRTC Call] Applying ${sess.call.iceQueue.length} queued ICE candidates to Answer-side PC`);
-			for (const cand of sess.call.iceQueue) {
-				await sess.call.mediaPc.addIceCandidate(new RTCIceCandidate(cand)).catch(e => console.warn('[WebRTC Call] Staged Candidate failure:', e));
-			}
-			sess.call.iceQueue = [];
+		if(sess.call.iceQueue?.length){
+			for(const cand of sess.call.iceQueue)await sess.call.mediaPc.addIceCandidate(new RTCIceCandidate(cand)).catch(()=>{});
+			sess.call.iceQueue=[];
 		}
-		
 		const answer=await sess.call.mediaPc.createAnswer();
 		await sess.call.mediaPc.setLocalDescription(answer);
 		safeSend(sess,{type:'call-answer',sdp:answer.sdp});
-		
+		// Create callee call card
+		sess.call.cardMsgId=createCallCard(sess,false,data.callType,'active');
+		sess.call.callStartedAt=Date.now();
 		setCallStatusTxt('Connecting…');
-		addSysMsg(sess,`Call started (${data.callType})`);
 	}catch(e){
-		console.error('[WebRTC Call] Accept call sequence failure:', e);
+		console.error('[WebRTC] acceptCall error:',e);
 		toast('Could not accept call: '+e.message);
 		safeSend(sess,{type:'call-reject'});
-		endCallInternal(sess,false);
+		endCallInternal(sess,false,'declined',true);
 	}
 }
 
 function rejectCall(){
 	closeIncomingDialog();
 	const sess=S.sessions.get(S.callSessId);
-	if(sess){safeSend(sess,{type:'call-reject'});endCallInternal(sess,false);}
+	if(sess){
+		// Create declined card before state reset
+		const cid=createCallCard(sess,false,sess.call.incoming?.callType||'audio','declined',0);
+		sess.call.cardMsgId=cid;
+		safeSend(sess,{type:'call-reject'});
+		endCallInternal(sess,false,null,true);
+	}
 }
 
-function endCallInternal(sess,notify=true){
+// _skipCardUpdate=true means we already handled card update before calling this
+function endCallInternal(sess,notify=true,reason=null,_skipCardUpdate=false){
 	if(!sess)sess=S.sessions.get(S.callSessId);if(!sess)return;
-	if(notify&&sess.connected&&sess.call.state!=='idle')safeSend(sess,{type:'call-end'});
-	
+	const prevState=sess.call.state;
+	const prevCardMsgId=sess.call.cardMsgId;
+	const prevType=sess.call.type||'audio';
+	const prevIncoming=sess.call.incoming;
+	const duration=(prevState==='active'&&S.callStarted)?Math.floor((Date.now()-S.callStarted)/1000):0;
+	// Auto-determine reason
+	if(!reason){
+		if(prevState==='active')reason='completed';
+		else if(prevState==='calling'||prevState==='connecting')reason=notify?'cancelled':'missed';
+		else if(prevState==='ringing')reason=notify?'declined':'missed';
+		else reason='cancelled';
+	}
+	if(notify&&sess.connected&&prevState!=='idle')safeSend(sess,{type:'call-end'});
+	Ringtone.stop();
 	App.stopAudioVisualizer();
-
 	closeIncomingDialog();hideCallOverlay();stopCallTimer();
 	sess.call.localStream?.getTracks().forEach(t=>t.stop());
 	sess.call.remoteStream?.getTracks().forEach(t=>t.stop());
 	try{sess.call.mediaPc?.close();}catch{}
-	sess.call={mediaPc:null,localStream:null,remoteStream:null,type:null,sourceType:null,state:'idle',muted:false,camOff:false,incoming:null,iceQueue:[],audioCtx:null,audioAnalyser:null,audioSource:null,audioDrawTimer:null};
+	if(!_skipCardUpdate){
+		if(prevCardMsgId){
+			updateCallCard(sess,prevCardMsgId,reason,duration);
+		}else if(prevState==='ringing'){
+			createCallCard(sess,false,prevIncoming?.callType||prevType,reason,0);
+		}
+	}
+	sess.call={mediaPc:null,localStream:null,remoteStream:null,type:null,sourceType:null,
+		state:'idle',muted:false,camOff:false,incoming:null,iceQueue:[],
+		audioCtx:null,audioAnalyser:null,audioSource:null,audioDrawTimer:null,
+		cardMsgId:null,callStartedAt:null};
 	if(S.callSessId===sess.id)S.callSessId=null;
 	renderChatList();
 }
 
 async function getStream(type){
-	try {
-		const constraints = type==='video' ? {video:true,audio:true} : {audio:true,video:false};
-		const stream = await navigator.mediaDevices.getUserMedia(constraints);
-		console.log(`[WebRTC Media] Captured ${stream.getTracks().length} local tracks for ${type}.`);
-		stream.getTracks().forEach(t => console.log(`[WebRTC Media] Local Track: ${t.kind} - ${t.label} (enabled: ${t.enabled})`));
-		return stream;
-	} catch (err) {
-		console.error(`[WebRTC Call] navigator.mediaDevices.getUserMedia failed for "${type}":`, err);
-		throw err;
-	}
+	const constraints=type==='video'?{video:true,audio:true}:{audio:true,video:false};
+	return navigator.mediaDevices.getUserMedia(constraints);
 }
 
 async function callToggleSource(){
 	const sess=S.sessions.get(S.callSessId);if(!sess?.call.mediaPc)return;
-	const pc=sess.call.mediaPc;
-	const isScreen=sess.call.sourceType==='screen';
+	const pc=sess.call.mediaPc;const isScreen=sess.call.sourceType==='screen';
 	const btn=el('callSrcBtn');
 	const ICON_SCREEN=`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0H3"/></svg>`;
 	const ICON_CAM=`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z"/></svg>`;
 	try{
 		let newStream;
-		if(isScreen){
-			newStream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
-			sess.call.sourceType='camera';
-		}else{
+		if(isScreen){newStream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});sess.call.sourceType='camera';}
+		else{
 			newStream=await navigator.mediaDevices.getDisplayMedia({video:{cursor:'always'}});
 			sess.call.sourceType='screen';
 			newStream.getVideoTracks()[0].addEventListener('ended',()=>{sess.call.sourceType='camera';callToggleSource().catch(()=>{});});
 		}
 		const newVid=newStream.getVideoTracks()[0];if(!newVid)return;
 		const vidSender=pc.getSenders().find(s=>s.track?.kind==='video');
-		if(vidSender){
-			const old=vidSender.track;await vidSender.replaceTrack(newVid);old?.stop();
-		}else{
-			const keepAudio=sess.call.localStream?.getAudioTracks()||[];
-			pc.addTrack(newVid,new MediaStream([...keepAudio,newVid]));
-			sess.call.localStream?.getVideoTracks().forEach(t=>t.stop());
-		}
+		if(vidSender){const old=vidSender.track;await vidSender.replaceTrack(newVid);old?.stop();}
+		else{const keepAudio=sess.call.localStream?.getAudioTracks()||[];pc.addTrack(newVid,new MediaStream([...keepAudio,newVid]));sess.call.localStream?.getVideoTracks().forEach(t=>t.stop());}
 		const keepAudio=sess.call.localStream?.getAudioTracks()||[];
 		sess.call.localStream=new MediaStream([...keepAudio,newVid]);
 		const lv=el('callLocalVid');if(lv){lv.srcObject=sess.call.localStream;lv.classList.add('visible');}
 		const nowScreen=sess.call.sourceType==='screen';
 		if(btn){btn.title=nowScreen?'Switch to Camera':'Share Screen';btn.classList.toggle('active',nowScreen);btn.innerHTML=nowScreen?ICON_CAM:ICON_SCREEN;}
-	}catch(e){
-		console.error('[WebRTC Call] Source shift failure:', e);
-		toast('Source toggle failed: '+e.message);
-	}
+	}catch(e){toast('Source toggle failed: '+e.message);}
 }
-
 function toggleCallMute(){
 	const sess=S.sessions.get(S.callSessId);if(!sess)return;
 	sess.call.muted=!sess.call.muted;
@@ -992,32 +1065,21 @@ function toggleCallCam(){
 	const btn=el('callCamBtn');if(btn){btn.classList.toggle('active',sess.call.camOff);btn.title=sess.call.camOff?'Show Camera':'Hide Camera';}
 	const lv=el('callLocalVid');if(lv)lv.classList.toggle('visible',!sess.call.camOff);
 }
-
 function showCallOverlay(sess,localStream){
 	const ov=el('callOverlay');if(!ov)return;
 	const type=sess.call.type;
 	ov.classList.add('active');
 	sess.call.sourceType=type==='screen'?'screen':(type==='video'?'camera':null);
 	const rv=el('callRemoteVid'),ab=el('callAudioBg'),lv=el('callLocalVid');
-	
-	// CRITICAL FIX: Only clear the remote video if it isn't currently playing the stream
-	if(rv && !sess.call.remoteStream){
-		rv.srcObject=null;
-		rv.style.display='none';
-	} else if (rv && sess.call.remoteStream && sess.call.remoteStream.getVideoTracks().length > 0) {
-		rv.style.display='block';
-	}
-
+	if(rv&&!sess.call.remoteStream){rv.srcObject=null;rv.style.display='none';}
+	else if(rv&&sess.call.remoteStream?.getVideoTracks().length>0)rv.style.display='block';
 	if(ab){
 		const names=[...sess.peers.values()].map(p=>p.name).join(', ')||'Peer';
 		ab.style.display='flex';
 		const ini=el('callAudioInitial');
 		if(ini){
-			if(sess.type === 'direct' && sess.peerAvatar) {
-				ini.innerHTML = `<img src="${escH(sess.peerAvatar)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none'">`;
-			} else {
-				ini.textContent=(names[0]||'P').toUpperCase();
-			}
+			if(sess.type==='direct'&&sess.peerAvatar)ini.innerHTML=`<img src="${escH(sess.peerAvatar)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none'">`;
+			else ini.textContent=(names[0]||'P').toUpperCase();
 		}
 		const pn=el('callAudioName');if(pn)pn.textContent=names;
 	}
@@ -1025,14 +1087,10 @@ function showCallOverlay(sess,localStream){
 		if(localStream&&(type==='video'||type==='screen')){lv.srcObject=localStream;lv.classList.add('visible');}
 		else lv.classList.remove('visible');
 	}
-	const badge=el('callBadge');
-	if(badge)badge.textContent=type==='audio'?'🎤 Voice Call':type==='video'?'📹 Video Call':'🖥 Screen Share';
+	const badge=el('callBadge');if(badge)badge.textContent=type==='audio'?'🎤 Voice Call':type==='video'?'📹 Video Call':'🖥 Screen Share';
 	const camBtn=el('callCamBtn');if(camBtn)camBtn.classList.toggle('hidden',type==='audio');
 	const srcBtn=el('callSrcBtn');
-	if(srcBtn){
-		srcBtn.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0H3"/></svg>`;
-		srcBtn.title='Share Screen';srcBtn.classList.remove('active');
-	}
+	if(srcBtn){srcBtn.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0H3"/></svg>`;srcBtn.title='Share Screen';srcBtn.classList.remove('active');}
 	el('callTimer').textContent='00:00';
 }
 function hideCallOverlay(){
@@ -1047,12 +1105,12 @@ function showIncomingDialog(sess,data){
 	el('incomingCallerName').textContent=data.displayName||'Peer';
 	el('incomingCallType').textContent=(data.callType||'voice')+' call';
 	d.classList.add('active');
+	Ringtone.start('incoming');
 }
-function closeIncomingDialog(){el('incomingDialog')?.classList.remove('active');}
+function closeIncomingDialog(){el('incomingDialog')?.classList.remove('active');Ringtone.stop();}
 function setCallStatusTxt(txt){const e=el('callAudioStatus');if(e)e.textContent=txt;}
 function startCallTimer(){
-	stopCallTimer();
-	S.callStarted=Date.now();
+	stopCallTimer();S.callStarted=Date.now();
 	S.callTimer=setInterval(()=>{
 		const s=Math.floor((Date.now()-S.callStarted)/1000);
 		const t=el('callTimer');if(t)t.textContent=`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
@@ -1097,7 +1155,7 @@ function injectPanels(){
 .call-ring.vol-active:nth-child(2){border-color:rgba(0,255,255,.4);opacity:.3}
 .call-ring.vol-active:nth-child(3){border-color:rgba(0,255,255,.2);opacity:.2}
 @keyframes callring{0%{transform:scale(1);opacity:.7}100%{transform:scale(2.8);opacity:0}}
-.call-audio-av{width:80px;height:80px;border-radius:50%;background:rgba(0,255,255,.1);border:2px solid rgba(0,255,255,.3);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--tp);z-index:1;overflow:hidden;}
+.call-audio-av{width:80px;height:80px;border-radius:50%;background:rgba(0,255,255,.1);border:2px solid rgba(0,255,255,.3);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--tp);z-index:1;overflow:hidden}
 .call-audio-peer{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;z-index:1}
 .call-audio-status{font-family:'JetBrains Mono',monospace;font-size:.75rem;color:rgba(232,237,248,.5);z-index:1}
 .call-timer-wrap{font-family:'JetBrains Mono',monospace;font-size:.9rem;color:rgba(232,237,248,.7);letter-spacing:.06em;z-index:1}
@@ -1122,6 +1180,34 @@ function injectPanels(){
 #themePicker{position:fixed;z-index:450;background:rgba(5,5,18,.97);border:1px solid rgba(0,255,255,.2);border-radius:11px;padding:14px 16px;display:none;flex-direction:column;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
 #themePicker.open{display:flex}
 .tp-title{font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+/* ── Call Card (WhatsApp style) ── */
+.call-card{display:flex;align-items:center;gap:11px;padding:10px 13px;min-width:190px;max-width:250px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09)}
+.call-card-icon{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;background:rgba(255,255,255,.08);transition:background .2s}
+.call-card.completed .call-card-icon{background:rgba(34,197,94,.15)}
+.call-card.missed .call-card-icon,.call-card.declined .call-card-icon,.call-card.cancelled .call-card-icon{background:rgba(239,68,68,.14)}
+.call-card.calling .call-card-icon,.call-card.active .call-card-icon{background:rgba(0,255,255,.1)}
+.call-card-body{flex:1;min-width:0}
+.call-card-title{font-size:.84rem;font-weight:600;color:var(--text)}
+.call-card-meta{font-family:'JetBrains Mono',monospace;font-size:.64rem;margin-top:3px;color:var(--dim)}
+.call-card.missed .call-card-meta,.call-card.declined .call-card-meta,.call-card.cancelled .call-card-meta{color:#ef4444}
+.call-card.completed .call-card-meta{color:var(--ta)}
+.call-card.calling .call-card-meta,.call-card.active .call-card-meta{color:var(--tp);animation:blink 1.4s ease-in-out infinite}
+/* ── Background sliders ── */
+.bg-slider{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;outline:none;background:rgba(255,255,255,.12);cursor:pointer}
+.bg-slider::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;border-radius:50%;background:var(--tp);cursor:pointer;border:2px solid rgba(0,0,0,.65);box-shadow:0 0 8px rgba(0,255,255,.35);transition:transform .1s}
+.bg-slider:hover::-webkit-slider-thumb{transform:scale(1.15)}
+.bg-slider::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--tp);cursor:pointer;border:2px solid rgba(0,0,0,.6)}
+/* ── Direction picker ── */
+.bg-dir-grid{display:grid;grid-template-columns:repeat(3,36px);gap:3px}
+.bg-dir-btn{width:36px;height:36px;border-radius:7px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--dim);cursor:pointer;font-size:.92rem;display:flex;align-items:center;justify-content:center;transition:all .15s;padding:0;line-height:1}
+.bg-dir-btn:hover{background:rgba(255,255,255,.09);color:var(--text)}
+.bg-dir-btn.active{background:var(--tb);color:var(--tp);border-color:var(--tbh)}
+.bg-preview{width:100%;height:54px;border-radius:8px;border:1px solid rgba(255,255,255,.1);margin-bottom:10px;transition:background .25s}
+.bg-color-row{display:flex;align-items:center;gap:7px}
+.bg-color-swatch{width:22px;height:22px;border-radius:5px;border:1px solid rgba(255,255,255,.12);flex-shrink:0;pointer-events:none;transition:background .2s}
+/* ── Member list ── */
+.member-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.member-av{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0;overflow:hidden}
 `;
 	document.head.appendChild(css);
 
@@ -1158,7 +1244,7 @@ function injectPanels(){
 		</div>
 		<div class="panel-section"><div class="panel-section-lbl">Sign In (for Firebase rooms)</div><div id="spAuthArea"></div></div>
 		<div class="panel-section"><div class="panel-section-lbl">About</div>
-			<div style="font-size:.78rem;color:rgba(232,237,248,.4);line-height:1.7">P2P Chat v3.4.2 · ProElectricCoder<br>WebRTC + Firebase signaling<br>
+			<div style="font-size:.78rem;color:rgba(232,237,248,.4);line-height:1.7">P2P Chat v3.5.0 · ProElectricCoder<br>WebRTC + Firebase signaling<br>
 				<a href="/Projects/Chat/" target="_blank" style="color:var(--tp);text-decoration:none">Documentation →</a>
 			</div>
 		</div>
@@ -1235,7 +1321,6 @@ function injectPanels(){
 	</div>`;
 	document.getElementById('panels').appendChild(co);
 
-	// Incoming call
 	const ic=document.createElement('div');ic.id='incomingDialog';ic.className='incoming-overlay';
 	ic.innerHTML=`<div class="incoming-box">
 		<div class="incoming-big-icon" id="incomingIcon">📞</div>
@@ -1248,18 +1333,15 @@ function injectPanels(){
 	</div>`;
 	document.getElementById('panels').appendChild(ic);
 
-	// Lightbox
 	const lb=document.createElement('div');lb.id='lightbox';lb.onclick=()=>App.closeLightbox();
 	lb.innerHTML=`<img id="lbImg" src="" alt="">`;
 	document.getElementById('panels').appendChild(lb);
 
-	// Theme picker
 	const tp=document.createElement('div');tp.id='themePicker';
 	tp.innerHTML=`<div class="tp-title">Chat Theme</div><div class="theme-swatches" id="themeSwatches"></div>`;
 	document.body.appendChild(tp);
 	document.addEventListener('click',e=>{if(tp.classList.contains('open')&&!tp.contains(e.target)&&e.target.id!=='btnTheme')tp.classList.remove('open');});
 
-	// Chat info panel
 	const ci=document.createElement('div');ci.id='chatInfoOverlay';ci.className='panel-overlay';
 	ci.innerHTML=`<div class="panel-drawer">
 	<div class="panel-head"><span class="panel-head-title">Chat Info</span><button class="panel-close" onclick="App.closeChatInfo()">✕</button></div>
@@ -1267,7 +1349,7 @@ function injectPanels(){
 		<div class="panel-section" id="ciDetails"></div>
 		<div class="panel-section" id="ciBgConf"></div>
 		<div class="panel-section"><div class="panel-section-lbl">Theme Presets</div><div class="theme-swatches" id="ciThemeSwatches"></div></div>
-		<div class="panel-section"><div class="panel-section-lbl">Members</div><div id="ciMembers" style="font-size:.82rem;color:var(--dim);line-height:1.8"></div></div>
+		<div class="panel-section"><div class="panel-section-lbl">Members</div><div id="ciMembers"></div></div>
 		<div class="panel-section col" style="gap:8px">
 			<button class="btn btn-d btn-full" id="ciDisconnectBtn" onclick="App.ciDisconnect()">Disconnect</button>
 			<button class="btn btn-d btn-full" onclick="App.ciDelete()">Delete Chat</button>
@@ -1276,19 +1358,18 @@ function injectPanels(){
 	ci.addEventListener('click',e=>{if(e.target===ci)App.closeChatInfo();});
 	document.getElementById('panels').appendChild(ci);
 
-	// Direct Media Capture Modal
-	const capM = document.createElement('div'); capM.id = 'captureModal'; capM.className = 'modal-overlay';
-	capM.innerHTML = `
-	<div class="modal-box" style="max-width:340px; padding: 20px;">
-		<video id="mcVideo" autoplay playsinline muted style="width:100%; border-radius:10px; background:#000; display:none; max-height:300px; object-fit:cover; margin-bottom:14px;"></video>
-		<div id="mcAudioVis" style="display:none; font-size:3.5rem; margin:20px 0; text-align:center; animation: pulseMedia 1.5s infinite alternate;">🎙️</div>
-		<div id="mcActions" class="col" style="width:100%; gap:8px;"></div>
+	const capM=document.createElement('div');capM.id='captureModal';capM.className='modal-overlay';
+	capM.innerHTML=`
+	<div class="modal-box" style="max-width:340px;padding:20px">
+		<video id="mcVideo" autoplay playsinline muted style="width:100%;border-radius:10px;background:#000;display:none;max-height:300px;object-fit:cover;margin-bottom:14px"></video>
+		<div id="mcAudioVis" style="display:none;font-size:3.5rem;margin:20px 0;text-align:center;animation:pulseMedia 1.5s infinite alternate">🎙️</div>
+		<div id="mcActions" class="col" style="width:100%;gap:8px"></div>
 	</div>`;
 	document.getElementById('panels').appendChild(capM);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 19. PANEL LOGIC & CONFIG
+// 19. PANEL LOGIC
 // ═══════════════════════════════════════════════════════════════════════════
 function openSettings(){
 	const o=el('settingsOverlay');if(!o)return;
@@ -1346,17 +1427,28 @@ function openThemePicker(){
 	tp.style.top=(rect.bottom+8)+'px';tp.style.right=(window.innerWidth-rect.right)+'px';
 	tp.classList.add('open');
 }
+
 function openChatInfo(){
 	const sess=getActiveSess();if(!sess)return;
-	
+	const canEdit=sess.myRole==='owner'||sess.myRole==='manager';
+	const roleLabel=sess.myRole==='owner'?'👑 Owner':sess.myRole==='manager'?'⭐ Manager':'👤 Member';
+	// --- Details ---
 	const d=el('ciDetails');
-	if(d) {
+	if(d){
 		d.innerHTML=`
+		${sess.isGroup?`<div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--dim);margin-bottom:10px">Role: <span style="color:var(--tp)">${roleLabel}</span></div>`:''}
 		<div class="panel-section-lbl">Chat Name</div>
 		<div class="row" style="margin-bottom:12px">
 			<input class="f-in" id="ciChatName" value="${escH(sess.name)}" placeholder="Name this chat...">
 			<button class="btn btn-s" onclick="App.renameChat()">Save</button>
 		</div>
+		${sess.isGroup&&canEdit?`
+		<div class="panel-section-lbl">Group Icon URL</div>
+		<div class="row" style="margin-bottom:12px;align-items:center;gap:8px">
+			${sess.groupIcon?`<img src="${escH(sess.groupIcon)}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid var(--tbh)" onerror="this.style.display='none'">`:''}
+			<input class="f-in" id="ciGroupIconUrl" value="${escH(sess.groupIcon||'')}" placeholder="https://… icon URL" style="flex:1">
+			<button class="btn btn-s" onclick="App.saveGroupIcon()">Set</button>
+		</div>`:''}
 		<div class="panel-section-lbl">Details</div>
 		<div class="col" style="gap:6px;font-size:.82rem;color:var(--dim)">
 			<div><span style="color:var(--faint)">Type:</span> ${sess.isGroup?'Group':sess.type==='direct'?'Direct':'Firebase Room'}</div>
@@ -1364,36 +1456,142 @@ function openChatInfo(){
 			<div><span style="color:var(--faint)">Status:</span> ${sess.connected?'<span style="color:var(--ta)">Connected</span>':'Disconnected'}</div>
 		</div>`;
 	}
-
-	const bgEnd = sess.bg?.endColor || THEMES[sess.theme]?.gradEnd || '#000000';
-	const bgPow = sess.bg?.power || 2.5;
-	const bgSteps = sess.bg?.steps || 20;
-	
-	const bgConf = el('ciBgConf');
-	if(bgConf) {
-		bgConf.innerHTML = `
-		<div class="panel-section-lbl">Background Edit</div>
-		<div class="col" style="gap:10px;font-size:.8rem;color:var(--dim)">
-			<div class="row" style="align-items:center"><label style="width:45px">Color</label><input type="color" id="ciBgColor" value="${bgEnd}" onchange="App.updateBg()" style="width:100%;height:26px;padding:0;border:1px solid rgba(255,255,255,0.1);background:none;cursor:pointer;border-radius:4px"></div>
-			<div class="row" style="align-items:center"><label style="width:45px">Curve</label><input type="range" id="ciBgPower" min="0.5" max="5.0" step="0.1" value="${bgPow}" onchange="App.updateBg()" oninput="document.getElementById('ciPowVal').textContent=this.value;App.previewBg()" style="flex:1"><span id="ciPowVal" style="width:24px;text-align:right">${bgPow}</span></div>
-			<div class="row" style="align-items:center"><label style="width:45px">Steps</label><input type="range" id="ciBgSteps" min="2" max="50" step="1" value="${bgSteps}" onchange="App.updateBg()" oninput="document.getElementById('ciStepVal').textContent=this.value;App.previewBg()" style="flex:1"><span id="ciStepVal" style="width:24px;text-align:right">${bgSteps}</span></div>
+	// --- Enhanced Background ---
+	const bgEnd   = sess.bg?.endColor   || THEMES[sess.theme]?.gradEnd || '#002233';
+	const bgStart = sess.bg?.startColor || '#000000';
+	const bgPow   = sess.bg?.power      ?? 2.5;
+	const bgSteps = sess.bg?.steps      ?? 20;
+	const bgDir   = sess.bg?.direction  || 'to bottom right';
+	const prevGrad= computeGrad(bgEnd,bgPow,bgSteps,bgDir,bgStart);
+	const bgConf=el('ciBgConf');
+	if(bgConf){
+		bgConf.innerHTML=`
+		<div class="panel-section-lbl">Background</div>
+		<div class="bg-preview" id="ciBgPreview" style="background:${prevGrad}"></div>
+		<div class="col" style="gap:14px">
+			<div>
+				<div class="f-lbl" style="margin-bottom:6px">Direction</div>
+				<div class="bg-dir-grid">${makeDirGrid(bgDir)}</div>
+			</div>
+			<div class="row" style="gap:10px">
+				<div style="flex:1;min-width:0">
+					<div class="f-lbl">Start</div>
+					<div class="bg-color-row" style="margin-top:5px">
+						<div class="bg-color-swatch" id="ciBgStartSwatch" style="background:${bgStart}"></div>
+						<input type="color" id="ciBgStart" value="${bgStart}"
+							oninput="document.getElementById('ciBgStartSwatch').style.background=this.value;App.livePreviewBg()"
+							style="flex:1;height:28px;border:1px solid rgba(255,255,255,.12);border-radius:6px;background:rgba(0,0,0,.4);cursor:pointer;padding:0 3px">
+					</div>
+				</div>
+				<div style="flex:1;min-width:0">
+					<div class="f-lbl">End</div>
+					<div class="bg-color-row" style="margin-top:5px">
+						<div class="bg-color-swatch" id="ciBgEndSwatch" style="background:${bgEnd}"></div>
+						<input type="color" id="ciBgColor" value="${bgEnd}"
+							oninput="document.getElementById('ciBgEndSwatch').style.background=this.value;App.livePreviewBg()"
+							style="flex:1;height:28px;border:1px solid rgba(255,255,255,.12);border-radius:6px;background:rgba(0,0,0,.4);cursor:pointer;padding:0 3px">
+					</div>
+				</div>
+			</div>
+			<div>
+				<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+					<div class="f-lbl" style="margin:0">Curve power</div>
+					<code id="ciPowVal" style="font-size:.7rem;color:var(--tp);font-family:'JetBrains Mono',monospace">${bgPow.toFixed(1)}</code>
+				</div>
+				<input type="range" class="bg-slider" id="ciBgPower" min="0.3" max="6" step="0.1" value="${bgPow}"
+					oninput="document.getElementById('ciPowVal').textContent=parseFloat(this.value).toFixed(1);App.livePreviewBg()">
+				<div style="display:flex;justify-content:space-between;font-size:.57rem;color:var(--faint);margin-top:3px">
+					<span>Linear</span><span>Smooth</span><span>Sharp</span>
+				</div>
+			</div>
+			<div>
+				<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+					<div class="f-lbl" style="margin:0">Color steps</div>
+					<code id="ciStepVal" style="font-size:.7rem;color:var(--tp);font-family:'JetBrains Mono',monospace">${bgSteps}</code>
+				</div>
+				<input type="range" class="bg-slider" id="ciBgSteps" min="2" max="64" step="1" value="${bgSteps}"
+					oninput="document.getElementById('ciStepVal').textContent=this.value;App.livePreviewBg()">
+				<div style="display:flex;justify-content:space-between;font-size:.57rem;color:var(--faint);margin-top:3px">
+					<span>2</span><span>32</span><span>64</span>
+				</div>
+			</div>
+			<div class="row" style="gap:7px">
+				<button class="btn btn-p" style="flex:1" onclick="App.updateBg()">Apply</button>
+				<button class="btn btn-s" onclick="App.resetBg()">↺ Reset</button>
+			</div>
 		</div>`;
 	}
-
+	// --- Theme swatches ---
 	const cs=el('ciThemeSwatches');
 	if(cs)cs.innerHTML=Object.entries(THEMES).map(([id,th])=>
 		`<div class="t-sw${sess.theme===id?' active':''}" title="${th.name}" style="background:${th.primary}" onclick="App.pickTheme('${id}');App.closeChatInfo()"></div>`
 	).join('');
-	
+	// --- Members ---
 	const cm=el('ciMembers');
 	if(cm){
-		const members=[...sess.peers.entries()];
-		cm.innerHTML=members.length
-			?members.map(([,p])=>`<div>👤 ${escH(p.name)}</div>`).join('')+`<div>👤 ${escH(S.displayName)} (you)</div>`
-			:`<div>👤 ${escH(S.displayName)} (you)</div>`;
+		const hasMeta=sess.isGroup&&Object.keys(sess.membersData||{}).length>0;
+		if(hasMeta){
+			const myUid=S.user?.uid,owner=sess.groupOwner,managers=sess.groupManagers||[];
+			cm.innerHTML=Object.entries(sess.membersData).map(([uid,m])=>{
+				const isOwner=uid===owner,isManager=managers.includes(uid),isMe=uid===myUid;
+				const badge=isOwner?`<span style="color:#fbbf24;font-size:.64rem">👑 Owner</span>`
+					:isManager?`<span style="color:var(--tp);font-size:.64rem">⭐ Manager</span>`
+					:`<span style="color:var(--faint);font-size:.64rem">👤 Member</span>`;
+				const action=sess.myRole==='owner'&&!isOwner&&!isMe
+					?`<button class="btn btn-s" style="padding:2px 8px;font-size:.6rem" onclick="App.${isManager?'demoteManager':'promoteManager'}('${uid}')">${isManager?'Demote':'Promote'}</button>`:'';
+				const avHtml=m.avatar
+					?`<img src="${escH(m.avatar)}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">`
+					:(m.name||'?')[0].toUpperCase();
+				return`<div class="member-row"><div class="member-av">${avHtml}</div>
+					<div style="flex:1;min-width:0"><div style="font-size:.82rem;font-weight:500">${escH(m.name||'Member')}${isMe?' <span style="opacity:.45">(you)</span>':''}</div>${badge}</div>
+					${action}</div>`;
+			}).join('');
+		}else{
+			const members=[...sess.peers.entries()];
+			cm.innerHTML=`<div style="font-size:.82rem;color:var(--dim);line-height:1.8">`+(members.length
+				?members.map(([,p])=>`<div>👤 ${escH(p.name)}</div>`).join('')+`<div>👤 ${escH(S.displayName)} (you)</div>`
+				:`<div>👤 ${escH(S.displayName)} (you)</div>`)+`</div>`;
+		}
 	}
 	const db=el('ciDisconnectBtn');if(db)db.textContent=sess.connected?'Disconnect':'Reconnect';
 	el('chatInfoOverlay')?.classList.add('open');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 19b. GROUP METADATA (Firestore-backed)
+// ═══════════════════════════════════════════════════════════════════════════
+function subscribeGroupMeta(sess){
+	if(!sess.roomId||sess.type!=='firebase')return;
+	if(sess._metaUnsub){sess._metaUnsub();sess._metaUnsub=null;}
+	try{
+		const unsub=firebase.firestore().collection('chatRooms').doc(sess.roomId)
+			.onSnapshot(snap=>{
+				const data=snap.data();if(!data?.meta)return;
+				const meta=data.meta;
+				if(meta.name&&meta.name!==sess.name){
+					const old=sess.name;sess.name=meta.name;sess.groupName=meta.name;
+					if(old!==meta.name)addSysMsg(sess,`Group renamed to "${meta.name}"`);
+				}
+				if(meta.icon!==undefined)sess.groupIcon=meta.icon||null;
+				sess.groupOwner=meta.owner||null;
+				sess.groupManagers=meta.managers||[];
+				sess.membersData=meta.members||{};
+				if(meta.owner===S.user?.uid)sess.myRole='owner';
+				else if((meta.managers||[]).includes(S.user?.uid))sess.myRole='manager';
+				else sess.myRole='member';
+				DB.saveSession(sess);
+				renderChatList();
+				if(S.activeId===sess.id)renderTopbar(sess);
+			},err=>console.warn('[GroupMeta]',err));
+		sess._metaUnsub=unsub;
+	}catch(e){console.warn('[GroupMeta subscribe]',e);}
+}
+async function writeGroupMeta(sess,partial){
+	if(!sess.roomId||!S.user)return;
+	try{
+		await firebase.firestore().collection('chatRooms').doc(sess.roomId)
+			.set({meta:partial},{merge:true});
+	}catch(e){console.error('[GroupMeta write]',e);toast('Update failed: '+e.message);}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1426,17 +1624,12 @@ function bufB64(ab){const u8=new Uint8Array(ab);let s='';const B=8192;for(let i=
 function b64Buf(b64){const bin=atob(b64);const u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);return u8.buffer;}
 let _toastTmr=null;
 function toast(msg,ms=3000){const e=el('toast');if(!e)return;e.textContent=msg;e.classList.add('show');clearTimeout(_toastTmr);_toastTmr=setTimeout(()=>e.classList.remove('show'),ms);}
-
 async function requestWakeLock(){
 	if(!S.wakeLockEnabled||!('wakeLock' in navigator))return;
 	try{S.wakeLockObj=await navigator.wakeLock.request('screen');}catch(e){console.warn('Wake Lock failed:',e);}
 }
-function releaseWakeLock(){
-	if(S.wakeLockObj){S.wakeLockObj.release().catch(()=>{});S.wakeLockObj=null;}
-}
-document.addEventListener('visibilitychange',()=>{
-	if(document.visibilityState==='visible'&&S.wakeLockEnabled)requestWakeLock();
-});
+function releaseWakeLock(){if(S.wakeLockObj){S.wakeLockObj.release().catch(()=>{});S.wakeLockObj=null;}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&S.wakeLockEnabled)requestWakeLock();});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 22. window.App
@@ -1469,8 +1662,7 @@ window.App={
 	async directConnect(){
 		const ans=el('ncAnswerInput')?.value.trim();if(!ans){toast('Paste the answer SDP first');return;}
 		const eng=NC.pendingEngine;if(!eng){toast('Generate an offer first');return;}
-		try{await eng.setAnswer(ans);this.closeNewChat();toast('Connecting…');}
-		catch(e){toast('Error: '+e.message);}
+		try{await eng.setAnswer(ans);this.closeNewChat();toast('Connecting…');}catch(e){toast('Error: '+e.message);}
 	},
 	async directGenAnswer(){
 		const offer=el('ncRemoteOffer')?.value.trim();if(!offer){toast('Paste the remote offer first');return;}
@@ -1486,11 +1678,18 @@ window.App={
 	async fbCreateRoom(){
 		if(!S.user){toast('Sign in first');return;}
 		const rid=el('ncRoomId')?.value.trim()||'room-'+Math.random().toString(36).slice(2,8);
-		const sess=makeSess({name:rid,type:'firebase',roomId:rid});sess.isHost=true;
+		const sess=makeSess({name:rid,type:'firebase',roomId:rid});
+		sess.isHost=true;sess.myRole='owner';sess.groupOwner=S.user.uid;
 		const eng=new ChatEngine();eng.init(firebase.firestore());
 		S.sessions.set(sess.id,sess);bindEngine(sess,eng);setStatus('connecting','Waiting for peers…');
-		try{await eng.createRoom(rid);await DB.saveSession(sess);await selectSess(sess.id);this.closeNewChat();addSysMsg(sess,`Room "${rid}" created — share this ID`);toast('Room created');}
-		catch(e){toast('Error: '+e.message);S.sessions.delete(sess.id);}
+		try{
+			await eng.createRoom(rid);
+			await writeGroupMeta(sess,{name:rid,icon:'',owner:S.user.uid,managers:[],
+				members:{[S.user.uid]:{name:S.displayName,avatar:S.avatarUrl,role:'owner',joinedAt:Date.now()}}});
+			subscribeGroupMeta(sess);
+			await DB.saveSession(sess);await selectSess(sess.id);this.closeNewChat();
+			addSysMsg(sess,`Room "${rid}" created — share this ID`);toast('Room created');
+		}catch(e){toast('Error: '+e.message);S.sessions.delete(sess.id);}
 	},
 	async fbJoinRoom(){
 		if(!S.user){toast('Sign in first');return;}
@@ -1498,18 +1697,31 @@ window.App={
 		const sess=makeSess({name:rid,type:'firebase',roomId:rid});
 		const eng=new ChatEngine();eng.init(firebase.firestore());
 		S.sessions.set(sess.id,sess);bindEngine(sess,eng);setStatus('connecting','Joining room…');
-		try{await eng.joinRoom(rid);await DB.saveSession(sess);await selectSess(sess.id);this.closeNewChat();}
-		catch(e){toast('Error: '+e.message);S.sessions.delete(sess.id);}
+		try{
+			await eng.joinRoom(rid);
+			await writeGroupMeta(sess,{members:{[S.user.uid]:{name:S.displayName,avatar:S.avatarUrl,role:'member',joinedAt:Date.now()}}});
+			subscribeGroupMeta(sess);
+			await DB.saveSession(sess);await selectSess(sess.id);this.closeNewChat();
+		}catch(e){toast('Error: '+e.message);S.sessions.delete(sess.id);}
 	},
 	async fbCreateGroup(){
 		if(!S.user){toast('Sign in first');return;}
 		const gname=el('ncGroupName')?.value.trim()||'My Group';
 		const rid=el('ncGroupRoomId')?.value.trim()||'grp-'+Math.random().toString(36).slice(2,8);
 		const sess=makeSess({name:gname,type:'firebase',isGroup:true,roomId:rid,groupName:gname});
-		sess.isHost=true;const eng=new ChatEngine({relay:true});eng.init(firebase.firestore());
+		sess.isHost=true;sess.myRole='owner';sess.groupOwner=S.user.uid;
+		const eng=new ChatEngine({relay:true});eng.init(firebase.firestore());
 		S.sessions.set(sess.id,sess);bindEngine(sess,eng);
-		try{await eng.createRoom(rid);await DB.saveSession(sess);await selectSess(sess.id);this.closeNewChat();addSysMsg(sess,`Group "${gname}" created · Room: ${rid}`);toast('Group created');}
-		catch(e){toast('Error: '+e.message);S.sessions.delete(sess.id);}
+		try{
+			await eng.createRoom(rid);
+			await writeGroupMeta(sess,{name:gname,icon:'',owner:S.user.uid,ownerName:S.displayName,
+				ownerAvatar:S.avatarUrl,managers:[],
+				members:{[S.user.uid]:{name:S.displayName,avatar:S.avatarUrl,role:'owner',joinedAt:Date.now()}},
+				createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+			subscribeGroupMeta(sess);
+			await DB.saveSession(sess);await selectSess(sess.id);this.closeNewChat();
+			addSysMsg(sess,`Group "${gname}" created · Room: ${rid}`);toast('Group created');
+		}catch(e){toast('Error: '+e.message);S.sessions.delete(sess.id);}
 	},
 	async fbJoinGroup(){
 		if(!S.user){toast('Sign in first');return;}
@@ -1518,8 +1730,12 @@ window.App={
 		const sess=makeSess({name:gname,type:'firebase',isGroup:true,roomId:rid,groupName:gname});
 		const eng=new ChatEngine({relay:false});eng.init(firebase.firestore());
 		S.sessions.set(sess.id,sess);bindEngine(sess,eng);
-		try{await eng.joinRoom(rid);await DB.saveSession(sess);await selectSess(sess.id);this.closeNewChat();}
-		catch(e){toast('Error: '+e.message);S.sessions.delete(sess.id);}
+		try{
+			await eng.joinRoom(rid);
+			await writeGroupMeta(sess,{members:{[S.user.uid]:{name:S.displayName,avatar:S.avatarUrl,role:'member',joinedAt:Date.now()}}});
+			subscribeGroupMeta(sess);
+			await DB.saveSession(sess);await selectSess(sess.id);this.closeNewChat();
+		}catch(e){toast('Error: '+e.message);S.sessions.delete(sess.id);}
 	},
 	async sendMsg(){
 		const inp=el('msgInput');const text=inp?.value.trim();
@@ -1537,95 +1753,116 @@ window.App={
 			for(const{file}of toSend)await sendFile(file,sess,batchId);
 		}
 	},
-	renameChat(){
-		const sess = getActiveSess(); if(!sess) return;
-		const newName = el('ciChatName')?.value.trim();
-		if(newName) {
-			sess.name = newName;
-			DB.saveSession(sess);
-			renderChatList();
-			renderTopbar(sess);
-			toast('Chat renamed');
+	async renameChat(){
+		const sess=getActiveSess();if(!sess)return;
+		const newName=el('ciChatName')?.value.trim();if(!newName)return;
+		sess.name=newName;if(sess.isGroup)sess.groupName=newName;
+		DB.saveSession(sess);
+		if(sess.roomId&&S.user&&(sess.myRole==='owner'||sess.myRole==='manager')){
+			await writeGroupMeta(sess,{name:newName});
 		}
+		renderChatList();renderTopbar(sess);toast('Chat renamed');
 	},
-	previewBg(){
-		const e = el('ciBgColor').value;
-		const p = parseFloat(el('ciBgPower').value);
-		const s = parseInt(el('ciBgSteps').value);
-		const grad = computeGrad(e, p, s);
-		el('gradBg1').style.background = grad;
-		el('gradBg2').style.background = grad;
+	// BG methods
+	livePreviewBg(){
+		const endC=el('ciBgColor')?.value||'#002233';
+		const stC=el('ciBgStart')?.value||'#000000';
+		const p=parseFloat(el('ciBgPower')?.value||2.5);
+		const steps=parseInt(el('ciBgSteps')?.value||20);
+		const sess=getActiveSess();
+		const dir=sess?.bg?.direction||'to bottom right';
+		const grad=computeGrad(endC,p,steps,dir,stC);
+		const prev=el('ciBgPreview');if(prev)prev.style.background=grad;
+	},
+	setBgDir(dir){
+		const sess=getActiveSess();if(!sess)return;
+		if(!sess.bg)sess.bg={};
+		sess.bg.direction=dir;
+		document.querySelectorAll('.bg-dir-btn').forEach(b=>b.classList.toggle('active',b.title===dir));
+		this.livePreviewBg();
 	},
 	updateBg(){
-		const sess = getActiveSess(); if(!sess) return;
-		if(!sess.bg) sess.bg = {};
-		sess.bg.endColor = el('ciBgColor').value;
-		sess.bg.power = parseFloat(el('ciBgPower').value);
-		sess.bg.steps = parseInt(el('ciBgSteps').value);
+		const sess=getActiveSess();if(!sess)return;
+		if(!sess.bg)sess.bg={};
+		sess.bg.endColor=el('ciBgColor').value;
+		sess.bg.startColor=el('ciBgStart')?.value||'#000000';
+		sess.bg.power=parseFloat(el('ciBgPower').value);
+		sess.bg.steps=parseInt(el('ciBgSteps').value);
 		DB.saveSession(sess);
-		applyTheme(sess.theme, sess);
+		applyTheme(sess.theme,sess);
+		this.livePreviewBg();
 	},
-	async openCapture(type) {
-		MC.type = type;
-		const mo = el('captureModal'); mo.classList.add('open');
-		const vid = el('mcVideo'); const vis = el('mcAudioVis'); const acts = el('mcActions');
-		vid.style.display = type === 'audio' ? 'none' : 'block';
-		vis.style.display = type === 'audio' ? 'block' : 'none';
-		acts.innerHTML = `<div style="text-align:center;font-size:0.8rem;color:var(--faint)">Accessing media...</div>`;
-		try {
-			MC.stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type !== 'audio' });
-			if (type !== 'audio') vid.srcObject = MC.stream;
-			if (type === 'camera') {
-				acts.innerHTML = `
-					<button class="btn btn-p btn-full" onclick="App.capturePhoto()">📸 Take Photo</button>
+	resetBg(){
+		const sess=getActiveSess();if(!sess)return;
+		sess.bg=null;DB.saveSession(sess);
+		applyTheme(sess.theme,sess);
+		openChatInfo(); // re-render panel
+	},
+	// Group methods
+	async saveGroupIcon(){
+		const sess=getActiveSess();if(!sess||!sess.roomId)return;
+		const icon=el('ciGroupIconUrl')?.value.trim()||'';
+		sess.groupIcon=icon||null;
+		await writeGroupMeta(sess,{icon});
+		DB.saveSession(sess);
+		if(S.activeId===sess.id)renderTopbar(sess);
+		renderChatList();toast('Group icon updated');
+	},
+	async promoteManager(uid){
+		const sess=getActiveSess();if(!sess||sess.myRole!=='owner')return;
+		const managers=[...(sess.groupManagers||[])];
+		if(!managers.includes(uid))managers.push(uid);
+		await writeGroupMeta(sess,{managers});toast('Promoted to manager');
+	},
+	async demoteManager(uid){
+		const sess=getActiveSess();if(!sess||sess.myRole!=='owner')return;
+		const managers=(sess.groupManagers||[]).filter(m=>m!==uid);
+		await writeGroupMeta(sess,{managers});toast('Demoted from manager');
+	},
+	// Capture
+	async openCapture(type){
+		MC.type=type;
+		const mo=el('captureModal');mo.classList.add('open');
+		const vid=el('mcVideo'),vis=el('mcAudioVis'),acts=el('mcActions');
+		vid.style.display=type==='audio'?'none':'block';
+		vis.style.display=type==='audio'?'block':'none';
+		acts.innerHTML=`<div style="text-align:center;font-size:0.8rem;color:var(--faint)">Accessing media...</div>`;
+		try{
+			MC.stream=await navigator.mediaDevices.getUserMedia({audio:true,video:type!=='audio'});
+			if(type!=='audio')vid.srcObject=MC.stream;
+			if(type==='camera'){
+				acts.innerHTML=`<button class="btn btn-p btn-full" onclick="App.capturePhoto()">📸 Take Photo</button>
 					<button class="btn btn-d btn-full" style="background:rgba(255,68,85,.15)" onclick="App.startRecord('video')">🔴 Record Video</button>
 					<button class="btn btn-s btn-full" onclick="App.closeCapture()">Cancel</button>`;
-			} else {
-				acts.innerHTML = `
-					<button class="btn btn-d btn-full" style="background:rgba(255,68,85,.15)" onclick="App.startRecord('audio')">🔴 Record Audio</button>
+			}else{
+				acts.innerHTML=`<button class="btn btn-d btn-full" style="background:rgba(255,68,85,.15)" onclick="App.startRecord('audio')">🔴 Record Audio</button>
 					<button class="btn btn-s btn-full" onclick="App.closeCapture()">Cancel</button>`;
 			}
-		} catch (e) {
-			acts.innerHTML = `<div style="color:#ff4455;font-size:0.8rem;margin-bottom:10px;text-align:center">Error: ${e.message}</div><button class="btn btn-s btn-full" onclick="App.closeCapture()">Close</button>`;
-		}
+		}catch(e){acts.innerHTML=`<div style="color:#ff4455;font-size:0.8rem;margin-bottom:10px;text-align:center">Error: ${e.message}</div><button class="btn btn-s btn-full" onclick="App.closeCapture()">Close</button>`;}
 	},
-	closeCapture() {
-		el('captureModal')?.classList.remove('open');
-		if (MC.stream) MC.stream.getTracks().forEach(t => t.stop());
-		MC.stream = null; MC.recorder = null; MC.chunks = [];
+	closeCapture(){el('captureModal')?.classList.remove('open');if(MC.stream)MC.stream.getTracks().forEach(t=>t.stop());MC.stream=null;MC.recorder=null;MC.chunks=[];},
+	capturePhoto(){
+		const vid=el('mcVideo');
+		const canvas=document.createElement('canvas');
+		canvas.width=vid.videoWidth;canvas.height=vid.videoHeight;
+		canvas.getContext('2d').drawImage(vid,0,0);
+		canvas.toBlob(blob=>{FQ.add([new File([blob],`Photo_${Date.now()}.jpg`,{type:'image/jpeg'})]);App.closeCapture();},'image/jpeg',0.9);
 	},
-	capturePhoto() {
-		const vid = el('mcVideo');
-		const canvas = document.createElement('canvas');
-		canvas.width = vid.videoWidth; canvas.height = vid.videoHeight;
-		canvas.getContext('2d').drawImage(vid, 0, 0);
-		canvas.toBlob(blob => {
-			const file = new File([blob], `Photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
-			FQ.add([file]);
-			App.closeCapture();
-		}, 'image/jpeg', 0.9);
-	},
-	startRecord(recType) {
-		MC.chunks = [];
-		try {
-			MC.recorder = new MediaRecorder(MC.stream);
-			MC.recorder.ondataavailable = e => { if (e.data.size > 0) MC.chunks.push(e.data); };
-			MC.recorder.onstop = () => {
-				const ext = recType === 'audio' ? 'webm' : 'webm';
-				const mime = recType === 'audio' ? 'audio/webm' : 'video/webm';
-				const file = new File(MC.chunks, `${recType.charAt(0).toUpperCase() + recType.slice(1)}_${Date.now()}.${ext}`, { type: mime });
-				FQ.add([file]);
+	startRecord(recType){
+		MC.chunks=[];
+		try{
+			MC.recorder=new MediaRecorder(MC.stream);
+			MC.recorder.ondataavailable=e=>{if(e.data.size>0)MC.chunks.push(e.data);};
+			MC.recorder.onstop=()=>{
+				const mime=recType==='audio'?'audio/webm':'video/webm';
+				FQ.add([new File(MC.chunks,`${recType.charAt(0).toUpperCase()+recType.slice(1)}_${Date.now()}.webm`,{type:mime})]);
 				App.closeCapture();
 			};
 			MC.recorder.start();
-			el('mcActions').innerHTML = `<button class="btn btn-d btn-full" onclick="App.stopRecord()">⏹ Stop Recording</button>`;
-		} catch (e) {
-			toast('MediaRecorder error: ' + e.message);
-		}
+			el('mcActions').innerHTML=`<button class="btn btn-d btn-full" onclick="App.stopRecord()">⏹ Stop Recording</button>`;
+		}catch(e){toast('MediaRecorder error: '+e.message);}
 	},
-	stopRecord() {
-		if (MC.recorder && MC.recorder.state !== 'inactive') MC.recorder.stop();
-	},
+	stopRecord(){if(MC.recorder&&MC.recorder.state!=='inactive')MC.recorder.stop();},
 	openFilePicker(){el('fileInput')?.click();},
 	handleFileSelect(fs){FQ.add([...fs]);},
 	handleDrop(e){e.preventDefault();FQ.add([...(e.dataTransfer.files||[])]);},
@@ -1634,84 +1871,50 @@ window.App={
 	startCall(type){initiateCall(type);},
 	callAccept(){acceptCall();},
 	callDecline(){rejectCall();},
-	callEnd(){const s=S.sessions.get(S.callSessId);endCallInternal(s,true);if(s)addSysMsg(s,'Call ended');},
+	callEnd(){
+		const s=S.sessions.get(S.callSessId);if(!s)return;
+		const reason=s.call.state==='active'?'completed':'cancelled';
+		const dur=(s.call.state==='active'&&S.callStarted)?Math.floor((Date.now()-S.callStarted)/1000):0;
+		if(s.call.cardMsgId)updateCallCard(s,s.call.cardMsgId,reason,dur);
+		endCallInternal(s,true,null,true);
+	},
 	callToggleMute(){toggleCallMute();},
 	callToggleCam(){toggleCallCam();},
 	callToggleSource(){callToggleSource();},
-	
-	// Start Audio Visualizer
-	startAudioVisualizer(stream) {
-		this.stopAudioVisualizer(); 
-		try {
-			const AudioContext = window.AudioContext || window.webkitAudioContext;
-			if(!AudioContext) return;
-			
-			const ctx = new AudioContext();
-			const analyser = ctx.createAnalyser();
-			analyser.fftSize = 256;
-			
-			// Clone the stream to prevent Web Audio API from hijacking/muting the HTMLVideoElement audio
-			const clone = stream.clone();
-			const source = ctx.createMediaStreamSource(clone);
-			source.connect(analyser);
-
-			const callSess = S.sessions.get(S.callSessId);
-			if(!callSess) return;
-			
-			callSess.call.audioCtx = ctx;
-			callSess.call.audioAnalyser = analyser;
-			callSess.call.audioSource = source;
-
-			const dataArray = new Uint8Array(analyser.frequencyBinCount);
-			const rings = document.querySelectorAll('.call-ring');
-			rings.forEach(r => r.classList.add('vol-active'));
-
-			function draw() {
-				if (!callSess || callSess.call.state !== 'active') return;
-				callSess.call.audioDrawTimer = requestAnimationFrame(draw);
-				
+	startAudioVisualizer(stream){
+		this.stopAudioVisualizer();
+		try{
+			const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+			const ctx=new AC(),analyser=ctx.createAnalyser();analyser.fftSize=256;
+			const clone=stream.clone(),source=ctx.createMediaStreamSource(clone);source.connect(analyser);
+			const callSess=S.sessions.get(S.callSessId);if(!callSess)return;
+			callSess.call.audioCtx=ctx;callSess.call.audioAnalyser=analyser;callSess.call.audioSource=source;
+			const dataArray=new Uint8Array(analyser.frequencyBinCount);
+			const rings=document.querySelectorAll('.call-ring');
+			rings.forEach(r=>r.classList.add('vol-active'));
+			function draw(){
+				if(!callSess||callSess.call.state!=='active')return;
+				callSess.call.audioDrawTimer=requestAnimationFrame(draw);
 				analyser.getByteFrequencyData(dataArray);
-				let sum = 0;
-				for (let i = 0; i < dataArray.length; i++) {
-					sum += dataArray[i];
-				}
-				const avg = sum / dataArray.length; 
-				
-				const intensity = avg / 60; 
-				const scale1 = 1 + (intensity * 0.15); 
-				const scale2 = 1 + (intensity * 0.4);  
-				const scale3 = 1 + (intensity * 0.8);  
-
-				if (rings[0]) rings[0].style.transform = `scale(${Math.min(scale1, 1.5)})`;
-				if (rings[1]) rings[1].style.transform = `scale(${Math.min(scale2, 2.2)})`;
-				if (rings[2]) rings[2].style.transform = `scale(${Math.min(scale3, 3.2)})`;
+				let sum=0;for(let i=0;i<dataArray.length;i++)sum+=dataArray[i];
+				const avg=sum/dataArray.length,intensity=avg/60;
+				if(rings[0])rings[0].style.transform=`scale(${Math.min(1+intensity*.15,1.5)})`;
+				if(rings[1])rings[1].style.transform=`scale(${Math.min(1+intensity*.4,2.2)})`;
+				if(rings[2])rings[2].style.transform=`scale(${Math.min(1+intensity*.8,3.2)})`;
 			}
 			draw();
-		} catch (e) {
-			console.warn('[WebRTC Media] Audio visualizer could not start:', e);
-		}
+		}catch(e){console.warn('[AudioViz]',e);}
 	},
-	
-	// Stop Audio Visualizer
-	stopAudioVisualizer() {
-		const callSess = S.sessions.get(S.callSessId);
-		if(callSess) {
-			if (callSess.call.audioDrawTimer) cancelAnimationFrame(callSess.call.audioDrawTimer);
-			if (callSess.call.audioSource) callSess.call.audioSource.disconnect();
-			if (callSess.call.audioCtx && callSess.call.audioCtx.state !== 'closed') callSess.call.audioCtx.close().catch(e=>e);
-			callSess.call.audioCtx = null; 
-			callSess.call.audioAnalyser = null; 
-			callSess.call.audioSource = null; 
-			callSess.call.audioDrawTimer = null;
+	stopAudioVisualizer(){
+		const callSess=S.sessions.get(S.callSessId);
+		if(callSess){
+			if(callSess.call.audioDrawTimer)cancelAnimationFrame(callSess.call.audioDrawTimer);
+			if(callSess.call.audioSource)callSess.call.audioSource.disconnect();
+			if(callSess.call.audioCtx&&callSess.call.audioCtx.state!=='closed')callSess.call.audioCtx.close().catch(()=>{});
+			callSess.call.audioCtx=null;callSess.call.audioAnalyser=null;callSess.call.audioSource=null;callSess.call.audioDrawTimer=null;
 		}
-
-		const rings = document.querySelectorAll('.call-ring');
-		rings.forEach(r => {
-			r.classList.remove('vol-active');
-			r.style.transform = '';
-		});
+		document.querySelectorAll('.call-ring').forEach(r=>{r.classList.remove('vol-active');r.style.transform='';});
 	},
-
 	openSettings(){openSettings();},
 	closeSettings(){el('settingsOverlay')?.classList.remove('open');},
 	saveName(){
@@ -1720,8 +1923,7 @@ window.App={
 		toast('Name saved');
 	},
 	handleWakeToggle(){
-		S.wakeLockEnabled=el('spWakeToggle')?.checked;
-		localStorage.setItem('pec_wakelock',S.wakeLockEnabled);
+		S.wakeLockEnabled=el('spWakeToggle')?.checked;localStorage.setItem('pec_wakelock',S.wakeLockEnabled);
 		if(S.wakeLockEnabled)requestWakeLock();else releaseWakeLock();
 	},
 	handleEncToggle(){
@@ -1747,22 +1949,25 @@ window.App={
 	ciDisconnect(){
 		const sess=getActiveSess();if(!sess)return;
 		if(sess.connected){
-			sess.engine?.disconnect();sess.connected=false;setStatus('disconnected','Disconnected');enableCallBtns(false);
-		} else {
-			if(sess.type === 'direct') { toast('Create a new offer to reconnect direct chats'); return; }
-			if(!S.user) { toast('Sign in to reconnect to rooms'); return; }
-			const eng = new ChatEngine({relay: sess.isGroup});
-			eng.init(firebase.firestore());
-			bindEngine(sess, eng);
-			setStatus('connecting', 'Reconnecting...');
-			if(sess.isHost) eng.createRoom(sess.roomId).catch(e => toast(e.message));
-			else eng.joinRoom(sess.roomId).catch(e => toast(e.message));
+			sess._metaUnsub?.();sess._metaUnsub=null;
+			sess.engine?.disconnect();sess.connected=false;
+			setStatus('disconnected','Disconnected');enableCallBtns(false);
+		}else{
+			if(sess.type==='direct'){toast('Create a new offer to reconnect direct chats');return;}
+			if(!S.user){toast('Sign in to reconnect to rooms');return;}
+			const eng=new ChatEngine({relay:sess.isGroup});eng.init(firebase.firestore());
+			bindEngine(sess,eng);setStatus('connecting','Reconnecting...');
+			if(sess.isHost)eng.createRoom(sess.roomId).catch(e=>toast(e.message));
+			else eng.joinRoom(sess.roomId).catch(e=>toast(e.message));
+			subscribeGroupMeta(sess);
 		}
 		this.closeChatInfo();renderChatList();
 	},
 	ciDelete(){const sess=getActiveSess();if(sess){this.closeChatInfo();deleteSess(sess.id);}},
 	openLightbox(src){el('lbImg').src=src;el('lightbox').classList.add('open');},
 	closeLightbox(){el('lightbox').classList.remove('open');},
+	// expose for old previewBg references
+	previewBg(){this.livePreviewBg();},
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1771,12 +1976,17 @@ window.App={
 (async function init(){
 	injectPanels();
 	try{const mod=await import('https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js');S.cubicGradFn=mod.cubicGradient;}catch{}
-	applyTheme('void', null, false);
+	applyTheme('void',null,false);
 	initFirebase();
 	if(S.wakeLockEnabled)requestWakeLock();
 	try{
 		const saved=await DB.getSessions();
-		for(const sd of saved){const sess=makeSess(sd);S.sessions.set(sess.id,sess);}
+		for(const sd of saved){
+			const sess=makeSess(sd);
+			S.sessions.set(sess.id,sess);
+			// Re-subscribe to group meta for Firebase sessions
+			if(sess.type==='firebase'&&sess.roomId&&S.user)subscribeGroupMeta(sess);
+		}
 		renderChatList();
 	}catch(e){console.warn('[DB] load failed:',e);}
 })();
