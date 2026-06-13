@@ -1,7 +1,8 @@
-/** 
- * app.js — P2P Chat v3.4.2
+/**
+ * app.js — P2P Chat v3.5
  * Multi-chat · Direct Media Capture · Real-time Audio Visualization
- * FIXED: 2-Way Audio Transceivers & Web Audio Context UI Wiping Bug
+ * FIXED: Mobile layout bottom bars, dynamic PWA configurations, Reconnect loops,
+ * and unified WhatsApp-style dynamic call cards with synthetic Audio ringtone generator.
  */
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -22,7 +23,7 @@ import { ChatEngine, DirectEngine } from '../engine.js';
 // 2. CONSTANTS & THEMES
 // ═══════════════════════════════════════════════════════════════════════════
 const CHUNK_SIZE = 32 * 1024;
-const MC = { stream: null, recorder: null, chunks: [], type: null }; // Media Capture State
+const MC = { stream: null, recorder: null, chunks: [], type: null }; 
 
 const THEMES = {
 	void:     {name:'Void',     primary:'#00ffff',secondary:'#3d6eff',accent:'#00ff99',gradEnd:'#002233'},
@@ -34,7 +35,56 @@ const THEMES = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 3. SVG FILE ICONS
+// 3. SYNTHETIC RINGTONE ENGINE
+// ═══════════════════════════════════════════════════════════════════════════
+const CallAudio = {
+	ctx: null,
+	interval: null,
+	startRing() {
+		if (this.interval) return;
+		this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+		const triggerRing = () => {
+			if (!this.ctx) return;
+			// Dual-frequency classic USA/Europe warble ring
+			this.playTone(440, 480, 0.4);
+			setTimeout(() => this.playTone(440, 480, 0.4), 600);
+		};
+		triggerRing();
+		this.interval = setInterval(triggerRing, 3000);
+	},
+	stopRing() {
+		if (this.interval) clearInterval(this.interval);
+		this.interval = null;
+		if (this.ctx) {
+			this.ctx.close().catch(() => {});
+			this.ctx = null;
+		}
+	},
+	playTone(f1, f2, duration) {
+		try {
+			if (!this.ctx || this.ctx.state === 'suspended') return;
+			const osc1 = this.ctx.createOscillator();
+			const osc2 = this.ctx.createOscillator();
+			const gainNode = this.ctx.createGain();
+			
+			osc1.frequency.value = f1;
+			osc2.frequency.value = f2;
+			
+			osc1.connect(gainNode);
+			osc2.connect(gainNode);
+			gainNode.connect(this.ctx.destination);
+			
+			gainNode.gain.setValueAtTime(0.12, this.ctx.currentTime);
+			gainNode.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+			
+			osc1.start(); osc2.start();
+			osc1.stop(this.ctx.currentTime + duration); osc2.stop(this.ctx.currentTime + duration);
+		} catch (e) { console.error('[Tone Synth Failed]', e); }
+	}
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 4. SVG FILE ICONS
 // ═══════════════════════════════════════════════════════════════════════════
 const FICONS = {
 	pdf:     {color:'#ef4444',bg:'rgba(239,68,68,.12)',  svg:'<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/>'},
@@ -48,19 +98,19 @@ const FICONS = {
 	generic: {color:'#64748b',bg:'rgba(100,116,139,.1)', svg:'<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/>'},
 };
 function getFileIcon(mime=''){
-	if(mime.includes('pdf'))                              return FICONS.pdf;
-	if(mime.startsWith('image/'))                         return FICONS.image;
-	if(mime.startsWith('audio/'))                         return FICONS.audio;
-	if(mime.startsWith('video/'))                         return FICONS.video;
-	if(/zip|archive|rar|7z|tar/.test(mime))               return FICONS.archive;
-	if(/spreadsheet|excel|csv/.test(mime))                return FICONS.sheet;
-	if(/presentation|powerpoint/.test(mime))              return FICONS.slides;
+	if(mime.includes('pdf')) return FICONS.pdf;
+	if(mime.startsWith('image/')) return FICONS.image;
+	if(mime.startsWith('audio/')) return FICONS.audio;
+	if(mime.startsWith('video/')) return FICONS.video;
+	if(/zip|archive|rar|7z|tar/.test(mime)) return FICONS.archive;
+	if(/spreadsheet|excel|csv/.test(mime)) return FICONS.sheet;
+	if(/presentation|powerpoint/.test(mime)) return FICONS.slides;
 	if(/javascript|json|html|css|typescript|xml/.test(mime)) return FICONS.code;
 	return FICONS.generic;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 4. GZIP HELPERS
+// 5. GZIP HELPERS
 // ═══════════════════════════════════════════════════════════════════════════
 async function gzip(ab) {
 	const cs = new CompressionStream('gzip');
@@ -86,7 +136,7 @@ async function gunzip(ab) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 5. INDEXEDDB
+// 6. INDEXEDDB
 // ═══════════════════════════════════════════════════════════════════════════
 const DB = {
 	_db:null,
@@ -156,7 +206,7 @@ const DB = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 6. CRYPTO
+// 7. CRYPTO
 // ═══════════════════════════════════════════════════════════════════════════
 const Crypt={
 	key:null,
@@ -194,7 +244,7 @@ const Crypt={
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 7. APP STATE
+// 8. APP STATE
 // ═══════════════════════════════════════════════════════════════════════════
 const S={
 	sessions:new Map(),activeId:null,user:null,
@@ -203,6 +253,7 @@ const S={
 	encEnabled:false,cubicGradFn:null,gradActive:1,
 	callSessId:null,callTimer:null,callStarted:null,filterQ:'',
 	wakeLockEnabled:localStorage.getItem('pec_wakelock')==='true',wakeLockObj:null,
+	activeCallLogId:null, callStartTimeStamp:null
 };
 function makeSess(opts){
 	return{
@@ -225,7 +276,7 @@ function makeSess(opts){
 function uid(){return Math.random().toString(36).slice(2)+Date.now().toString(36);}
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 8. FILE QUEUE
+// 9. FILE QUEUE
 // ═══════════════════════════════════════════════════════════════════════════
 const FQ={
 	items:[],
@@ -261,15 +312,15 @@ function renderFQ(){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 9. FILE PREVIEW SYSTEM
+// 10. FILE PREVIEW SYSTEM
 // ═══════════════════════════════════════════════════════════════════════════
 function previewType(mime,name){
 	mime=mime||'';const ext=((name||'').split('.').pop()||'').toLowerCase();
-	if(mime.startsWith('image/')||/^(jpg|jpeg|png|gif|webp|svg|bmp|ico|avif)$/.test(ext))return'image';
-	if(mime.startsWith('video/')||/^(mp4|webm|ogg|mov|avi|mkv|m4v)$/.test(ext))return'video';
-	if(mime.startsWith('audio/')||/^(mp3|wav|ogg|aac|flac|m4a|opus)$/.test(ext))return'audio';
-	if(mime==='application/pdf'||ext==='pdf')return'pdf';
-	if(mime==='text/html'||/^(html|htm)$/.test(ext))return'html';
+	if(mime.startsWith('image/')) return 'image';
+	if(mime.startsWith('video/')) return 'video';
+	if(mime.startsWith('audio/')) return 'audio';
+	if(mime==='application/pdf'||ext==='pdf') return 'pdf';
+	if(mime==='text/html'||/^(html|htm)$/.test(ext)) return 'html';
 	const CODE=/^(js|ts|jsx|tsx|py|java|c|cpp|h|cs|go|rs|rb|php|json|xml|yaml|yml|sh|bash|css|scss|less|vue|svelte|sql|md|graphql|toml|ini|dockerfile)$/;
 	if(CODE.test(ext))return'code';
 	if(mime.startsWith('text/')||/^(txt|log|csv)$/.test(ext))return'text';
@@ -356,7 +407,7 @@ function getBatchSiblings(sess,batchId,excludeId){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 10. THEME MANAGER
+// 11. THEME MANAGER
 // ═══════════════════════════════════════════════════════════════════════════
 function applyTheme(themeId,sess=null,animate=true){
 	const th=THEMES[themeId]||THEMES.void;
@@ -390,7 +441,7 @@ function computeGrad(endColor, power=2.5, steps=20){
 function rgba(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return`rgba(${r},${g},${b},${a})`;}
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 11. SESSION MANAGEMENT
+// 12. SESSION MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════════════
 function getActiveSess(){return S.sessions.get(S.activeId)||null;}
 
@@ -424,7 +475,7 @@ function setThemeForSess(sessId,themeId){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 12. ENGINE BINDING
+// 13. ENGINE BINDING
 // ═══════════════════════════════════════════════════════════════════════════
 function bindEngine(sess,engine){
 	sess.engine=engine;
@@ -453,7 +504,7 @@ function bindEngine(sess,engine){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 13. MESSAGE PROTOCOL
+// 14. MESSAGE PROTOCOL & LIFECYCLES
 // ═══════════════════════════════════════════════════════════════════════════
 async function handleMsg(sess,data,peerId){
 	if(typeof data==='string'){try{data=JSON.parse(data);}catch{}}
@@ -488,6 +539,7 @@ async function handleMsg(sess,data,peerId){
 			if(sess.call.state!=='idle'){safeSend(sess,{type:'call-reject',reason:'busy'});return;}
 			if(S.callSessId!==null&&S.callSessId!==sess.id){safeSend(sess,{type:'call-reject',reason:'busy'});return;}
 			sess.call.incoming=data;sess.call.state='ringing';S.callSessId=sess.id;
+			initCallLogMessage(sess, data.callType === 'video', true, data.displayName || 'Peer');
 			showIncomingDialog(sess,data);break;
 		case'call-answer':
 			if(sess.call.mediaPc && sess.call.state==='calling'){
@@ -501,6 +553,7 @@ async function handleMsg(sess,data,peerId){
 					}
 					sess.call.iceQueue = [];
 				}
+				// Handled strictly by connectionstatechange, but we preemptively label the call
 				setCallStatusTxt('In call · '+(sess.call.type||''));
 			}break;
 		case'call-ice':
@@ -512,7 +565,6 @@ async function handleMsg(sess,data,peerId){
 				} else {
 					if (!sess.call.iceQueue) sess.call.iceQueue = [];
 					sess.call.iceQueue.push(data.candidate);
-					console.log(`[WebRTC Call] Staged ICE Candidate. Queue length: ${sess.call.iceQueue.length}`);
 				}
 			}
 			break;
@@ -531,9 +583,12 @@ async function handleMsg(sess,data,peerId){
 				catch(e){console.error('[WebRTC Renegotiation Answer Error]',e);}
 			}break;
 		case'call-end':
-			endCallInternal(sess,false);addSysMsg(sess,'Call ended by peer');break;
+			if (sess.call.state === 'ringing') updateCallLogStatus(sess, 'missed');
+			else updateCallLogStatus(sess, 'completed');
+			endCallInternal(sess,false);break;
 		case'call-reject':
-			endCallInternal(sess,false);addSysMsg(sess,'Call declined');break;
+			updateCallLogStatus(sess, data.reason === 'busy' ? 'busy' : 'declined');
+			endCallInternal(sess,false);break;
 		case'display-name':{
 			const old=sess.peers.get(peerId)?.name||'Peer';
 			if(sess.peers.has(peerId))sess.peers.get(peerId).name=data.displayName;
@@ -547,7 +602,7 @@ function peerName(sess,peerId){return sess.peers.get(peerId)?.name||'Peer';}
 function safeSend(sess,data){if(!sess?.engine||!sess.connected)return;try{sess.engine.send(data);}catch(e){console.error('[send]',e);}}
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 14. CHAT RENDERING
+// 15. CHAT RENDERING
 // ═══════════════════════════════════════════════════════════════════════════
 function renderChatList(){
 	const container=el('chatList');if(!container)return;
@@ -625,6 +680,40 @@ async function renderMessages(sess){
 function renderMsgItem(container,m){
 	if(m.type==='system'){const d=document.createElement('div');d.className='sys-msg';d.textContent=m.content;container.appendChild(d);return;}
 	if(m.type==='file'){renderFileBubbleFromMsg(container,m);return;}
+	
+	if (m.type === 'call_log') {
+		const side = m.mine ? 'mine' : 'theirs';
+		const d = document.createElement('div');
+		d.className = `msg ${side}`;
+		d.dataset.msgId = m.id;
+		
+		const icon = m.isVideo ? '📹' : '📞';
+		const title = m.isVideo ? 'Video Call' : 'Voice Call';
+		let metaLabel = '';
+		switch (m.status) {
+			case 'calling': metaLabel = 'Outgoing call...'; break;
+			case 'ringing': metaLabel = 'Incoming call...'; break;
+			case 'declined': metaLabel = 'Call declined'; break;
+			case 'cancelled': metaLabel = 'Call cancelled'; break;
+			case 'missed': metaLabel = 'Missed call'; break;
+			case 'busy': metaLabel = 'User busy'; break;
+			case 'completed': metaLabel = `Answered (${formatCallDuration(m.duration)})`; break;
+		}
+
+		d.innerHTML = `
+			<div class="msg-meta">${escH(m.sender)} · ${fmtTime(m.timestamp)}</div>
+			<div class="message-call-card ${m.status}">
+				<div class="call-icon-frame">${icon}</div>
+				<div class="call-info-details">
+					<div class="call-title-text">${title}</div>
+					<div class="call-meta-text">${metaLabel}</div>
+				</div>
+			</div>
+		`;
+		container.appendChild(d);
+		return;
+	}
+
 	const side=m.mine?'mine':'theirs';
 	const enc=m.enc?'<span class="enc-badge">🔒 enc</span>':'';
 	const d=document.createElement('div');d.className=`msg ${side}`;
@@ -646,8 +735,95 @@ function addSysMsg(sess,text){
 	if(S.activeId===sess.id){const c=el('messages');if(c){renderMsgItem(c,m);c.scrollTop=c.scrollHeight;}}
 }
 
+function formatCallDuration(ms) {
+	if (!ms) return '0s';
+	let secs = Math.floor(ms / 1000);
+	const mins = Math.floor(secs / 60);
+	secs = secs % 60;
+	return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
-// 15. FILE TRANSFER
+// 16. WHATSAPP STYLE CALL LOG PACKAGING
+// ═══════════════════════════════════════════════════════════════════════════
+function initCallLogMessage(sess, isVideo, isIncoming, remoteName) {
+	S.activeCallLogId = 'call_' + Date.now() + '_' + uid();
+	S.callStartTimeStamp = null;
+	
+	const m = {
+		id: S.activeCallLogId,
+		sessionId: sess.id,
+		type: 'call_log',
+		status: isIncoming ? 'ringing' : 'calling',
+		isVideo: isVideo,
+		duration: 0,
+		sender: isIncoming ? remoteName : S.displayName,
+		mine: !isIncoming,
+		timestamp: Date.now(),
+		enc: false
+	};
+	
+	if (isIncoming) {
+		CallAudio.startRing();
+	}
+	
+	sess.messages.push(m);
+	sess.lastMessage = isVideo ? '📹 Video Call' : '📞 Voice Call';
+	sess.lastActivity = m.timestamp;
+	DB.saveMessage(m);
+	DB.updateSession(sess.id, { lastMessage: sess.lastMessage, lastActivity: sess.lastActivity });
+	
+	if (S.activeId === sess.id) {
+		const c = el('messages');
+		if (c) {
+			renderMsgItem(c, m);
+			c.scrollTop = c.scrollHeight;
+		}
+	}
+	renderChatList();
+}
+
+function updateCallLogStatus(sess, newStatus) {
+	if (!S.activeCallLogId) return;
+	const m = sess.messages.find(x => x.id === S.activeCallLogId);
+	if (!m) return;
+	
+	if (newStatus === 'connected') {
+		CallAudio.stopRing();
+		S.callStartTimeStamp = Date.now();
+		m.status = 'completed'; // Prepare for valid completion
+	} else if (['declined', 'cancelled', 'missed', 'busy', 'completed'].includes(newStatus)) {
+		CallAudio.stopRing();
+		if (newStatus === 'completed' && S.callStartTimeStamp) {
+			m.duration = Date.now() - S.callStartTimeStamp;
+			m.status = 'completed';
+		} else {
+			m.status = newStatus;
+		}
+	}
+	
+	DB.saveMessage(m);
+	
+	const existingEl = document.querySelector(`[data-msg-id="${S.activeCallLogId}"]`);
+	if (existingEl && S.activeId === sess.id) {
+		const parent = existingEl.parentNode;
+		if (parent) {
+			const tempDiv = document.createElement('div');
+			renderMsgItem(tempDiv, m);
+			if (tempDiv.firstChild) {
+				parent.replaceChild(tempDiv.firstChild, existingEl);
+			}
+		}
+	}
+	
+	if (['declined', 'cancelled', 'missed', 'busy', 'completed'].includes(newStatus)) {
+		S.activeCallLogId = null;
+		S.callStartTimeStamp = null;
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 17. FILE TRANSFER
 // ═══════════════════════════════════════════════════════════════════════════
 async function sendFile(file,sess,batchId){
 	if(!sess)sess=getActiveSess();
@@ -710,9 +886,6 @@ function addSendingFileBubble(sess,meta,url,xferId,batchId){
 	return msgId;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// 16. FILE TRANSFER QUEUE
-// ═══════════════════════════════════════════════════════════════════════════
 function updateXferProgress(msgId,pct){
 	const d=document.querySelector(`[data-msg-id="${msgId}"]`);if(!d)return;
 	const bar=d.querySelector('.fp-bar-fill');if(bar)bar.style.width=(pct*100).toFixed(0)+'%';
@@ -771,7 +944,7 @@ function renderFileBubbleFromMsg(container,m){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 17. WEBRTC CALLING ENGINE
+// 18. WEBRTC CALLING ENGINE
 // ═══════════════════════════════════════════════════════════════════════════
 async function initiateCall(type){
 	const sess=getActiveSess();
@@ -785,7 +958,9 @@ async function initiateCall(type){
 		const stream=await getStream(type);
 		sess.call.localStream=stream;
 		
-		// CRITICAL FIX: Build overlay FIRST so it doesn't overwrite ontrack event results!
+		const targetName = [...sess.peers.values()].map(p=>p.name).join(', ')||'Peer';
+		initCallLogMessage(sess, type === 'video', false, targetName);
+		
 		showCallOverlay(sess,stream);
 		
 		sess.call.mediaPc=buildMediaPC(sess);
@@ -795,10 +970,10 @@ async function initiateCall(type){
 		safeSend(sess,{type:'call-offer',sdp:offer.sdp,callType:type,displayName:S.displayName});
 		
 		setCallStatusTxt('Ringing…');
-		addSysMsg(sess,`Calling (${type})…`);
 	}catch(e){
 		console.error('[WebRTC Call] Could not initiate calling phase:', e);
 		toast('Could not start call: '+e.message);
+		updateCallLogStatus(sess, 'cancelled');
 		endCallInternal(sess,false);
 	}
 }
@@ -824,14 +999,12 @@ function buildMediaPC(sess){
 		if(existing)remoteStream.removeTrack(existing);
 		
 		remoteStream.addTrack(evt.track);
-		rv.srcObject = remoteStream; // Force pipeline refresh
+		rv.srcObject = remoteStream; 
 		rv.play().catch(e => console.error('[WebRTC Call] Error auto-playing remote stream:', e));
 		
 		if(evt.track.kind==='video'){
 			rv.style.display='block';
 			const ab=el('callAudioBg');if(ab)ab.style.display='none';
-		} else {
-			console.log(`[WebRTC Media] Received remote audio track: ${evt.track.label}`);
 		}
 
 		if (sess.call.state === 'active') {
@@ -853,12 +1026,14 @@ function buildMediaPC(sess){
 		console.log(`[WebRTC Call] Connection state for PC changed: "${s}"`);
 		if(s==='connected'){
 			sess.call.state='active';
+			updateCallLogStatus(sess, 'connected');
 			setCallStatusTxt('In call · '+(sess.call.type||''));
 			startCallTimer();
 			if (sess.call.remoteStream) App.startAudioVisualizer(sess.call.remoteStream);
 		}
 		if(s==='failed'||s==='closed'){
 			console.error(`[WebRTC Call Failed] PC connection closed/errored out with state: ${s}`);
+			updateCallLogStatus(sess, 'completed');
 			endCallInternal(sess,true);
 			toast('Call connection failed');
 		}
@@ -872,16 +1047,13 @@ async function acceptCall(){
 	const data=sess.call.incoming;
 	sess.call.type=data.callType;
 	sess.call.state='connecting';
-	try{
-		const stream=await getStream(data.callType==='screen'?'audio':data.callType);
+	try {
+		const stream = await getStream(data.callType==='screen'?'audio':data.callType);
 		sess.call.localStream=stream;
 		
-		// CRITICAL FIX: Build overlay FIRST so it doesn't overwrite ontrack event results!
 		showCallOverlay(sess,stream);
 		
 		sess.call.mediaPc=buildMediaPC(sess);
-		
-		// CRITICAL FIX: Add tracks before setRemoteDescription to prevent disjointed 1-way sendrecv mappings
 		stream.getTracks().forEach(t=>sess.call.mediaPc.addTrack(t,stream));
 		
 		await sess.call.mediaPc.setRemoteDescription(new RTCSessionDescription({type:'offer',sdp:data.sdp}));
@@ -899,10 +1071,10 @@ async function acceptCall(){
 		safeSend(sess,{type:'call-answer',sdp:answer.sdp});
 		
 		setCallStatusTxt('Connecting…');
-		addSysMsg(sess,`Call started (${data.callType})`);
 	}catch(e){
 		console.error('[WebRTC Call] Accept call sequence failure:', e);
 		toast('Could not accept call: '+e.message);
+		updateCallLogStatus(sess, 'missed');
 		safeSend(sess,{type:'call-reject'});
 		endCallInternal(sess,false);
 	}
@@ -911,14 +1083,27 @@ async function acceptCall(){
 function rejectCall(){
 	closeIncomingDialog();
 	const sess=S.sessions.get(S.callSessId);
-	if(sess){safeSend(sess,{type:'call-reject'});endCallInternal(sess,false);}
+	if(sess){
+		updateCallLogStatus(sess, 'declined');
+		safeSend(sess,{type:'call-reject'});
+		endCallInternal(sess,false);
+	}
 }
 
 function endCallInternal(sess,notify=true){
 	if(!sess)sess=S.sessions.get(S.callSessId);if(!sess)return;
+	
+	if(S.activeCallLogId) {
+		let finalState = 'completed';
+		if(sess.call.state === 'calling') finalState = 'cancelled';
+		else if(sess.call.state === 'ringing') finalState = 'missed';
+		updateCallLogStatus(sess, finalState);
+	}
+
 	if(notify&&sess.connected&&sess.call.state!=='idle')safeSend(sess,{type:'call-end'});
 	
 	App.stopAudioVisualizer();
+	CallAudio.stopRing();
 
 	closeIncomingDialog();hideCallOverlay();stopCallTimer();
 	sess.call.localStream?.getTracks().forEach(t=>t.stop());
@@ -934,7 +1119,6 @@ async function getStream(type){
 		const constraints = type==='video' ? {video:true,audio:true} : {audio:true,video:false};
 		const stream = await navigator.mediaDevices.getUserMedia(constraints);
 		console.log(`[WebRTC Media] Captured ${stream.getTracks().length} local tracks for ${type}.`);
-		stream.getTracks().forEach(t => console.log(`[WebRTC Media] Local Track: ${t.kind} - ${t.label} (enabled: ${t.enabled})`));
 		return stream;
 	} catch (err) {
 		console.error(`[WebRTC Call] navigator.mediaDevices.getUserMedia failed for "${type}":`, err);
@@ -993,75 +1177,81 @@ function toggleCallCam(){
 	const lv=el('callLocalVid');if(lv)lv.classList.toggle('visible',!sess.call.camOff);
 }
 
-function showCallOverlay(sess,localStream){
-	const ov=el('callOverlay');if(!ov)return;
-	const type=sess.call.type;
-	ov.classList.add('active');
-	sess.call.sourceType=type==='screen'?'screen':(type==='video'?'camera':null);
-	const rv=el('callRemoteVid'),ab=el('callAudioBg'),lv=el('callLocalVid');
-	
-	// CRITICAL FIX: Only clear the remote video if it isn't currently playing the stream
-	if(rv && !sess.call.remoteStream){
-		rv.srcObject=null;
-		rv.style.display='none';
-	} else if (rv && sess.call.remoteStream && sess.call.remoteStream.getVideoTracks().length > 0) {
-		rv.style.display='block';
+// ═══════════════════════════════════════════════════════════════════════════
+// 19. AUDIO VISUALIZER
+// ═══════════════════════════════════════════════════════════════════════════
+function startAudioVisualizer(stream) {
+	App.stopAudioVisualizer(); 
+	try {
+		const AudioContext = window.AudioContext || window.webkitAudioContext;
+		if(!AudioContext) return;
+		
+		const ctx = new AudioContext();
+		const analyser = ctx.createAnalyser();
+		analyser.fftSize = 256;
+		
+		const clone = stream.clone();
+		const source = ctx.createMediaStreamSource(clone);
+		source.connect(analyser);
+
+		const callSess = S.sessions.get(S.callSessId);
+		if(!callSess) return;
+		
+		callSess.call.audioCtx = ctx;
+		callSess.call.audioAnalyser = analyser;
+		callSess.call.audioSource = source;
+
+		const dataArray = new Uint8Array(analyser.frequencyBinCount);
+		const rings = document.querySelectorAll('.call-ring');
+		rings.forEach(r => r.classList.add('vol-active'));
+
+		function draw() {
+			if (!callSess || callSess.call.state !== 'active') return;
+			callSess.call.audioDrawTimer = requestAnimationFrame(draw);
+			
+			analyser.getByteFrequencyData(dataArray);
+			let sum = 0;
+			for (let i = 0; i < dataArray.length; i++) {
+				sum += dataArray[i];
+			}
+			const avg = sum / dataArray.length; 
+			
+			const intensity = avg / 60; 
+			const scale1 = 1 + (intensity * 0.15); 
+			const scale2 = 1 + (intensity * 0.4);  
+			const scale3 = 1 + (intensity * 0.8);  
+
+			if (rings[0]) rings[0].style.transform = `scale(${Math.min(scale1, 1.5)})`;
+			if (rings[1]) rings[1].style.transform = `scale(${Math.min(scale2, 2.2)})`;
+			if (rings[2]) rings[2].style.transform = `scale(${Math.min(scale3, 3.2)})`;
+		}
+		draw();
+	} catch (e) {
+		console.warn('[WebRTC Media] Audio visualizer could not start:', e);
+	}
+}
+
+function stopAudioVisualizer() {
+	const callSess = S.sessions.get(S.callSessId);
+	if(callSess) {
+		if (callSess.call.audioDrawTimer) cancelAnimationFrame(callSess.call.audioDrawTimer);
+		if (callSess.call.audioSource) callSess.call.audioSource.disconnect();
+		if (callSess.call.audioCtx && callSess.call.audioCtx.state !== 'closed') callSess.call.audioCtx.close().catch(e=>e);
+		callSess.call.audioCtx = null; 
+		callSess.call.audioAnalyser = null; 
+		callSess.call.audioSource = null; 
+		callSess.call.audioDrawTimer = null;
 	}
 
-	if(ab){
-		const names=[...sess.peers.values()].map(p=>p.name).join(', ')||'Peer';
-		ab.style.display='flex';
-		const ini=el('callAudioInitial');
-		if(ini){
-			if(sess.type === 'direct' && sess.peerAvatar) {
-				ini.innerHTML = `<img src="${escH(sess.peerAvatar)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none'">`;
-			} else {
-				ini.textContent=(names[0]||'P').toUpperCase();
-			}
-		}
-		const pn=el('callAudioName');if(pn)pn.textContent=names;
-	}
-	if(lv){
-		if(localStream&&(type==='video'||type==='screen')){lv.srcObject=localStream;lv.classList.add('visible');}
-		else lv.classList.remove('visible');
-	}
-	const badge=el('callBadge');
-	if(badge)badge.textContent=type==='audio'?'🎤 Voice Call':type==='video'?'📹 Video Call':'🖥 Screen Share';
-	const camBtn=el('callCamBtn');if(camBtn)camBtn.classList.toggle('hidden',type==='audio');
-	const srcBtn=el('callSrcBtn');
-	if(srcBtn){
-		srcBtn.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0H3"/></svg>`;
-		srcBtn.title='Share Screen';srcBtn.classList.remove('active');
-	}
-	el('callTimer').textContent='00:00';
+	const rings = document.querySelectorAll('.call-ring');
+	rings.forEach(r => {
+		r.classList.remove('vol-active');
+		r.style.transform = '';
+	});
 }
-function hideCallOverlay(){
-	const ov=el('callOverlay');if(ov)ov.classList.remove('active');
-	const rv=el('callRemoteVid');if(rv){rv.srcObject=null;rv.style.display='none';}
-	const lv=el('callLocalVid');if(lv){lv.srcObject=null;lv.classList.remove('visible');}
-}
-function showIncomingDialog(sess,data){
-	const d=el('incomingDialog');if(!d)return;
-	const icons={audio:'📞',video:'📹',screen:'🖥️'};
-	el('incomingIcon').textContent=icons[data.callType]||'📞';
-	el('incomingCallerName').textContent=data.displayName||'Peer';
-	el('incomingCallType').textContent=(data.callType||'voice')+' call';
-	d.classList.add('active');
-}
-function closeIncomingDialog(){el('incomingDialog')?.classList.remove('active');}
-function setCallStatusTxt(txt){const e=el('callAudioStatus');if(e)e.textContent=txt;}
-function startCallTimer(){
-	stopCallTimer();
-	S.callStarted=Date.now();
-	S.callTimer=setInterval(()=>{
-		const s=Math.floor((Date.now()-S.callStarted)/1000);
-		const t=el('callTimer');if(t)t.textContent=`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
-	},1000);
-}
-function stopCallTimer(){if(S.callTimer){clearInterval(S.callTimer);S.callTimer=null;}S.callStarted=null;const t=el('callTimer');if(t)t.textContent='00:00';}
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 18. INJECTED PANELS
+// 20. INJECTED PANELS
 // ═══════════════════════════════════════════════════════════════════════════
 function injectPanels(){
 	const css=document.createElement('style');
@@ -1158,7 +1348,7 @@ function injectPanels(){
 		</div>
 		<div class="panel-section"><div class="panel-section-lbl">Sign In (for Firebase rooms)</div><div id="spAuthArea"></div></div>
 		<div class="panel-section"><div class="panel-section-lbl">About</div>
-			<div style="font-size:.78rem;color:rgba(232,237,248,.4);line-height:1.7">P2P Chat v3.4.2 · ProElectricCoder<br>WebRTC + Firebase signaling<br>
+			<div style="font-size:.78rem;color:rgba(232,237,248,.4);line-height:1.7">P2P Chat v3.5.1 · ProElectricCoder<br>WebRTC + Firebase signaling<br>
 				<a href="/Projects/Chat/" target="_blank" style="color:var(--tp);text-decoration:none">Documentation →</a>
 			</div>
 		</div>
@@ -1288,7 +1478,7 @@ function injectPanels(){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 19. PANEL LOGIC & CONFIG
+// 21. PANEL LOGIC & CONFIG
 // ═══════════════════════════════════════════════════════════════════════════
 function openSettings(){
 	const o=el('settingsOverlay');if(!o)return;
@@ -1397,7 +1587,7 @@ function openChatInfo(){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 20. FIREBASE AUTH
+// 22. FIREBASE AUTH
 // ═══════════════════════════════════════════════════════════════════════════
 function initFirebase(){
 	firebase.auth().onAuthStateChanged(user=>{
@@ -1411,7 +1601,7 @@ function initFirebase(){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 21. UTILITIES
+// 23. UTILITIES
 // ═══════════════════════════════════════════════════════════════════════════
 function el(id){return document.getElementById(id);}
 function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -1439,7 +1629,7 @@ document.addEventListener('visibilitychange',()=>{
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 22. window.App
+// 24. window.App
 // ═══════════════════════════════════════════════════════════════════════════
 window.App={
 	openSidebar(){openSidebarUI();},
@@ -1634,12 +1824,11 @@ window.App={
 	startCall(type){initiateCall(type);},
 	callAccept(){acceptCall();},
 	callDecline(){rejectCall();},
-	callEnd(){const s=S.sessions.get(S.callSessId);endCallInternal(s,true);if(s)addSysMsg(s,'Call ended');},
+	callEnd(){const s=S.sessions.get(S.callSessId);endCallInternal(s,true);},
 	callToggleMute(){toggleCallMute();},
 	callToggleCam(){toggleCallCam();},
 	callToggleSource(){callToggleSource();},
 	
-	// Start Audio Visualizer
 	startAudioVisualizer(stream) {
 		this.stopAudioVisualizer(); 
 		try {
@@ -1650,7 +1839,6 @@ window.App={
 			const analyser = ctx.createAnalyser();
 			analyser.fftSize = 256;
 			
-			// Clone the stream to prevent Web Audio API from hijacking/muting the HTMLVideoElement audio
 			const clone = stream.clone();
 			const source = ctx.createMediaStreamSource(clone);
 			source.connect(analyser);
@@ -1692,7 +1880,6 @@ window.App={
 		}
 	},
 	
-	// Stop Audio Visualizer
 	stopAudioVisualizer() {
 		const callSess = S.sessions.get(S.callSessId);
 		if(callSess) {
@@ -1766,7 +1953,7 @@ window.App={
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 23. INIT
+// 25. INIT
 // ═══════════════════════════════════════════════════════════════════════════
 (async function init(){
 	injectPanels();
