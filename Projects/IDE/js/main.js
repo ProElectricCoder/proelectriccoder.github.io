@@ -7,29 +7,29 @@
 import { S }                                                        from './state.js';
 import { customAlert, customConfirm }                               from './dialogs.js';
 import { initCodeMirror, switchFile, syncDocsToContent,
-         renderEditorTabs, closeEditorTab, formatCurrentFile,
-         clearModifiedFlags }                                       from './editor.js';
+  renderEditorTabs, closeEditorTab, formatCurrentFile,
+  clearModifiedFlags }                                       from './editor.js';
 import { initAutoSave, saveProject, createNewFile, createNewFolder,
-         renameFile, deleteFile, renameFolder, deleteFolder,
-         processUpload, processFolderUpload,
-         handleDroppedFiles }                                       from './fs.js';
+  renameFile, deleteFile, renameFolder, deleteFolder,
+  processUpload, processFolderUpload,
+  handleDroppedFiles }                                       from './fs.js';
 import { runCode, runWeb, setExecLoading, logToConsole,
-         createTab, closePreviewTab, setPresetSize, updateZoom,
-         resolveVirtualPath, openPreviewInNewTab }                  from './preview.js';
+  createTab, closePreviewTab, setPresetSize, updateZoom,
+  resolveVirtualPath, openPreviewInNewTab }                  from './preview.js';
 import { renderSidebar, openAddMenu, closeAddMenu, uploadToCurrentFolder,
-         initDragDrop, initConsoleInput, toggleFullscreen,
-         initResizers, initAIResizer,
-         toggleAI, callGemini, checkApiKey, saveApiKey }            from './ui.js';
+  initDragDrop, initConsoleInput, toggleFullscreen,
+  initResizers, initAIResizer,
+  toggleAI, callGemini, checkApiKey, saveApiKey }            from './ui.js';
 import { confirmGithubAuth, openGithubAuth, fetchWithProgress,
-         handleGithubImport, openGithubCommitModal,
-         closeCommitModal, executeGithubCommit }                    from './github.js';
+  handleGithubImport, openGithubCommitModal,
+  closeCommitModal, executeGithubCommit }                    from './github.js';
 import { shareProject }                                             from './share.js';
 import { loadCryptoLib, openCryptoModalAsync, closeCryptoModal,
-         executeCrypto }                                            from './crypto.js';
+  executeCrypto }                                            from './crypto.js';
 import { getFileParam, getActionParam,
-         getSafePreviewParams, consumeActionParam }                  from './routing.js';
+  getSafePreviewParams, consumeActionParam }                  from './routing.js';
 import { toggleSearch, findNext, findPrev,
-         replaceOne, replaceAll }                                    from './search.js';
+  replaceOne, replaceAll }                                    from './search.js';
 import defaultTour                                                  from './tour.js';
 
 // ─── Wire cross-module callbacks (breaks circular deps) ───────────────────────
@@ -189,6 +189,16 @@ window.addEventListener('load', async () => {
 
   // 12. Expose globals
   _exposeGlobals();
+
+  // 13. File Handling API setup
+  if ('launchQueue' in window) {
+    window.launchQueue.setConsumer(async (launchParams) => {
+      const { processFileHandleLoad } = await import('./fs.js');
+      if (launchParams.files && launchParams.files.length) {
+        await processFileHandleLoad(launchParams.files);
+      }
+    });
+  }
 });
 
 // ─── Global exposure for HTML onclick handlers ────────────────────────────────

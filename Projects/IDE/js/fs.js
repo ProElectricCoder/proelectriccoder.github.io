@@ -124,12 +124,83 @@ export async function saveToZip() {
   saveAs(content, 'project.zip');
 }
 
+export async function isBinaryFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const arr = new Uint8Array(e.target.result);
+      for (let i = 0; i < arr.length; i++) {
+        if (arr[i] === 0) { // null byte
+          resolve(true);
+          return;
+        }
+      }
+      resolve(false);
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file.slice(0, 8192));
+  });
+}
+
+export async function processFileHandleLoad(handles) {
+  let lastFile = null;
+  for (const handle of handles) {
+    try {
+      const file = await handle.getFile();
+      const name = 'DeepBlue/' + file.name;
+      const ext = name.split('.').pop().toLowerCase();
+
+      const isBinary = await isBinaryFile(file);
+      const isSVG = ext === 'svg';
+
+      const reader = new FileReader();
+      if (!isBinary || isSVG) {
+        const content = await file.text();
+        if (isSVG) {
+          S.fileSystem[name] = { type: 'asset', subtype: 'svg', content, modified: true };
+        } else {
+          let type = 'text';
+          if (ext === 'html') type = 'html';
+          else if (ext === 'css') type = 'css';
+          else if (['js','jsx'].includes(ext)) type = 'js';
+          S.fileSystem[name] = { type, content, modified: true };
+        }
+      } else {
+        const content = await new Promise((r, reject) => {
+          const req = new FileReader();
+          req.onload = e => r(e.target.result);
+          req.onerror = reject;
+          req.readAsDataURL(file);
+        });
+        if (ext === 'enc') {
+          S.fileSystem[name] = { type: 'enc', content: content.split(',')[1], modified: true, strategy: 'double_pass', originalExt: '.txt' };
+        } else {
+          let subtype = 'image';
+          if (['mp3','wav','ogg'].includes(ext)) subtype = 'audio';
+          else if (['mp4','webm'].includes(ext)) subtype = 'video';
+          else if (ext === 'pdf') subtype = 'pdf';
+          S.fileSystem[name] = { type: 'asset', subtype, src: content, content: null, modified: true };
+        }
+      }
+      lastFile = name;
+    } catch(e) {
+      console.error(e);
+    }
+  }
+  if (lastFile) {
+    if (!S.explicitFolders.includes('DeepBlue')) S.explicitFolders.push('DeepBlue');
+    S._callbacks.renderSidebar?.();
+    S.unsavedChanges = true;
+    await switchFile(lastFile);
+  }
+}
+
 // ─── File / folder CRUD ───────────────────────────────────────────────────────
 export async function createNewFile() {
   const defaultPath = S.targetFolderForAdd ? S.targetFolderForAdd + '/' : '';
   const name = await customPrompt(
-    'Enter file path (e.g. src/script.js, style.css):',
-    defaultPath, 'New File', Object.keys(S.fileSystem)
+      'Enter file path (e.g. src/script.js, style.css):',
+      defaultPath, 'New File', Object.keys(S.fileSystem)
   );
   if (!name) return;
   if (S.fileSystem[name]) { await customAlert('File name exists!', 'Error'); return; }
@@ -237,7 +308,7 @@ export async function renameFolder(oldPath) {
   if (S.explicitFolders.includes(newPath)) { await customAlert('Folder already exists!', 'Error'); return; }
 
   S.explicitFolders = S.explicitFolders.map(f =>
-    f === oldPath ? newPath : f.startsWith(oldPath + '/') ? newPath + f.slice(oldPath.length) : f
+      f === oldPath ? newPath : f.startsWith(oldPath + '/') ? newPath + f.slice(oldPath.length) : f
   );
 
   for (const p of Object.keys(S.fileSystem)) {
@@ -316,18 +387,17 @@ export async function processUpload(event) {
   if (S.fileSystem[name]) { if (!await customConfirm(`Overwrite '${name}'?`, 'File Exists')) { event.target.value = ''; return; } }
 
   const ext      = name.split('.').pop().toLowerCase();
-  const textExts = ['html','css','js','jsx','json','md','txt','py','csv','xml','ini','env','sh','bat','yaml','yml','ts','tsx'];
-  const isText   = textExts.includes(ext);
+  const isBinary = await isBinaryFile(file);
   const isSVG    = ext === 'svg';
 
   const reader = new FileReader();
-  if (isText || isSVG) reader.readAsText(file); else reader.readAsDataURL(file);
+  if (!isBinary || isSVG) reader.readAsText(file); else reader.readAsDataURL(file);
 
   reader.onload = async e => {
     const content = e.target.result;
     if (isSVG) {
       S.fileSystem[name] = { type: 'asset', subtype: 'svg', content, modified: true };
-    } else if (isText) {
+    } else if (!isBinary) {
       let type = 'text';
       if (ext === 'html') type = 'html';
       else if (ext === 'css') type = 'css';
@@ -355,7 +425,7 @@ export async function processFolderUpload(event) {
   if (!files.length) return;
 
   const uploadedFolders = new Set();
-  const promises = files.map(file => new Promise(resolve => {
+  const promises = files.map(file => new Promise(async resolve => {
     const original = file.webkitRelativePath || file.name;
     const path     = S.targetFolderForAdd ? `${S.targetFolderForAdd}/${original}` : original;
     const parts    = path.split('/');
@@ -364,15 +434,15 @@ export async function processFolderUpload(event) {
     for (const p of parts) { cur = cur ? `${cur}/${p}` : p; uploadedFolders.add(cur); }
 
     const ext      = path.split('.').pop().toLowerCase();
-    const textExts = ['html','css','js','jsx','json','md','txt','py','csv','xml','ts','tsx','yaml','yml'];
-    const isText   = textExts.includes(ext);
+    const isBinary = await isBinaryFile(file);
     const isSVG    = ext === 'svg';
+
     const reader   = new FileReader();
-    if (isText || isSVG) reader.readAsText(file); else reader.readAsDataURL(file);
+    if (!isBinary || isSVG) reader.readAsText(file); else reader.readAsDataURL(file);
     reader.onload = e => {
       const content = e.target.result;
       if (isSVG) { S.fileSystem[path] = { type: 'asset', subtype: 'svg', content, modified: true }; }
-      else if (isText) {
+      else if (!isBinary) {
         let type = 'text';
         if (ext === 'html') type = 'html';
         else if (ext === 'css') type = 'css';
@@ -400,25 +470,19 @@ export async function handleDroppedFiles(files) {
   for (const file of Array.from(files)) {
     const name = file.name;
     if (S.fileSystem[name] && !await customConfirm(`Overwrite ${name}?`, 'File Exists')) continue;
+
+    const isBinary = await isBinaryFile(file);
+    const ext = name.split('.').pop().toLowerCase();
+    const isSVG = ext === 'svg';
+
     const reader = new FileReader();
-    const ext    = name.split('.').pop().toLowerCase();
-    if (/\.(png|jpe?g|gif|webp|pdf|mp3|wav|ogg|mp4|webm)$/i.test(name)) {
+    if (!isBinary || isSVG) {
       reader.onload = async e => {
-        let subtype = 'image';
-        if (/\.(mp3|wav|ogg)$/i.test(name)) subtype = 'audio';
-        else if (/\.(mp4|webm)$/i.test(name)) subtype = 'video';
-        else if (/\.pdf$/i.test(name)) subtype = 'pdf';
-        S.fileSystem[name] = { type: 'asset', subtype, src: e.target.result, content: null, modified: true };
-        S._callbacks.renderSidebar?.(); S.unsavedChanges = true;
-      };
-      reader.readAsDataURL(file);
-    } else {
-      reader.onload = async e => {
-        if (/\.svg$/i.test(name)) S.fileSystem[name] = { type: 'asset', subtype: 'svg', content: e.target.result, modified: true };
+        if (isSVG) S.fileSystem[name] = { type: 'asset', subtype: 'svg', content: e.target.result, modified: true };
         else {
           let type = 'html';
-          if (/\.js$/i.test(name) || /\.jsx$/i.test(name)) type = 'js';
-          else if (/\.css$/i.test(name)) type = 'css';
+          if (['js', 'jsx'].includes(ext)) type = 'js';
+          else if (ext === 'css') type = 'css';
           else type = 'text';
           S.fileSystem[name] = { type, content: e.target.result, modified: true };
         }
@@ -426,6 +490,23 @@ export async function handleDroppedFiles(files) {
         await switchFile(name);
       };
       reader.readAsText(file);
+    } else {
+      reader.onload = async e => {
+        let subtype = 'image';
+        if (['mp3','wav','ogg'].includes(ext)) subtype = 'audio';
+        else if (['mp4','webm'].includes(ext)) subtype = 'video';
+        else if (ext === 'pdf') subtype = 'pdf';
+        else if (ext === 'enc') {
+          S.fileSystem[name] = { type: 'enc', content: e.target.result.split(',')[1], modified: true, strategy: 'double_pass', originalExt: '.txt' };
+          S._callbacks.renderSidebar?.(); S.unsavedChanges = true;
+          await switchFile(name);
+          return;
+        }
+        S.fileSystem[name] = { type: 'asset', subtype, src: e.target.result, content: null, modified: true };
+        S._callbacks.renderSidebar?.(); S.unsavedChanges = true;
+        await switchFile(name);
+      };
+      reader.readAsDataURL(file);
     }
   }
 }

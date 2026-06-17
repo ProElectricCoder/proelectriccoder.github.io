@@ -24,12 +24,36 @@
     {
       "name": "New Project",
       "url": "./?action=new",
-      "description": "Open the editor with a new workspace"
+      "description": "Open the editor with a new workspace",
+      "icons": [
+        {
+          "src": "/icons/plus.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
     },
     {
       "name": "Connect GitHub",
       "url": "./?action=github",
-      "description": "Link your GitHub account"
+      "description": "Link your GitHub account",
+      "icons": [
+        {
+          "src": "/icons/github.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "./",
+      "accept": {
+        "text/plain": [".txt", ".js", ".ts", ".html", ".css", ".py", ".json", ".md"],
+        "application/octet-stream": [".enc"],
+        "application/vnd.deepblue.sep": [".sep"]
+      }
     }
   ],
   "screenshots": [
