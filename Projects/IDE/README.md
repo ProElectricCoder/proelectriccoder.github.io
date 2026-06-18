@@ -18,7 +18,7 @@ Write .jsx files without setting up Webpack or Vite. Deep Blue uses an on-the-fl
 
 ### Advanced Code Editor
 
-* Powered by Ace Editor, featuring:
+* Powered by CodeMirror Editor, featuring:
 
 * Syntax highlighting for HTML, CSS, JS, JSX, JSON, and Markdown.
 
