@@ -1,6 +1,11 @@
 /**
  * preview.js — Preview execution system: runWeb, runPython, tab manager,
  *              blob-URL dependency resolver, and open-in-new-tab (Task 3).
+ *
+ * Console panel lives UNDER the preview panel only (#web-console) and is
+ * split into tabs: a permanent "System" tab (IDE-internal console mirror)
+ * plus one dynamic tab per open preview tab, synced to the preview tab
+ * lifecycle (created/activated/closed alongside the matching preview tab).
  */
 
 import { S } from './state.js';
@@ -46,7 +51,7 @@ export function resolveVirtualPath(baseFile, relativePath) {
   return resolved;
 }
 
-// ─── Tab management ───────────────────────────────────────────────────────────
+// ─── Tab management (preview) ─────────────────────────────────────────────────
 export function setTabsEmptyState(isEmpty) {
   const controls = document.getElementById('device-controls');
   const tabsCtr  = document.getElementById('preview-tabs');
@@ -83,6 +88,9 @@ export function createTab(id, type) {
     contentEl.innerHTML = `<div class="iframe-wrapper"><iframe id="iframe-${id}" class="responsive"></iframe></div>`;
   }
   contentArea?.appendChild(contentEl);
+
+  // ── Console tab lifecycle: mirror the preview tab 1:1 ──────────────────────
+  createConsoleTab(id);
   activateTab(id);
 
   if (type === 'web') {
@@ -100,6 +108,7 @@ export function activateTab(id) {
   document.getElementById(`tab-header-${id}`)?.classList.add('active');
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById(`tab-content-${id}`)?.classList.add('active');
+  activateConsoleTab(id);
 }
 
 export function closePreviewTab(id) {
@@ -107,10 +116,183 @@ export function closePreviewTab(id) {
   if (idx > -1) S.openTabs.splice(idx, 1);
   document.getElementById(`tab-header-${id}`)?.remove();
   document.getElementById(`tab-content-${id}`)?.remove();
+  closeConsoleTab(id);
   if (S.activeTabId === id) {
     if (S.openTabs.length) { const nid = S.openTabs[idx - 1] || S.openTabs[0]; activateTab(nid); }
-    else { S.activeTabId = null; document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); setTabsEmptyState(true); }
+    else {
+      S.activeTabId = null;
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      setTabsEmptyState(true);
+      activateConsoleTab('system');
+    }
   }
+}
+
+// ─── Console panel (tabs: System + one per open preview tab) ─────────────────
+function _findConsoleTab(id) {
+  return document.querySelector(`#console-tabs .console-tab[data-console-tab="${id}"]`);
+}
+function _findConsolePanel(id) {
+  return document.querySelector(`#console-panels .console-panel[data-console-tab="${id}"]`);
+}
+
+export function createConsoleTab(id) {
+  const tabsCtr   = document.getElementById('console-tabs');
+  const panelsCtr = document.getElementById('console-panels');
+  if (!tabsCtr || !panelsCtr || _findConsoleTab(id)) return;
+
+  const label = id.split('/').pop();
+  const tabEl = document.createElement('div');
+  tabEl.className = 'console-tab';
+  tabEl.dataset.consoleTab = id;
+  tabEl.innerHTML = `<span class="console-tab-title" title="${id}">&lrm;${label}</span><span class="console-tab-close" title="Close">✕</span>`;
+  tabEl.querySelector('.console-tab-close').onclick = e => { e.stopPropagation(); closePreviewTab(id); };
+  tabEl.onclick = () => activateTab(id);
+  tabsCtr.appendChild(tabEl);
+
+  const panelEl = document.createElement('div');
+  panelEl.className = 'console-panel';
+  panelEl.dataset.consoleTab = id;
+  panelEl.innerHTML = '<div class="console-log-container"></div>';
+  panelsCtr.appendChild(panelEl);
+}
+
+export function activateConsoleTab(id) {
+  S.activeConsoleTab = id;
+  document.querySelectorAll('#console-tabs .console-tab')
+    .forEach(t => t.classList.toggle('active', t.dataset.consoleTab === id));
+  document.querySelectorAll('#console-panels .console-panel')
+    .forEach(p => p.classList.toggle('active', p.dataset.consoleTab === id));
+}
+
+export function closeConsoleTab(id) {
+  if (id === 'system') return; // permanent tab, never closed
+  _findConsoleTab(id)?.remove();
+  _findConsolePanel(id)?.remove();
+  if (S.activeConsoleTab === id) activateConsoleTab('system');
+}
+
+// ─── Console logging ──────────────────────────────────────────────────────────
+export function logToConsole(level, msg, tabId = 'system') {
+  const panel = _findConsolePanel(tabId) || _findConsolePanel('system');
+  const container = panel?.querySelector('.console-log-container');
+  if (!container) return;
+  const e = document.createElement('div');
+  e.className = `console-entry ${level}`;
+  e.innerText = msg;
+  container.appendChild(e);
+  container.scrollTop = container.scrollHeight;
+}
+
+/** Renders a console.table()-style grid into the given console tab. */
+export function logTableToConsole(data, columns, tabId = 'system') {
+  const panel = _findConsolePanel(tabId) || _findConsolePanel('system');
+  const container = panel?.querySelector('.console-log-container');
+  if (!container) return;
+  const entry = document.createElement('div');
+  entry.className = 'console-entry table';
+  entry.appendChild(_buildTableElement(data, columns));
+  container.appendChild(entry);
+  container.scrollTop = container.scrollHeight;
+}
+
+function _buildTableElement(data, columns) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'console-table-wrapper';
+
+  if (data === null || typeof data !== 'object') {
+    wrapper.innerText = String(data);
+    return wrapper;
+  }
+
+  const rows = Array.isArray(data)
+    ? data.map((v, i) => ({ idx: String(i), value: v }))
+    : Object.entries(data).map(([k, v]) => ({ idx: k, value: v }));
+
+  let cols = columns;
+  if (!cols) {
+    const colSet = new Set();
+    rows.forEach(r => {
+      if (r.value && typeof r.value === 'object' && !Array.isArray(r.value)) {
+        Object.keys(r.value).forEach(k => colSet.add(k));
+      } else {
+        colSet.add('Values');
+      }
+    });
+    cols = Array.from(colSet);
+  }
+
+  const table = document.createElement('table');
+  table.className = 'console-table';
+
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  headRow.appendChild(_th('(index)'));
+  cols.forEach(c => headRow.appendChild(_th(c)));
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.appendChild(_td(r.idx));
+    cols.forEach(c => {
+      let cell = '';
+      if (r.value && typeof r.value === 'object' && !Array.isArray(r.value)) {
+        if (c in r.value) cell = _cellFmt(r.value[c]);
+      } else if (c === 'Values') {
+        cell = _cellFmt(r.value);
+      }
+      tr.appendChild(_td(cell));
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrapper.appendChild(table);
+  return wrapper;
+}
+function _th(text) { const th = document.createElement('th'); th.innerText = text; return th; }
+function _td(text) { const td = document.createElement('td'); td.innerText = text; return td; }
+function _cellFmt(v) {
+  if (v === null) return 'null';
+  if (v === undefined) return '';
+  if (typeof v === 'object') { try { return JSON.stringify(v); } catch { return String(v); } }
+  return String(v);
+}
+
+/**
+ * Mirrors the top-level (IDE's own) console.* calls into the System console
+ * tab, so the System tab "works on the IDE itself" — any internal log,
+ * warning, error, or console.table() call made by DeepBlue's own code (or
+ * typed into the System console input) shows up here, in addition to
+ * whatever the real browser DevTools console shows.
+ */
+export function installSystemConsoleBridge() {
+  const fmt = x => {
+    if (typeof x === 'object' && x !== null) { try { return JSON.stringify(x, null, 2); } catch { return String(x); } }
+    return String(x);
+  };
+
+  ['log', 'warn', 'error', 'info', 'debug'].forEach(level => {
+    const orig = console[level];
+    console[level] = function (...args) {
+      orig.apply(console, args);
+      try { logToConsole(level, args.map(fmt).join(' '), 'system'); } catch {}
+    };
+  });
+
+  const origTable = console.table;
+  console.table = function (data, columns) {
+    if (origTable) { try { origTable.call(console, data, columns); } catch {} }
+    try { logTableToConsole(data, columns, 'system'); } catch {}
+  };
+
+  window.addEventListener('error', e => {
+    logToConsole('error', `IDE Error: ${e.message} (${e.filename}:${e.lineno})`, 'system');
+  });
+  window.addEventListener('unhandledrejection', e => {
+    logToConsole('error', `IDE Unhandled Promise: ${e.reason}`, 'system');
+  });
 }
 
 // ─── Execution loading indicator ──────────────────────────────────────────────
@@ -226,8 +408,12 @@ export async function runWeb(overrideFile = null, queryParams = '') {
 
     const tabId = isVirtualJSX ? S.activeFile : targetFile;
     createTab(tabId, 'web');
-    const logEl = document.getElementById('console-log-container');
-    if (logEl) logEl.innerHTML = '<div style="opacity:.5;font-size:.7rem;margin-bottom:5px">--- Run Started ---</div>';
+
+    // Clear & mark this tab's console panel for the new run
+    const runPanel = _findConsolePanel(tabId);
+    const runLogEl = runPanel?.querySelector('.console-log-container');
+    if (runLogEl) runLogEl.innerHTML = '';
+    logToConsole('marker', '--- Run Started ---', tabId);
 
     if (!isVirtualJSX) {
       htmlContent = S.fileSystem[targetFile].content;
@@ -288,8 +474,10 @@ export async function runWeb(overrideFile = null, queryParams = '') {
 
     for (const fname of Object.keys(S.fileSystem)) { if (!isVirtualJSX && fname === targetFile) continue; getUrl(fname); }
 
-    // Interceptor scripts
-    const consoleScript = `<script>(function(){function s(t,a){var m=a.map(x=>{if(typeof x==='object'){try{return JSON.stringify(x);}catch{return String(x);}}return String(x);}).join(' ');window.parent.postMessage({type:'console',level:t,msg:m},'*');}['log','warn','error','info'].forEach(m=>{var o=console[m];console[m]=(...a)=>{o.apply(console,a);s(m,a);};});window.onerror=function(m,u,l){s('error',['Runtime Error: '+m+' (Line '+l+')']);};window.addEventListener('unhandledrejection',function(e){s('error',['Unhandled Promise: '+(e.reason?e.reason.toString():'Unknown')]);});})();<\/script>`;
+    // Interceptor scripts — tag every console/table message with this preview
+    // tab's id so logs route to the matching console tab, not just "system".
+    const tabIdJSON = JSON.stringify(tabId);
+    const consoleScript = `<script>(function(){function fmt(x){if(typeof x==='object'&&x!==null){try{return JSON.stringify(x,null,2);}catch(e){return String(x);}}return String(x);}function s(t,a){var m=a.map(fmt).join(' ');window.parent.postMessage({type:'console',level:t,msg:m,tabId:${tabIdJSON}},'*');}['log','warn','error','info','debug'].forEach(m=>{var o=console[m];console[m]=(...a)=>{if(o)o.apply(console,a);s(m,a);};});var ot=console.table;console.table=function(data,cols){if(ot){try{ot.call(console,data,cols);}catch(e){}}window.parent.postMessage({type:'console-table',data:data,columns:cols||null,tabId:${tabIdJSON}},'*');};window.onerror=function(m,u,l){s('error',['Runtime Error: '+m+' (Line '+l+')']);};window.addEventListener('unhandledrejection',function(e){s('error',['Unhandled Promise: '+(e.reason?e.reason.toString():'Unknown')]);});})();<\/script>`;
     const navScript     = `<script>(function(){document.addEventListener('click',function(e){const a=e.target.closest('a');if(a){const h=a.getAttribute('href');if(h&&!h.startsWith('http')&&!h.startsWith('data:')&&!h.startsWith('blob:')&&!h.startsWith('#')){e.preventDefault();window.parent.postMessage({type:'navigate',path:h},'*');}}});document.addEventListener('submit',function(e){const f=e.target;const ac=f.getAttribute('action')||'';if(!ac.startsWith('http')&&!ac.startsWith('data:')&&!ac.startsWith('blob:')){e.preventDefault();const fd=new FormData(f);const p=new URLSearchParams(fd).toString();window.parent.postMessage({type:'navigate',path:ac+(p?'?'+p:'')},'*');}});})();<\/script>`;
     const qpPolyfill    = queryParams ? `<script>(function(){var _s="${queryParams}";if(_s){var _O=window.URLSearchParams;window.URLSearchParams=class extends _O{constructor(i){super(i===undefined||i===null||i===window.location.search?_s:i);}};}})(window._mock_search="${queryParams}");<\/script>` : '';
 
@@ -468,17 +656,6 @@ export async function renderAssetPreview(filename) {
 
   if (asset.subtype === 'svg') iframe.src = URL.createObjectURL(new Blob([asset.content], { type: 'image/svg+xml' }));
   else iframe.src = asset.src;
-}
-
-// ─── Console logging ──────────────────────────────────────────────────────────
-export function logToConsole(level, msg) {
-  const el = document.getElementById('console-log-container');
-  if (!el) return;
-  const e = document.createElement('div');
-  e.className = `console-entry ${level}`;
-  e.innerText = msg;
-  el.appendChild(e);
-  el.scrollTop = el.scrollHeight;
 }
 
 // ─── Private helpers ──────────────────────────────────────────────────────────

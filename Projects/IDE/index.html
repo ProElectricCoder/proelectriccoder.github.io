@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<!-- DeepBlue IDE - ProElectricCoder -->
+	<!-- DeepBlue IDE - ProElectricCoder - v2.12.4 -->
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>DeepBlue IDE - ProElectricCoder</title>
@@ -37,6 +37,9 @@
 	<script src="https://unpkg.com/prettier@2.8.8/parser-babel.js"></script>
 
 	<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+	<!-- Google Drive Picker web component -->
+	<script type="module" src="https://unpkg.com/@googleworkspace/drive-picker-element@latest/dist/index.js"></script>
 
 	<!-- CodeMirror core -->
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
@@ -101,6 +104,23 @@
 				<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
 				<line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
 			</svg>
+		</button>
+
+		<!-- Google Drive: connect / sign out -->
+		<button class="btn btn-secondary btn-icon" onclick="toggleGdriveAuth()" id="gdrive-btn" title="Connect Google Drive">
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<path d="M7.71 3.5 1.15 15l3.43 6 6.56-11.5z"/><path d="M14.29 3.5h-6.58l6.56 11.5h6.58z"/><path d="M21.43 15h-6.57l-3.29 6h6.57z"/>
+			</svg>
+		</button>
+
+		<!-- Google Drive: open file picker -->
+		<button class="btn btn-secondary btn-icon" onclick="openDrivePicker()" title="Open File from Google Drive">
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+		</button>
+
+		<!-- Google Drive: save active file -->
+		<button class="btn btn-secondary btn-icon" onclick="saveActiveFileToDrive()" title="Save Active File to Google Drive">
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
 		</button>
 
 		<!-- GitHub Auth -->
@@ -237,8 +257,21 @@
 			</div>
 		</div>
 
+		<!-- ── Console: split panel, lives under the preview only ─────────────
+		     Tabs: a permanent "System" tab (IDE-internal console mirror) plus
+		     one dynamic tab per open preview tab, created/closed/activated by
+		     js/preview.js in lockstep with the preview tab lifecycle.       -->
 		<div id="web-console">
-			<div id="console-log-container"></div>
+			<div id="console-tabs">
+				<div class="console-tab active" data-console-tab="system">
+					<span class="console-tab-title">System</span>
+				</div>
+			</div>
+			<div id="console-panels">
+				<div class="console-panel active" data-console-tab="system">
+					<div class="console-log-container"></div>
+				</div>
+			</div>
 			<div class="console-input-row">
 				<span class="console-prompt">&gt;</span>
 				<input type="text" id="console-input" placeholder="Enter JS command…" autocomplete="off" spellcheck="false">
@@ -406,12 +439,11 @@
 <input type="file" id="folder-upload"     style="display:none" webkitdirectory directory onchange="processFolderUpload(event)">
 <input type="file" id="crypto-key-upload" accept=".sep"         style="display:none">
 
+<!-- Google Drive file picker (configure client-id / app-id in js/gdrive.js) -->
+<drive-picker id="gdrive-picker"></drive-picker>
+
 <!-- ══ Entry point ═══════════════════════════════════════════════════════════ -->
 <script type="module" src="js/main.js"></script>
-
-<!-- Cloudflare Web Analytics -->
-	<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "a3f610996e6847609070a8a85c07994c"}'></script>
-<!-- End Cloudflare Web Analytics -->
 
 </body>
 </html>

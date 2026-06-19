@@ -409,16 +409,51 @@ iframe.fixed { position: static; transform-origin: center center; }
 .zoom-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); cursor: pointer; }
 #zoom-val { font-size: 0.75rem; color: var(--text-muted); min-width: 36px; text-align: right; font-family: monospace; }
 
-/* ── Web Console ────────────────────────────────────────────────────────────── */
+/* ── Web Console (split panel under preview only) ────────────────────────────
+   Structure: #web-console
+                ├─ #console-tabs     (System + one per open preview tab)
+                ├─ #console-panels   (matching .console-panel per tab)
+                └─ .console-input-row
+*/
 #web-console {
-	height: 150px; background: #0d1117; border-top: 1px solid var(--border);
+	height: 170px; background: #0d1117; border-top: 1px solid var(--border);
 	display: flex; flex-direction: column; flex-shrink: 0;
 	font-family: 'Consolas',monospace; font-size: 0.8rem; color: #e2e8f0;
 	z-index: 60; box-shadow: 0 -4px 12px rgba(0,0,0,0.2);
 }
-#console-log-container { flex: 1; overflow-y: auto; padding: 8px; }
-#console-log-container::-webkit-scrollbar { width: 7px; }
-#console-log-container::-webkit-scrollbar-thumb { background: #555; border-radius: 7px; border: 2px solid transparent; background-clip: content-box; }
+
+#console-tabs {
+	display: flex; gap: 2px; padding: 4px 8px 0 8px;
+	background: #0d1117; overflow-x: auto; flex-shrink: 0;
+}
+#console-tabs::-webkit-scrollbar { height: 0; }
+.console-tab {
+	display: flex; align-items: center; gap: 6px;
+	padding: 5px 10px; font-size: 0.72rem; color: var(--text-muted);
+	background: rgba(255,255,255,0.03); border-radius: 5px 5px 0 0;
+	cursor: pointer; min-width: 64px; max-width: 140px;
+	white-space: nowrap; user-select: none; transition: background 0.2s, color 0.2s;
+}
+.console-tab:hover:not(.active) { background: rgba(255,255,255,0.07); color: var(--text-main); }
+.console-tab.active { background: #161b22; color: var(--accent); }
+.console-tab[data-console-tab="system"] { font-weight: 600; }
+.console-tab-title { overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; flex: 1; }
+.console-tab-close {
+	opacity: 0; font-size: 10px; width: 14px; height: 14px; border-radius: 3px;
+	display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.console-tab:hover .console-tab-close { opacity: 0.6; }
+.console-tab-close:hover { opacity: 1 !important; background: rgba(239,68,68,0.2); color: #ef4444; }
+.console-tab[data-console-tab="system"] .console-tab-close { display: none; }
+
+#console-panels { flex: 1; position: relative; overflow: hidden; }
+.console-panel { position: absolute; inset: 0; display: none; }
+.console-panel.active { display: block; }
+
+.console-log-container { height: 100%; overflow-y: auto; padding: 8px; }
+.console-log-container::-webkit-scrollbar { width: 7px; }
+.console-log-container::-webkit-scrollbar-thumb { background: #555; border-radius: 7px; border: 2px solid transparent; background-clip: content-box; }
+
 .console-entry { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); white-space: pre-wrap; word-break: break-all; display: flex; gap: 8px; }
 .console-entry::before { content: ">"; color: #64748b; flex-shrink: 0; }
 .console-entry.log   { color: #e2e8f0; }
@@ -428,7 +463,26 @@ iframe.fixed { position: static; transform-origin: center center; }
 .console-entry.error::before { content: "✖"; color: #f87171; }
 .console-entry.info  { color: #38bdf8; }
 .console-entry.info::before  { content: "ℹ"; color: #38bdf8; }
-.console-input-row { display: flex; align-items: center; padding: 4px 8px; border-top: 1px solid var(--border); background: #161b22; }
+.console-entry.debug { color: #a78bfa; }
+.console-entry.debug::before { content: "•"; color: #a78bfa; }
+.console-entry.marker { opacity: 0.5; font-size: 0.7rem; border-bottom: none; }
+.console-entry.marker::before { content: ""; }
+.console-entry.input { color: #94a3b8; }
+.console-entry.input::before { content: "❯"; color: var(--accent); }
+.console-entry.table { border-bottom: none; padding: 4px 0; }
+.console-entry.table::before { content: ""; }
+
+/* console.table() rendering */
+.console-table-wrapper { margin: 2px 0 8px 0; overflow-x: auto; border: 1px solid var(--border); border-radius: 4px; max-width: 100%; }
+.console-table { border-collapse: collapse; width: 100%; font-size: 0.75rem; }
+.console-table th, .console-table td {
+	border: 1px solid rgba(255,255,255,0.08); padding: 4px 8px; text-align: left; white-space: nowrap;
+}
+.console-table th { background: rgba(255,255,255,0.06); color: var(--text-main); font-weight: 600; }
+.console-table td { color: #cbd5e1; }
+.console-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+
+.console-input-row { display: flex; align-items: center; padding: 4px 8px; border-top: 1px solid var(--border); background: #161b22; flex-shrink: 0; }
 .console-prompt { color: var(--accent); margin-right: 8px; font-weight: bold; transition: color 0.2s; }
 #console-input { flex: 1; background: transparent; border: none; color: #fff; font-family: 'Consolas',monospace; font-size: 0.85rem; height: 24px; }
 

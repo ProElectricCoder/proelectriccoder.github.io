@@ -27,7 +27,7 @@
       "description": "Open the editor with a new workspace",
       "icons": [
         {
-          "src": "/icons/plus.svg",
+          "src": "./icons/plus.svg",
           "sizes": "any",
           "type": "image/svg+xml"
         }
@@ -39,7 +39,7 @@
       "description": "Link your GitHub account",
       "icons": [
         {
-          "src": "/icons/github.svg",
+          "src": "./icons/github.svg",
           "sizes": "any",
           "type": "image/svg+xml"
         }

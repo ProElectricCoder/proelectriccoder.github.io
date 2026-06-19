@@ -74,6 +74,9 @@ export const S = {
   openTabs:    [],                  // preview tabs
   viewMode:    'responsive',
 
+  // ─ Console (split panel under preview)
+  activeConsoleTab: 'system',       // 'system' or a preview tab id (file path)
+
   // ─ Search
   lastSearchQuery: null,
   searchCursor:    null,

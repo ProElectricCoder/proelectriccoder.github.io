@@ -183,6 +183,13 @@ export function initDragDrop() {
 }
 
 // ─── Console input ────────────────────────────────────────────────────────────
+/**
+ * Routes a typed command to whichever console tab is currently active:
+ *  - "system"   → evaluated against the IDE's own global scope (indirect
+ *                 eval), so `deepBlue.*`, `IDE.*`, `console.hack()`, etc. are
+ *                 all reachable directly from the console input.
+ *  - file tab   → evaluated inside that preview tab's live iframe, as before.
+ */
 export function initConsoleInput() {
   const input = document.getElementById('console-input');
   if (!input) return;
@@ -190,19 +197,40 @@ export function initConsoleInput() {
     if (e.key !== 'Enter') return;
     const cmd = input.value;
     if (!cmd) return;
-    S._callbacks.logToConsole?.('log', cmd);
+    const target = S.activeConsoleTab || 'system';
+    S._callbacks.logToConsole?.('input', cmd, target);
     input.value = '';
-    const iframe = document.getElementById(`iframe-${S.activeTabId}`);
+
+    if (target === 'system') {
+      try {
+        const result = (0, eval)(cmd); // indirect eval → runs in global/module scope
+        if (result instanceof Promise) {
+          result.then(v => { if (v !== undefined) S._callbacks.logToConsole?.('log', _fmtResult(v), 'system'); })
+                .catch(err => S._callbacks.logToConsole?.('error', String(err), 'system'));
+        } else if (result !== undefined) {
+          S._callbacks.logToConsole?.('log', _fmtResult(result), 'system');
+        }
+      } catch (err) { S._callbacks.logToConsole?.('error', err.toString(), 'system'); }
+      return;
+    }
+
+    const iframe = document.getElementById(`iframe-${target}`);
     if (iframe?.contentWindow) {
       try {
         const result = iframe.contentWindow.eval(cmd);
         if (result instanceof Promise) {
-          result.then(v => { if (v !== undefined) S._callbacks.logToConsole?.('log', String(v)); })
-                .catch(err => S._callbacks.logToConsole?.('error', String(err)));
-        } else if (result !== undefined) { S._callbacks.logToConsole?.('log', String(result)); }
-      } catch (err) { S._callbacks.logToConsole?.('error', err.toString()); }
-    } else { S._callbacks.logToConsole?.('warn', 'No active web preview.'); }
+          result.then(v => { if (v !== undefined) S._callbacks.logToConsole?.('log', String(v), target); })
+                .catch(err => S._callbacks.logToConsole?.('error', String(err), target));
+        } else if (result !== undefined) { S._callbacks.logToConsole?.('log', String(result), target); }
+      } catch (err) { S._callbacks.logToConsole?.('error', err.toString(), target); }
+    } else { S._callbacks.logToConsole?.('warn', 'No active web preview.', target); }
   });
+}
+
+function _fmtResult(v) {
+  if (v === null) return 'null';
+  if (typeof v === 'object') { try { return JSON.stringify(v, null, 2); } catch { return String(v); } }
+  return String(v);
 }
 
 // ─── Fullscreen ───────────────────────────────────────────────────────────────

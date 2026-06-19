@@ -14,6 +14,7 @@ import { initAutoSave, saveProject, createNewFile, createNewFolder,
   processUpload, processFolderUpload,
   handleDroppedFiles }                                       from './fs.js';
 import { runCode, runWeb, setExecLoading, logToConsole,
+  logTableToConsole, installSystemConsoleBridge, activateConsoleTab,
   createTab, closePreviewTab, setPresetSize, updateZoom,
   resolveVirtualPath, openPreviewInNewTab }                  from './preview.js';
 import { renderSidebar, openAddMenu, closeAddMenu, uploadToCurrentFolder,
@@ -31,6 +32,14 @@ import { getFileParam, getActionParam,
 import { toggleSearch, findNext, findPrev,
   replaceOne, replaceAll }                                    from './search.js';
 import defaultTour                                                  from './tour.js';
+import { toggleGdriveAuth, saveCurrentFileToGoogleDrive,
+  initDrivePicker, openDrivePicker, _updateGdriveBtn }        from './gdrive.js';
+
+// ─── System console bridge ─────────────────────────────────────────────────────
+// Installed immediately (module scope) so the System console tab captures
+// every console.log/warn/error/table call made by the IDE's own code from
+// the very first paint, not just after the 'load' event.
+installSystemConsoleBridge();
 
 // ─── Wire cross-module callbacks (breaks circular deps) ───────────────────────
 S._callbacks = {
@@ -65,13 +74,90 @@ console.destroy = async function(target) {
     console.error(`Airstriking ${d.city||'Your'}, ${d.region||'City'} instead of ${target} 🚀💥`);
   } catch { console.error('Satellite uplink failed. Airstrike aborted.'); }
 };
+
+// ─── window.deepBlue — IDE debug / scripting API ──────────────────────────────
+// Reachable both from the browser DevTools console and from the System tab
+// of DeepBlue's own console panel (its input box runs indirect eval() against
+// this same global scope).
 window.deepBlue = {
+  /** Wipes local autosave state and reloads with the default project. */
   init: async () => {
     if (!await customConfirm('Reset IDE? All current files will be replaced with defaults.', 'System Reset')) return;
     ['deepBlueFS','deepBlueFolders','deepBlueDeleted','deepBlueRepoFolders'].forEach(k => localStorage.removeItem(k));
     console.log('IDE Initialized. Reloading…');
     location.reload();
   },
+
+  // ── Direct virtual-FS operations (no confirm dialogs — for scripting) ──────
+
+  /** deepBlue.del("DeepBlue/old.js") — deletes a file by full virtual path. */
+  del(path) {
+    if (!S.fileSystem[path]) { console.warn(`deepBlue.del: '${path}' not found.`); return false; }
+    delete S.fileSystem[path];
+    S.deletedFiles.push(path);
+    if (S.editorDocs[path]) delete S.editorDocs[path];
+    const idx = S.openEditorTabs.indexOf(path);
+    if (idx > -1) S.openEditorTabs.splice(idx, 1);
+    if (S.activeFile === path) S.activeFile = null;
+    renderSidebar();
+    renderEditorTabs();
+    S.unsavedChanges = true;
+    console.log(`Deleted '${path}'.`);
+    return true;
+  },
+
+  /** deepBlue.create("DeepBlue/new.js", "// optional initial content") */
+  create(path, content = '') {
+    if (S.fileSystem[path]) { console.warn(`deepBlue.create: '${path}' already exists.`); return false; }
+    const ext = path.split('.').pop().toLowerCase();
+    let type = 'text';
+    if (ext === 'html') type = 'html';
+    else if (ext === 'css') type = 'css';
+    else if (['js','jsx'].includes(ext)) type = 'js';
+    S.fileSystem[path] = { type, content, modified: true };
+    renderSidebar();
+    S.unsavedChanges = true;
+    console.log(`Created '${path}'.`);
+    return true;
+  },
+
+  /** deepBlue.rename("DeepBlue/old.js", "DeepBlue/new.js") — full path → full path. */
+  rename(from, to) {
+    if (!S.fileSystem[from]) { console.warn(`deepBlue.rename: '${from}' not found.`); return false; }
+    if (S.fileSystem[to])    { console.warn(`deepBlue.rename: '${to}' already exists.`); return false; }
+    S.fileSystem[to] = { ...S.fileSystem[from], modified: true };
+    delete S.fileSystem[from];
+    S.deletedFiles.push(from);
+    if (S.editorDocs[from]) { S.editorDocs[to] = S.editorDocs[from]; delete S.editorDocs[from]; }
+    const idx = S.openEditorTabs.indexOf(from);
+    if (idx > -1) S.openEditorTabs[idx] = to;
+    if (S.activeFile === from) S.activeFile = to;
+    renderSidebar();
+    renderEditorTabs();
+    S.unsavedChanges = true;
+    console.log(`Renamed '${from}' → '${to}'.`);
+    return true;
+  },
+
+  /**
+   * deepBlue.move("DeepBlue/script.js", "DeepBlue/utils")
+   * If `to` looks like a folder (no file extension on its last segment, or
+   * it's a known explicit folder), the file is moved INTO that folder under
+   * its original name. Otherwise `to` is treated as an exact destination
+   * path, identical to deepBlue.rename().
+   */
+  move(from, to) {
+    if (!S.fileSystem[from]) { console.warn(`deepBlue.move: '${from}' not found.`); return false; }
+    const baseName       = from.split('/').pop();
+    const lastSeg         = to.split('/').pop();
+    const looksLikeFolder = !lastSeg.includes('.') || S.explicitFolders.includes(to);
+    const destPath        = looksLikeFolder ? `${to.replace(/\/$/, '')}/${baseName}` : to;
+    return window.deepBlue.rename(from, destPath);
+  },
+
+  // ── Easter eggs (aliases for console.hack / console.destroy) ───────────────
+  hack:    async ()       => { await console.hack(); },
+  destroy: async (target) => { await console.destroy(target); },
 };
 
 // ─── Main init ────────────────────────────────────────────────────────────────
@@ -91,8 +177,30 @@ window.addEventListener('load', async () => {
   initAIResizer();
   checkApiKey();
 
+  // 3b. The System console tab is static markup (always present), so it
+  // needs its click handler wired manually — dynamic file tabs get theirs
+  // from createConsoleTab() in preview.js.
+  document.querySelector('#console-tabs .console-tab[data-console-tab="system"]')
+    ?.addEventListener('click', () => activateConsoleTab('system'));
+
   // 4. GitHub commit button visibility
   if (S.githubToken) document.getElementById('gh-commit-btn')?.style.setProperty('display','flex');
+
+  // 4b. Google Drive button state + Picker wiring
+  _updateGdriveBtn();
+  initDrivePicker(async (fileId, fileName, content) => {
+    const path = S.targetFolderForAdd ? `${S.targetFolderForAdd}/${fileName}` : `DeepBlue/${fileName}`;
+    const ext  = fileName.split('.').pop().toLowerCase();
+    let type = 'text';
+    if (ext === 'html') type = 'html';
+    else if (ext === 'css') type = 'css';
+    else if (['js','jsx'].includes(ext)) type = 'js';
+    S.fileSystem[path] = { type, content, modified: true, driveFileId: fileId };
+    renderSidebar();
+    S.unsavedChanges = true;
+    await switchFile(path);
+    logToConsole('log', `Imported '${fileName}' from Google Drive.`, 'system');
+  });
 
   // 5. Context menu
   document.getElementById('ctx-rename')?.addEventListener('click', () => {
@@ -154,7 +262,8 @@ window.addEventListener('load', async () => {
 
   // 8. iframe → IDE message bridge
   window.addEventListener('message', e => {
-    if (e.data?.type === 'console') logToConsole(e.data.level, e.data.msg);
+    if (e.data?.type === 'console')        logToConsole(e.data.level, e.data.msg, e.data.tabId);
+    if (e.data?.type === 'console-table')  logTableToConsole(e.data.data, e.data.columns, e.data.tabId);
     if (e.data?.type === 'navigate') {
       const [pathPart, queryPart] = e.data.path.split('?');
       const queryParams = queryPart ? '?' + queryPart : '';
@@ -165,7 +274,7 @@ window.addEventListener('load', async () => {
         window.history.replaceState(null, '', url);
         switchFile(resolved).then(() => runWeb(resolved, queryParams));
       } else {
-        logToConsole('error', '404 — File not found: ' + pathPart + ' (resolved: ' + resolved + ')');
+        logToConsole('error', '404 — File not found: ' + pathPart + ' (resolved: ' + resolved + ')', 'system');
       }
     }
   });
@@ -200,6 +309,22 @@ window.addEventListener('load', async () => {
     });
   }
 });
+
+// ─── Google Drive: save the active file ───────────────────────────────────────
+async function saveActiveFileToDrive() {
+  if (!S.activeFile) { await customAlert('No active file to save.', 'Google Drive'); return; }
+  await syncDocsToContent();
+  const fileName = S.activeFile.split('/').pop();
+  const content  = S.editorDocs[S.activeFile] ? S.editorDocs[S.activeFile].getValue() : (S.fileSystem[S.activeFile]?.content ?? '');
+  try {
+    const result = await saveCurrentFileToGoogleDrive(fileName, content);
+    logToConsole('log', `Saved '${fileName}' to Google Drive (id: ${result.id}).`, 'system');
+    await customAlert(`Saved to Google Drive!\nFile ID: ${result.id}`, 'Success');
+  } catch (e) {
+    logToConsole('error', `Google Drive save failed: ${e.message}`, 'system');
+    await customAlert('Drive save failed: ' + e.message, 'Error');
+  }
+}
 
 // ─── Global exposure for HTML onclick handlers ────────────────────────────────
 function _exposeGlobals() {
@@ -238,6 +363,11 @@ function _exposeGlobals() {
     openGithubCommitModal,
     closeCommitModal,
     executeGithubCommit,
+
+    // Google Drive
+    toggleGdriveAuth,
+    openDrivePicker,
+    saveActiveFileToDrive,
 
     // AI
     toggleAI,
