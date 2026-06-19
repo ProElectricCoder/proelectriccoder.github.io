@@ -1,31 +1,40 @@
-// Backend: /functions/api/read-drive.js
 export async function onRequestPost(context) {
   const { request } = context;
   
-  // 1. Grab the fileId from the frontend request and the Token from the headers
-  const data = await request.json();
-  const fileId = data.fileId;
-  const authHeader = request.headers.get('Authorization'); 
+  try {
+    // 1. Get the fileId and the access token sent from your frontend
+    const { fileId } = await request.json();
+    const accessToken = request.headers.get("Authorization");
 
-  // 2. Fetch the file content from Google Drive
-  // Note the "?alt=media" at the end. This tells Google to return the actual file text, 
-  // not just the file metadata (like creation date).
-  const googleDriveResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-    method: 'GET',
-    headers: {
-      'Authorization': authHeader
+    if (!fileId || !accessToken) {
+      return new Response("Missing fileId or Token", { status: 400 });
     }
-  });
 
-  if (!googleDriveResponse.ok) {
-    return new Response("Failed to fetch file from Drive", { status: 500 });
+    // 2. Fetch the file content from Google Drive
+    // The "?alt=media" part is REQUIRED to download the actual file contents
+    const driveResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, 
+      {
+        method: "GET",
+        headers: {
+          "Authorization": accessToken // Pass the token straight to Google
+        }
+      }
+    );
+
+    if (!driveResponse.ok) {
+      const errorText = await driveResponse.text();
+      return new Response(`Drive API Error: ${errorText}`, { status: driveResponse.status });
+    }
+
+    // 3. Read the code/text content and send it back to your IDE
+    const fileContent = await driveResponse.text();
+
+    return new Response(JSON.stringify({ success: true, content: fileContent }), {
+      headers: { "Content-Type": "application/json" }
+    });
+
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
-
-  // 3. Read the text from the file
-  const fileContent = await googleDriveResponse.text();
-
-  // 4. Send the code back to the frontend to be displayed in DeepBlue IDE
-  return new Response(JSON.stringify({ success: true, content: fileContent }), {
-    headers: { "Content-Type": "application/json" }
-  });
 }
