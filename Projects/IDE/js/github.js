@@ -34,12 +34,19 @@ export async function openGithubAuth() {
     if (credential?.accessToken) {
       S.githubToken = credential.accessToken;
       localStorage.setItem('deepBlue_gh_token', S.githubToken);
-      document.getElementById('gh-commit-btn')?.style.setProperty('display', 'flex');
       await customAlert(`Logged in as ${result.user.displayName || result.user.email}`, 'Success');
     }
   } catch (e) {
     await customAlert('Login Failed: ' + e.message, 'Auth Error');
   }
+}
+
+/** Clears the local GitHub session. Imported repos/folders stay in the project. */
+export async function signOutGithub() {
+  S.githubToken = '';
+  localStorage.removeItem('deepBlue_gh_token');
+  try { await S.firebaseAuth?.signOut(); } catch {}
+  await customAlert('Signed out of GitHub.', 'GitHub');
 }
 
 // ─── GitHub REST API helper ───────────────────────────────────────────────────

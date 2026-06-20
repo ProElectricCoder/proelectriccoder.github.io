@@ -216,6 +216,16 @@ export async function createNewFile() {
   else if (ext === 'md')              { type = 'text'; content = `# ${titleName}\n`; }
   else if (ext === 'py')              { type = 'text'; content = `# ${name}\nprint("Hello, world!")\n`; }
   else if (ext === 'txt')             { type = 'text'; content = ''; }
+  // ── Additional languages (CodeMirror modes lazy-loaded on open, see editor.js) ──
+  else if (['ts','tsx'].includes(ext)) { type = 'text'; content = `// ${name}\n`; }
+  else if (ext === 'sql')             { type = 'text'; content = `-- ${name}\n`; }
+  else if (['c','h'].includes(ext))   { type = 'text'; content = `// ${name}\n#include <stdio.h>\n\nint main(void) {\n\tprintf("Hello, world!\\n");\n\treturn 0;\n}\n`; }
+  else if (['cpp','cc','cxx','hpp'].includes(ext)) { type = 'text'; content = `// ${name}\n#include <iostream>\n\nint main() {\n\tstd::cout << "Hello, world!" << std::endl;\n\treturn 0;\n}\n`; }
+  else if (ext === 'cs')              { type = 'text'; content = `// ${name}\nusing System;\n\nclass Program {\n\tstatic void Main() {\n\t\tConsole.WriteLine("Hello, world!");\n\t}\n}\n`; }
+  else if (ext === 'java')            { type = 'text'; content = `// ${name}\npublic class ${titleName} {\n\tpublic static void main(String[] args) {\n\t\tSystem.out.println("Hello, world!");\n\t}\n}\n`; }
+  else if (ext === 'go')              { type = 'text'; content = `// ${name}\npackage main\n\nimport "fmt"\n\nfunc main() {\n\tfmt.Println("Hello, world!")\n}\n`; }
+  else if (ext === 'rs')              { type = 'text'; content = `// ${name}\nfn main() {\n\tprintln!("Hello, world!");\n}\n`; }
+  else if (ext === 'php')             { type = 'text'; content = `<?php\n// ${name}\necho "Hello, world!";\n`; }
   else if (ext === 'svg') {
     S.fileSystem[name] = { type: 'asset', subtype: 'svg', content: '<svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg"><circle cx="25" cy="25" r="20" fill="red"/></svg>', modified: true };
     S.unsavedChanges = true;
@@ -227,7 +237,7 @@ export async function createNewFile() {
     S._callbacks.renderSidebar?.();
     await switchFile(name); return;
   } else {
-    await customAlert('Supported: .html .css .js .jsx .py .svg .md .txt .json .png', 'Invalid Format'); return;
+    await customAlert('Supported: .html .css .js .jsx .ts .tsx .py .json .md .txt .sql .c .h .cpp .cs .java .go .rs .php .svg .png', 'Invalid Format'); return;
   }
 
   S.fileSystem[name] = { type, content, modified: true };

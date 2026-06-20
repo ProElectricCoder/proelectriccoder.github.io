@@ -5,14 +5,77 @@
 import { S } from './state.js';
 import { customAlert } from './dialogs.js';
 
+// ─── Language modes ───────────────────────────────────────────────────────────
+// HTML, CSS, JS and Python are loaded eagerly (via <script> tags in index.html)
+// because they're used by the default project / most common file types.
+// Everything else below is lazy-loaded on first use of that file type, so the
+// initial page weight stays small.
+const CM_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13';
+
+// Native — handled entirely by the modes already loaded eagerly (htmlmixed,
+// css, javascript, python, markdown, xml). No extra script needed.
+const _NATIVE_MODES = {
+  html: 'htmlmixed',
+  css:  'css',
+  js:   'javascript',
+  jsx:  { name: 'javascript', jsx: true },
+  ts:   { name: 'javascript', typescript: true },
+  tsx:  { name: 'javascript', typescript: true, jsx: true },
+  json: { name: 'javascript', json: true },
+  py:   'python',
+  md:   'markdown',
+};
+
+// Lazy — extra CodeMirror mode file(s) fetched once, on first file of that
+// type, then cached (never re-fetched for the rest of the session).
+const _LAZY_MODES = {
+  sql:  { scripts: [`${CM_BASE}/mode/sql/sql.js`],                                   mode: 'text/x-sql' },
+  c:    { scripts: [`${CM_BASE}/mode/clike/clike.js`],                               mode: 'text/x-csrc' },
+  h:    { scripts: [`${CM_BASE}/mode/clike/clike.js`],                               mode: 'text/x-csrc' },
+  cpp:  { scripts: [`${CM_BASE}/mode/clike/clike.js`],                               mode: 'text/x-c++src' },
+  cc:   { scripts: [`${CM_BASE}/mode/clike/clike.js`],                               mode: 'text/x-c++src' },
+  cxx:  { scripts: [`${CM_BASE}/mode/clike/clike.js`],                               mode: 'text/x-c++src' },
+  hpp:  { scripts: [`${CM_BASE}/mode/clike/clike.js`],                               mode: 'text/x-c++src' },
+  cs:   { scripts: [`${CM_BASE}/mode/clike/clike.js`],                               mode: 'text/x-csharp' },
+  java: { scripts: [`${CM_BASE}/mode/clike/clike.js`],                               mode: 'text/x-java' },
+  // php.js depends on clike.js having already loaded — kept in this order
+  // and fetched sequentially (not in parallel) so the dependency is honored.
+  php:  { scripts: [`${CM_BASE}/mode/clike/clike.js`, `${CM_BASE}/mode/php/php.js`], mode: 'application/x-httpd-php' },
+  go:   { scripts: [`${CM_BASE}/mode/go/go.js`],                                     mode: 'go' },
+  rs:   { scripts: [`${CM_BASE}/mode/rust/rust.js`],                                 mode: 'rust' },
+};
+
+const _loadedScripts  = new Set();
+const _scriptPromises = new Map();
+
+function _loadScript(url) {
+  if (_loadedScripts.has(url)) return Promise.resolve();
+  if (_scriptPromises.has(url)) return _scriptPromises.get(url);
+  const p = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = url;
+    s.onload  = () => { _loadedScripts.add(url); resolve(); };
+    s.onerror = () => { _scriptPromises.delete(url); reject(new Error(`Failed to load language mode: ${url}`)); };
+    document.head.appendChild(s);
+  });
+  _scriptPromises.set(url, p);
+  return p;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-export function getModeForFile(filename) {
+/** Resolves the CodeMirror mode for a filename, lazy-loading its mode script(s) first if needed. */
+export async function getModeForFile(filename) {
   if (!filename) return 'text/plain';
-  if (filename.endsWith('.html'))                return 'htmlmixed';
-  if (filename.endsWith('.css'))                 return 'css';
-  if (filename.endsWith('.js') || filename.endsWith('.jsx') || filename.endsWith('.json')) return 'javascript';
-  if (filename.endsWith('.md'))                  return 'markdown';
-  if (filename.endsWith('.py'))                  return 'python';
+  const ext = filename.split('.').pop().toLowerCase();
+
+  if (Object.prototype.hasOwnProperty.call(_NATIVE_MODES, ext)) return _NATIVE_MODES[ext];
+
+  const lazy = _LAZY_MODES[ext];
+  if (lazy) {
+    for (const url of lazy.scripts) await _loadScript(url); // sequential — order matters (e.g. php needs clike)
+    return lazy.mode;
+  }
+
   return 'text/plain';
 }
 
@@ -210,7 +273,12 @@ export async function switchFile(filename) {
     if (labelEl) labelEl.innerText = labelText !== 'ASSET' ? labelText : 'MEDIA';
   } else {
     _showEditorPane();
-    const mode = (isAsset && subtype === 'svg') ? 'xml' : getModeForFile('dummy.' + ext);
+
+    let mode = 'xml';
+    if (!(isAsset && subtype === 'svg')) {
+      try { mode = await getModeForFile('dummy.' + ext); }
+      catch (e) { console.warn('[DeepBlue] Language mode failed to load, falling back to plain text:', e.message); mode = 'text/plain'; }
+    }
 
     if (!S.editorDocs[filename]) {
       let initial = contentToLoad;

@@ -9,17 +9,23 @@
  *  1. Replace GOOGLE_CLIENT_ID with your OAuth 2.0 Web Client ID
  *     (Google Cloud Console → APIs & Services → Credentials)
  *  2. Replace GOOGLE_APP_ID with your numeric Cloud Project ID
- *     (Visible in Cloud Console → Dashboard, e.g. "629115974151")
- *  3. (Optional) Replace GOOGLE_API_KEY for Drive Picker search support
- *  4. Add your redirect URI to the OAuth client's Authorised Redirect URIs:
+ *  3. Add your redirect URI to the OAuth client's Authorised Redirect URIs:
  *       https://<your-domain>/api/callback
+ *
+ * ── Why everything here is lazy ────────────────────────────────────────────────
+ * Nothing in this module touches the network, mounts DOM, or loads the Drive
+ * Picker's script UNTIL the person explicitly clicks something. Earlier the
+ * <drive-picker> element + its CDN script were present on every page load,
+ * which made the component initialize itself immediately and pop the Google
+ * sign-in screen on its own. Now the element and its script are only created
+ * inside openDrivePicker(), the moment it's actually requested.
  */
 
 // ── Configuration ─────────────────────────────────────────────────────────────
-const GOOGLE_CLIENT_ID = '629115974151-be9vfilk42ou68lctco3sa2h44ioolqr.apps.googleusercontent.com';
-const GOOGLE_APP_ID    = '629115974151';   // e.g. "629115974151"
-const GOOGLE_API_KEY   = 'AIzaSyD18jSpzYIe5hp1jGv22kO0Zzu3I09ra-c'; // optional, enables Picker search
+const GOOGLE_CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com';
+const GOOGLE_APP_ID    = 'YOUR_NUMERIC_PROJECT_ID';   // e.g. "629115974151"
 const DRIVE_SCOPE      = 'https://www.googleapis.com/auth/drive.file';
+const PICKER_SCRIPT_URL = 'https://unpkg.com/@googleworkspace/drive-picker-element@latest/dist/index.js';
 
 // ── Token helpers ─────────────────────────────────────────────────────────────
 function _getTokens() {
@@ -32,30 +38,25 @@ export function isGdriveConnected() {
   return !!_getTokens()?.accessToken;
 }
 
-/** Removes Drive tokens from localStorage and updates the UI button. */
+/** Removes Drive tokens from localStorage and updates the header button. */
 export function gdriveSignOut() {
   localStorage.removeItem('google_drive_tokens');
   _updateGdriveBtn();
 }
 
-/** Reflects connected state on the header button (called after init / token change). */
+/**
+ * Reflects connected state via the button's title/aria-label only — no color
+ * change, by design. (Open the Drive dropdown to see Connect vs. Sign Out.)
+ */
 export function _updateGdriveBtn() {
   const btn = document.getElementById('gdrive-btn');
   if (!btn) return;
   const connected = isGdriveConnected();
-  btn.title = connected ? 'Google Drive connected — click to sign out' : 'Connect Google Drive';
-  btn.style.color = connected ? 'var(--accent)' : '';
-  btn.style.borderColor = connected ? 'var(--accent)' : '';
+  btn.title = connected ? 'Google Drive (connected)' : 'Google Drive (not connected)';
+  btn.setAttribute('aria-label', btn.title);
 }
 
-// ── 1. OAuth Login ────────────────────────────────────────────────────────────
-/**
- * Redirects to Google OAuth consent screen.
- * After approval Google calls /api/callback, which exchanges the code for tokens,
- * stores them in localStorage, and redirects back to the IDE root.
- *
- * If a Drive token is already present, clicking the button signs out instead.
- */
+// ── 1. OAuth Login — only runs when explicitly invoked (button click) ─────────
 export function toggleGdriveAuth() {
   if (isGdriveConnected()) {
     gdriveSignOut();
@@ -66,37 +67,25 @@ export function toggleGdriveAuth() {
     redirect_uri:  `${window.location.origin}/api/callback`,
     response_type: 'code',
     scope:         DRIVE_SCOPE,
-    access_type:   'offline',   // request refresh token
-    prompt:        'consent',   // always show consent to guarantee refresh_token
+    access_type:   'offline',
+    prompt:        'consent',
   });
   window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
 }
 
 // ── 2. Save to Google Drive ───────────────────────────────────────────────────
 /**
- * Saves text content to a new Google Drive file via the /api/save-drive endpoint.
- *
- * @param  {string} fileName        e.g. "index.html"
- * @param  {string} fileTextContent The file's text content
+ * @param  {string} fileName
+ * @param  {string} fileTextContent
  * @returns {Promise<{success: boolean, id: string}>}
- * @throws  {Error} if not authenticated or request fails
- *
- * @example
- *   const result = await saveCurrentFileToGoogleDrive('index.html', editor.getValue());
- *   console.log('Saved with Drive ID:', result.id);
  */
 export async function saveCurrentFileToGoogleDrive(fileName, fileTextContent) {
   const tokens = _getTokens();
-  if (!tokens?.accessToken) {
-    throw new Error('Not connected to Google Drive. Please sign in first.');
-  }
+  if (!tokens?.accessToken) throw new Error('Not connected to Google Drive. Please sign in first.');
 
   const response = await fetch('/api/save-drive', {
     method: 'POST',
-    headers: {
-      'Content-Type':  'application/json',
-      'Authorization': `Bearer ${tokens.accessToken}`,
-    },
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokens.accessToken}` },
     body: JSON.stringify({ name: fileName, content: fileTextContent }),
   });
 
@@ -104,29 +93,17 @@ export async function saveCurrentFileToGoogleDrive(fileName, fileTextContent) {
     const text = await response.text().catch(() => response.statusText);
     throw new Error(`Drive save failed (${response.status}): ${text}`);
   }
-
-  return response.json(); // { success: true, id: "1BxiMV...mfQ" }
+  return response.json();
 }
 
-// ── 3. Read from Google Drive (used internally by the Picker) ─────────────────
-/**
- * Fetches text content for a file from Google Drive via /api/read-drive.
- *
- * @param  {string} fileId  Google Drive file ID (from picker event or known ID)
- * @returns {Promise<string>} the file's text content
- */
+// ── 3. Read from Google Drive ──────────────────────────────────────────────────
 export async function readFileFromGoogleDrive(fileId) {
   const tokens = _getTokens();
-  if (!tokens?.accessToken) {
-    throw new Error('Not connected to Google Drive. Please sign in first.');
-  }
+  if (!tokens?.accessToken) throw new Error('Not connected to Google Drive. Please sign in first.');
 
   const response = await fetch('/api/read-drive', {
     method: 'POST',
-    headers: {
-      'Content-Type':  'application/json',
-      'Authorization': `Bearer ${tokens.accessToken}`,
-    },
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokens.accessToken}` },
     body: JSON.stringify({ fileId }),
   });
 
@@ -134,91 +111,79 @@ export async function readFileFromGoogleDrive(fileId) {
     const text = await response.text().catch(() => response.statusText);
     throw new Error(`Drive read failed (${response.status}): ${text}`);
   }
-
   const data = await response.json();
-  return data.content; // string
+  return data.content;
 }
 
-// ── 4. Drive Picker Web Component Setup ───────────────────────────────────────
+// ── 4. Drive Picker — lazily loaded & mounted ──────────────────────────────────
+let _onFilePicked   = null;
+let _pickerScriptP   = null;  // in-flight/loaded script promise (cached)
+let _pickerEl        = null;  // the <drive-picker> element, created on first use
+
 /**
- * Wires up the <drive-picker> custom element (CDN:
- * https://unpkg.com/@googleworkspace/drive-picker-element@latest/dist/index.js).
+ * Registers the callback to run once a file is picked from Drive.
+ * Cheap and synchronous — does NOT load any script or touch the DOM, so it's
+ * safe to call unconditionally during app init.
  *
- * The element must already exist in the DOM:
- *   <drive-picker id="gdrive-picker" app-id="..." client-id="..."></drive-picker>
- *
- * Call this once from your main init. The picker's OAuth token is refreshed
- * from localStorage each time it opens.
- *
- * @param {function} onFilePicked  Receives (fileId, fileName, textContent)
- *                                 after a file is selected and fetched.
+ * @param {function(fileId, fileName, textContent)} cb
  */
-export function initDrivePicker(onFilePicked) {
-  const picker = document.getElementById('gdrive-picker');
-  if (!picker) {
-    console.warn('[GDrive] <drive-picker id="gdrive-picker"> not found in DOM.');
-    return;
-  }
+export function setDrivePickedHandler(cb) {
+  _onFilePicked = cb;
+}
 
-  // Stamp the access token onto the element whenever it's about to open
-  const _refreshToken = () => {
-    const tokens = _getTokens();
-    if (tokens?.accessToken) {
-      picker.setAttribute('oauth-token', tokens.accessToken);
-    }
-  };
+function _loadPickerScript() {
+  if (_pickerScriptP) return _pickerScriptP;
+  _pickerScriptP = import(/* @vite-ignore */ PICKER_SCRIPT_URL).catch(err => {
+    _pickerScriptP = null; // allow retry on next attempt
+    throw err;
+  });
+  return _pickerScriptP;
+}
 
-  // Refresh before each open so stale tokens aren't used
-  picker.addEventListener('click', _refreshToken);
-  _refreshToken(); // apply immediately if already connected
+function _ensurePickerElement() {
+  if (_pickerEl) return _pickerEl;
 
-  // ── File selected ────────────────────────────────────────────────────────
-  picker.addEventListener('picker:picked', async (event) => {
+  _pickerEl = document.createElement('drive-picker');
+  _pickerEl.id = 'gdrive-picker';
+  if (GOOGLE_APP_ID && GOOGLE_APP_ID !== 'YOUR_NUMERIC_PROJECT_ID') _pickerEl.setAttribute('app-id', GOOGLE_APP_ID);
+  if (GOOGLE_CLIENT_ID) _pickerEl.setAttribute('client-id', GOOGLE_CLIENT_ID);
+  document.body.appendChild(_pickerEl);
+
+  _pickerEl.addEventListener('picker:picked', async (event) => {
     const docs = event.detail?.docs;
     if (!docs || docs.length === 0) return;
-
-    const file     = docs[0];
-    const fileId   = file.id;
-    const fileName = file.name;
-
+    const file = docs[0];
     try {
-      const content = await readFileFromGoogleDrive(fileId);
-      onFilePicked(fileId, fileName, content);
+      const content = await readFileFromGoogleDrive(file.id);
+      _onFilePicked?.(file.id, file.name, content);
     } catch (err) {
       console.error('[GDrive] Failed to read picked file:', err.message);
-      // Surface error to user via the IDE's dialog system if available
-      window.IDE?.alert?.(`Drive read error: ${err.message}`, 'Google Drive');
     }
   });
-
-  // ── Picker cancelled ─────────────────────────────────────────────────────
-  picker.addEventListener('picker:canceled', () => {
-    // No-op — nothing to do when the user closes without picking
-  });
-
-  // ── Picker error ─────────────────────────────────────────────────────────
-  picker.addEventListener('picker:error', (event) => {
+  _pickerEl.addEventListener('picker:error', (event) => {
     console.error('[GDrive] Picker error:', event.detail);
   });
+
+  return _pickerEl;
 }
 
-// ── 5. Open the picker programmatically ──────────────────────────────────────
 /**
- * Triggers the Drive Picker dialog to open.
- * Guards against calling it when the user isn't authenticated.
+ * Opens the Drive file picker. Loads the picker script and mounts the
+ * <drive-picker> element on first call only — nothing Drive-Picker-related
+ * exists in the page until this runs.
  */
-export function openDrivePicker() {
-  if (!isGdriveConnected()) {
-    toggleGdriveAuth(); // redirect to login
+export async function openDrivePicker() {
+  if (!isGdriveConnected()) { toggleGdriveAuth(); return; }
+
+  try {
+    await _loadPickerScript();
+  } catch (err) {
+    console.error('[GDrive] Failed to load Drive Picker:', err.message);
     return;
   }
-  const picker = document.getElementById('gdrive-picker');
-  if (!picker) return;
 
-  // Refresh token first
+  const picker = _ensurePickerElement();
   const tokens = _getTokens();
   if (tokens?.accessToken) picker.setAttribute('oauth-token', tokens.accessToken);
-
-  // @googleworkspace/drive-picker-element opens via the `open` attribute
   picker.setAttribute('open', '');
 }
