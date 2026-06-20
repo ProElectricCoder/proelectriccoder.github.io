@@ -33,7 +33,7 @@ import { toggleSearch, findNext, findPrev,
   replaceOne, replaceAll }                                    from './search.js';
 import defaultTour                                                  from './tour.js';
 import { toggleGdriveAuth, saveCurrentFileToGoogleDrive,
-  initDrivePicker, openDrivePicker, _updateGdriveBtn }        from './gdrive.js';
+  openDrivePicker, _updateGdriveBtn }        from './gdrive.js';
 
 // ─── System console bridge ─────────────────────────────────────────────────────
 // Installed immediately (module scope) so the System console tab captures
@@ -187,20 +187,6 @@ window.addEventListener('load', async () => {
   if (S.githubToken) document.getElementById('gh-commit-btn')?.style.setProperty('display','flex');
 
   // 4b. Google Drive button state + Picker wiring
-  _updateGdriveBtn();
-  initDrivePicker(async (fileId, fileName, content) => {
-    const path = S.targetFolderForAdd ? `${S.targetFolderForAdd}/${fileName}` : `DeepBlue/${fileName}`;
-    const ext  = fileName.split('.').pop().toLowerCase();
-    let type = 'text';
-    if (ext === 'html') type = 'html';
-    else if (ext === 'css') type = 'css';
-    else if (['js','jsx'].includes(ext)) type = 'js';
-    S.fileSystem[path] = { type, content, modified: true, driveFileId: fileId };
-    renderSidebar();
-    S.unsavedChanges = true;
-    await switchFile(path);
-    logToConsole('log', `Imported '${fileName}' from Google Drive.`, 'system');
-  });
 
   // 5. Context menu
   document.getElementById('ctx-rename')?.addEventListener('click', () => {
