@@ -65,7 +65,7 @@ export async function onRequestGet(context) {
           localStorage.setItem('google_drive_tokens', JSON.stringify(tokens));
           
           // Redirect the user back to the main IDE home screen
-          window.location.href = '/';
+          window.location.href = '/Projects/IDE/';
         </script>
       </body>
       </html>
