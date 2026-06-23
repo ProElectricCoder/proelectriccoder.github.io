@@ -32,7 +32,7 @@ const DEFAULT_STEPS = [
   {
     target: ['#output-container', '.output-container'],
     title: 'Live Preview & Debugging',
-    message: 'See your app in real-time. Use the device controls above to test responsiveness, check the Console for logs, and run JavaScript directly in the REPL below.',
+    message: 'See your app in real-time. Use the device controls above to test responsiveness, check the Console tabs below for logs (a System tab plus one per open file), and run JavaScript directly in the REPL.',
     placement: 'left',
   },
   {
@@ -42,9 +42,9 @@ const DEFAULT_STEPS = [
     placement: 'bottom',
   },
   {
-    target: ['[onclick*="GithubAuth"]', '[onclick*="CommitModal"]', '#gh-commit-btn'],
+    target: ['#github-btn'],
     title: 'Connect and Ship',
-    message: 'Link your GitHub account to import repositories and commit changes directly from DeepBlue. The fastest path from editing to publishing.',
+    message: 'Click the GitHub icon to connect your account, import a repository, or commit changes — all from one dropdown. The fastest path from editing to publishing.',
     placement: 'bottom',
   },
   {

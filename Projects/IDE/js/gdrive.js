@@ -49,7 +49,7 @@ export function gdriveSignOut() {
  * change, by design. (Open the Drive dropdown to see Connect vs. Sign Out.)
  */
 export function _updateGdriveBtn() {
-  const btn = document.getElementById('gdrive-btn');
+  const btn = document.getElementById('drive-btn');
   if (!btn) return;
   const connected = isGdriveConnected();
   btn.title = connected ? 'Google Drive (connected)' : 'Google Drive (not connected)';

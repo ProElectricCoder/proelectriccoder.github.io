@@ -4,36 +4,30 @@
  * and exposes legacy globals for inline onclick handlers.
  */
 
-import { S }                                                        from './state.js';
-import { customAlert, customConfirm }                               from './dialogs.js';
-import { initCodeMirror, switchFile, syncDocsToContent,
-  renderEditorTabs, closeEditorTab, formatCurrentFile,
-  clearModifiedFlags }                                       from './editor.js';
-import { initAutoSave, saveProject, createNewFile, createNewFolder,
-  renameFile, deleteFile, renameFolder, deleteFolder,
-  processUpload, processFolderUpload,
-  handleDroppedFiles }                                       from './fs.js';
+import { S }                                                                       from './state.js';
+import { customAlert, customConfirm }                                              from './dialogs.js';
+import { initCodeMirror, switchFile, syncDocsToContent, renderEditorTabs,
+         closeEditorTab, formatCurrentFile, clearModifiedFlags }                   from './editor.js';
+import { initAutoSave, saveProject, createNewFile, createNewFolder, renameFile,
+         deleteFile, renameFolder, deleteFolder, processUpload,
+         processFolderUpload, handleDroppedFiles }                                 from './fs.js';
 import { runCode, runWeb, setExecLoading, logToConsole,
-  logTableToConsole, installSystemConsoleBridge, activateConsoleTab,
-  createTab, closePreviewTab, setPresetSize, updateZoom,
-  resolveVirtualPath, openPreviewInNewTab }                  from './preview.js';
+         logTableToConsole, installSystemConsoleBridge, activateConsoleTab,
+         createTab, closePreviewTab, setPresetSize, updateZoom,
+         resolveVirtualPath, openPreviewInNewTab }                                 from './preview.js';
 import { renderSidebar, openAddMenu, closeAddMenu, uploadToCurrentFolder,
-  initDragDrop, initConsoleInput, toggleFullscreen,
-  initResizers, initAIResizer,
-  toggleAI, callGemini, checkApiKey, saveApiKey }            from './ui.js';
+         initDragDrop, initConsoleInput, toggleFullscreen, initResizers,
+         initAIResizer, toggleAI, callGemini, checkApiKey, saveApiKey }            from './ui.js';
 import { confirmGithubAuth, openGithubAuth, fetchWithProgress,
-  handleGithubImport, openGithubCommitModal,
-  closeCommitModal, executeGithubCommit }                    from './github.js';
-import { shareProject }                                             from './share.js';
-import { loadCryptoLib, openCryptoModalAsync, closeCryptoModal,
-  executeCrypto }                                            from './crypto.js';
-import { getFileParam, getActionParam,
-  getSafePreviewParams, consumeActionParam }                  from './routing.js';
-import { toggleSearch, findNext, findPrev,
-  replaceOne, replaceAll }                                    from './search.js';
-import defaultTour                                                  from './tour.js';
-import { toggleGdriveAuth, saveCurrentFileToGoogleDrive,
-  openDrivePicker, _updateGdriveBtn }        from './gdrive.js';
+         handleGithubImport, openGithubCommitModal, signOutGithub,
+         closeCommitModal, executeGithubCommit }                                   from './github.js';
+import { shareProject }                                                            from './share.js';
+import { loadCryptoLib, openCryptoModalAsync, closeCryptoModal, executeCrypto }    from './crypto.js';
+import { getFileParam, getActionParam, getSafePreviewParams, consumeActionParam }  from './routing.js';
+import { toggleSearch, findNext, findPrev, replaceOne, replaceAll }                from './search.js';
+import defaultTour                                                                 from './tour.js';
+import { toggleGdriveAuth, saveCurrentFileToGoogleDrive, isGdriveConnected,
+         gdriveSignOut, setDrivePickedHandler, openDrivePicker, _updateGdriveBtn } from './gdrive.js';
 
 // ─── System console bridge ─────────────────────────────────────────────────────
 // Installed immediately (module scope) so the System console tab captures
@@ -183,10 +177,30 @@ window.addEventListener('load', async () => {
   document.querySelector('#console-tabs .console-tab[data-console-tab="system"]')
     ?.addEventListener('click', () => activateConsoleTab('system'));
 
-  // 4. GitHub commit button visibility
-  if (S.githubToken) document.getElementById('gh-commit-btn')?.style.setProperty('display','flex');
+  // 4. Header dropdown menus (Drive / GitHub) — wired once, content refreshed on open
+  document.getElementById('drive-btn') ?.addEventListener('click', e => { e.stopPropagation(); toggleHeaderDropdown('drive-menu'); });
+  document.getElementById('github-btn')?.addEventListener('click', e => { e.stopPropagation(); toggleHeaderDropdown('github-menu'); });
+  document.addEventListener('click', e => { if (!e.target.closest('.hdr-dropdown')) _closeAllHeaderDropdowns(); });
 
-  // 4b. Google Drive button state + Picker wiring
+  // 4b. Google Drive: just register the file-picked callback — this does NOT
+  // load any script or touch the network/DOM. The Drive Picker itself (and
+  // its CDN script) are created lazily inside openDrivePicker(), only when
+  // the person clicks "Load File from Drive". This is what fixes the old
+  // bug where the sign-in screen could pop open right after page load.
+  _updateGdriveBtn();
+  setDrivePickedHandler(async (fileId, fileName, content) => {
+    const path = S.targetFolderForAdd ? `${S.targetFolderForAdd}/${fileName}` : `DeepBlue/${fileName}`;
+    const ext  = fileName.split('.').pop().toLowerCase();
+    let type = 'text';
+    if (ext === 'html') type = 'html';
+    else if (ext === 'css') type = 'css';
+    else if (['js','jsx'].includes(ext)) type = 'js';
+    S.fileSystem[path] = { type, content, modified: true, driveFileId: fileId };
+    renderSidebar();
+    S.unsavedChanges = true;
+    await switchFile(path);
+    logToConsole('log', `Imported '${fileName}' from Google Drive.`, 'system');
+  });
 
   // 5. Context menu
   document.getElementById('ctx-rename')?.addEventListener('click', () => {
@@ -243,6 +257,7 @@ window.addEventListener('load', async () => {
     if (document.getElementById('modal-overlay')?.style.display === 'flex')          closeAddMenu();
     if (document.getElementById('commit-modal-overlay')?.style.display === 'flex')   closeCommitModal();
     if (document.getElementById('crypto-modal-overlay')?.style.display === 'flex')   closeCryptoModal();
+    _closeAllHeaderDropdowns();
   });
   window.addEventListener('beforeunload', e => { if (S.unsavedChanges) { e.preventDefault(); e.returnValue = ''; } });
 
@@ -295,6 +310,46 @@ window.addEventListener('load', async () => {
     });
   }
 });
+
+// ─── Header dropdown menus (Drive / GitHub) ───────────────────────────────────
+function _closeAllHeaderDropdowns() {
+  document.querySelectorAll('.hdr-menu.open').forEach(m => m.classList.remove('open'));
+}
+
+function _refreshDriveMenu() {
+  const connected = isGdriveConnected();
+  document.getElementById('drive-menu-connect')?.style.setProperty('display', connected ? 'none' : 'flex');
+  document.getElementById('drive-menu-save')   ?.style.setProperty('display', connected ? 'flex' : 'none');
+  document.getElementById('drive-menu-load')   ?.style.setProperty('display', connected ? 'flex' : 'none');
+  document.getElementById('drive-menu-sep')    ?.style.setProperty('display', connected ? 'block' : 'none');
+  document.getElementById('drive-menu-signout')?.style.setProperty('display', connected ? 'flex' : 'none');
+}
+
+function _refreshGithubMenu() {
+  const connected = !!S.githubToken;
+  document.getElementById('gh-menu-connect') ?.style.setProperty('display', connected ? 'none' : 'flex');
+  document.getElementById('gh-menu-commit')  ?.style.setProperty('display', connected ? 'flex' : 'none');
+  document.getElementById('gh-menu-sep')     ?.style.setProperty('display', connected ? 'block' : 'none');
+  document.getElementById('gh-menu-signout') ?.style.setProperty('display', connected ? 'flex' : 'none');
+}
+
+/** Opens one header dropdown (closing any other), refreshing its contents first. */
+function toggleHeaderDropdown(menuId) {
+  const menu = document.getElementById(menuId);
+  if (!menu) return;
+  const wasOpen = menu.classList.contains('open');
+  _closeAllHeaderDropdowns();
+  if (wasOpen) return;
+  if (menuId === 'drive-menu')  _refreshDriveMenu();
+  if (menuId === 'github-menu') _refreshGithubMenu();
+  menu.classList.add('open');
+}
+
+async function gdriveSignOutUI() {
+  gdriveSignOut();
+  _closeAllHeaderDropdowns();
+  logToConsole('log', 'Signed out of Google Drive.', 'system');
+}
 
 // ─── Google Drive: save the active file ───────────────────────────────────────
 async function saveActiveFileToDrive() {
@@ -349,11 +404,16 @@ function _exposeGlobals() {
     openGithubCommitModal,
     closeCommitModal,
     executeGithubCommit,
+    signOutGithub,
 
     // Google Drive
     toggleGdriveAuth,
     openDrivePicker,
     saveActiveFileToDrive,
+    gdriveSignOutUI,
+
+    // Header dropdowns
+    closeHeaderDropdowns: _closeAllHeaderDropdowns,
 
     // AI
     toggleAI,

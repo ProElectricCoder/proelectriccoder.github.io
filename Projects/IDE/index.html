@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<!-- DeepBlue IDE - ProElectricCoder - v2.12.5 -->
+	<!-- DeepBlue IDE - ProElectricCoder - v2.12.6 -->
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>DeepBlue IDE - ProElectricCoder</title>
@@ -37,9 +37,6 @@
 	<script src="https://unpkg.com/prettier@2.8.8/parser-babel.js"></script>
 
 	<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-
-	<!-- Google Drive Picker web component -->
-	<script type="module" src="https://unpkg.com/@googleworkspace/drive-picker-element@latest/dist/index.js"></script>
 
 	<!-- CodeMirror core -->
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
@@ -106,32 +103,59 @@
 			</svg>
 		</button>
 
-		<!-- Google Drive: connect / sign out -->
-		<button class="btn btn-secondary btn-icon" onclick="toggleGdriveAuth()" id="gdrive-btn" title="Connect Google Drive">
-			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-				<path d="M7.71 3.5 1.15 15l3.43 6 6.56-11.5z"/><path d="M14.29 3.5h-6.58l6.56 11.5h6.58z"/><path d="M21.43 15h-6.57l-3.29 6h6.57z"/>
-			</svg>
-		</button>
+		<!-- Google Drive -->
+		<div class="hdr-dropdown">
+			<button class="btn btn-secondary btn-icon" id="drive-btn" title="Google Drive">
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M7.71 3.5 1.15 15l3.43 6 6.56-11.5z"/><path d="M14.29 3.5h-6.58l6.56 11.5h6.58z"/><path d="M21.43 15h-6.57l-3.29 6h6.57z"/>
+				</svg>
+			</button>
+			<div class="hdr-menu" id="drive-menu">
+				<div class="hdr-menu-item" id="drive-menu-connect" onclick="closeHeaderDropdowns();toggleGdriveAuth()">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+					Connect Google Drive
+				</div>
+				<div class="hdr-menu-item" id="drive-menu-save" onclick="closeHeaderDropdowns();saveActiveFileToDrive()">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+					Save Current File to Drive
+				</div>
+				<div class="hdr-menu-item" id="drive-menu-load" onclick="closeHeaderDropdowns();openDrivePicker()">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+					Load File from Drive
+				</div>
+				<div class="hdr-menu-sep" id="drive-menu-sep"></div>
+				<div class="hdr-menu-item danger" id="drive-menu-signout" onclick="closeHeaderDropdowns();gdriveSignOutUI()">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+					Sign Out of Drive
+				</div>
+			</div>
+		</div>
 
-		<!-- Google Drive: open file picker -->
-		<button class="btn btn-secondary btn-icon" onclick="openDrivePicker()" title="Open File from Google Drive">
-			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-		</button>
-
-		<!-- Google Drive: save active file -->
-		<button class="btn btn-secondary btn-icon" onclick="saveActiveFileToDrive()" title="Save Active File to Google Drive">
-			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-		</button>
-
-		<!-- GitHub Auth -->
-		<button class="btn btn-secondary btn-icon" onclick="confirmGithubAuth()" title="GitHub Authentication">
-			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-		</button>
-
-		<!-- GitHub Commit (shown after auth) -->
-		<button class="btn btn-secondary btn-icon" onclick="openGithubCommitModal()" title="Commit to GitHub" id="gh-commit-btn" style="display:none;">
-			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v14"/><polyline points="7 12 12 17 17 12"/><path d="M21 21H3"/></svg>
-		</button>
+		<!-- GitHub -->
+		<div class="hdr-dropdown">
+			<button class="btn btn-secondary btn-icon" id="github-btn" title="GitHub">
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+			</button>
+			<div class="hdr-menu" id="github-menu">
+				<div class="hdr-menu-item" id="gh-menu-connect" onclick="closeHeaderDropdowns();confirmGithubAuth()">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+					Connect GitHub
+				</div>
+				<div class="hdr-menu-item" id="gh-menu-import" onclick="closeHeaderDropdowns();handleGithubImport()">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+					Import Repository
+				</div>
+				<div class="hdr-menu-item" id="gh-menu-commit" onclick="closeHeaderDropdowns();openGithubCommitModal()">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v14"/><polyline points="7 12 12 17 17 12"/><path d="M21 21H3"/></svg>
+					Commit to GitHub
+				</div>
+				<div class="hdr-menu-sep" id="gh-menu-sep"></div>
+				<div class="hdr-menu-item danger" id="gh-menu-signout" onclick="closeHeaderDropdowns();signOutGithub()">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+					Sign Out of GitHub
+				</div>
+			</div>
+		</div>
 
 		<!-- AI Assistant -->
 		<button class="btn btn-secondary" onclick="toggleAI()" title="Gemini AI Assistant">
@@ -438,9 +462,6 @@
 <input type="file" id="file-upload"       style="display:none" onchange="processUpload(event)">
 <input type="file" id="folder-upload"     style="display:none" webkitdirectory directory onchange="processFolderUpload(event)">
 <input type="file" id="crypto-key-upload" accept=".sep"         style="display:none">
-
-<!-- Google Drive file picker (configure client-id / app-id in js/gdrive.js) -->
-<drive-picker id="gdrive-picker"app-id="629115974151" client-id="629115974151-be9vfilk42ou68lctco3sa2h44ioolqr.apps.googleusercontent.com" scope="https://www.googleapis.com/auth/drive.file"></drive-picker>
 
 <!-- ══ Entry point ═══════════════════════════════════════════════════════════ -->
 <script type="module" src="js/main.js"></script>
