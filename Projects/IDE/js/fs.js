@@ -16,10 +16,10 @@ export function initAutoSave() {
     } catch { return def; }
   };
 
-  const savedFS      = loadKey('deepBlueFS',       null,              true);
-  const savedFolders = loadKey('deepBlueFolders',   null,              true);
-  const savedDeleted = loadKey('deepBlueDeleted',   null,              true);
-  const savedRepos   = loadKey('deepBlueRepoFolders', null,            true);
+  const savedFS      = loadKey('deepBlueFS',          null, true);
+  const savedFolders = loadKey('deepBlueFolders',     null, true);
+  const savedDeleted = loadKey('deepBlueDeleted',     null, true);
+  const savedRepos   = loadKey('deepBlueRepoFolders', null, true);
 
   if (savedFS)      Object.assign(S.fileSystem, savedFS);
   if (savedFolders) { S.explicitFolders = savedFolders; if (!S.explicitFolders.includes('DeepBlue')) S.explicitFolders.push('DeepBlue'); }
@@ -209,23 +209,23 @@ export async function createNewFile() {
   const ext       = name.split('.').pop().toLowerCase();
   let type = 'text', content = '';
 
-  if (['js','jsx'].includes(ext))     { type = 'js';  content = `// ${name}\n`; }
-  else if (ext === 'css')             { type = 'css'; content = `/* ${name} */\n`; }
-  else if (ext === 'html')            { type = 'html'; content = `<!DOCTYPE html>\n<html>\n<head>\n\t<title>${titleName}</title>\n</head>\n<body>\n\t<h1>${titleName}</h1>\n</body>\n</html>`; }
-  else if (ext === 'json')            { type = 'text'; content = `{\n\t\n}`; }
-  else if (ext === 'md')              { type = 'text'; content = `# ${titleName}\n`; }
-  else if (ext === 'py')              { type = 'text'; content = `# ${name}\nprint("Hello, world!")\n`; }
-  else if (ext === 'txt')             { type = 'text'; content = ''; }
+  if (['js','jsx'].includes(ext))                  { type = 'js'; content = `// ${name}\n`; }
+  else if (ext === 'css')                          { type = 'css'; content = `/* ${name} */\n`; }
+  else if (ext === 'html')                         { type = 'html'; content = `<!DOCTYPE html>\n<html>\n<head>\n\t<title>${titleName}</title>\n</head>\n<body>\n\t<h1>${titleName}</h1>\n</body>\n</html>`; }
+  else if (ext === 'json')                         { type = 'text'; content = `{\n\t\n}`; }
+  else if (ext === 'md')                           { type = 'text'; content = `# ${titleName}\n`; }
+  else if (ext === 'py')                           { type = 'text'; content = `# ${name}\nprint("Hello, world!")\n`; }
+  else if (ext === 'txt')                          { type = 'text'; content = ''; }
   // ── Additional languages (CodeMirror modes lazy-loaded on open, see editor.js) ──
-  else if (['ts','tsx'].includes(ext)) { type = 'text'; content = `// ${name}\n`; }
-  else if (ext === 'sql')             { type = 'text'; content = `-- ${name}\n`; }
-  else if (['c','h'].includes(ext))   { type = 'text'; content = `// ${name}\n#include <stdio.h>\n\nint main(void) {\n\tprintf("Hello, world!\\n");\n\treturn 0;\n}\n`; }
+  else if (['ts','tsx'].includes(ext))             { type = 'text'; content = `// ${name}\n`; }
+  else if (ext === 'sql')                          { type = 'text'; content = `-- ${name}\n`; }
+  else if (['c','h'].includes(ext))                { type = 'text'; content = `// ${name}\n#include <stdio.h>\n\nint main(void) {\n\tprintf("Hello, world!\\n");\n\treturn 0;\n}\n`; }
   else if (['cpp','cc','cxx','hpp'].includes(ext)) { type = 'text'; content = `// ${name}\n#include <iostream>\n\nint main() {\n\tstd::cout << "Hello, world!" << std::endl;\n\treturn 0;\n}\n`; }
-  else if (ext === 'cs')              { type = 'text'; content = `// ${name}\nusing System;\n\nclass Program {\n\tstatic void Main() {\n\t\tConsole.WriteLine("Hello, world!");\n\t}\n}\n`; }
-  else if (ext === 'java')            { type = 'text'; content = `// ${name}\npublic class ${titleName} {\n\tpublic static void main(String[] args) {\n\t\tSystem.out.println("Hello, world!");\n\t}\n}\n`; }
-  else if (ext === 'go')              { type = 'text'; content = `// ${name}\npackage main\n\nimport "fmt"\n\nfunc main() {\n\tfmt.Println("Hello, world!")\n}\n`; }
-  else if (ext === 'rs')              { type = 'text'; content = `// ${name}\nfn main() {\n\tprintln!("Hello, world!");\n}\n`; }
-  else if (ext === 'php')             { type = 'text'; content = `<?php\n// ${name}\necho "Hello, world!";\n`; }
+  else if (ext === 'cs')                           { type = 'text'; content = `// ${name}\nusing System;\n\nclass Program {\n\tstatic void Main() {\n\t\tConsole.WriteLine("Hello, world!");\n\t}\n}\n`; }
+  else if (ext === 'java')                         { type = 'text'; content = `// ${name}\npublic class ${titleName} {\n\tpublic static void main(String[] args) {\n\t\tSystem.out.println("Hello, world!");\n\t}\n}\n`; }
+  else if (ext === 'go')                           { type = 'text'; content = `// ${name}\npackage main\n\nimport "fmt"\n\nfunc main() {\n\tfmt.Println("Hello, world!")\n}\n`; }
+  else if (ext === 'rs')                           { type = 'text'; content = `// ${name}\nfn main() {\n\tprintln!("Hello, world!");\n}\n`; }
+  else if (ext === 'php')                          { type = 'text'; content = `<?php\n// ${name}\necho "Hello, world!";\n`; }
   else if (ext === 'svg') {
     S.fileSystem[name] = { type: 'asset', subtype: 'svg', content: '<svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg"><circle cx="25" cy="25" r="20" fill="red"/></svg>', modified: true };
     S.unsavedChanges = true;
