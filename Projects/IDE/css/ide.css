@@ -47,7 +47,7 @@ header {
 	gap: 10px;
 }
 
-.controls { display: flex; gap: 10px; }
+.controls { display: flex; gap: 10px; align-items: center; }
 
 .btn {
 	background-color: var(--accent);
@@ -96,7 +96,7 @@ header {
 	display: none; position: absolute; top: calc(100% + 8px); right: 0;
 	background: var(--bg-panel); border: 1px solid var(--border);
 	border-radius: var(--radius-md); box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-	padding: 6px; flex-direction: column; min-width: 220px; z-index: 500;
+	padding: 6px; flex-direction: column; min-width: 220px; z-index: 2500;
 }
 .hdr-menu.open { display: flex; }
 .hdr-menu-item {
