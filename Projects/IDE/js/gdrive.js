@@ -22,8 +22,8 @@
  */
 
 // ── Configuration ─────────────────────────────────────────────────────────────
-const GOOGLE_CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com';
-const GOOGLE_APP_ID    = 'YOUR_NUMERIC_PROJECT_ID';   // e.g. "629115974151"
+const GOOGLE_CLIENT_ID = '629115974151-be9vfilk42ou68lctco3sa2h44ioolqr.apps.googleusercontent.com';
+const GOOGLE_APP_ID    = '629115974151';
 const DRIVE_SCOPE      = 'https://www.googleapis.com/auth/drive.file';
 const PICKER_SCRIPT_URL = 'https://unpkg.com/@googleworkspace/drive-picker-element@latest/dist/index.js';
 
