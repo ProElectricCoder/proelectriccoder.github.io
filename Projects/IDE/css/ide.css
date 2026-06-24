@@ -260,7 +260,7 @@ header {
 	position: relative;
 }
 .editor-tab:hover:not(.active) { background: rgba(255,255,255,0.06); color: var(--text-main); }
-.editor-tab.active { background: #000000; color: var(--text-main); box-shadow: inset 0 2px 0 0 var(--accent); z-index: 10; }
+.editor-tab.active { background: #000000; color: var(--text-main); box-shadow: inset 0 2px 0 0 var(--accent); z-index: 5; }
 .editor-tab.active::before {
 	content: ''; position: absolute; bottom: 0; left: -10px;
 	width: 10px; height: 10px;
@@ -359,7 +359,7 @@ header {
 	border-bottom: 1px solid var(--border); color: var(--text-muted);
 	font-size: 0.8rem; display: flex; justify-content: space-between;
 	align-items: center; transition: all 0.3s ease;
-	backdrop-filter: blur(4px); position: relative; z-index: 51; height: 42px;
+	backdrop-filter: blur(4px); position: relative; z-index: 55; height: 42px;
 }
 .output-container.expanded .output-header {
 	position: absolute; top: 0; left: 0; width: 100%;
