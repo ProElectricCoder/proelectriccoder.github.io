@@ -168,6 +168,11 @@ export function uploadToCurrentFolder() {
   document.getElementById('file-upload')?.click();
 }
 
+// ─── Settings sidebar ─────────────────────────────────────────────────────────
+export function toggleSettings() {
+  document.getElementById('settings-sidebar')?.classList.toggle('open');
+}
+
 // ─── Drag & drop ──────────────────────────────────────────────────────────────
 export function initDragDrop() {
   const overlay = document.getElementById('drag-overlay');

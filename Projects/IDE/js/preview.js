@@ -6,6 +6,18 @@
  * split into tabs: a permanent "System" tab (IDE-internal console mirror)
  * plus one dynamic tab per open preview tab, synced to the preview tab
  * lifecycle (created/activated/closed alongside the matching preview tab).
+ *
+ * ── Bug fix (regex file linking) ──────────────────────────────────────────────
+ * The virtual JSX shell's <script src="..."> used to be stamped with the
+ * file's FULL virtual path (e.g. "DeepBlue/Component.jsx"). resolveVirtualPath()
+ * treats whatever it's given as relative to the *directory* of targetFile, so
+ * feeding it that same full path back doubled the folder
+ * ("DeepBlue/DeepBlue/Component.jsx"), which doesn't exist in S.fileSystem.
+ * The href/src rewrite regex below then found no blobMap entry for that bogus
+ * path and silently left the original (non-existent, once rendered in the
+ * iframe) path in place — so JSX previews never actually linked to their own
+ * compiled blob. Fixed by stamping just the file's basename, which resolves
+ * relative to its own directory correctly.
  */
 
 import { S } from './state.js';
@@ -400,7 +412,15 @@ export async function runWeb(overrideFile = null, queryParams = '') {
 
     if (ext === 'jsx') {
       isVirtualJSX = true;
-      htmlContent  = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;background:#0a0e14;color:#fff;font-family:system-ui;}</style><script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin><\/script><script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin><\/script></head><body><div id="react-root"></div><script type="module" src="${targetFile}"><\/script></body></html>`;
+      // ── Bug fix: use the basename here, NOT the full virtual path. ──────────
+      // resolveVirtualPath(targetFile, path) resolves `path` relative to
+      // targetFile's own directory. Embedding the full path
+      // ("DeepBlue/Component.jsx") made it resolve to
+      // "DeepBlue/DeepBlue/Component.jsx" below, which isn't a real file, so
+      // the href/src rewrite pass found no blobMap entry and left the broken
+      // path in place. The basename round-trips correctly.
+      const jsxBaseName = targetFile.split('/').pop();
+      htmlContent  = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;background:#0a0e14;color:#fff;font-family:system-ui;}</style><script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin><\/script><script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin><\/script></head><body><div id="react-root"></div><script type="module" src="${jsxBaseName}"><\/script></body></html>`;
     } else if (!S.fileSystem[targetFile] || S.fileSystem[targetFile].type !== 'html') {
       if (S.fileSystem['index.html']) targetFile = 'index.html';
       else { _clearPreview(); return; }

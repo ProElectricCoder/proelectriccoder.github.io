@@ -1,0 +1,97 @@
+/* ── DeepBlue IDE — CodeMirror 6 "Cobalt" theme ────────────────────────────────
+   Hand-built because third-party CM6 cobalt theme packages weren't usable.
+   Background forced to pure black (per request) rather than Cobalt's classic
+   navy. Token colours below approximate the classic Cobalt palette.
+   These target CM6's stable public class names directly (.cm-editor,
+   .cm-gutters, etc.) plus a custom HighlightStyle (see js/editor.js) that
+   maps Lezer highlight tags to the fixed .cm-tok-* classes below, so the
+   actual colour values live here in CSS rather than baked into JS. */
+
+.cm-editor {
+	height: 100%;
+	background: #000000 !important;
+	color: #e2f1f8;
+	font-family: 'Consolas', 'Monaco', monospace;
+	font-size: 15px;
+}
+.cm-editor.cm-focused { outline: none !important; }
+.cm-scroller { overflow: auto; font-family: inherit; }
+.cm-content { padding: 20px 0; caret-color: #ffffff; }
+.cm-line { padding: 0 10px; }
+
+/* Gutters */
+.cm-gutters {
+	background: #000000 !important;
+	color: #3a5068;
+	border-right: 1px solid var(--border, #283548);
+}
+.cm-lineNumbers .cm-gutterElement { padding: 0 8px 0 4px; }
+.cm-activeLineGutter {
+	background: rgba(0,229,255,0.08);
+	color: var(--accent, #00e5ff);
+}
+.cm-foldGutter span { color: #3a5068; cursor: pointer; }
+.cm-foldGutter span:hover { color: var(--accent, #00e5ff); }
+
+/* Active line / selection / cursor */
+.cm-activeLine { background: rgba(255,255,255,0.03); }
+.cm-selectionBackground, .cm-content ::selection { background: rgba(0,229,255,0.25) !important; }
+.cm-focused .cm-selectionBackground { background: rgba(0,229,255,0.28) !important; }
+.cm-cursor, .cm-dropCursor { border-left: 2px solid #ffffff; }
+
+/* Matching brackets */
+.cm-matchingBracket, .cm-nonmatchingBracket {
+	background: rgba(0,229,255,0.18);
+	outline: 1px solid rgba(0,229,255,0.4);
+}
+
+/* Search matches (custom find/replace toolbar highlighting) */
+.cm-searchMatch { background: rgba(250,204,21,0.25); outline: 1px solid rgba(250,204,21,0.5); }
+.cm-searchMatch-selected { background: rgba(0,229,255,0.35); outline: 1px solid var(--accent,#00e5ff); }
+
+/* Fold placeholder */
+.cm-foldPlaceholder {
+	background: #1a2332; border: 1px solid var(--border,#283548);
+	color: #7b8ea5; border-radius: 4px; padding: 0 4px;
+}
+
+/* Tooltips / autocomplete */
+.cm-tooltip {
+	background: var(--bg-panel,#111720) !important;
+	border: 1px solid var(--border,#283548) !important;
+	color: var(--text-main,#e2f1f8);
+	font-family: 'Consolas','Monaco',monospace;
+}
+.cm-tooltip-autocomplete ul li { padding: 3px 10px; }
+.cm-tooltip-autocomplete ul li[aria-selected] {
+	background: var(--accent,#00e5ff) !important;
+	color: #000 !important;
+}
+.cm-completionLabel { color: inherit; }
+.cm-completionMatchedText { text-decoration: none; color: var(--accent,#00e5ff); font-weight: bold; }
+.cm-completionIcon { opacity: 0.6; }
+
+/* Scrollbars (match the rest of the IDE) */
+.cm-scroller::-webkit-scrollbar { width: 12px; height: 12px; }
+.cm-scroller::-webkit-scrollbar-track { background: #000000; }
+.cm-scroller::-webkit-scrollbar-thumb { background-color: #1e293b; border-radius: 6px; border: 3px solid #000000; }
+.cm-scroller::-webkit-scrollbar-thumb:hover { background-color: #334155; }
+
+/* ── Syntax tokens (Cobalt palette) ───────────────────────────────────────── */
+.cm-tok-keyword     { color: #ff9d00; }
+.cm-tok-string      { color: #a5ff90; }
+.cm-tok-comment     { color: #0088ff; font-style: italic; }
+.cm-tok-number      { color: #ff628c; }
+.cm-tok-bool        { color: #ff628c; }
+.cm-tok-null        { color: #ff628c; }
+.cm-tok-function    { color: #ffc600; }
+.cm-tok-variable    { color: #e2f1f8; }
+.cm-tok-def         { color: #9effff; }
+.cm-tok-type        { color: #9effff; }
+.cm-tok-tag         { color: #00e5ff; }
+.cm-tok-attribute   { color: #a5ff90; }
+.cm-tok-property    { color: #80fcff; }
+.cm-tok-operator    { color: #ff9d00; }
+.cm-tok-punctuation { color: #7b8ea5; }
+.cm-tok-meta        { color: #ff9d00; }
+.cm-tok-invalid     { color: #f87171; text-decoration: underline wavy; }

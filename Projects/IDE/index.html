@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<!-- DeepBlue IDE - ProElectricCoder - v2.12.6 -->
+	<!-- DeepBlue IDE - ProElectricCoder - v2.13.0 -->
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>DeepBlue IDE - ProElectricCoder</title>
@@ -38,37 +38,9 @@
 
 	<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-	<!-- CodeMirror core -->
-	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
-	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/cobalt.min.css">
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
-
-	<!-- CodeMirror language modes -->
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/xml/xml.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/css/css.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/htmlmixed/htmlmixed.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/python/python.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/markdown/markdown.min.js"></script>
-
-	<!-- CodeMirror addons: folding, brackets, search -->
-	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldgutter.min.css">
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldcode.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldgutter.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/brace-fold.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/xml-fold.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closebrackets.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/matchbrackets.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/searchcursor.min.js"></script>
-
-	<!-- CodeMirror addons: autocomplete, tag closing -->
-	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/show-hint.min.css">
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/show-hint.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/javascript-hint.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/html-hint.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/css-hint.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/anyword-hint.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closetag.min.js"></script>
+	<!-- CodeMirror 6 is loaded as plain ES module imports inside js/editor.js —
+	     no <script>/<link> tags needed here at all. Chrome/token colours for
+	     the editor live in css/cm6-cobalt.css (hand-built Cobalt theme). -->
 
 	<!-- Lucide icons -->
 	<script src="https://unpkg.com/lucide@latest"></script>
@@ -76,6 +48,7 @@
 	<!-- ── IDE stylesheets (extracted from inline styles) ──────────────────── -->
 	<link rel="stylesheet" href="css/ide.css">
 	<link rel="stylesheet" href="css/tour.css">
+	<link rel="stylesheet" href="css/cm6-cobalt.css">
 </head>
 <body>
 
@@ -106,9 +79,7 @@
 		<!-- Google Drive -->
 		<div class="hdr-dropdown">
 			<button class="btn btn-secondary btn-icon" id="drive-btn" title="Google Drive">
-				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					<path d="M7.71 3.5 1.15 15l3.43 6 6.56-11.5z"/><path d="M14.29 3.5h-6.58l6.56 11.5h6.58z"/><path d="M21.43 15h-6.57l-3.29 6h6.57z"/>
-				</svg>
+				<img src="icons/Google_Drive.svg" width="16" height="16" alt="">
 			</button>
 			<div class="hdr-menu" id="drive-menu">
 				<div class="hdr-menu-item" id="drive-menu-connect" onclick="closeHeaderDropdowns();toggleGdriveAuth()">
@@ -159,8 +130,13 @@
 
 		<!-- AI Assistant -->
 		<button class="btn btn-secondary" onclick="toggleAI()" title="Gemini AI Assistant">
-			<img src="https://www.gstatic.com/lamda/images/gemini_sparkle_aurora_33f86dc0c0257da337c63.svg" style="width:16px;height:16px;display:block;" alt="">
+			<img src="icons/Google_Gemini.svg" style="width:16px;height:16px;display:block;" alt="">
 			AI
+		</button>
+
+		<!-- Settings -->
+		<button class="btn btn-secondary btn-icon" onclick="toggleSettings()" title="Settings">
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
 		</button>
 
 		<button class="btn btn-secondary" onclick="formatCurrentFile()" title="Format Code">Format</button>
@@ -322,6 +298,39 @@
 		<div class="ai-input-area">
 			<textarea id="ai-user-input" class="ai-input" placeholder="Ask Gemini… (Shift+Enter for newline)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();callGemini();}"></textarea>
 			<button class="btn-icon" style="background:var(--accent);color:#000;width:40px;height:40px;border-radius:6px;" onclick="callGemini()">➤</button>
+		</div>
+	</div>
+
+	<!-- ── Settings Sidebar ─────────────────────────────────────────────────── -->
+	<div class="settings-sidebar" id="settings-sidebar">
+		<div class="settings-header">
+			<span>Settings</span>
+			<button class="btn-icon" onclick="toggleSettings()">✕</button>
+		</div>
+		<div class="settings-content">
+			<div class="settings-section-label">Documentation</div>
+			<a class="settings-link-btn" href="./Docs/" target="_blank" rel="noopener">
+				<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+				Open Documentation
+			</a>
+
+			<div class="settings-section-label">Google Workspace</div>
+			<a class="settings-link-btn" href="https://docs.google.com/" target="_blank" rel="noopener">
+				<img src="icons/Google_Docs.svg" alt="">
+				Edit a Document in Docs
+			</a>
+			<a class="settings-link-btn" href="https://sheets.google.com/" target="_blank" rel="noopener">
+				<img src="icons/Google_Sheets.svg" alt="">
+				Edit a Spreadsheet in Sheets
+			</a>
+			<a class="settings-link-btn" href="https://slides.google.com/" target="_blank" rel="noopener">
+				<img src="icons/Google_Slides.svg" alt="">
+				Edit a Presentation in Slides
+			</a>
+			<a class="settings-link-btn" href="https://photos.google.com/" target="_blank" rel="noopener">
+				<img src="icons/Google_Photos.svg" alt="">
+				Edit Images in Photos
+			</a>
 		</div>
 	</div>
 

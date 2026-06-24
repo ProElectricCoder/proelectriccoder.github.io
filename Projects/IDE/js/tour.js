@@ -18,7 +18,7 @@ const DEFAULT_STEPS = [
     placement: 'right',
   },
   {
-    target: ['#editor-panel', '.editor-wrapper', '.CodeMirror'],
+    target: ['#editor-panel', '.editor-wrapper', '.cm-editor'],
     title: 'The Command Centre',
     message: 'Write and edit code here with syntax highlighting, auto-complete, and code folding. Press <code>Ctrl+Space</code> for suggestions, <code>Ctrl+F</code> to search.',
     placement: 'bottom',

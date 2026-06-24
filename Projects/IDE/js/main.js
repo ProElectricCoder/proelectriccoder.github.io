@@ -17,7 +17,8 @@ import { runCode, runWeb, setExecLoading, logToConsole,
          resolveVirtualPath, openPreviewInNewTab }                                 from './preview.js';
 import { renderSidebar, openAddMenu, closeAddMenu, uploadToCurrentFolder,
          initDragDrop, initConsoleInput, toggleFullscreen, initResizers,
-         initAIResizer, toggleAI, callGemini, checkApiKey, saveApiKey }            from './ui.js';
+         initAIResizer, toggleAI, callGemini, checkApiKey, saveApiKey,
+         toggleSettings }                                                          from './ui.js';
 import { confirmGithubAuth, openGithubAuth, fetchWithProgress,
          handleGithubImport, openGithubCommitModal, signOutGithub,
          closeCommitModal, executeGithubCommit }                                   from './github.js';
@@ -257,6 +258,7 @@ window.addEventListener('load', async () => {
     if (document.getElementById('modal-overlay')?.style.display === 'flex')          closeAddMenu();
     if (document.getElementById('commit-modal-overlay')?.style.display === 'flex')   closeCommitModal();
     if (document.getElementById('crypto-modal-overlay')?.style.display === 'flex')   closeCryptoModal();
+    document.getElementById('settings-sidebar')?.classList.remove('open');
     _closeAllHeaderDropdowns();
   });
   window.addEventListener('beforeunload', e => { if (S.unsavedChanges) { e.preventDefault(); e.returnValue = ''; } });
@@ -414,6 +416,9 @@ function _exposeGlobals() {
 
     // Header dropdowns
     closeHeaderDropdowns: _closeAllHeaderDropdowns,
+
+    // Settings sidebar
+    toggleSettings,
 
     // AI
     toggleAI,

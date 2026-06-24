@@ -1,127 +1,277 @@
 /**
- * editor.js — CodeMirror initialisation, document tab management, file switching.
+ * editor.js — CodeMirror 6 initialisation, document tab management, file switching.
+ *
+ * ── CM5 → CM6 migration ───────────────────────────────────────────────────────
+ * CM6 is loaded straight from jsdelivr's ESM CDN (no bundler, no <script> tags
+ * in index.html at all — everything below is a normal ES module import).
+ * Because the rest of the app (fs.js, crypto.js, github.js, share.js,
+ * preview.js, ui.js) all talk to `S.cmEditor` / `S.editorDocs[path]` using
+ * the old CM5-style API (`.getValue()`, `.setValue()`, `.setCursor()`,
+ * `.getSelection()`, `.replaceRange()`, `.swapDoc()`, `.lineCount()`, …),
+ * `makeShim()` below wraps the real CM6 EditorView in an object that exposes
+ * those exact same methods. Every other module is therefore unchanged.
+ *
+ * Per-file documents: CM6 doesn't have a lightweight "Doc" you can swap in
+ * and out like CM5 did — language support, history, etc. all live on the
+ * EditorState. So each open file gets its own EditorState (created with the
+ * right language extension for that file), and switching files is
+ * `view.setState(thatFile.state)`. A single shared `EditorView.updateListener`
+ * extension (present in every file's extension list) writes the live state
+ * back onto the active file's stored object on every keystroke, so
+ * `editorDocs[path].getValue()` is always correct whether or not that file
+ * is the one currently on screen.
  */
 
 import { S } from './state.js';
 import { customAlert } from './dialogs.js';
 
-// ─── Language modes ───────────────────────────────────────────────────────────
-// HTML, CSS, JS and Python are loaded eagerly (via <script> tags in index.html)
-// because they're used by the default project / most common file types.
-// Everything else below is lazy-loaded on first use of that file type, so the
-// initial page weight stays small.
-const CM_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13';
+import { EditorState }            from 'https://cdn.jsdelivr.net/npm/@codemirror/state@6/+esm';
+import {
+  EditorView, keymap, lineNumbers, highlightActiveLine,
+  highlightActiveLineGutter, drawSelection
+}                                  from 'https://cdn.jsdelivr.net/npm/@codemirror/view@6/+esm';
+import {
+  defaultKeymap, history, historyKeymap, indentWithTab
+}                                  from 'https://cdn.jsdelivr.net/npm/@codemirror/commands@6/+esm';
+import {
+  syntaxHighlighting, HighlightStyle, bracketMatching, foldGutter,
+  foldKeymap, indentOnInput, indentUnit, StreamLanguage
+}                                  from 'https://cdn.jsdelivr.net/npm/@codemirror/language@6/+esm';
+import {
+  closeBrackets, closeBracketsKeymap, autocompletion,
+  completionKeymap, startCompletion
+}                                  from 'https://cdn.jsdelivr.net/npm/@codemirror/autocomplete@6/+esm';
+import { tags as t }              from 'https://cdn.jsdelivr.net/npm/@lezer/highlight@1/+esm';
 
-// Native — handled entirely by the modes already loaded eagerly (htmlmixed,
-// css, javascript, python, markdown, xml). No extra script needed.
-const _NATIVE_MODES = {
-  html: 'htmlmixed',
-  css:  'css',
-  js:   'javascript',
-  jsx:  { name: 'javascript', jsx: true },
-  ts:   { name: 'javascript', typescript: true },
-  tsx:  { name: 'javascript', typescript: true, jsx: true },
-  json: { name: 'javascript', json: true },
-  py:   'python',
-  md:   'markdown',
-};
+import { javascript } from 'https://cdn.jsdelivr.net/npm/@codemirror/lang-javascript@6/+esm';
+import { html }       from 'https://cdn.jsdelivr.net/npm/@codemirror/lang-html@6/+esm';
+import { css }        from 'https://cdn.jsdelivr.net/npm/@codemirror/lang-css@6/+esm';
+import { python }     from 'https://cdn.jsdelivr.net/npm/@codemirror/lang-python@6/+esm';
+import { markdown }   from 'https://cdn.jsdelivr.net/npm/@codemirror/lang-markdown@6/+esm';
+import { json }       from 'https://cdn.jsdelivr.net/npm/@codemirror/lang-json@6/+esm';
 
-// Lazy — extra CodeMirror mode file(s) fetched once, on first file of that
-// type, then cached (never re-fetched for the rest of the session).
-const _LAZY_MODES = {
-  sql:  { scripts: [`${CM_BASE}/mode/sql/sql.js`],                                   mode: 'text/x-sql' },
-  c:    { scripts: [`${CM_BASE}/mode/clike/clike.js`],                               mode: 'text/x-csrc' },
-  h:    { scripts: [`${CM_BASE}/mode/clike/clike.js`],                               mode: 'text/x-csrc' },
-  cpp:  { scripts: [`${CM_BASE}/mode/clike/clike.js`],                               mode: 'text/x-c++src' },
-  cc:   { scripts: [`${CM_BASE}/mode/clike/clike.js`],                               mode: 'text/x-c++src' },
-  cxx:  { scripts: [`${CM_BASE}/mode/clike/clike.js`],                               mode: 'text/x-c++src' },
-  hpp:  { scripts: [`${CM_BASE}/mode/clike/clike.js`],                               mode: 'text/x-c++src' },
-  cs:   { scripts: [`${CM_BASE}/mode/clike/clike.js`],                               mode: 'text/x-csharp' },
-  java: { scripts: [`${CM_BASE}/mode/clike/clike.js`],                               mode: 'text/x-java' },
-  // php.js depends on clike.js having already loaded — kept in this order
-  // and fetched sequentially (not in parallel) so the dependency is honored.
-  php:  { scripts: [`${CM_BASE}/mode/clike/clike.js`, `${CM_BASE}/mode/php/php.js`], mode: 'application/x-httpd-php' },
-  go:   { scripts: [`${CM_BASE}/mode/go/go.js`],                                     mode: 'go' },
-  rs:   { scripts: [`${CM_BASE}/mode/rust/rust.js`],                                 mode: 'rust' },
-};
+// ─── Cobalt syntax highlight style (colours live in css/cm6-cobalt.css) ───────
+const cobaltHighlightStyle = HighlightStyle.define([
+  { tag: [t.keyword, t.controlKeyword, t.operatorKeyword, t.moduleKeyword], class: 'cm-tok-keyword' },
+  { tag: [t.string, t.special(t.string), t.regexp],                        class: 'cm-tok-string' },
+  { tag: [t.comment, t.lineComment, t.blockComment],                       class: 'cm-tok-comment' },
+  { tag: [t.number, t.integer, t.float],                                   class: 'cm-tok-number' },
+  { tag: t.bool,                                                           class: 'cm-tok-bool' },
+  { tag: t.null,                                                           class: 'cm-tok-null' },
+  { tag: [t.function(t.variableName), t.function(t.propertyName)],        class: 'cm-tok-function' },
+  { tag: t.definition(t.variableName),                                    class: 'cm-tok-def' },
+  { tag: t.variableName,                                                  class: 'cm-tok-variable' },
+  { tag: [t.typeName, t.className, t.namespace],                          class: 'cm-tok-type' },
+  { tag: t.tagName,                                                       class: 'cm-tok-tag' },
+  { tag: t.attributeName,                                                 class: 'cm-tok-attribute' },
+  { tag: t.propertyName,                                                  class: 'cm-tok-property' },
+  { tag: [t.operator, t.compareOperator, t.arithmeticOperator],           class: 'cm-tok-operator' },
+  { tag: [t.bracket, t.separator, t.punctuation],                         class: 'cm-tok-punctuation' },
+  { tag: t.meta,                                                          class: 'cm-tok-meta' },
+  { tag: t.invalid,                                                       class: 'cm-tok-invalid' },
+]);
 
-const _loadedScripts  = new Set();
-const _scriptPromises = new Map();
-
-function _loadScript(url) {
-  if (_loadedScripts.has(url)) return Promise.resolve();
-  if (_scriptPromises.has(url)) return _scriptPromises.get(url);
-  const p = new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = url;
-    s.onload  = () => { _loadedScripts.add(url); resolve(); };
-    s.onerror = () => { _scriptPromises.delete(url); reject(new Error(`Failed to load language mode: ${url}`)); };
-    document.head.appendChild(s);
-  });
-  _scriptPromises.set(url, p);
-  return p;
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-/** Resolves the CodeMirror mode for a filename, lazy-loading its mode script(s) first if needed. */
-export async function getModeForFile(filename) {
-  if (!filename) return 'text/plain';
-  const ext = filename.split('.').pop().toLowerCase();
-
-  if (Object.prototype.hasOwnProperty.call(_NATIVE_MODES, ext)) return _NATIVE_MODES[ext];
-
-  const lazy = _LAZY_MODES[ext];
-  if (lazy) {
-    for (const url of lazy.scripts) await _loadScript(url); // sequential — order matters (e.g. php needs clike)
-    return lazy.mode;
+// ─── Shared update listener: keeps the active file's stored state fresh,
+//     mirrors the old 'change'/'cursorActivity' CM5 handlers ─────────────────
+const _syncListener = EditorView.updateListener.of(update => {
+  const shim = S.cmEditor;
+  if (shim && shim._activeDoc && (update.docChanged || update.selectionSet)) {
+    shim._activeDoc.state = update.state;
   }
-
-  return 'text/plain';
-}
-
-// ─── CodeMirror init ──────────────────────────────────────────────────────────
-export function initCodeMirror(containerEl) {
-  S.cmEditor = CodeMirror(containerEl, {
-    theme:        'cobalt',
-    mode:         'htmlmixed',
-    lineNumbers:  true,
-    indentUnit:   4,
-    tabSize:      4,
-    lineWrapping: false,
-    autoCloseBrackets: true,
-    autoCloseTags:     true,
-    matchBrackets:     true,
-    foldGutter:   true,
-    gutters: ['CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
-    extraKeys: {
-      'Ctrl-Space': 'autocomplete',
-      'Ctrl-F':     () => S._callbacks.toggleSearch?.(),
-      'Cmd-F':      () => S._callbacks.toggleSearch?.(),
-    },
-  });
-
-  S.cmEditor.on('change', () => {
-    if (S.isSwitchingFile) return;
+  if (update.selectionSet) {
+    const pos  = update.state.selection.main.head;
+    const line = update.state.doc.lineAt(pos);
+    const el   = document.getElementById('cursor-pos');
+    if (el) el.innerText = `Ln ${line.number}, Col ${pos - line.from + 1}`;
+  }
+  if (update.docChanged && !S.isSwitchingFile) {
     S.unsavedChanges = true;
     if (S.activeFile && S.fileSystem[S.activeFile] && !S.fileSystem[S.activeFile].modified) {
       S.fileSystem[S.activeFile].modified = true;
       S._callbacks.renderSidebar?.();
       renderEditorTabs();
     }
-  });
+  }
+});
 
-  S.cmEditor.on('cursorActivity', () => {
-    const pos = S.cmEditor.getCursor();
-    const el = document.getElementById('cursor-pos');
-    if (el) el.innerText = `Ln ${pos.line + 1}, Col ${pos.ch + 1}`;
-  });
+function baseExtensions(langExt) {
+  return [
+    lineNumbers(),
+    highlightActiveLineGutter(),
+    highlightActiveLine(),
+    history(),
+    drawSelection(),
+    indentOnInput(),
+    bracketMatching(),
+    closeBrackets(),
+    foldGutter(),
+    autocompletion({ activateOnTyping: true }),
+    indentUnit.of('\t'),
+    syntaxHighlighting(cobaltHighlightStyle, { fallback: true }),
+    EditorView.theme({}, { dark: true }),
+    keymap.of([
+      { key: 'Ctrl-Space', run: startCompletion },
+      { key: 'Mod-f',      run: () => { S._callbacks.toggleSearch?.(); return true; } },
+      ...closeBracketsKeymap,
+      ...defaultKeymap,
+      ...historyKeymap,
+      ...foldKeymap,
+      ...completionKeymap,
+      indentWithTab,
+    ]),
+    _syncListener,
+    langExt || [],
+  ];
+}
 
-  S.cmEditor.on('inputRead', (editor, change) => {
-    if (S.isSwitchingFile || editor.state.completionActive) return;
-    if (change.text[0] && /[\w.]/.test(change.text[0])) {
-      CodeMirror.commands.autocomplete(editor, null, { completeSingle: false });
+// ─── Language resolution (eager core langs + lazy dynamic-import for the rest) ─
+// Dynamic import() URLs are deduped by the browser's module cache on their own,
+// so unlike the old CM5 sequential-script-loader, no manual dependency
+// ordering is needed here (php/clike etc. resolve their own deps via ESM).
+const _langCache = new Map();
+
+async function getLanguageExtension(ext) {
+  ext = (ext || '').toLowerCase();
+  if (_langCache.has(ext)) return _langCache.get(ext);
+
+  let result;
+  try {
+    switch (ext) {
+      case 'html': result = html({ autoCloseTags: true, matchClosingTags: true }); break;
+      case 'css':  result = css(); break;
+      case 'js':   result = javascript(); break;
+      case 'jsx':  result = javascript({ jsx: true }); break;
+      case 'ts':   result = javascript({ typescript: true }); break;
+      case 'tsx':  result = javascript({ jsx: true, typescript: true }); break;
+      case 'json': result = json(); break;
+      case 'py':   result = python(); break;
+      case 'md':   result = markdown(); break;
+      case 'svg':  result = (await import('https://cdn.jsdelivr.net/npm/@codemirror/lang-xml@6/+esm')).xml(); break;
+      case 'sql': {
+        const { sql } = await import('https://cdn.jsdelivr.net/npm/@codemirror/lang-sql@6/+esm');
+        result = sql(); break;
+      }
+      case 'c': case 'h': case 'cpp': case 'cc': case 'cxx': case 'hpp': {
+        const { cpp } = await import('https://cdn.jsdelivr.net/npm/@codemirror/lang-cpp@6/+esm');
+        result = cpp(); break;
+      }
+      case 'java': {
+        const { java } = await import('https://cdn.jsdelivr.net/npm/@codemirror/lang-java@6/+esm');
+        result = java(); break;
+      }
+      case 'php': {
+        const { php } = await import('https://cdn.jsdelivr.net/npm/@codemirror/lang-php@6/+esm');
+        result = php(); break;
+      }
+      case 'cs': {
+        const clikeMod = await import('https://cdn.jsdelivr.net/npm/@codemirror/legacy-modes@6/mode/clike.js/+esm');
+        result = StreamLanguage.define(clikeMod.csharp); break;
+      }
+      case 'go': {
+        const goMod = await import('https://cdn.jsdelivr.net/npm/@codemirror/legacy-modes@6/mode/go.js/+esm');
+        result = StreamLanguage.define(goMod.go); break;
+      }
+      case 'rs': {
+        const rustMod = await import('https://cdn.jsdelivr.net/npm/@codemirror/legacy-modes@6/mode/rust.js/+esm');
+        result = StreamLanguage.define(rustMod.rust); break;
+      }
+      default: result = [];
     }
+  } catch (e) {
+    console.warn('[DeepBlue] Language mode failed to load, falling back to plain text:', e.message);
+    result = [];
+  }
+
+  _langCache.set(ext, result);
+  return result;
+}
+
+// ─── Per-file "doc" object ────────────────────────────────────────────────────
+// Only needs .getValue() (read by crypto.js/share.js/preview.js/syncDocsToContent)
+// and .setValue() (used once, by switchFile, after a lazy GitHub fetch resolves).
+function createCMDoc(content, langExt) {
+  return {
+    state: EditorState.create({ doc: content, extensions: baseExtensions(langExt) }),
+    getValue() { return this.state.doc.toString(); },
+    setValue(text) {
+      if (S.cmEditor && S.cmEditor._activeDoc === this) {
+        S.cmEditor.view.dispatch({ changes: { from: 0, to: S.cmEditor.view.state.doc.length, insert: text } });
+        this.state = S.cmEditor.view.state;
+      } else {
+        this.state = this.state.update({ changes: { from: 0, to: this.state.doc.length, insert: text } }).state;
+      }
+    },
+  };
+}
+
+// ─── CM5-compatible shim around the live EditorView ───────────────────────────
+function makeShim(view) {
+  return {
+    view,
+    _activeDoc: null,
+
+    getValue() { return this.view.state.doc.toString(); },
+    setValue(text) { this.view.dispatch({ changes: { from: 0, to: this.view.state.doc.length, insert: text } }); },
+
+    getSelection() {
+      const r = this.view.state.selection.main;
+      return this.view.state.sliceDoc(r.from, r.to);
+    },
+    replaceSelection(text) {
+      const r = this.view.state.selection.main;
+      this.view.dispatch({ changes: { from: r.from, to: r.to, insert: text }, selection: { anchor: r.from + text.length } });
+    },
+    replaceRange(text, pos) {
+      const off = this._posToOffset(pos);
+      this.view.dispatch({ changes: { from: off, to: off, insert: text }, selection: { anchor: off + text.length } });
+    },
+
+    getCursor() {
+      const head = this.view.state.selection.main.head;
+      const line = this.view.state.doc.lineAt(head);
+      return { line: line.number - 1, ch: head - line.from };
+    },
+    setCursor(pos) {
+      const off = this._posToOffset(pos);
+      this.view.dispatch({ selection: { anchor: off }, scrollIntoView: true });
+    },
+    setSelection(anchorPos, headPos) {
+      const a = typeof anchorPos === 'number' ? anchorPos : this._posToOffset(anchorPos);
+      const h = typeof headPos === 'number' ? headPos : this._posToOffset(headPos ?? anchorPos);
+      this.view.dispatch({ selection: { anchor: a, head: h }, scrollIntoView: true });
+    },
+
+    lineCount() { return this.view.state.doc.lines; },
+    scrollIntoView(range) {
+      let pos;
+      if (typeof range === 'number') pos = range;
+      else if (range && typeof range.from === 'number') pos = range.from;
+      else if (range && range.from) pos = this._posToOffset(range.from);
+      else pos = this.view.state.selection.main.head;
+      this.view.dispatch({ effects: EditorView.scrollIntoView(pos, { y: 'center' }) });
+    },
+
+    focus() { this.view.focus(); },
+    refresh() { this.view.requestMeasure(); },
+
+    swapDoc(doc) { this._activeDoc = doc; this.view.setState(doc.state); },
+
+    _posToOffset(pos) {
+      if (typeof pos === 'number') return pos;
+      const ln   = Math.max(1, Math.min(this.view.state.doc.lines, (pos.line ?? 0) + 1));
+      const line = this.view.state.doc.line(ln);
+      return Math.min(line.to, line.from + (pos.ch ?? 0));
+    },
+  };
+}
+
+// ─── CodeMirror init ──────────────────────────────────────────────────────────
+export function initCodeMirror(containerEl) {
+  const view = new EditorView({
+    parent: containerEl,
+    state: EditorState.create({ doc: '', extensions: baseExtensions(null) }),
   });
+  S.cmEditor = makeShim(view);
 }
 
 // ─── Editor Tabs ──────────────────────────────────────────────────────────────
@@ -274,16 +424,14 @@ export async function switchFile(filename) {
   } else {
     _showEditorPane();
 
-    let mode = 'xml';
-    if (!(isAsset && subtype === 'svg')) {
-      try { mode = await getModeForFile('dummy.' + ext); }
-      catch (e) { console.warn('[DeepBlue] Language mode failed to load, falling back to plain text:', e.message); mode = 'text/plain'; }
-    }
+    let langExt = [];
+    try { langExt = await getLanguageExtension(isAsset && subtype === 'svg' ? 'svg' : ext); }
+    catch (e) { console.warn('[DeepBlue] Language mode failed to load, falling back to plain text:', e.message); langExt = []; }
 
     if (!S.editorDocs[filename]) {
       let initial = contentToLoad;
       if (initial === null && target.ghUrl) initial = 'Loading…';
-      S.editorDocs[filename] = new CodeMirror.Doc(initial || '', mode);
+      S.editorDocs[filename] = createCMDoc(initial || '', langExt);
     }
 
     S.cmEditor.swapDoc(S.editorDocs[filename]);
