@@ -1,10 +1,11 @@
 /*
+ElectronCSS - CubicGradient v6.0.0
 Generates an optimized, eased CSS linear-gradient string and exposes raw SVG/canvas data.
- • Supports Hex (6/8 digit) and Alpha.
- • Logic: Single-pass generation that only commits stops when the curve deviates.
- • Output: A "smart object" that automatically acts as a CSS string, but contains raw data properties.
+ • Supports Hex (3/4/6/8 digit) and Alpha.
+ • Logic: Single-pass generation that only commits stops when the curve deviates.
+ • Output: A "smart object" that automatically acts as a CSS string, but contains raw data properties.
 */
-// “Created by Gemini 3.1 Pro and ChatGPT 5.3 Instant” - ProElectricCoder
+// “Created with Gemini 3.1 Pro” - ProElectricCoder
 export function cubicGradient({
 	direction = "to right",
 	start = "#000044",
@@ -15,39 +16,22 @@ export function cubicGradient({
 
 	// --- Helpers ---
 	function parseHex(hex) {
-		const h = hex.replace('#', '');
+		let h = hex.replace('#', '');
+		// Support 3-digit (#rgb) and 4-digit (#rgba) hex
+		if (h.length === 3 || h.length === 4) {
+			h = h.split('').map(c => c + c).join('');
+		}
 		return {
 			r: parseInt(h.substring(0, 2), 16),
 			g: parseInt(h.substring(2, 4), 16),
 			b: parseInt(h.substring(4, 6), 16),
-			a: h.length === 8 ? parseInt(h.substring(6, 8), 16) / 255 : 1
+			// Switch alpha to 0-255 scale for easier formatting and threshold checks
+			a: h.length === 8 ? parseInt(h.substring(6, 8), 16) : 255
 		};
 	}
 
 	const c1 = parseHex(start);
 	const c2 = parseHex(end);
-
-	const getTFromEased = (eased) => Math.pow(eased, 1 / power);
-
-	const transitionPoints = new Set([0, 1]); 
-	const channels = ['r', 'g', 'b', 'a'];
-
-	// 1. Generate all theoretical candidate points based on color delta
-	channels.forEach(ch => {
-		const startVal = c1[ch];
-		const endVal = c2[ch];
-		const diff = Math.abs(endVal - startVal);
-
-		if (diff > 0) {
-			const colorSteps = Math.min(diff > 1 ? diff : 255, steps);
-			for (let i = 1; i < colorSteps; i++) {
-				transitionPoints.add(getTFromEased(i / colorSteps));
-			}
-		}
-	});
-
-	const sortedT = Array.from(transitionPoints).sort((a, b) => a - b);
-	const totalCandidates = sortedT.length; // Store the initial evaluation count
 
 	// Helper to calculate exact high-precision state at a specific T
 	const getStop = (t) => {
@@ -61,7 +45,18 @@ export function cubicGradient({
 		};
 	};
 
-	// --- 2. Optimized Single-Pass Generation ---
+	// 1. Generate initial points by dividing 1020
+	const maxTheoretical = 1020;
+	const increment = Math.round(maxTheoretical / steps) || 1;
+	const sortedT = [];
+	for (let i = 0; i <= maxTheoretical; i += increment) {
+		sortedT.push(i / maxTheoretical);
+	}
+	if (sortedT[sortedT.length - 1] !== 1) sortedT.push(1);
+
+	const totalCandidates = sortedT.length; // Store the initial evaluation count
+
+	// --- 2. Optimized Single-Pass Generation & Simplification ---
 	const optimized = [getStop(sortedT[0])];
 
 	for (let i = 1; i < sortedT.length - 1; i++) {
@@ -74,7 +69,7 @@ export function cubicGradient({
 		const isLinear = ['r', 'g', 'b', 'a'].every(ch => {
 			const interp = prev[ch] + (next[ch] - prev[ch]) * segmentT;
 			// Strict threshold check using floating point accuracy
-			return Math.abs(curr[ch] - interp) < 0.5; 
+			return Math.abs(curr[ch] - interp) < 0.5; 
 		});
 
 		if (!isLinear) {
@@ -84,6 +79,40 @@ export function cubicGradient({
 	
 	optimized.push(getStop(sortedT[sortedT.length - 1]));
 
+	// --- 2.5 Dynamic Subdivision (Add stops until total = steps) ---
+	const getMidpointError = (stopA, stopB) => {
+		const midT = (stopA.t + stopB.t) / 2;
+		const actualMid = getStop(midT);
+		let maxError = 0;
+		['r', 'g', 'b', 'a'].forEach(ch => {
+			const linearMid = (stopA[ch] + stopB[ch]) / 2;
+			const err = Math.abs(actualMid[ch] - linearMid);
+			if (err > maxError) maxError = err;
+		});
+		return { actualMid, maxError };
+	};
+
+	while (optimized.length < steps) {
+		let highestError = -1;
+		let insertIndex = -1;
+		let bestMidpoint = null;
+
+		for (let i = 0; i < optimized.length - 1; i++) {
+			const { actualMid, maxError } = getMidpointError(optimized[i], optimized[i + 1]);
+			if (maxError > highestError) {
+				highestError = maxError;
+				insertIndex = i + 1;
+				bestMidpoint = actualMid;
+			}
+		}
+
+		if (insertIndex !== -1 && bestMidpoint) {
+			optimized.splice(insertIndex, 0, bestMidpoint);
+		} else {
+			break; // Failsafe
+		}
+	}
+
 	// --- 3. Final Object Formatting ---
 	
 	// Map to the exact raw object format requested
@@ -92,12 +121,14 @@ export function cubicGradient({
 		r: Math.round(s.r),
 		g: Math.round(s.g),
 		b: Math.round(s.b),
-		a: Number(s.a.toFixed(3))
+		a: Math.round(s.a)
 	}));
 
 	// Build the CSS string
+	const toHex = (c) => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, '0');
+	
 	const cssStops = formattedStops.map(s => {
-		const colorStr = `rgba(${s.r}, ${s.g}, ${s.b}, ${s.a})`;
+		const colorStr = `#${toHex(s.r)}${toHex(s.g)}${toHex(s.b)}${toHex(s.a)}`;
 		return `${colorStr} ${(s.t * 100).toFixed(2)}%`;
 	});
 	
