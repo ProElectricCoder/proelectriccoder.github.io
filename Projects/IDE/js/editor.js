@@ -25,30 +25,30 @@
 import { S } from './state.js';
 import { customAlert } from './dialogs.js';
 
-import { EditorState }            from 'https://cdn.jsdelivr.net/npm/@codemirror/state@6/+esm';
+import { EditorState }            from 'https://esm.sh/@codemirror/state@6/+esm';
 import {
   EditorView, keymap, lineNumbers, highlightActiveLine,
   highlightActiveLineGutter, drawSelection
-}                                  from 'https://cdn.jsdelivr.net/npm/@codemirror/view@6/+esm';
+}                                 from 'https://esm.sh/@codemirror/view@6/+esm';
 import {
   defaultKeymap, history, historyKeymap, indentWithTab
-}                                  from 'https://cdn.jsdelivr.net/npm/@codemirror/commands@6/+esm';
+}                                 from 'https://esm.sh/@codemirror/commands@6/+esm';
 import {
   syntaxHighlighting, HighlightStyle, bracketMatching, foldGutter,
   foldKeymap, indentOnInput, indentUnit, StreamLanguage
-}                                  from 'https://cdn.jsdelivr.net/npm/@codemirror/language@6/+esm';
+}                                 from 'https://esm.sh/@codemirror/language@6/+esm';
 import {
   closeBrackets, closeBracketsKeymap, autocompletion,
   completionKeymap, startCompletion
-}                                  from 'https://cdn.jsdelivr.net/npm/@codemirror/autocomplete@6/+esm';
-import { tags as t }              from 'https://cdn.jsdelivr.net/npm/@lezer/highlight@1/+esm';
+}                                 from 'https://esm.sh/@codemirror/autocomplete@6/+esm';
+import { tags as t }              from 'https://esm.sh/@lezer/highlight@1/+esm';
 
-import { javascript } from 'https://cdn.jsdelivr.net/npm/@codemirror/lang-javascript@6/+esm';
-import { html }       from 'https://cdn.jsdelivr.net/npm/@codemirror/lang-html@6/+esm';
-import { css }        from 'https://cdn.jsdelivr.net/npm/@codemirror/lang-css@6/+esm';
-import { python }     from 'https://cdn.jsdelivr.net/npm/@codemirror/lang-python@6/+esm';
-import { markdown }   from 'https://cdn.jsdelivr.net/npm/@codemirror/lang-markdown@6/+esm';
-import { json }       from 'https://cdn.jsdelivr.net/npm/@codemirror/lang-json@6/+esm';
+import { javascript } from 'https://esm.sh/@codemirror/lang-javascript@6/+esm';
+import { html }       from 'https://esm.sh/@codemirror/lang-html@6/+esm';
+import { css }        from 'https://esm.sh/@codemirror/lang-css@6/+esm';
+import { python }     from 'https://esm.sh/@codemirror/lang-python@6/+esm';
+import { markdown }   from 'https://esm.sh/@codemirror/lang-markdown@6/+esm';
+import { json }       from 'https://esm.sh/@codemirror/lang-json@6/+esm';
 
 // ─── Cobalt syntax highlight style (colours live in css/cm6-cobalt.css) ───────
 const cobaltHighlightStyle = HighlightStyle.define([
@@ -147,33 +147,33 @@ async function getLanguageExtension(ext) {
       case 'json': result = json(); break;
       case 'py':   result = python(); break;
       case 'md':   result = markdown(); break;
-      case 'svg':  result = (await import('https://cdn.jsdelivr.net/npm/@codemirror/lang-xml@6/+esm')).xml(); break;
+      case 'svg':  result = (await import('https://esm.sh/@codemirror/lang-xml@6/+esm')).xml(); break;
       case 'sql': {
-        const { sql } = await import('https://cdn.jsdelivr.net/npm/@codemirror/lang-sql@6/+esm');
+        const { sql } = await import('https://esm.sh/@codemirror/lang-sql@6/+esm');
         result = sql(); break;
       }
       case 'c': case 'h': case 'cpp': case 'cc': case 'cxx': case 'hpp': {
-        const { cpp } = await import('https://cdn.jsdelivr.net/npm/@codemirror/lang-cpp@6/+esm');
+        const { cpp } = await import('https://esm.sh/@codemirror/lang-cpp@6/+esm');
         result = cpp(); break;
       }
       case 'java': {
-        const { java } = await import('https://cdn.jsdelivr.net/npm/@codemirror/lang-java@6/+esm');
+        const { java } = await import('https://esm.sh/@codemirror/lang-java@6/+esm');
         result = java(); break;
       }
       case 'php': {
-        const { php } = await import('https://cdn.jsdelivr.net/npm/@codemirror/lang-php@6/+esm');
+        const { php } = await import('https://esm.sh/@codemirror/lang-php@6/+esm');
         result = php(); break;
       }
       case 'cs': {
-        const clikeMod = await import('https://cdn.jsdelivr.net/npm/@codemirror/legacy-modes@6/mode/clike.js/+esm');
+        const clikeMod = await import('https://esm.sh/@codemirror/legacy-modes@6/mode/clike.js/+esm');
         result = StreamLanguage.define(clikeMod.csharp); break;
       }
       case 'go': {
-        const goMod = await import('https://cdn.jsdelivr.net/npm/@codemirror/legacy-modes@6/mode/go.js/+esm');
+        const goMod = await import('https://esm.sh/@codemirror/legacy-modes@6/mode/go.js/+esm');
         result = StreamLanguage.define(goMod.go); break;
       }
       case 'rs': {
-        const rustMod = await import('https://cdn.jsdelivr.net/npm/@codemirror/legacy-modes@6/mode/rust.js/+esm');
+        const rustMod = await import('https://esm.sh/@codemirror/legacy-modes@6/mode/rust.js/+esm');
         result = StreamLanguage.define(rustMod.rust); break;
       }
       default: result = [];
