@@ -42,6 +42,10 @@ export function getDefaultFileSystem() {
       type: 'html',
       content: `<!DOCTYPE html>\n<html>\n\t<head>\n\t\t<title>DeepBlue</title>\n\t\t<link rel="stylesheet" href="style.css" />\n\t</head>\n\t<body>\n\t\t<div class="card">\n\t\t\t<h2 class="card-title">Deep Blue</h2>\n\t\t\t<p class="card-subtitle">Code comfortably</p>\n\t\t</div>\n\t\t<script src="script.js"><\/script>\n\t</body>\n</html>`
     }
+	'DeepBlue/ElectronCSS.html': {
+		type: 'html',
+		content: '<!DOCTYPE html>\n<html>\n\t<head>\n\t\t<title>ElectronCSS Showcase</title>\n\t\t<link rel="stylesheet" href="style.css" />\n\t\t<style>body { gap: 2rem; flex-wrap: wrap; }</style>\n\t</head>\n\t<body>\n\t\t<div class="card" id="firestorm-card">\n\t\t\t<h2 class="card-title">FireStorm</h2>\n\t\t\t<p class="card-subtitle">Dynamic symmetrical noise backdrop</p>\n\t\t</div>\n\t\t<div class="card" id="gradient-card">\n\t\t\t<h2 class="card-title">CubicGradient</h2>\n\t\t\t<p class="card-subtitle">Smoothed, mathematical easing stops</p>\n\t\t</div>\n\t\t<script type="module">\n\t\t\timport { cubicGradient } from \'https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js\';\n\t\t\timport { fireStorm } from \'https://proelectriccoder.github.io/ElectronCSS/FireStorm.js\';\n\t\t\tfireStorm({\n\t\t\t\tdirection: \'to bottom right\',\n\t\t\t\tfrom: \'#00e5ff\',\n\t\t\t\tto: \'#000044\',\n\t\t\t\tsteps: 16,\n\t\t\t\tchaos: 0.7,\n\t\t\t\tsmoothing: 8\n\t\t\t});\n\t\t\tdocument.getElementById(\'gradient-card\').style.background = cubicGradient({\n\t\t\t\tdirection: \'135deg\',\n\t\t\t\tstart: \'#ffffff1a\',\n\t\t\t\tend: \'#ffffff00\',\n\t\t\t\tsteps: 24,\n\t\t\t\tpower: 2\n\t\t\t}).css;\n\t\t\tdocument.getElementById(\'firestorm-card\').style.background = cubicGradient({\n\t\t\t\tdirection: \'45deg\',\n\t\t\t\tstart: \'#ff00551a\',\n\t\t\t\tend: \'#00000044\',\n\t\t\t\tsteps: 24,\n\t\t\t\tpower: 3\n\t\t\t}).css;\n\t\t<\/script>\n\t</body>\n</html>'
+	}
   };
 }
 
