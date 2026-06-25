@@ -1168,60 +1168,9 @@ input[type="range"]::-webkit-slider-thumb:active { cursor: grabbing; }
 ══════════════════════════════════ -->
 <script>
 /* ─────────────────────────────────────────────
-	 CubicGradient engine (inlined & extended to
-	 also return stops + candidate count for audit)
+	 CubicGradient engine
 ───────────────────────────────────────────── */
-function cubicGradient({ direction="to right", start="#000044",
-													end="#00000000", steps=10, power=3 }={}) {
-	function parseHex(hex) {
-		const h = hex.replace('#','');
-		return {
-			r: parseInt(h.slice(0,2),16),
-			g: parseInt(h.slice(2,4),16),
-			b: parseInt(h.slice(4,6),16),
-			a: h.length===8 ? parseInt(h.slice(6,8),16)/255 : 1
-		};
-	}
-	const c1 = parseHex(start);
-	const c2 = parseHex(end);
-	const inv = e => Math.pow(e, 1/power);
-	const pts = new Set([0,1]);
-	['r','g','b','a'].forEach(ch => {
-		const diff = Math.abs(c2[ch]-c1[ch]);
-		if (diff > 0) {
-			const n = Math.min(diff>1?diff:255, steps);
-			for (let i=1;i<n;i++) pts.add(inv(i/n));
-		}
-	});
-	const sorted = [...pts].sort((a,b)=>a-b);
-	const totalCandidates = sorted.length;
-	const mkStop = t => {
-		const e = Math.pow(t,power);
-		return {
-			t,
-			r: Math.round(c1.r+(c2.r-c1.r)*e),
-			g: Math.round(c1.g+(c2.g-c1.g)*e),
-			b: Math.round(c1.b+(c2.b-c1.b)*e),
-			a: +((c1.a+(c2.a-c1.a)*e).toFixed(3))
-		};
-	};
-	const opt = [mkStop(sorted[0])];
-	for (let i=1;i<sorted.length-1;i++) {
-		const prev=opt[opt.length-1], curr=mkStop(sorted[i]), next=mkStop(sorted[i+1]);
-		const sT=(curr.t-prev.t)/(next.t-prev.t);
-		const linear=['r','g','b','a'].every(ch=>{
-			return Math.abs(curr[ch]-(prev[ch]+(next[ch]-prev[ch])*sT)) < 0.5;
-		});
-		if (!linear) opt.push(curr);
-	}
-	opt.push(mkStop(sorted[sorted.length-1]));
-	const stopStrs = opt.map(s=>`rgba(${s.r},${s.g},${s.b},${s.a}) ${(s.t*100).toFixed(2)}%`);
-	return {
-		css: `linear-gradient(${direction}, ${stopStrs.join(', ')})`,
-		stops: opt,
-		totalCandidates
-	};
-}
+import { cubicGradient } from './CubicGradient.js'
 
 document.body.style.background = cubicGradient({
   direction: 'to bottom right',
