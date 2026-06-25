@@ -38,6 +38,7 @@ import { setPanel, initMobileGestures, showPreviewOnMobile }                    
 installSystemConsoleBridge();
 
 // ─── Wire cross-module callbacks (breaks circular deps) ───────────────────────
+let _autoRunTimer = null;
 S._callbacks = {
   renderSidebar,
   fetchWithProgress,
@@ -49,6 +50,14 @@ S._callbacks = {
   logToConsole,
   setExecLoading,
   handleDroppedFiles,
+  renderWorkspaceActions,
+  // Debounced here (not inside autoRunActiveFile itself) so the function in
+  // preview.js stays a plain, reusable "refresh now" call — main.js, as the
+  // wiring hub, owns deciding how often that's allowed to fire while typing.
+  autoRun: () => {
+    clearTimeout(_autoRunTimer);
+    _autoRunTimer = setTimeout(() => autoRunActiveFile(), 500);
+  },
 };
 
 // ─── IDE easter eggs ──────────────────────────────────────────────────────────
