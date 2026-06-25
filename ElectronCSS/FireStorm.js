@@ -1,10 +1,11 @@
 /*
-ElectronCSS - FireStorm v6.3.0
+ElectronCSS - FireStorm v6.4.0
 Generates randomized trapezoidal color strips across a container to create a chaotic dynamic flame/energy backdrop.
  • Supports deterministic rendering with optional seeds.
  • Supports Hex (3/4/6/8 digit) and Alpha.
  • Symmetrical color progression starting from both sides and meeting in the middle.
- • Outputs a clean, direct-invocation API with automatic element containment.
+ • Automatically elevates pre-existing children to prevent text coverage.
+ • Solves CSS transform backdrop-filter vanishing bugs on hover.
 */
 // “Created with Gemini 3.1 Pro” - ProElectricCoder
 
@@ -132,11 +133,36 @@ export function fireStorm({
 		container.style.overflow = 'hidden';
 	}
 
-	// 2. Clear previous run
-	container.innerHTML = '';
+	// 1.5 Safety check: elevate any pre-existing text or structural children so they aren't covered
+	if (container) {
+		Array.from(container.children).forEach(child => {
+			const computedStyle = window.getComputedStyle(child);
+			if (computedStyle.position === 'static') {
+				child.style.position = 'relative';
+				child.style.zIndex = '2';
+			}
+		});
+	}
+
+	// 2. Clear previous runs (specifically targeting generated FireStorm element wrappers)
+	const oldWrapper = container.querySelector('.firestorm-visual-wrapper');
+	if (oldWrapper) oldWrapper.remove();
+
+	// Create a dedicated background wrapper to sit behind card contents
+	const visualWrapper = document.createElement('div');
+	visualWrapper.className = 'firestorm-visual-wrapper';
+	visualWrapper.style.cssText = `
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+		pointer-events: none;
+		overflow: hidden;
+		border-radius: inherit;
+	`;
+	container.prepend(visualWrapper);
 
 	// 3. Base gradient starts from sides (from) and meets in the middle (to)
-	container.style.background = `linear-gradient(${direction}, ${finalFrom}, ${finalTo} 50%, ${finalFrom})`;
+	visualWrapper.style.background = `linear-gradient(${direction}, ${finalFrom}, ${finalTo} 50%, ${finalFrom})`;
 
 	// 4. Generate trapezoid strips
 	const mid = (steps - 1) / 2;
@@ -183,7 +209,7 @@ export function fireStorm({
 			opacity: 0.8;
 			clip-path: ${clipPath};
 		`;
-		container.appendChild(strip);
+		visualWrapper.appendChild(strip);
 	}
 
 	// 4.5 Add full smoothing blur overlay
@@ -195,10 +221,13 @@ export function fireStorm({
 			pointer-events: none;
 			backdrop-filter: blur(${smoothing}px);
 			-webkit-backdrop-filter: blur(${smoothing}px);
+			/* Keeps Chrome from dropping backdrop filter when parents undergo 3D transforms */
+			transform: translateZ(0);
+			backface-visibility: hidden;
 		`;
-		container.appendChild(blurOverlay);
+		visualWrapper.appendChild(blurOverlay);
 	}
 
 	// 5. Return destroy function
-	return () => container.remove();
+	return () => visualWrapper.remove();
 }
