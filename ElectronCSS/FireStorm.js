@@ -129,19 +129,11 @@ export function fireStorm({
 		if (!container) throw new Error(`FireStorm: target "${target}" not found`);
 		
 		// Contain absolutely positioned child elements and hide overflow spills
-		container.style.position = 'relative';
+		if (window.getComputedStyle(container).position === 'static') {
+			container.style.position = 'relative';
+		}
 		container.style.overflow = 'hidden';
-	}
-
-	// 1.5 Safety check: elevate any pre-existing text or structural children so they aren't covered
-	if (container) {
-		Array.from(container.children).forEach(child => {
-			const computedStyle = window.getComputedStyle(child);
-			if (computedStyle.position === 'static') {
-				child.style.position = 'relative';
-				child.style.zIndex = '2';
-			}
-		});
+		container.style.isolation = 'isolate'; // Safely sandboxes negative z-indexes
 	}
 
 	// 2. Clear previous runs (specifically targeting generated FireStorm element wrappers)
@@ -154,10 +146,13 @@ export function fireStorm({
 	visualWrapper.style.cssText = `
 		position: absolute;
 		inset: 0;
-		z-index: 0;
+		z-index: -1; /* Renders perfectly behind text without iterating over DOM children */
 		pointer-events: none;
 		overflow: hidden;
 		border-radius: inherit;
+		/* Fixes Chromium backdrop-filter vanishing bugs during parent hover transforms */
+		transform: translateZ(0);
+		will-change: transform;
 	`;
 	container.prepend(visualWrapper);
 
