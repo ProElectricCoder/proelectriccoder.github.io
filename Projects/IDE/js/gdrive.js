@@ -1,7 +1,7 @@
 /**
  * gdrive.js — Google Drive integration for DeepBlue IDE
  * Backend endpoints (Cloudflare Pages Functions):
- *   POST /api/save-drive  — saves a file to Drive
+ *   POST /api/save-drive  — saves a file to Drive (now binary-safe, see below)
  *   POST /api/read-drive  — reads a file from Drive
  *   GET  /api/callback    — OAuth exchange (handled server-side, redirects back here)
  *
@@ -19,6 +19,23 @@
  * which made the component initialize itself immediately and pop the Google
  * sign-in screen on its own. Now the element and its script are only created
  * inside openDrivePicker(), the moment it's actually requested.
+ *
+ * ── Workspace "Edit in Docs/Sheets/Slides/Photos" buttons ──────────────────────
+ * openFileInWorkspace() below: connects (if needed), silently uploads the
+ * given virtual file to Drive, then opens it directly in the matching
+ * Workspace app. For Docs/Sheets/Slides this uses Drive's own upload-time
+ * conversion (set the Drive metadata mimeType to the target Google-native
+ * type while sending the source bytes/mimeType as-is — Drive converts
+ * compatible formats automatically, e.g. a .csv becomes a real Sheet).
+ *
+ * NOTE — Photos specifically: there's no Drive-native equivalent of an
+ * image, and *actually* opening something in the Google Photos app requires
+ * the separate Photos Library API (a different OAuth scope/consent screen
+ * than this app's existing `drive.file` scope). Rather than silently
+ * pretending to do that, images are uploaded to Drive and opened in Drive's
+ * own viewer instead — the closest equivalent without adding a second
+ * consent flow. Wiring up real Photos Library API support would be the next
+ * step if that's wanted.
  */
 
 // ── Configuration ─────────────────────────────────────────────────────────────
@@ -73,20 +90,28 @@ export function toggleGdriveAuth() {
   window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
 }
 
-// ── 2. Save to Google Drive ───────────────────────────────────────────────────
+// ── 2. Save to Google Drive (binary-safe) ─────────────────────────────────────
 /**
  * @param  {string} fileName
- * @param  {string} fileTextContent
+ * @param  {string} contentBase64   Base64-encoded raw bytes of the file.
+ * @param  {string} sourceMimeType  The actual format of those bytes (e.g. "text/plain", "image/png", "text/csv").
+ * @param  {string} [targetMimeType] If different from sourceMimeType (e.g. a Google-native
+ *                                    "application/vnd.google-apps.*" type), Drive converts on upload.
  * @returns {Promise<{success: boolean, id: string}>}
  */
-export async function saveCurrentFileToGoogleDrive(fileName, fileTextContent) {
+export async function saveCurrentFileToGoogleDrive(fileName, contentBase64, sourceMimeType = 'text/plain', targetMimeType = null) {
   const tokens = _getTokens();
   if (!tokens?.accessToken) throw new Error('Not connected to Google Drive. Please sign in first.');
 
   const response = await fetch('/api/save-drive', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokens.accessToken}` },
-    body: JSON.stringify({ name: fileName, content: fileTextContent }),
+    body: JSON.stringify({
+      name: fileName,
+      contentBase64,
+      sourceMimeType,
+      targetMimeType: targetMimeType || sourceMimeType,
+    }),
   });
 
   if (!response.ok) {
@@ -186,4 +211,56 @@ export async function openDrivePicker() {
   const tokens = _getTokens();
   if (tokens?.accessToken) picker.setAttribute('oauth-token', tokens.accessToken);
   picker.setAttribute('open', '');
+}
+
+// ── 5. "Edit in <Workspace app>" — upload then open ────────────────────────────
+const WORKSPACE_TARGET_MIME = {
+  docs:   'application/vnd.google-apps.document',
+  sheets: 'application/vnd.google-apps.spreadsheet',
+  slides: 'application/vnd.google-apps.presentation',
+  // photos: intentionally no conversion target — see file header note above.
+};
+const WORKSPACE_OPEN_URL = {
+  docs:   id => `https://docs.google.com/document/d/${id}/edit`,
+  sheets: id => `https://docs.google.com/spreadsheets/d/${id}/edit`,
+  slides: id => `https://docs.google.com/presentation/d/${id}/edit`,
+  photos: id => `https://drive.google.com/file/d/${id}/view`,
+};
+
+/**
+ * Connects to Drive (if needed), silently uploads the given virtual file,
+ * then opens it in the matching Workspace app's editor in a new tab.
+ *
+ * @param {string} filePath   Full virtual path, e.g. "DeepBlue/diagram.png"
+ * @param {string} app        'docs' | 'sheets' | 'slides' | 'photos'
+ * @param {object} fileSystem S.fileSystem
+ */
+export async function openFileInWorkspace(filePath, app, fileSystem) {
+  if (!isGdriveConnected()) {
+    toggleGdriveAuth();
+    return { started: false, reason: 'not-connected' };
+  }
+
+  const fObj = fileSystem[filePath];
+  if (!fObj) return { started: false, reason: 'missing-file' };
+  const fileName = filePath.split('/').pop();
+
+  let contentBase64, sourceMimeType;
+  if (fObj.type === 'asset' && fObj.subtype === 'svg') {
+    contentBase64  = btoa(unescape(encodeURIComponent(fObj.content || '')));
+    sourceMimeType = 'image/svg+xml';
+  } else if (fObj.type === 'asset' && typeof fObj.src === 'string') {
+    const match = fObj.src.match(/^data:([^;]+);base64,([\s\S]*)$/);
+    if (!match) return { started: false, reason: 'unsupported-content' };
+    sourceMimeType = match[1];
+    contentBase64  = match[2];
+  } else {
+    return { started: false, reason: 'unsupported-content' };
+  }
+
+  const targetMimeType = WORKSPACE_TARGET_MIME[app] || sourceMimeType;
+  const result  = await saveCurrentFileToGoogleDrive(fileName, contentBase64, sourceMimeType, targetMimeType);
+  const openUrl = (WORKSPACE_OPEN_URL[app] || WORKSPACE_OPEN_URL.photos)(result.id);
+  window.open(openUrl, '_blank');
+  return { started: true, id: result.id };
 }

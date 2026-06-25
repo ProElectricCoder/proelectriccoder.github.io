@@ -634,6 +634,30 @@ iframe.fixed { position: static; transform-origin: center center; }
 .settings-link-btn:hover { background: rgba(0,229,255,0.1); border-color: var(--accent); color: var(--accent); }
 .settings-link-btn img, .settings-link-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
 
+.settings-toggle-row {
+	display: flex; align-items: center; justify-content: space-between; gap: 10px;
+	padding: 10px 12px; border-radius: var(--radius-md);
+	background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+	font-size: 0.85rem; color: var(--text-main); cursor: pointer;
+}
+.settings-toggle-hint { font-size: 0.72rem; color: var(--text-muted); margin: -4px 0 4px 2px; }
+.settings-switch { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+.settings-switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.settings-switch-slider {
+	position: absolute; inset: 0; background: var(--border); border-radius: 999px;
+	transition: background 0.2s; pointer-events: none;
+}
+.settings-switch-slider::before {
+	content: ''; position: absolute; width: 16px; height: 16px; left: 2px; top: 2px;
+	background: #fff; border-radius: 50%; transition: transform 0.2s;
+}
+.settings-switch input:checked + .settings-switch-slider { background: var(--accent); }
+.settings-switch input:checked + .settings-switch-slider::before { transform: translateX(16px); }
+
+/* ── Binary-overlay Workspace actions (Edit in Docs/Sheets/Slides/Photos) ──── */
+#binary-workspace-actions { display: none; flex-direction: column; gap: 8px; align-items: center; }
+#binary-workspace-actions .btn { font-size: 0.85rem; }
+
 /* ── Search Toolbar ─────────────────────────────────────────────────────────── */
 #search-toolbar {
 	position: absolute; top: 50px; right: 20px; background: var(--bg-panel);
@@ -652,9 +676,55 @@ iframe.fixed { position: static; transform-origin: center center; }
 /* ── Misc ───────────────────────────────────────────────────────────────────── */
 .empty-tabs-msg { color: var(--text-muted); font-size: 0.8rem; font-style: italic; padding: 0 10px; margin-bottom: 8px; opacity: 0.6; pointer-events: none; align-self: center; }
 
+/* ── Mobile layout ──────────────────────────────────────────────────────────
+   Files | Editor | Preview as a horizontally swipeable carousel (Editor is
+   the home/default panel, index 1). --panel-index is set by js/mobile.js.
+   Swipe left → index-1 (toward Files), swipe right → index+1 (toward
+   Preview). While on the Preview panel, swipe down opens the Console as a
+   sheet that slides up from the bottom; swipe up closes it again.
+   Panels are sticky/edge-to-edge: no borders, no radius, full screen. */
+.mobile-nav-btn { display: none; }
+
 @media (max-width: 768px) {
-	.container { flex-direction: column; }
-	.sidebar { width: 100%; height: 150px; }
-	.tab { padding: 8px; }
+	header { position: sticky; top: 0; z-index: 10000; }
+	.controls { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+	.controls::-webkit-scrollbar { display: none; }
+	.mobile-nav-btn { display: flex; }
+
+	.container {
+		position: relative;
+		flex-direction: row;
+		flex: 1;
+		width: 300vw;
+		padding: 0;
+		gap: 0;
+		transform: translateX(calc(-100vw * var(--panel-index, 1)));
+		transition: transform 0.3s cubic-bezier(0.25,1,0.5,1);
+		touch-action: pan-y;
+	}
+	.sidebar, .editor-container, .output-container {
+		width: 100vw;
+		min-width: 100vw;
+		max-width: 100vw;
+		flex-shrink: 0;
+		border: none;
+		border-radius: 0;
+	}
+	.sidebar { height: auto; }
 	.resizer { display: none; }
+
+	#web-console {
+		position: absolute; left: 0; right: 0; bottom: 0;
+		height: 75%;
+		transform: translateY(100%);
+		transition: transform 0.3s cubic-bezier(0.25,1,0.5,1);
+		z-index: 70;
+		border-top: 1px solid var(--border);
+		touch-action: pan-x;
+	}
+	#web-console.mobile-console-open { transform: translateY(0); }
+}
+
+@media (min-width: 769px) {
+	.mobile-nav-btn { display: none !important; }
 }

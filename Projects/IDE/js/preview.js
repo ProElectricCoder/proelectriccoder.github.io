@@ -375,19 +375,27 @@ export async function runCode() {
 }
 
 // ─── Web runner ───────────────────────────────────────────────────────────────
-export async function runWeb(overrideFile = null, queryParams = '') {
-  setExecLoading(true);
+// `inPlace` is used by auto-run (see autoRunActiveFile below): it never spawns
+// a new tab, and writes the refreshed HTML into the EXISTING iframe's document
+// via document.open/write/close instead of swapping in a new iframe + blob URL
+// — that in-place rewrite avoids the navigation-style "blank/white" flash a
+// full iframe replacement causes, so edits can be auto-previewed continuously
+// without the screen flickering on every keystroke.
+export async function runWeb(overrideFile = null, queryParams = '', inPlace = false) {
+  if (!inPlace) setExecLoading(true);
   await syncDocsToContent();
 
   try {
     let targetFile = overrideFile || S.activeFile;
-    if (!targetFile) { _clearPreview(); return; }
+    if (!targetFile) { if (!inPlace) _clearPreview(); return; }
 
     const ext = targetFile.split('.').pop().toLowerCase();
 
     // Plain text / markdown / JSON — use native viewer
     if (['txt','md','json'].includes(ext)) {
-      createTab(targetFile, 'web');
+      const existing = document.getElementById(`iframe-${targetFile}`);
+      if (inPlace && !existing) return; // nothing open yet — don't auto-spawn a tab
+      if (!inPlace) createTab(targetFile, 'web');
       let content = S.fileSystem[targetFile].content;
       if (content === null && S.fileSystem[targetFile].ghUrl) {
         content = await S._callbacks.fetchWithProgress?.(S.fileSystem[targetFile].ghUrl) ?? '';
@@ -398,10 +406,41 @@ export async function runWeb(overrideFile = null, queryParams = '') {
       if (ext === 'md') {
         mime = 'text/html';
         const body = marked.parse(content);
-        finalContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:system-ui;line-height:1.6;padding:2rem;max-width:800px;margin:0 auto;color:#e2f1f8;background:#000;}pre{background:#1a2332;padding:1rem;border-radius:6px;overflow-x:auto;}code{font-family:monospace;background:#1a2332;padding:2px 4px;border-radius:4px;color:#00e5ff;}a{color:#00e5ff;}</style></head><body>${body}</body></html>`;
+        // Fenced code blocks (```lang ... ```) get highlighted via highlight.js,
+        // coloured to match the editor's Cobalt theme (see css/cm6-cobalt.css
+        // for the live-editor equivalent of these same token colours). marked
+        // already tags <code> with `language-<lang>` from the text right
+        // after the opening fence, and hljs.highlightAll() picks that up.
+        finalContent = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"><\/script>
+<style>
+body{font-family:system-ui;line-height:1.6;padding:2rem;max-width:800px;margin:0 auto;color:#e2f1f8;background:#000;}
+pre{background:#000;border:1px solid #283548;padding:1rem;border-radius:6px;overflow-x:auto;}
+pre code{background:transparent;padding:0;color:#e2f1f8;}
+code{font-family:monospace;background:#1a2332;padding:2px 4px;border-radius:4px;color:#00e5ff;}
+a{color:#00e5ff;}
+.hljs{color:#e2f1f8;background:transparent;}
+.hljs-keyword,.hljs-built_in,.hljs-selector-tag{color:#ff9d00;}
+.hljs-string,.hljs-attr,.hljs-regexp{color:#a5ff90;}
+.hljs-comment,.hljs-quote{color:#0088ff;font-style:italic;}
+.hljs-number,.hljs-literal{color:#ff628c;}
+.hljs-title,.hljs-title.function_,.hljs-section{color:#ffc600;}
+.hljs-variable,.hljs-name{color:#e2f1f8;}
+.hljs-type,.hljs-class .hljs-title{color:#9effff;}
+.hljs-tag{color:#00e5ff;}
+.hljs-attribute{color:#a5ff90;}
+.hljs-property{color:#80fcff;}
+.hljs-operator,.hljs-punctuation{color:#ff9d00;}
+.hljs-meta{color:#ff9d00;}
+.hljs-deletion{background:rgba(248,113,113,0.15);}
+.hljs-addition{background:rgba(74,222,128,0.15);}
+</style></head><body>${body}<script>if(window.hljs)hljs.highlightAll();<\/script></body></html>`;
       }
       const iframe = document.getElementById(`iframe-${targetFile}`);
-      if (iframe) iframe.src = URL.createObjectURL(new Blob([finalContent], { type: mime })) + queryParams;
+      if (iframe) {
+        if (inPlace) _writeIframeInPlace(iframe, finalContent);
+        else iframe.src = URL.createObjectURL(new Blob([finalContent], { type: mime })) + queryParams;
+      }
       return;
     }
 
@@ -423,17 +462,24 @@ export async function runWeb(overrideFile = null, queryParams = '') {
       htmlContent  = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;background:#0a0e14;color:#fff;font-family:system-ui;}</style><script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin><\/script><script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin><\/script></head><body><div id="react-root"></div><script type="module" src="${jsxBaseName}"><\/script></body></html>`;
     } else if (!S.fileSystem[targetFile] || S.fileSystem[targetFile].type !== 'html') {
       if (S.fileSystem['index.html']) targetFile = 'index.html';
-      else { _clearPreview(); return; }
+      else { if (!inPlace) _clearPreview(); return; }
     }
 
     const tabId = isVirtualJSX ? S.activeFile : targetFile;
-    createTab(tabId, 'web');
 
-    // Clear & mark this tab's console panel for the new run
-    const runPanel = _findConsolePanel(tabId);
-    const runLogEl = runPanel?.querySelector('.console-log-container');
-    if (runLogEl) runLogEl.innerHTML = '';
-    logToConsole('marker', '--- Run Started ---', tabId);
+    const existingIframe = document.getElementById(`iframe-${tabId}`);
+    if (inPlace && !existingIframe) return; // nothing open yet — don't auto-spawn a tab
+
+    if (!inPlace) createTab(tabId, 'web');
+
+    // Clear & mark this tab's console panel for the new run (skip the marker
+    // spam for silent auto-run refreshes — only an explicit Run should log it)
+    if (!inPlace) {
+      const runPanel = _findConsolePanel(tabId);
+      const runLogEl = runPanel?.querySelector('.console-log-container');
+      if (runLogEl) runLogEl.innerHTML = '';
+      logToConsole('marker', '--- Run Started ---', tabId);
+    }
 
     if (!isVirtualJSX) {
       htmlContent = S.fileSystem[targetFile].content;
@@ -530,13 +576,52 @@ export async function runWeb(overrideFile = null, queryParams = '') {
 
     const oldIframe = document.getElementById(`iframe-${tabId}`);
     if (oldIframe) {
-      const ni = document.createElement('iframe');
-      ni.id = oldIframe.id; ni.className = oldIframe.className; ni.style.cssText = oldIframe.style.cssText;
-      oldIframe.parentNode.replaceChild(ni, oldIframe);
-      const blob = new Blob([processed], { type: 'text/html' });
-      ni.src = URL.createObjectURL(blob) + queryParams;
+      if (inPlace) {
+        _writeIframeInPlace(oldIframe, processed);
+      } else {
+        const ni = document.createElement('iframe');
+        ni.id = oldIframe.id; ni.className = oldIframe.className; ni.style.cssText = oldIframe.style.cssText;
+        oldIframe.parentNode.replaceChild(ni, oldIframe);
+        const blob = new Blob([processed], { type: 'text/html' });
+        ni.src = URL.createObjectURL(blob) + queryParams;
+      }
     }
-  } finally { setExecLoading(false); }
+  } finally { if (!inPlace) setExecLoading(false); }
+}
+
+/**
+ * Rewrites an existing iframe's document in place (document.open/write/close)
+ * instead of giving it a new src — this updates the content without a
+ * navigation, so there's no blank/white flash. Blob URLs created by this
+ * page are same-origin for script-access purposes, so contentDocument access
+ * works; if anything ever prevents that, fall back to a normal reload.
+ */
+function _writeIframeInPlace(iframe, html) {
+  try {
+    const doc = iframe.contentDocument;
+    if (!doc) throw new Error('iframe document not accessible');
+    doc.open();
+    doc.write(html);
+    doc.close();
+  } catch {
+    iframe.src = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+  }
+}
+
+/**
+ * Auto-run: silently refreshes an ALREADY-open HTML/Markdown preview tab
+ * whenever the active file changes (see editor.js's update listener →
+ * S._callbacks.autoRun, debounced from main.js). Toggled from Settings.
+ * Scoped to html/md only, and only refreshes a tab that's already open —
+ * it never spawns a preview on its own.
+ */
+export async function autoRunActiveFile() {
+  if (!S.autoRun || !S.activeFile) return;
+  const ext = S.activeFile.split('.').pop().toLowerCase();
+  if (!['html', 'md'].includes(ext)) return;
+  const fObj = S.fileSystem[S.activeFile];
+  if (!fObj || fObj.type === 'asset') return;
+  await runWeb(null, getSafePreviewParams(), true);
 }
 
 // ─── Open in new tab (Task 3) ─────────────────────────────────────────────────

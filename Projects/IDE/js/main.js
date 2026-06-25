@@ -14,11 +14,11 @@ import { initAutoSave, saveProject, createNewFile, createNewFolder, renameFile,
 import { runCode, runWeb, setExecLoading, logToConsole,
          logTableToConsole, installSystemConsoleBridge, activateConsoleTab,
          createTab, closePreviewTab, setPresetSize, updateZoom,
-         resolveVirtualPath, openPreviewInNewTab }                                 from './preview.js';
+         resolveVirtualPath, openPreviewInNewTab, autoRunActiveFile }       from './preview.js';
 import { renderSidebar, openAddMenu, closeAddMenu, uploadToCurrentFolder,
          initDragDrop, initConsoleInput, toggleFullscreen, initResizers,
          initAIResizer, toggleAI, callGemini, checkApiKey, saveApiKey,
-         toggleSettings }                                                          from './ui.js';
+         toggleSettings, toggleAutoRun, renderWorkspaceActions }            from './ui.js';
 import { confirmGithubAuth, openGithubAuth, fetchWithProgress,
          handleGithubImport, openGithubCommitModal, signOutGithub,
          closeCommitModal, executeGithubCommit }                                   from './github.js';
@@ -29,6 +29,7 @@ import { toggleSearch, findNext, findPrev, replaceOne, replaceAll }             
 import defaultTour                                                                 from './tour.js';
 import { toggleGdriveAuth, saveCurrentFileToGoogleDrive, isGdriveConnected,
          gdriveSignOut, setDrivePickedHandler, openDrivePicker, _updateGdriveBtn } from './gdrive.js';
+import { setPanel, initMobileGestures, showPreviewOnMobile }                      from './mobile.js';
 
 // ─── System console bridge ─────────────────────────────────────────────────────
 // Installed immediately (module scope) so the System console tab captures

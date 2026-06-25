@@ -4,6 +4,8 @@
 
 import { S } from './state.js';
 import { switchFile, renderEditorTabs } from './editor.js';
+import { isGdriveConnected, toggleGdriveAuth, openFileInWorkspace } from './gdrive.js';
+import { customConfirm, customAlert } from './dialogs.js';
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 export function renderSidebar() {
@@ -171,6 +173,68 @@ export function uploadToCurrentFolder() {
 // ─── Settings sidebar ─────────────────────────────────────────────────────────
 export function toggleSettings() {
   document.getElementById('settings-sidebar')?.classList.toggle('open');
+}
+
+// ─── Auto-run (Settings toggle) ───────────────────────────────────────────────
+export function toggleAutoRun(enabled) {
+  S.autoRun = enabled;
+  localStorage.setItem('deepBlue_autorun', enabled ? '1' : '0');
+}
+
+// ─── Binary-overlay Google Workspace actions ─────────────────────────────────
+// Which Google app can open/convert a given binary file, by extension —
+// shown as an "Edit in <App>" button on the binary-file overlay instead of
+// as static links in Settings, so it only ever appears where it's relevant.
+const WORKSPACE_EXT_MAP = {
+  png: 'photos', jpg: 'photos', jpeg: 'photos', gif: 'photos', webp: 'photos',
+  pdf: 'docs', doc: 'docs', docx: 'docs',
+  csv: 'sheets', tsv: 'sheets', xls: 'sheets', xlsx: 'sheets',
+  ppt: 'slides', pptx: 'slides',
+};
+const WORKSPACE_LABEL = { photos: 'Photos', docs: 'Docs', sheets: 'Sheets', slides: 'Slides' };
+
+/** Renders (or hides) the "Edit in <App>" button for the binary file currently shown. */
+export function renderWorkspaceActions(filePath) {
+  const ctr = document.getElementById('binary-workspace-actions');
+  if (!ctr) return;
+  ctr.innerHTML = '';
+
+  const ext = filePath ? filePath.split('.').pop().toLowerCase() : null;
+  const app = ext ? WORKSPACE_EXT_MAP[ext] : null;
+  if (!app) { ctr.style.display = 'none'; return; }
+
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-secondary';
+  btn.innerHTML = `<img src="icons/Google_${WORKSPACE_LABEL[app]}.svg" style="width:14px;height:14px;margin-right:6px;vertical-align:-2px;" alt="">Edit in ${WORKSPACE_LABEL[app]}`;
+  btn.onclick = () => _handleWorkspaceClick(filePath, app, btn);
+  ctr.appendChild(btn);
+  ctr.style.display = 'flex';
+}
+
+async function _handleWorkspaceClick(filePath, app, btn) {
+  if (!isGdriveConnected()) {
+    const ok = await customConfirm(
+      `Editing in ${WORKSPACE_LABEL[app]} requires a Google Drive connection. Connect now?`,
+      'Google Drive Required'
+    );
+    if (ok) toggleGdriveAuth(); // full-page OAuth redirect — re-click the button once you're back
+    return;
+  }
+
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerText = 'Uploading…';
+  try {
+    const result = await openFileInWorkspace(filePath, app, S.fileSystem);
+    if (result?.reason === 'unsupported-content') {
+      await customAlert('This file type can\u2019t be uploaded to Drive from here yet.', 'Not Supported');
+    }
+  } catch (e) {
+    await customAlert('Upload to Google Drive failed: ' + e.message, 'Error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = original;
+  }
 }
 
 // ─── Drag & drop ──────────────────────────────────────────────────────────────

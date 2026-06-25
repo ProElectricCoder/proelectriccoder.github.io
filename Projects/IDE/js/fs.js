@@ -294,6 +294,7 @@ export async function deleteFile(name) {
         document.querySelector('.editor-wrapper').style.display = 'none';
         document.getElementById('binary-overlay').style.display = 'flex';
         document.getElementById('binary-info').innerText = 'No File Selected';
+        document.getElementById('binary-workspace-actions')?.style.setProperty('display', 'none');
         document.getElementById('editor-lang-label').innerText = 'NONE';
         const url = new URL(window.location);
         url.searchParams.delete('file');
@@ -378,7 +379,7 @@ export async function deleteFolder(folderPath) {
       document.querySelector('.editor-wrapper').style.display = 'none';
       document.getElementById('binary-overlay').style.display = 'flex';
       document.getElementById('binary-info').innerText = 'No File Selected';
-      document.getElementById('editor-lang-label').innerText = 'NONE';
+      document.getElementById('binary-workspace-actions')?.style.setProperty('display', 'none');
       const url = new URL(window.location); url.searchParams.delete('file');
       window.history.replaceState(null, '', url);
       renderEditorTabs();

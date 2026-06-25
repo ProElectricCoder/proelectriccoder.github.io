@@ -81,6 +81,10 @@ export const S = {
   lastSearchQuery: null,
   searchCursor:    null,
 
+  // ─ Auto-run (Settings toggle) — silently refreshes an already-open HTML/MD
+  //   preview tab on edit, in place, with no iframe-swap flash. See preview.js.
+  autoRun: localStorage.getItem('deepBlue_autorun') === '1',
+
   // ─ GitHub
   githubToken: localStorage.getItem('deepBlue_gh_token') || '',
   githubRepos: (() => {
