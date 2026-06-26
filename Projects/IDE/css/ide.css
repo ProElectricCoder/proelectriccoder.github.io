@@ -684,12 +684,24 @@ iframe.fixed { position: static; transform-origin: center center; }
    sheet that slides up from the bottom; swipe up closes it again.
    Panels are sticky/edge-to-edge: no borders, no radius, full screen. */
 .mobile-nav-btn { display: none; }
+.mobile-nav-group { display: none; }
 
 @media (max-width: 768px) {
 	header { position: sticky; top: 0; z-index: 10000; }
 	.controls { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 	.controls::-webkit-scrollbar { display: none; }
+	.mobile-nav-group {
+		display: flex;
+		gap: 6px;
+		position: sticky;
+		left: 0;
+		z-index: 5;
+		background: var(--bg-panel);
+		padding-right: 8px;
+		box-shadow: 6px 0 8px -6px rgba(0,0,0,0.4);
+	}
 	.mobile-nav-btn { display: flex; }
+	.mobile-nav-btn.active { color: var(--accent); border-color: var(--accent); }
 
 	.container {
 		position: relative;
