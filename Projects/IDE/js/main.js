@@ -188,9 +188,17 @@ window.addEventListener('load', async () => {
   document.querySelector('#console-tabs .console-tab[data-console-tab="system"]')
     ?.addEventListener('click', () => activateConsoleTab('system'));
 
+  // 3c. Mobile swipe carousel (Files | Editor | Preview) + Console drawer.
+  // No-op on desktop — gated behind the same breakpoint as the CSS.
+  initMobileGestures();
+
+  // 3d. Auto-run toggle (Settings) reflects whatever was persisted.
+  const autoRunToggle = document.getElementById('autorun-toggle');
+  if (autoRunToggle) autoRunToggle.checked = S.autoRun;
+
   // 4. Header dropdown menus (Drive / GitHub) — wired once, content refreshed on open
-  document.getElementById('drive-btn') ?.addEventListener('click', e => { e.stopPropagation(); toggleHeaderDropdown('drive-menu'); });
-  document.getElementById('github-btn')?.addEventListener('click', e => { e.stopPropagation(); toggleHeaderDropdown('github-menu'); });
+  document.getElementById('drive-btn') ?.addEventListener('click', e => { e.stopPropagation(); toggleHeaderDropdown('drive-menu', 'drive-btn'); });
+  document.getElementById('github-btn')?.addEventListener('click', e => { e.stopPropagation(); toggleHeaderDropdown('github-menu', 'github-btn'); });
   document.addEventListener('click', e => { if (!e.target.closest('.hdr-dropdown')) _closeAllHeaderDropdowns(); });
 
   // 4b. Google Drive: just register the file-picked callback — this does NOT
@@ -345,13 +353,22 @@ function _refreshGithubMenu() {
   document.getElementById('gh-menu-signout') ?.style.setProperty('display', connected ? 'flex' : 'none');
 }
 
-/** Opens one header dropdown (closing any other), refreshing its contents first. */
-function toggleHeaderDropdown(menuId) {
+/** Opens one header dropdown (closing any other), positioning + refreshing it first. */
+function toggleHeaderDropdown(menuId, btnId) {
   const menu = document.getElementById(menuId);
+  const btn  = document.getElementById(btnId);
   if (!menu) return;
   const wasOpen = menu.classList.contains('open');
   _closeAllHeaderDropdowns();
   if (wasOpen) return;
+
+  if (btn) {
+    const r = btn.getBoundingClientRect();
+    menu.style.top   = `${Math.round(r.bottom + 8)}px`;
+    menu.style.left  = 'auto';
+    menu.style.right = `${Math.round(window.innerWidth - r.right)}px`;
+  }
+
   if (menuId === 'drive-menu')  _refreshDriveMenu();
   if (menuId === 'github-menu') _refreshGithubMenu();
   menu.classList.add('open');
@@ -364,13 +381,21 @@ async function gdriveSignOutUI() {
 }
 
 // ─── Google Drive: save the active file ───────────────────────────────────────
+const _TEXT_MIME_BY_EXT = {
+  html: 'text/html', css: 'text/css', js: 'text/javascript', jsx: 'text/javascript',
+  json: 'application/json', md: 'text/markdown', csv: 'text/csv', xml: 'application/xml',
+};
+
 async function saveActiveFileToDrive() {
   if (!S.activeFile) { await customAlert('No active file to save.', 'Google Drive'); return; }
   await syncDocsToContent();
   const fileName = S.activeFile.split('/').pop();
   const content  = S.editorDocs[S.activeFile] ? S.editorDocs[S.activeFile].getValue() : (S.fileSystem[S.activeFile]?.content ?? '');
+  const ext      = fileName.split('.').pop().toLowerCase();
+  const mimeType = _TEXT_MIME_BY_EXT[ext] || 'text/plain';
+  const contentBase64 = btoa(unescape(encodeURIComponent(content)));
   try {
-    const result = await saveCurrentFileToGoogleDrive(fileName, content);
+    const result = await saveCurrentFileToGoogleDrive(fileName, contentBase64, mimeType);
     logToConsole('log', `Saved '${fileName}' to Google Drive (id: ${result.id}).`, 'system');
     await customAlert(`Saved to Google Drive!\nFile ID: ${result.id}`, 'Success');
   } catch (e) {
@@ -407,7 +432,7 @@ function _exposeGlobals() {
     // Header controls
     formatCurrentFile,
     saveProject,
-    runCode,
+    runCode: async () => { await runCode(); showPreviewOnMobile(); },
     shareProject,
     openPreviewInNewTab,
 
@@ -429,6 +454,10 @@ function _exposeGlobals() {
 
     // Settings sidebar
     toggleSettings,
+    toggleAutoRun,
+
+    // Mobile nav (header buttons; swiping calls setPanel directly from mobile.js)
+    mobileGoToPanel: setPanel,
 
     // AI
     toggleAI,
