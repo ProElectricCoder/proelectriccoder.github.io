@@ -9,7 +9,6 @@ export async function onRequest({ request, env, params }) {
 	}
 
 	try {
-		// Replace this with your actual Firebase Project ID
 		const projectId = "proelectriccoder"; 
 		
 		const JWKS = jose.createRemoteJWKSet(
@@ -33,24 +32,4 @@ export async function onRequest({ request, env, params }) {
 	const obj = env.ROOM_DO.get(id);
 
 	return obj.fetch(request);
-}
-
-	async fetch(request) {
-		const pair = new WebSocketPair();
-		const [client, server] = Object.values(pair);
-		this.state.acceptWebSocket(server);
-		return new Response(null, { status: 101, webSocket: client });
-	}
-
-	async webSocketMessage(ws, message) {
-		const targetSockets = this.state.getWebSockets();
-		for (const socket of targetSockets) {
-			if (socket !== ws) {
-				try { socket.send(message); } catch {}
-			}
-		}
-	}
-
-	async webSocketClose(ws, code, reason, wasClean) {}
-	async webSocketError(ws, error) {}
 }
