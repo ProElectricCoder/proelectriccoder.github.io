@@ -1,4 +1,4 @@
-import * as jose from 'https://esm.sh/jose@5';
+import * as jose from 'jose';
 
 export async function onRequest({ request, env, params }) {
 	const url = new URL(request.url);
