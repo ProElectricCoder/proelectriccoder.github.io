@@ -264,3 +264,207 @@ export class DirectEngine {
 		});
 	}
 }
+// ============================================================================
+// CloudflareWSEngine - Durable Objects + WebSocket + Firebase Auth Signaling
+// ============================================================================
+export class CloudflareWSEngine {
+	constructor({ relay = false, wsUrl } = {}) {
+		if (!wsUrl) throw new Error("[CloudflareWSEngine] wsUrl is required (e.g., 'wss://your-app.pages.dev/api/ChatRooms')");
+		this.wsUrl = wsUrl;
+		this.roomId = null; 
+		this.peers = new Map();
+		this._relay = relay; 
+		this._ws = null;
+		this._heartbeats = new Map();
+		this._onMessage = null; 
+		this._onPeerConnected = null; 
+		this._onPeerDisconnected = null;
+		this._onTrack = null;
+		this.isHost = false;
+	}
+
+	init() {} // No-op to match interface
+
+	async createRoom(roomId, token) {
+		if (!token) throw new Error("[CloudflareWSEngine] Firebase ID token required");
+		this.roomId = roomId; this.isHost = true;
+		this._connectWS(roomId, token);
+		return roomId;
+	}
+
+	async joinRoom(roomId, token) {
+		if (!token) throw new Error("[CloudflareWSEngine] Firebase ID token required");
+		this.roomId = roomId; this.isHost = false;
+		const gid = this._uid();
+		const pc = this._createPC(gid), ch = pc.createDataChannel('data', { ordered: true });
+		this._bindChannel(ch, gid); this.peers.set(gid, { pc, channel: ch });
+		
+		pc.onicecandidate = evt => {
+			if (evt.candidate) {
+				this._sendSignaling({ type: 'candidate', candidate: evt.candidate.toJSON(), peerId: gid, target: 'host' });
+			}
+		};
+		
+		const offer = await pc.createOffer(); await pc.setLocalDescription(offer);
+		this._connectWS(roomId, token, () => {
+			this._sendSignaling({ type: 'offer', sdp: offer.sdp, peerId: gid });
+		});
+	}
+
+	_connectWS(roomId, token, onOpenCb) {
+		this._ws = new WebSocket(`${this.wsUrl}/${roomId}?token=${token}`);
+		this._ws.onopen = () => { if (onOpenCb) onOpenCb(); };
+		this._ws.onmessage = async (evt) => {
+			const sig = JSON.parse(evt.data);
+			
+			if (this.isHost) {
+				if (sig.type === 'offer' && !this.peers.has(sig.peerId)) {
+					await this._handleOffer(sig.peerId, sig.sdp);
+				} else if (sig.type === 'candidate' && sig.target === 'host') {
+					await this._queueOrApplyCandidate(sig.peerId, sig.candidate);
+				}
+			} else {
+				const peerId = this.peers.keys().next().value;
+				if (sig.type === 'answer' && peerId) {
+					const peer = this.peers.get(peerId);
+					if (!peer.pc.currentRemoteDescription) {
+						await peer.pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: sig.sdp }));
+						this._flushPendingCandidates(peer);
+					}
+				} else if (sig.type === 'candidate' && sig.target === 'guest' && peerId) {
+					await this._queueOrApplyCandidate(peerId, sig.candidate);
+				}
+			}
+		};
+	}
+
+	async _handleOffer(gid, sdp) {
+		const pc = this._createPC(gid); this.peers.set(gid, { pc, channel: null, _pending: [] });
+		pc.onicecandidate = evt => {
+			if (evt.candidate) {
+				this._sendSignaling({ type: 'candidate', candidate: evt.candidate.toJSON(), peerId: gid, target: 'guest' });
+			}
+		};
+		pc.ondatachannel = evt => { this._bindChannel(evt.channel, gid); this.peers.get(gid).channel = evt.channel; };
+		
+		await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp }));
+		this._flushPendingCandidates(this.peers.get(gid));
+		
+		const ans = await pc.createAnswer(); await pc.setLocalDescription(ans);
+		this._sendSignaling({ type: 'answer', sdp: ans.sdp, peerId: gid });
+	}
+
+	async _queueOrApplyCandidate(pid, candidate) {
+		const peer = this.peers.get(pid);
+		if (!peer) return;
+		if (!peer.pc.currentRemoteDescription) {
+			if (!peer._pending) peer._pending = [];
+			peer._pending.push(candidate);
+		} else {
+			await peer.pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+		}
+	}
+
+	async _flushPendingCandidates(peer) {
+		if (!peer || !peer._pending) return;
+		for (const c of peer._pending) {
+			await peer.pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
+		}
+		peer._pending = [];
+	}
+
+	_sendSignaling(payload) {
+		if (this._ws && this._ws.readyState === WebSocket.OPEN) {
+			this._ws.send(JSON.stringify(payload));
+		}
+	}
+
+	disconnect() {
+		if (this._ws) { try { this._ws.close(); } catch {} this._ws = null; }
+		this._heartbeats.forEach(h => clearInterval(h.interval)); this._heartbeats.clear();
+		this.peers.forEach(({ pc, channel }) => { try { channel?.close(); } catch {} try { pc?.close(); } catch {} });
+		this.peers.clear(); this.roomId = null;
+	}
+
+	send(data) {
+		const payload = this._ser(data); let sent = 0;
+		this.peers.forEach(({ channel }) => { if (channel?.readyState === 'open') { try { channel.send(payload); sent++; } catch {} } });
+		if (!sent) console.warn('[CloudflareWSEngine] no open channels');
+	}
+
+	onTrack(cb) { this._onTrack = cb; }
+	
+	addLocalStream(peerId, stream) {
+		const peer = this.peers.get(peerId);
+		if (!peer || !peer.pc) return;
+		stream.getTracks().forEach(track => peer.pc.addTrack(track, stream));
+	}
+	
+	onMessage(cb) { this._onMessage = cb; }
+	onPeerConnected(cb) { this._onPeerConnected = cb; }
+	onPeerDisconnected(cb) { this._onPeerDisconnected = cb; }
+
+	_createPC(peerId) {
+		// Reuse ICE_CONFIG from the top of your engine.js file
+		const pc = new RTCPeerConnection(ICE_CONFIG);
+		pc.onconnectionstatechange = () => {
+			const s = pc.connectionState;
+			if (s === 'disconnected' || s === 'failed' || s === 'closed') this._removePeer(peerId);
+		};
+		pc.ontrack = (evt) => { if (this._onTrack) this._onTrack(evt.streams[0], peerId); };
+		return pc;
+	}
+
+	_bindChannel(ch, peerId) {
+		ch.binaryType = 'arraybuffer';
+		ch.onopen = () => {
+			if (this._onPeerConnected) this._onPeerConnected(peerId);
+			this._startHeartbeat(ch, peerId);
+		};
+		ch.onclose = () => { this._removePeer(peerId); };
+		ch.onerror = e => console.error(`[CloudflareWSEngine] ch err (${peerId}):`, e);
+		ch.onmessage = evt => {
+			if (evt.data === '{"type":"__ping"}') { try { ch.send('{"type":"__pong"}'); } catch {} return; }
+			if (evt.data === '{"type":"__pong"}') { this._heartbeats.get(peerId)?.pong(); return; }
+			if (this._relay) {
+				let parsed = null;
+				try { if (typeof evt.data === 'string') parsed = JSON.parse(evt.data); } catch {}
+				if (parsed?.to) {
+					this.peers.forEach(({ channel: c }, pid) => {
+						if (pid !== peerId && c?.readyState === 'open') { try { c.send(evt.data); } catch {} }
+					});
+				} else {
+					this.peers.forEach(({ channel: c }, pid) => { if (pid !== peerId && c?.readyState === 'open') { try { c.send(evt.data); } catch {} } });
+				}
+			}
+			if (this._onMessage) this._onMessage(this._deser(evt.data), peerId);
+		};
+	}
+
+	_startHeartbeat(ch, peerId) {
+		let lastPong = Date.now();
+		const interval = setInterval(() => {
+			if (ch.readyState !== 'open') { clearInterval(interval); this._heartbeats.delete(peerId); return; }
+			if (Date.now() - lastPong > 10000) {
+				clearInterval(interval); this._heartbeats.delete(peerId);
+				this._removePeer(peerId);
+				try { ch.close(); } catch {}
+				return;
+			}
+			try { ch.send('{"type":"__ping"}'); } catch {}
+		}, 5000);
+		this._heartbeats.set(peerId, { interval, pong: () => { lastPong = Date.now(); } });
+	}
+
+	_removePeer(peerId) {
+		const hb = this._heartbeats.get(peerId);
+		if (hb) { clearInterval(hb.interval); this._heartbeats.delete(peerId); }
+		if (!this.peers.has(peerId)) return;
+		this.peers.delete(peerId);
+		if (this._onPeerDisconnected) this._onPeerDisconnected(peerId);
+	}
+
+	_ser(d) { if (d instanceof ArrayBuffer || d instanceof Blob) return d; if (typeof d === 'object') return JSON.stringify(d); return String(d); }
+	_deser(r) { if (r instanceof ArrayBuffer) return r; if (typeof r === 'string') { try { return JSON.parse(r); } catch {} } return r; }
+	_uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+}
