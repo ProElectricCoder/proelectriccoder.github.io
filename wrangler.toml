@@ -1,0 +1,13 @@
+name = "webrtc-chat-engine"
+
+# If your index.html and JS files are in the main repo folder, use "."
+# If they are inside the "Projects" folder, use "Projects"
+pages_build_output_dir = "." 
+
+[[durable_objects.bindings]]
+name = "ROOM_DO"
+class_name = "RoomDO"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["RoomDO"]
