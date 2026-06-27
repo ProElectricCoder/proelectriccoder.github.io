@@ -1,4 +1,4 @@
-import * as jose from 'jose';
+import * as jose from 'npm:jose';
 
 export async function onRequest({ request, env, params }) {
 	const url = new URL(request.url);
