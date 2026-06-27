@@ -1,0 +1,7 @@
+{
+  "name": "proelectriccoder",
+  "version": "1.0.0",
+  "dependencies": {
+    "jose": "^5.0.0"
+  }
+}
