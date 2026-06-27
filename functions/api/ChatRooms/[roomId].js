@@ -35,11 +35,6 @@ export async function onRequest({ request, env, params }) {
 	return obj.fetch(request);
 }
 
-export class RoomDO {
-	constructor(state, env) {
-		this.state = state;
-	}
-
 	async fetch(request) {
 		const pair = new WebSocketPair();
 		const [client, server] = Object.values(pair);
