@@ -6,7 +6,7 @@
  *     per collaboratively-open file, keyed by full virtual path.
  *   - y-codemirror.next — binds a Y.Text + Awareness straight into a CM6
  *     EditorState (live co-editing, remote cursors/selections, collab-aware
- *     undo/redo). See js/editor.js's switchFile()/rebuildOpenDocsForCollab().
+ *     undo/redo). See js/editor.js's switchFile()/refreshActiveFileForCollab().
  *   - CloudflareWSEngine (Projects/Chat/engine.js, used UNMODIFIED) as the
  *     WebRTC signalling + relay transport. Yjs sync + awareness messages are
  *     just opaque binary payloads to it.
@@ -19,7 +19,7 @@
  * editor.js), so it asks for collab bindings indirectly via
  * S._callbacks.getCollabBinding(filename) — wired up in main.js, exactly
  * like every other cross-module callback in this codebase. This file is
- * free to import editor.js's rebuildOpenDocsForCollab() directly since that
+ * free to import editor.js's refreshActiveFileForCollab() directly since that
  * direction has no cycle.
  *
  * ── Scope / known limitations (by design, not oversights) ─────────────────
@@ -47,7 +47,7 @@ import { S } from './state.js';
 import { customAlert, customConfirm, customPrompt, showCustomDialog } from './dialogs.js';
 import { isGdriveConnected } from './gdrive.js';
 import { initFirebase } from './github.js';
-import { rebuildOpenDocsForCollab } from './editor.js';
+import { refreshActiveFileForCollab } from './editor.js';
 
 // ─── Pinned CDN imports ────────────────────────────────────────────────────────
 // IMPORTANT: @codemirror/state and @codemirror/view here are pinned to the
@@ -395,7 +395,7 @@ export async function startCollabSession() {
   S.collab.isHost  = true;
 
   session.onPresenceChange(_renderCollabUI);
-  rebuildOpenDocsForCollab();
+  refreshActiveFileForCollab();
   _renderCollabUI();
 
   await _shareInviteLink(roomId, 'Session Started');
@@ -441,7 +441,7 @@ export async function joinCollabSession(roomId) {
     await leaveCollabSession();
   });
 
-  rebuildOpenDocsForCollab();
+  refreshActiveFileForCollab();
   _renderCollabUI();
 
   await customAlert('Joined the collaboration session.', 'Collaborate');
@@ -456,7 +456,7 @@ export async function leaveCollabSession() {
   S.collab.roomId  = null;
   S.collab.isHost  = false;
 
-  rebuildOpenDocsForCollab(); // unbinds yCollab from open tabs, keeping current text
+  refreshActiveFileForCollab(); // unbinds yCollab from open tabs, keeping current text
   _renderCollabUI();
 
   await customAlert(wasHost ? 'Session ended.' : 'Left the session.', 'Collaborate');
