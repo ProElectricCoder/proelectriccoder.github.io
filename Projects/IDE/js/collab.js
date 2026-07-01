@@ -64,10 +64,10 @@ import { refreshActiveFileForCollab } from './editor.js';
 // this dependency-identity assumption is the first thing to check — confirm
 // the version strings below still match editor.js's imports byte-for-byte.
 import * as Y from 'https://esm.sh/yjs@13.6.31';
-import { yCollab, yUndoManagerKeymap } from 'https://esm.sh/y-codemirror.next@0.3.5?deps=yjs@13.6.31,@codemirror/state@6.7.0,@codemirror/view@6.43.4';
+import { yCollab, yUndoManagerKeymap } from 'https://esm.sh/y-codemirror.next@0.3.5?deps=yjs@13.6.31,y-protocols@1.0.7,lib0@0.2.117,@codemirror/state@6.7.0,@codemirror/view@6.43.4';
 import { keymap } from 'https://esm.sh/@codemirror/view@6.43.4';
-import * as awarenessProtocol from 'https://esm.sh/y-protocols@1.0.7/awareness?deps=yjs@13.6.31,lib0@0.2.117';
-import * as syncProtocol from 'https://esm.sh/y-protocols@1.0.7/sync?deps=yjs@13.6.31,lib0@0.2.117';
+import * as awarenessProtocol from 'https://esm.sh/y-protocols@1.0.7/awareness';
+import * as syncProtocol from 'https://esm.sh/y-protocols@1.0.7/sync';
 import * as encoding from 'https://esm.sh/lib0@0.2.117/encoding';
 import * as decoding from 'https://esm.sh/lib0@0.2.117/decoding';
 
