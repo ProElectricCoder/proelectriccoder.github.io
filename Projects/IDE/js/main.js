@@ -24,12 +24,16 @@ import { confirmGithubAuth, openGithubAuth, fetchWithProgress,
          closeCommitModal, executeGithubCommit }                                   from './github.js';
 import { shareProject }                                                            from './share.js';
 import { loadCryptoLib, openCryptoModalAsync, closeCryptoModal, executeCrypto }    from './crypto.js';
-import { getFileParam, getActionParam, getSafePreviewParams, consumeActionParam }  from './routing.js';
+import { getFileParam, getActionParam, getCollabParam, getSafePreviewParams,
+         consumeActionParam, consumeCollabParam }                                  from './routing.js';
 import { toggleSearch, findNext, findPrev, replaceOne, replaceAll }                from './search.js';
 import defaultTour                                                                 from './tour.js';
 import { toggleGdriveAuth, saveCurrentFileToGoogleDrive, isGdriveConnected,
          gdriveSignOut, setDrivePickedHandler, openDrivePicker, _updateGdriveBtn } from './gdrive.js';
 import { setPanel, initMobileGestures, showPreviewOnMobile }                      from './mobile.js';
+import { startCollabSession, joinCollabSessionPrompt, joinCollabSession,
+         leaveCollabSession, copyCollabInviteLink, getCollabBinding,
+         isCollabActive }                                                          from './collab.js';
 
 // ─── System console bridge ─────────────────────────────────────────────────────
 // Installed immediately (module scope) so the System console tab captures
@@ -51,6 +55,12 @@ S._callbacks = {
   setExecLoading,
   handleDroppedFiles,
   renderWorkspaceActions,
+  // js/collab.js implements this; js/editor.js calls it (via S._callbacks,
+  // not a direct import) every time a file is opened, to find out whether
+  // it should be bound into an active collaboration session instead of
+  // edited as a plain local document. See editor.js's switchFile() and
+  // refreshActiveFileForCollab() for where this gets used.
+  getCollabBinding,
   // Debounced here (not inside autoRunActiveFile itself) so the function in
   // preview.js stays a plain, reusable "refresh now" call — main.js, as the
   // wiring hub, owns deciding how often that's allowed to fire while typing.
@@ -196,9 +206,11 @@ window.addEventListener('load', async () => {
   const autoRunToggle = document.getElementById('autorun-toggle');
   if (autoRunToggle) autoRunToggle.checked = S.autoRun;
 
-  // 4. Header dropdown menus (Drive / GitHub) — wired once, content refreshed on open
+  // 4. Header dropdown menus (Drive / GitHub / Collaborate) — wired once,
+  // content refreshed on open
   document.getElementById('drive-btn') ?.addEventListener('click', e => { e.stopPropagation(); toggleHeaderDropdown('drive-menu', 'drive-btn'); });
   document.getElementById('github-btn')?.addEventListener('click', e => { e.stopPropagation(); toggleHeaderDropdown('github-menu', 'github-btn'); });
+  document.getElementById('collab-btn')?.addEventListener('click', e => { e.stopPropagation(); toggleHeaderDropdown('collab-menu', 'collab-btn'); });
   document.addEventListener('click', e => { if (!e.target.closest('.hdr-dropdown')) _closeAllHeaderDropdowns(); });
 
   // 4b. Google Drive: just register the file-picked callback — this does NOT
@@ -303,12 +315,17 @@ window.addEventListener('load', async () => {
   // 9. First render
   renderSidebar();
 
-  // 10. URL routing — handle ?file= and ?action= (Task 4 fix)
+  // 10. URL routing — handle ?file=, ?action=, and ?collab= (Task 4 fix)
   const fileParam   = getFileParam();
   const actionParam = getActionParam();
+  const collabParam = getCollabParam();
 
   if (actionParam === 'github') { consumeActionParam(); confirmGithubAuth(); }
   if (actionParam === 'new')    { consumeActionParam(); window.deepBlue.init(); }
+  // Invite-link entry point (js/collab.js's _inviteLink()). Not awaited —
+  // joinCollabSession() shows its own confirm/sign-in dialogs and runs fully
+  // async, same fire-and-forget treatment as the action-param handlers above.
+  if (collabParam) { consumeCollabParam(); joinCollabSession(collabParam); }
 
   const initialFile = (fileParam && S.fileSystem[fileParam]) ? fileParam : 'DeepBlue/index.html';
   await switchFile(initialFile);
@@ -331,7 +348,7 @@ window.addEventListener('load', async () => {
   }
 });
 
-// ─── Header dropdown menus (Drive / GitHub) ───────────────────────────────────
+// ─── Header dropdown menus (Drive / GitHub / Collaborate) ─────────────────────
 function _closeAllHeaderDropdowns() {
   document.querySelectorAll('.hdr-menu.open').forEach(m => m.classList.remove('open'));
 }
@@ -353,6 +370,25 @@ function _refreshGithubMenu() {
   document.getElementById('gh-menu-signout') ?.style.setProperty('display', connected ? 'flex' : 'none');
 }
 
+/**
+ * Toggles which of the Start/Join vs. Invite/Leave menu items are visible.
+ * The presence list itself + the status line + the header badge are NOT
+ * handled here — those are driven live by js/collab.js's own
+ * onPresenceChange listener (session.onPresenceChange(_renderCollabUI)),
+ * since presence can change at any moment, not just while this dropdown
+ * happens to be open. This only toggles the static action items, exactly
+ * like _refreshDriveMenu()/_refreshGithubMenu() above.
+ */
+function _refreshCollabMenu() {
+  const active = isCollabActive();
+  document.getElementById('collab-menu-start')       ?.style.setProperty('display', active ? 'none'  : 'flex');
+  document.getElementById('collab-menu-join')        ?.style.setProperty('display', active ? 'none'  : 'flex');
+  document.getElementById('collab-menu-invite')      ?.style.setProperty('display', active ? 'flex'  : 'none');
+  document.getElementById('collab-menu-presence-sep')?.style.setProperty('display', active ? 'block' : 'none');
+  document.getElementById('collab-menu-leave-sep')   ?.style.setProperty('display', active ? 'block' : 'none');
+  document.getElementById('collab-menu-leave')       ?.style.setProperty('display', active ? 'flex'  : 'none');
+}
+
 /** Opens one header dropdown (closing any other), positioning + refreshing it first. */
 function toggleHeaderDropdown(menuId, btnId) {
   const menu = document.getElementById(menuId);
@@ -371,6 +407,7 @@ function toggleHeaderDropdown(menuId, btnId) {
 
   if (menuId === 'drive-menu')  _refreshDriveMenu();
   if (menuId === 'github-menu') _refreshGithubMenu();
+  if (menuId === 'collab-menu') _refreshCollabMenu();
   menu.classList.add('open');
 }
 
@@ -448,6 +485,12 @@ function _exposeGlobals() {
     openDrivePicker,
     saveActiveFileToDrive,
     gdriveSignOutUI,
+
+    // Collaboration (real-time editing — see js/collab.js)
+    startCollabSession,
+    joinCollabSessionPrompt,
+    copyCollabInviteLink,
+    leaveCollabSession,
 
     // Header dropdowns
     closeHeaderDropdowns: _closeAllHeaderDropdowns,
