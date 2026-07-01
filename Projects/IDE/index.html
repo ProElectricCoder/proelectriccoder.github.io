@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<!-- DeepBlue IDE - ProElectricCoder - v2.13.0 -->
+	<!-- DeepBlue IDE - ProElectricCoder - v2.14.0 -->
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>DeepBlue IDE - ProElectricCoder</title>
@@ -10,11 +10,11 @@
 	<link rel="manifest" href="manifest.json">
 
 	<meta name="title"       content="DeepBlue IDE - ProElectricCoder">
-	<meta name="description" content="A powerful, completely web-based IDE featuring seamless GitHub integration, AI assistance, in-browser Python execution, and zero-knowledge encryption.">
+	<meta name="description" content="A powerful, completely web-based IDE featuring seamless GitHub integration, AI assistance, in-browser Python execution, real-time collaboration, and zero-knowledge encryption.">
 	<meta name="author"      content="ProElectricCoder">
 
 	<meta property="og:title"       content="DeepBlue IDE - ProElectricCoder">
-	<meta property="og:description" content="A powerful, completely web-based IDE featuring seamless GitHub integration, AI assistance, in-browser Python execution, and zero-knowledge encryption.">
+	<meta property="og:description" content="A powerful, completely web-based IDE featuring seamless GitHub integration, AI assistance, in-browser Python execution, real-time collaboration, and zero-knowledge encryption.">
 	<meta property="og:type"        content="website">
 	<meta property="og:url"         content="https://proelectriccoder.github.io/Projects/IDE/">
 	<meta property="og:image"       content="https://proelectriccoder.github.io/Preview.png">
@@ -22,7 +22,7 @@
 
 	<meta name="twitter:card"        content="summary_large_image">
 	<meta name="twitter:title"       content="DeepBlue IDE - ProElectricCoder">
-	<meta name="twitter:description" content="A powerful, completely web-based IDE featuring seamless GitHub integration, AI assistance, in-browser Python execution, and zero-knowledge encryption.">
+	<meta name="twitter:description" content="A powerful, completely web-based IDE featuring seamless GitHub integration, AI assistance, in-browser Python execution, real-time collaboration, and zero-knowledge encryption.">
 	<meta name="twitter:url"         content="https://proelectriccoder.github.io/Projects/IDE/">
 	<meta name="twitter:image"       content="https://proelectriccoder.github.io/Projects/IDE/Preview2.png">
 	<meta name="theme-color"         content="#00e5ff">
@@ -40,7 +40,9 @@
 
 	<!-- CodeMirror 6 is loaded as plain ES module imports inside js/editor.js —
 	     no <script>/<link> tags needed here at all. Chrome/token colours for
-	     the editor live in css/cm6-cobalt.css (hand-built Cobalt theme). -->
+	     the editor live in css/cm6-cobalt.css (hand-built Cobalt theme).
+	     Yjs, y-codemirror.next, y-protocols, and lib0 (real-time collaboration —
+	     see js/collab.js) are loaded the same way, as plain ESM imports. -->
 
 	<!-- Lucide icons -->
 	<script src="https://unpkg.com/lucide@latest"></script>
@@ -49,6 +51,7 @@
 	<link rel="stylesheet" href="css/ide.css">
 	<link rel="stylesheet" href="css/tour.css">
 	<link rel="stylesheet" href="css/cm6-cobalt.css">
+	<link rel="stylesheet" href="css/collab.css">
 </head>
 <body>
 
@@ -134,6 +137,36 @@
 				<div class="hdr-menu-item danger" id="gh-menu-signout" onclick="closeHeaderDropdowns();signOutGithub()">
 					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
 					Sign Out of GitHub
+				</div>
+			</div>
+		</div>
+
+		<!-- Collaborate -->
+		<div class="hdr-dropdown">
+			<button class="btn btn-secondary btn-icon" id="collab-btn" title="Collaborate">
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+				<span id="collab-badge"></span>
+			</button>
+			<div class="hdr-menu" id="collab-menu">
+				<div class="hdr-menu-status" id="collab-status">Not connected</div>
+				<div class="hdr-menu-item" id="collab-menu-start" onclick="closeHeaderDropdowns();startCollabSession()">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+					Start Session
+				</div>
+				<div class="hdr-menu-item" id="collab-menu-join" onclick="closeHeaderDropdowns();joinCollabSessionPrompt()">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+					Join Session
+				</div>
+				<div class="hdr-menu-item" id="collab-menu-invite" onclick="closeHeaderDropdowns();copyCollabInviteLink()">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+					Copy Invite Link
+				</div>
+				<div class="hdr-menu-sep" id="collab-menu-presence-sep"></div>
+				<div id="collab-presence-list" class="collab-presence-list"></div>
+				<div class="hdr-menu-sep" id="collab-menu-leave-sep"></div>
+				<div class="hdr-menu-item danger" id="collab-menu-leave" onclick="closeHeaderDropdowns();leaveCollabSession()">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+					Leave Session
 				</div>
 			</div>
 		</div>
