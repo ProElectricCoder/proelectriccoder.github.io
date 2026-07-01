@@ -90,12 +90,12 @@ let _engineLib = null;
 async function loadEngineLib() {
   if (_engineLib) return _engineLib;
   try {
-    _engineLib = await import('https://proelectriccoder.github.io/Projects/Chat/engine.js');
+    _engineLib = await import('https://proelectriccoder.pages.dev/Projects/Chat/engine.js');
   } catch {
     // Adjust this path if DeepBlue IDE and the Chat app aren't deployed in a
     // way that makes this relative path resolve (see js/crypto.js's
     // loadCryptoLib() for the precedent this mirrors).
-    _engineLib = await import('../Chat/engine.js');
+    _engineLib = await import('../../Chat/engine.js');
   }
   return _engineLib;
 }
