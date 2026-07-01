@@ -8,7 +8,11 @@ import { syncDocsToContent } from './editor.js';
 import { clearModifiedFlags } from './editor.js';
 
 // ─── Firebase lazy init ───────────────────────────────────────────────────────
-async function initFirebase() {
+// Exported so js/collab.js can reuse this exact same Firebase app/auth
+// instance for its own GitHub/Google sign-in (collaboration identity) rather
+// than standing up a second, redundant Firebase connection — same project
+// ("proelectriccoder"), same FIREBASE_CONFIG, same S.firebaseApp/S.firebaseAuth.
+export async function initFirebase() {
   if (S.firebaseApp) return;
   const { initializeApp } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js');
   const { getAuth }       = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
