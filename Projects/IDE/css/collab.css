@@ -1,0 +1,125 @@
+/* ── DeepBlue IDE — Collaboration Styles ───────────────────────────────────── */
+/* Header "Collaborate" button + dropdown, presence list, and y-codemirror.next
+   remote-cursor/selection theming. See js/collab.js for the Yjs + Awareness +
+   CloudflareWSEngine wiring this dresses up. Follows the same hdr-dropdown /
+   hdr-menu-item / hdr-menu-sep structure already used for Drive and GitHub
+   in css/ide.css — this file only adds what's genuinely new. */
+
+#collab-btn { position: relative; }
+
+/* Small participant-count badge on the trigger button itself. Hidden by
+   default so there's no flash of an empty badge before js/collab.js's
+   first presence render (no session / no other participants → hidden). */
+#collab-badge {
+	display: none;
+	position: absolute;
+	top: -4px; right: -4px;
+	min-width: 16px; height: 16px;
+	padding: 0 4px;
+	border-radius: 999px;
+	background: var(--accent, #00e5ff);
+	color: #000;
+	font-size: 0.65rem;
+	font-weight: 700;
+	line-height: 16px;
+	text-align: center;
+	box-shadow: 0 0 6px rgba(0,229,255,0.55);
+	pointer-events: none;
+}
+
+/* Non-interactive status line at the top of the Collaborate dropdown
+   ("Not connected" / "Hosting · code ABC123" / "Connected · code ABC123"). */
+.hdr-menu-status {
+	padding: 6px 12px 8px;
+	color: var(--text-muted, #7b8ea5);
+	font-size: 0.72rem;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+/* ── Presence list ──────────────────────────────────────────────────────────
+   Populated dynamically by js/collab.js's _renderCollabUI()/_presenceRow().
+   Empty (zero rows) whenever no session is active. */
+.collab-presence-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	max-height: 180px;
+	overflow-y: auto;
+	padding: 2px 0;
+}
+.collab-presence-list:empty { display: none; }
+.collab-presence-list::-webkit-scrollbar { width: 6px; }
+.collab-presence-list::-webkit-scrollbar-thumb { background: var(--border, #283548); border-radius: 4px; }
+
+.collab-presence-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 12px;
+	font-size: 0.82rem;
+	color: var(--text-main, #e2f1f8);
+	white-space: nowrap;
+}
+
+.collab-avatar-img, .collab-avatar-fallback {
+	width: 22px; height: 22px;
+	border-radius: 50%;
+	flex-shrink: 0;
+	object-fit: cover;
+}
+.collab-avatar-fallback {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 0.7rem;
+	font-weight: 700;
+	color: #000;
+}
+
+.collab-presence-name {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Small per-user colour swatch, matching that user's remote-cursor colour
+   below — js/collab.js sets both `background` and `color` inline on this
+   element so `currentColor` here can pick up their assigned colour. */
+.collab-presence-dot {
+	width: 8px; height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+	box-shadow: 0 0 4px currentColor;
+}
+
+/* ── Remote cursors & selections (y-codemirror.next) ──────────────────────────
+   Per-user colour (caret, dot, selection highlight) is applied inline by
+   y-codemirror.next itself, straight from each peer's Awareness state — see
+   js/collab.js's awareness.setLocalStateField('user', {color, ...}) and
+   node_modules/y-codemirror.next/src/y-remote-selections.js. The rules below
+   only restyle the STATIC chrome (font, radius, spacing, shadow) of the
+   library's own yRemoteSelectionsTheme base theme so it matches this editor's
+   actual look instead of the library's plain generic defaults — they
+   deliberately don't try to recolour anything per-user themselves. */
+.cm-ySelectionCaret {
+	box-sizing: border-box;
+}
+.cm-ySelectionCaretDot {
+	box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+.cm-ySelectionInfo {
+	top: -1.4em;
+	font-family: 'Consolas', 'Monaco', monospace;
+	font-size: 0.7rem;
+	font-style: normal;
+	font-weight: 600;
+	border-radius: var(--radius-sm, 4px);
+	padding: 2px 6px;
+	box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+.cm-ySelection {
+	border-radius: 2px;
+}
