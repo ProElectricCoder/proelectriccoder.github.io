@@ -101,6 +101,18 @@ export const S = {
 
   // ─ Python
   pythonPollTimer: null,
+
+  // ─ Real-time collaboration (Yjs + CloudflareWSEngine) — see js/collab.js.
+  //   `session` holds the live CollabSession instance (its Y.Doc, Awareness,
+  //   and CloudflareWSEngine connection) for the lifetime of the session;
+  //   null whenever no session is active. editor.js never reaches into
+  //   `session` directly — it only ever asks for bindings via
+  //   S._callbacks.getCollabBinding(filename), wired up in main.js.
+  collab: {
+    session: null,   // CollabSession | null
+    roomId:  null,   // string | null — the joinable session code
+    isHost:  false,
+  },
 };
 
 // ─── Firebase Config ───────────────────────────────────────────────────────────
