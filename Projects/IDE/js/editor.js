@@ -20,6 +20,20 @@
  * back onto the active file's stored object on every keystroke, so
  * `editorDocs[path].getValue()` is always correct whether or not that file
  * is the one currently on screen.
+ *
+ * ── Real-time collaboration (Yjs) ──────────────────────────────────────────
+ * editor.js has no direct import of js/collab.js — that module imports FROM
+ * this file (it needs switchFile()'s live document to bind into), so the
+ * reverse import would be circular. Instead, whenever a file is opened,
+ * switchFile() asks S._callbacks.getCollabBinding(filename) — wired up in
+ * main.js, implemented in collab.js — whether this file is part of an active
+ * collaboration session. When it is, createCMDoc() is built with that
+ * session's Yjs extensions instead of plain local content, and CM6's native
+ * undo history is left out entirely in favour of Yjs's own UndoManager (see
+ * baseExtensions()'s `includeHistory` option below for why). See
+ * refreshActiveFileForCollab() at the bottom of this file for the other half
+ * of that integration — keeping the *currently open* file correctly bound
+ * (or unbound) the moment a session starts, is joined, or ends.
  */
 
 import { S } from './state.js';
@@ -95,12 +109,34 @@ const _syncListener = EditorView.updateListener.of(update => {
   }
 });
 
-function baseExtensions(langExt) {
+// `includeHistory` is false for collaboratively-bound documents (see
+// createCMDoc()'s `collab` option, used from switchFile()/
+// refreshActiveFileForCollab() below). CM6's native history()/historyKeymap
+// records every transaction into a local linear undo stack with no concept
+// of "whose edit was this" — exactly wrong for a shared document, since
+// hitting Ctrl+Z could undo a remote peer's keystroke instead of your own.
+// y-codemirror.next's yUndoManager (mixed in separately, via the extensions
+// collab.js's getCollabBinding() returns) replaces it with a Y.UndoManager
+// that only tracks transactions originating from THIS client's own sync
+// plugin instance, so Ctrl+Z only ever undoes your own changes. Running both
+// systems side by side would mean two competing undo stacks and two keymaps
+// fighting over Mod-z/Mod-y; leaving CM's native history out entirely for
+// collab docs sidesteps that rather than gambling on keymap precedence.
+function baseExtensions(langExt, { includeHistory = true } = {}) {
+  const keys = [
+    { key: 'Ctrl-Space', run: startCompletion },
+    { key: 'Mod-f',      run: () => { S._callbacks.toggleSearch?.(); return true; } },
+    ...closeBracketsKeymap,
+    ...defaultKeymap,
+  ];
+  if (includeHistory) keys.push(...historyKeymap);
+  keys.push(...foldKeymap, ...completionKeymap, indentWithTab);
+
   return [
     lineNumbers(),
     highlightActiveLineGutter(),
     highlightActiveLine(),
-    history(),
+    includeHistory ? history() : [],
     drawSelection(),
     indentOnInput(),
     bracketMatching(),
@@ -110,16 +146,7 @@ function baseExtensions(langExt) {
     indentUnit.of('\t'),
     syntaxHighlighting(cobaltHighlightStyle, { fallback: true }),
     EditorView.theme({}, { dark: true }),
-    keymap.of([
-      { key: 'Ctrl-Space', run: startCompletion },
-      { key: 'Mod-f',      run: () => { S._callbacks.toggleSearch?.(); return true; } },
-      ...closeBracketsKeymap,
-      ...defaultKeymap,
-      ...historyKeymap,
-      ...foldKeymap,
-      ...completionKeymap,
-      indentWithTab,
-    ]),
+    keymap.of(keys),
     _syncListener,
     langExt || [],
   ];
@@ -189,10 +216,24 @@ async function getLanguageExtension(ext) {
 
 // ─── Per-file "doc" object ────────────────────────────────────────────────────
 // Only needs .getValue() (read by crypto.js/share.js/preview.js/syncDocsToContent)
-// and .setValue() (used once, by switchFile, after a lazy GitHub fetch resolves).
-function createCMDoc(content, langExt) {
+// and .setValue() (used by switchFile after a lazy GitHub fetch resolves, by
+// formatCurrentFile(), and — for collab docs — composes correctly with both:
+// since .setValue() dispatches a normal CM transaction through the live view
+// whenever this doc is the active one, a collab-bound doc's ySync ViewPlugin
+// sees that transaction like any other local edit and mirrors it into the
+// shared Y.Text, so a lazy GitHub fetch or a Format-Code pass on a
+// collaboratively-open file still correctly propagates to every peer.
+//
+// `extraExtensions` carries the Yjs/y-codemirror.next extensions for a
+// collab-bound file (see switchFile()/refreshActiveFileForCollab()); the
+// `collab` option only controls whether CM's native history() is included
+// (see baseExtensions() above for why it's excluded for collab docs).
+function createCMDoc(content, langExt, extraExtensions = [], { collab = false } = {}) {
   return {
-    state: EditorState.create({ doc: content, extensions: baseExtensions(langExt) }),
+    state: EditorState.create({
+      doc: content,
+      extensions: [...baseExtensions(langExt, { includeHistory: !collab }), ...extraExtensions],
+    }),
     getValue() { return this.state.doc.toString(); },
     setValue(text) {
       if (S.cmEditor && S.cmEditor._activeDoc === this) {
@@ -432,7 +473,35 @@ export async function switchFile(filename) {
     try { langExt = await getLanguageExtension(isAsset && subtype === 'svg' ? 'svg' : ext); }
     catch (e) { console.warn('[DeepBlue] Language mode failed to load, falling back to plain text:', e.message); langExt = []; }
 
-    if (!S.editorDocs[filename]) {
+    // ── Collaboration binding ────────────────────────────────────────────
+    // S._callbacks.getCollabBinding (wired in main.js, implemented in
+    // collab.js) returns non-null only when a session is active AND this
+    // filename is part of it — for a guest, only once the host has claimed
+    // it (see collab.js's getCollabBinding for why guests never originate a
+    // claim themselves). Encrypted files are deliberately excluded:
+    // their stored content is base64 ciphertext, and CRDT-merging that
+    // character-by-character between two participants holding different
+    // keys would be meaningless (and wouldn't decrypt correctly for
+    // either of them) — encryption stays a strictly local operation.
+    //
+    // A collab-bound doc is rebuilt FRESH from the live Y.Text every time
+    // this file is (re)opened, rather than reusing a cached S.editorDocs
+    // entry the way local files do. Reason: y-codemirror.next's sync
+    // ViewPlugin only mirrors remote Yjs changes into a CM EditorState
+    // while that state is the one actually mounted in the single, shared
+    // EditorView — a cached-but-inactive doc sitting in S.editorDocs while
+    // peers keep editing would silently go stale, and remounting it as-is
+    // could show outdated (or conflicting) content. Rebuilding from
+    // ytext.toString() on every (re)open guarantees what's on screen always
+    // matches the live shared document, at the minor cost of not preserving
+    // cursor position across a tab revisit for collab files specifically.
+    const collabBinding = (!isUnwrappedEnc && !filename.endsWith('.enc'))
+      ? S._callbacks.getCollabBinding?.(filename)
+      : null;
+
+    if (collabBinding) {
+      S.editorDocs[filename] = createCMDoc(collabBinding.initialContent, langExt, collabBinding.extensions, { collab: true });
+    } else if (!S.editorDocs[filename]) {
       let initial = contentToLoad;
       if (initial === null && target.ghUrl) initial = 'Loading…';
       S.editorDocs[filename] = createCMDoc(initial || '', langExt);
@@ -453,6 +522,43 @@ export async function switchFile(filename) {
   }
 
   S.isSwitchingFile = false;
+}
+
+// ─── Collaboration: keep the active file in sync with session state ──────────
+// Called from js/collab.js (direct import — this is the non-circular
+// direction) right after a session starts, is joined, or ends, and whenever
+// the file the active tab is showing gets claimed by a remote peer before
+// the local user had a chance to bind it themselves (collab.js's
+// onFileClaimed). None of those moments naturally trigger a switchFile()
+// call on their own, so this re-runs the same binding-resolution logic
+// switchFile() uses, scoped to whichever file is currently on screen.
+// Background (open-but-not-active) tabs are intentionally left alone here —
+// they resolve correctly and lazily the next time they're actually switched
+// to, via switchFile()'s own collab-binding check above, since nobody can be
+// mid-edit in a tab that isn't displayed.
+export async function refreshActiveFileForCollab() {
+  const filename = S.activeFile;
+  if (!filename || !S.cmEditor || !S.editorDocs[filename]) return;
+  if (filename.endsWith('.enc')) return;
+
+  const fObj = S.fileSystem[filename];
+  let ext = filename.split('.').pop().toLowerCase();
+  if (fObj?.type === 'asset' && fObj?.subtype === 'svg') ext = 'svg';
+  let langExt = [];
+  try { langExt = await getLanguageExtension(ext); }
+  catch (e) { console.warn('[DeepBlue] Language mode failed to load, falling back to plain text:', e.message); langExt = []; }
+
+  const binding = S._callbacks.getCollabBinding?.(filename);
+  const newDoc = binding
+    ? createCMDoc(binding.initialContent, langExt, binding.extensions, { collab: true })
+    // No active binding (session just ended, or this file was never part of
+    // it) — freeze whatever was last on screen into a plain local doc rather
+    // than reloading from S.fileSystem[filename].content, which
+    // syncDocsToContent() may not have refreshed recently.
+    : createCMDoc(S.editorDocs[filename].getValue(), langExt);
+
+  S.editorDocs[filename] = newDoc;
+  S.cmEditor.swapDoc(newDoc);
 }
 
 // ─── Sync CM docs back to fileSystem ─────────────────────────────────────────
