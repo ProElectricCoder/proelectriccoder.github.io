@@ -49,27 +49,38 @@ import { isGdriveConnected } from './gdrive.js';
 import { initFirebase } from './github.js';
 import { refreshActiveFileForCollab } from './editor.js';
 
-// ─── Pinned CDN imports ────────────────────────────────────────────────────────
-// IMPORTANT: @codemirror/state and @codemirror/view here are pinned to the
-// EXACT same version strings used in js/editor.js, and y-codemirror.next /
-// y-protocols are told (via esm.sh's `?deps=` override) to resolve their own
-// internal copies of yjs/@codemirror/state/@codemirror/view to those same
-// pinned versions too. This is not cosmetic — CodeMirror 6's Facets and
-// ViewPlugins are matched by object identity, and Yjs's AbstractType classes
-// are matched with `instanceof`. If esm.sh ever served a second, separate
-// copy of either package to this file vs. editor.js, the yCollab extensions
-// built here would silently fail to attach (or throw "Unrecognized
-// extension value") when merged into editor.js's EditorState. If remote
-// cursors/selections stop rendering or collaborative edits don't apply,
-// this dependency-identity assumption is the first thing to check — confirm
-// the version strings below still match editor.js's imports byte-for-byte.
-import * as Y from 'https://esm.sh/yjs@13.6.31';
-import { yCollab, yUndoManagerKeymap } from 'https://esm.sh/y-codemirror.next@0.3.5?deps=yjs@13.6.31,y-protocols@1.0.7,lib0@0.2.117,@codemirror/state@6.7.0,@codemirror/view@6.43.4';
-import { keymap } from 'https://esm.sh/@codemirror/view@6.43.4';
-import * as awarenessProtocol from 'https://esm.sh/y-protocols@1.0.7/awareness';
-import * as syncProtocol from 'https://esm.sh/y-protocols@1.0.7/sync';
-import * as encoding from 'https://esm.sh/lib0@0.2.117/encoding';
-import * as decoding from 'https://esm.sh/lib0@0.2.117/decoding';
+// ─── Collaboration library imports ─────────────────────────────────────────────
+// yjs, y-protocols, and y-codemirror.next come from js/vendor/collab-libs.bundle.js
+// — a locally pre-built, single-copy bundle of all four — instead of separate
+// esm.sh CDN URLs. That's not the original design: separate pinned-version CDN
+// imports (with esm.sh's `?deps=` override telling y-codemirror.next/y-protocols
+// to resolve yjs to the same pinned version this file imports) were tried first,
+// on the theory that identical version strings would make esm.sh serve identical
+// URLs and let the browser's module cache dedupe them into one instance. In
+// practice that didn't hold — esm.sh's exact resolved/redirected URL for a
+// `?deps=`-pinned transitive import isn't guaranteed to string-match a separate
+// top-level import of that same version, and two DIFFERENT yjs module instances
+// loaded is exactly what breaks this integration: Yjs's classes (Y.Doc, Y.Text,
+// Y.UndoManager, …) are matched with `instanceof` internally, so a second copy
+// causes the "Yjs was already imported" console warning and knock-on failures
+// like UndoManager logging "[yjs#509] Not same Y.Doc" and refusing to track a
+// Y.Text it doesn't recognise as belonging to its own doc's class hierarchy.
+// Bundling those four packages together at build time with esbuild sidesteps
+// the CDN-resolution question entirely — see the vendor file's own header
+// comment for exactly how it's built and how to regenerate it.
+//
+// @codemirror/state and @codemirror/view have this SAME singleton requirement
+// (CM6 Facets/ViewPlugins are also matched by reference identity) but are
+// handled differently: the vendor bundle deliberately does NOT bundle them in,
+// and instead imports them from the exact same URL js/editor.js uses
+// (`https://esm.sh/@codemirror/state@6` / `https://esm.sh/@codemirror/view@6`),
+// baked in at build time. `keymap` below is imported directly from that
+// identical URL for the same reason — so all three references (editor.js, the
+// vendor bundle's internal CM6 imports, and this file's own `keymap` import)
+// resolve to one browser module-cache entry. If editor.js's pinned CM6 URL
+// ever changes, the vendor bundle needs rebuilding to match — see its header.
+import { Y, yCollab, yUndoManagerKeymap, awarenessProtocol, syncProtocol, encoding, decoding } from './vendor/collab-libs.bundle.js';
+import { keymap } from 'https://esm.sh/@codemirror/view@6';
 
 // ─── Outer transport envelope (first byte of every payload we hand the engine) ─
 const MESSAGE_SYNC      = 0;
@@ -90,12 +101,12 @@ let _engineLib = null;
 async function loadEngineLib() {
   if (_engineLib) return _engineLib;
   try {
-    _engineLib = await import('https://proelectriccoder.pages.dev/Projects/Chat/engine.js');
+    _engineLib = await import('https://proelectriccoder.github.io/Projects/Chat/engine.js');
   } catch {
     // Adjust this path if DeepBlue IDE and the Chat app aren't deployed in a
     // way that makes this relative path resolve (see js/crypto.js's
     // loadCryptoLib() for the precedent this mirrors).
-    _engineLib = await import('../../Chat/engine.js');
+    _engineLib = await import('../Chat/engine.js');
   }
   return _engineLib;
 }
