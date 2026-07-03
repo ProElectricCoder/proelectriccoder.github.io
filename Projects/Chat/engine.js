@@ -281,77 +281,118 @@ export class CloudflareWSEngine {
 		this._onPeerDisconnected = null;
 		this._onTrack = null;
 		this.isHost = false;
+		this._peerId = null; // Store our own peer ID for signal routing
 	}
 
 	init() {} // No-op to match interface
 
 	async createRoom(roomId, token) {
 		if (!token) throw new Error("[CloudflareWSEngine] Firebase ID token required");
-		this.roomId = roomId; this.isHost = true;
+		this.roomId = roomId; 
+		this.isHost = true;
+		this._peerId = null; // Host doesn't have a specific peerId
 		this._connectWS(roomId, token);
 		return roomId;
 	}
 
 	async joinRoom(roomId, token) {
 		if (!token) throw new Error("[CloudflareWSEngine] Firebase ID token required");
-		this.roomId = roomId; this.isHost = false;
-		const gid = this._uid();
+		this.roomId = roomId; 
+		this.isHost = false;
+		this._peerId = this._uid();
+		
+		const gid = this._peerId;
 		const pc = this._createPC(gid), ch = pc.createDataChannel('data', { ordered: true });
-		this._bindChannel(ch, gid); this.peers.set(gid, { pc, channel: ch });
+		this._bindChannel(ch, gid); 
+		this.peers.set(gid, { pc, channel: ch });
 		
 		pc.onicecandidate = evt => {
 			if (evt.candidate) {
-				this._sendSignaling({ type: 'candidate', candidate: evt.candidate.toJSON(), peerId: gid, target: 'host' });
+				// Guests send candidates with from field so host knows who they're from
+				this._sendSignaling({ 
+					type: 'candidate', 
+					candidate: evt.candidate.toJSON(), 
+					from: gid
+				});
 			}
 		};
 		
-		const offer = await pc.createOffer(); await pc.setLocalDescription(offer);
+		const offer = await pc.createOffer(); 
+		await pc.setLocalDescription(offer);
+		
 		this._connectWS(roomId, token, () => {
-			this._sendSignaling({ type: 'offer', sdp: offer.sdp, peerId: gid });
+			// Send offer AFTER WebSocket is open
+			this._sendSignaling({ type: 'offer', sdp: offer.sdp, from: gid });
 		});
 	}
 
 	_connectWS(roomId, token, onOpenCb) {
 		this._ws = new WebSocket(`${this.wsUrl}/${roomId}?token=${token}`);
-		this._ws.onopen = () => { if (onOpenCb) onOpenCb(); };
+		this._ws.onopen = () => { 
+			if (onOpenCb) onOpenCb(); 
+		};
 		this._ws.onmessage = async (evt) => {
 			const sig = JSON.parse(evt.data);
 			
 			if (this.isHost) {
-				if (sig.type === 'offer' && !this.peers.has(sig.peerId)) {
-					await this._handleOffer(sig.peerId, sig.sdp);
-				} else if (sig.type === 'candidate' && sig.target === 'host') {
-					await this._queueOrApplyCandidate(sig.peerId, sig.candidate);
+				// HOST receives signals from guests
+				if (sig.type === 'offer' && sig.from && !this.peers.has(sig.from)) {
+					await this._handleOffer(sig.from, sig.sdp);
+				} else if (sig.type === 'candidate' && sig.from) {
+					await this._queueOrApplyCandidate(sig.from, sig.candidate);
 				}
 			} else {
-				const peerId = this.peers.keys().next().value;
-				if (sig.type === 'answer' && peerId) {
+				// GUEST receives signals from host (no 'from' field on host messages)
+				if (sig.type === 'answer' && !sig.from) {
+					const peerId = this._peerId;
 					const peer = this.peers.get(peerId);
-					if (!peer.pc.currentRemoteDescription) {
+					if (peer && !peer.pc.currentRemoteDescription) {
 						await peer.pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: sig.sdp }));
 						this._flushPendingCandidates(peer);
 					}
-				} else if (sig.type === 'candidate' && sig.target === 'guest' && peerId) {
+				} else if (sig.type === 'candidate' && !sig.from) {
+					const peerId = this._peerId;
 					await this._queueOrApplyCandidate(peerId, sig.candidate);
 				}
 			}
 		};
+		this._ws.onerror = (evt) => {
+			console.error('[CloudflareWSEngine] WebSocket error:', evt);
+		};
+		this._ws.onclose = () => {
+			console.log('[CloudflareWSEngine] WebSocket closed');
+		};
 	}
 
 	async _handleOffer(gid, sdp) {
-		const pc = this._createPC(gid); this.peers.set(gid, { pc, channel: null, _pending: [] });
+		const pc = this._createPC(gid); 
+		this.peers.set(gid, { pc, channel: null, _pending: [] });
+		
 		pc.onicecandidate = evt => {
 			if (evt.candidate) {
-				this._sendSignaling({ type: 'candidate', candidate: evt.candidate.toJSON(), peerId: gid, target: 'guest' });
+				// Host sends candidates without 'from' field
+				this._sendSignaling({ 
+					type: 'candidate', 
+					candidate: evt.candidate.toJSON()
+				});
 			}
 		};
-		pc.ondatachannel = evt => { this._bindChannel(evt.channel, gid); this.peers.get(gid).channel = evt.channel; };
+		pc.ondatachannel = evt => { 
+			this._bindChannel(evt.channel, gid); 
+			this.peers.get(gid).channel = evt.channel; 
+		};
 		
 		await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp }));
 		this._flushPendingCandidates(this.peers.get(gid));
 		
-		const ans = await pc.createAnswer(); await pc.setLocalDescription(ans);
-		this._sendSignaling({ type: 'answer', sdp: ans.sdp, peerId: gid });
+		const ans = await pc.createAnswer(); 
+		await pc.setLocalDescription(ans);
+		
+		// Host sends answer without 'from' field
+		this._sendSignaling({ 
+			type: 'answer', 
+			sdp: ans.sdp
+		});
 	}
 
 	async _queueOrApplyCandidate(pid, candidate) {
@@ -380,15 +421,32 @@ export class CloudflareWSEngine {
 	}
 
 	disconnect() {
-		if (this._ws) { try { this._ws.close(); } catch {} this._ws = null; }
-		this._heartbeats.forEach(h => clearInterval(h.interval)); this._heartbeats.clear();
-		this.peers.forEach(({ pc, channel }) => { try { channel?.close(); } catch {} try { pc?.close(); } catch {} });
-		this.peers.clear(); this.roomId = null;
+		if (this._ws) { 
+			try { this._ws.close(); } catch {} 
+			this._ws = null; 
+		}
+		this._heartbeats.forEach(h => clearInterval(h.interval)); 
+		this._heartbeats.clear();
+		this.peers.forEach(({ pc, channel }) => { 
+			try { channel?.close(); } catch {} 
+			try { pc?.close(); } catch {} 
+		});
+		this.peers.clear(); 
+		this.roomId = null;
+		this._peerId = null;
 	}
 
 	send(data) {
-		const payload = this._ser(data); let sent = 0;
-		this.peers.forEach(({ channel }) => { if (channel?.readyState === 'open') { try { channel.send(payload); sent++; } catch {} } });
+		const payload = this._ser(data); 
+		let sent = 0;
+		this.peers.forEach(({ channel }) => { 
+			if (channel?.readyState === 'open') { 
+				try { 
+					channel.send(payload); 
+					sent++; 
+				} catch {} 
+			} 
+		});
 		if (!sent) console.warn('[CloudflareWSEngine] no open channels');
 	}
 
@@ -405,7 +463,6 @@ export class CloudflareWSEngine {
 	onPeerDisconnected(cb) { this._onPeerDisconnected = cb; }
 
 	_createPC(peerId) {
-		// Reuse ICE_CONFIG from the top of your engine.js file
 		const pc = new RTCPeerConnection(ICE_CONFIG);
 		pc.onconnectionstatechange = () => {
 			const s = pc.connectionState;
