@@ -287,17 +287,21 @@ export function installSystemConsoleBridge() {
 
   ['log', 'warn', 'error', 'info', 'debug'].forEach(level => {
     const orig = console[level];
+    if (typeof orig !== 'function') return; // Skip if console method doesn't exist
+    
     console[level] = function (...args) {
-      orig.apply(console, args);
+      try { orig.apply(console, args); } catch (e) { /* silently fail if console unavailable */ }
       try { logToConsole(level, args.map(fmt).join(' '), 'system'); } catch {}
     };
   });
 
   const origTable = console.table;
-  console.table = function (data, columns) {
-    if (origTable) { try { origTable.call(console, data, columns); } catch {} }
-    try { logTableToConsole(data, columns, 'system'); } catch {}
-  };
+  if (typeof origTable === 'function') {
+    console.table = function (data, columns) {
+      try { origTable.call(console, data, columns); } catch {} 
+      try { logTableToConsole(data, columns, 'system'); } catch {}
+    };
+  }
 
   window.addEventListener('error', e => {
     logToConsole('error', `IDE Error: ${e.message} (${e.filename}:${e.lineno})`, 'system');
