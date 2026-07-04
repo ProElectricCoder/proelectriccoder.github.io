@@ -171,10 +171,32 @@ class CollabSession {
   // (including a bare Uint8Array, since typeof it is 'object') gets
   // JSON.stringify'd, which would corrupt this payload. See
   // Projects/Chat/engine.js's _ser()/_deser() and binaryType='arraybuffer'.
+  //
+  // Bails out before handing off to the engine if nobody has an open data
+  // channel yet. Y.Doc/Awareness fire their own 'update' event for purely
+  // LOCAL changes too — e.g. getCollabBinding() seeding a newly-claimed
+  // file's content the moment you start hosting, before any guest has
+  // joined — and engine.send() has nothing to relay those to. Without this
+  // guard, CloudflareWSEngine.send() runs its loop, finds zero open
+  // channels, and logs "[CloudflareWSEngine] no open channels" — harmless,
+  // but it fires on every local edit made while you're alone in a session
+  // (and periodically on its own, since Awareness re-announces presence on
+  // a timer). Skipping the send here loses nothing: a peer who joins later
+  // gets the full, current document via SyncStep1/SyncStep2 (see
+  // _onPeerConnected below), not by replaying whatever was broadcast while
+  // they were absent.
   _send(encoder) {
+    if (!this._hasOpenChannel()) return;
     const arr = encoding.toUint8Array(encoder);
     const buf = arr.buffer.slice(arr.byteOffset, arr.byteOffset + arr.byteLength);
     try { this.engine.send(buf); } catch (e) { console.warn('[Collab] send failed:', e.message); }
+  }
+
+  _hasOpenChannel() {
+    for (const { channel } of this.engine.peers.values()) {
+      if (channel?.readyState === 'open') return true;
+    }
+    return false;
   }
 
   _onPeerConnected() {
