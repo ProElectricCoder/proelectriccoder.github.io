@@ -30,6 +30,7 @@ export function makeSess(opts) {
 		lastActivity:  opts.lastActivity  || Date.now(),
 		lastMessage:   opts.lastMessage   || null,
 		roomId:        opts.roomId        || null,
+		wsUrl:         opts.wsUrl         || null,
 		groupName:     opts.groupName     || null,
 		peerName:      opts.peerName      || null,
 		peerAvatar:    opts.peerAvatar    || null,
