@@ -172,6 +172,7 @@ export function injectPanels() {
 		<button class="tab active" id="ncTabDirect" onclick="App.ncSwitchTab('direct')">Direct</button>
 		<button class="tab" id="ncTabRoom" onclick="App.ncSwitchTab('room')">Room</button>
 		<button class="tab" id="ncTabGroup" onclick="App.ncSwitchTab('group')">Group</button>
+		<button class="tab" id="ncTabWs" onclick="App.ncSwitchTab('ws')">Relay</button>
 	</div></div>
 	<div class="modal-body">
 		<div id="ncDirect">
@@ -199,6 +200,12 @@ export function injectPanels() {
 			<div class="f-grp"><div class="f-lbl">Group Name</div><input class="f-in" id="ncGroupName" placeholder="My Group"></div>
 			<div class="f-grp"><div class="f-lbl">Room ID (shared with members)</div><div class="row"><input class="f-in" id="ncGroupRoomId" placeholder="group-room-id" style="flex:1"><button class="btn btn-s" onclick="App.ncGenRoomId()" style="padding:7px 10px;flex-shrink:0">⟳</button></div></div>
 			<div class="row"><button class="btn btn-p" style="flex:1" onclick="App.fbCreateGroup()">Create Group</button><button class="btn btn-s" style="flex:1" onclick="App.fbJoinGroup()">Join Group</button></div>
+		</div>
+		<div id="ncWs" class="col hidden"><div id="ncWsAuth"></div>
+			<div class="note-box" style="margin-bottom:10px">☁️ <span>Signals over a Cloudflare Worker / Durable Object relay instead of Firebase — same P2P data channel once connected. Still needs sign-in for the auth token.</span></div>
+			<div class="f-grp"><div class="f-lbl">Relay WebSocket URL</div><input class="f-in" id="ncWsUrl" placeholder="wss://your-app.pages.dev/api/ChatRooms"></div>
+			<div class="f-grp"><div class="f-lbl">Room ID</div><input class="f-in" id="ncWsRoomId" placeholder="room-id"></div>
+			<div class="row"><button class="btn btn-p" style="flex:1" onclick="App.cfCreateRoom()">Create Room</button><button class="btn btn-s" style="flex:1" onclick="App.cfJoinRoom()">Join Room</button></div>
 		</div>
 	</div></div>`;
 	nc.addEventListener('click', e => { if (e.target === nc) App.closeNewChat(); });
