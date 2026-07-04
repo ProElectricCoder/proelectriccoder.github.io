@@ -26,12 +26,14 @@ export async function init() {
 	if (S.wakeLockEnabled) requestWakeLock();
 	try {
 		const saved = await DB.getSessions();
-		// Dedup on load — keep one session per roomId
+		// Dedup on load — keep one session per roomId, namespaced by engine type
+		// (a Firebase room and a Cloudflare relay room can legitimately share an ID)
 		const seenRoomIds = new Set();
 		for (const sd of saved) {
 			if (sd.roomId && !sd.isGroup) {
-				if (seenRoomIds.has(sd.roomId)) continue; // skip duplicate
-				seenRoomIds.add(sd.roomId);
+				const dedupKey = sd.type + ':' + sd.roomId;
+				if (seenRoomIds.has(dedupKey)) continue; // skip duplicate
+				seenRoomIds.add(dedupKey);
 			}
 			const sess = makeSess(sd);
 			S.sessions.set(sess.id, sess);
