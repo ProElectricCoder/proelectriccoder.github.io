@@ -37,16 +37,17 @@ export const NC = { tab: 'direct', directSub: 'caller', pendingEngine: null, pen
 
 export function openNewChat(tab = 'direct') {
 	NC.tab = tab; el('newChatModal').classList.add('open'); ncSwitchTab(tab);
-	if (tab === 'room' || tab === 'group') syncAuthSection(tab === 'room' ? 'ncRoomAuth' : 'ncGroupAuth');
+	if (tab === 'room' || tab === 'group' || tab === 'ws') syncAuthSection(tab === 'room' ? 'ncRoomAuth' : tab === 'group' ? 'ncGroupAuth' : 'ncWsAuth');
 }
 
 export function ncSwitchTab(tab) {
 	NC.tab = tab;
-	['direct', 'room', 'group'].forEach(t => {
+	['direct', 'room', 'group', 'ws'].forEach(t => {
 		el('ncTab' + t.charAt(0).toUpperCase() + t.slice(1))?.classList.toggle('active', t === tab);
 		el('nc' + t.charAt(0).toUpperCase() + t.slice(1))?.classList.toggle('hidden', t !== tab);
 	});
-	el('ncTitle').textContent = tab === 'direct' ? 'Direct Chat' : tab === 'room' ? 'Join / Create Room' : 'Group Chat';
+	el('ncTitle').textContent = { direct: 'Direct Chat', room: 'Join / Create Room', group: 'Group Chat', ws: 'Cloudflare Relay' }[tab] || 'New Chat';
+	if (tab === 'ws') { const u = el('ncWsUrl'); if (u && !u.value) u.value = localStorage.getItem('pec_cfws_url') || ''; }
 }
 
 export function ncDirectSub(sub) {
@@ -87,7 +88,7 @@ export function openChatInfo() {
 		</div>` : ''}
 		<div class="panel-section-lbl">Details</div>
 		<div class="col" style="gap:6px;font-size:.82rem;color:var(--dim)">
-			<div><span style="color:var(--faint)">Type:</span> ${sess.isGroup ? 'Group' : sess.type === 'direct' ? 'Direct' : 'Firebase Room'}</div>
+			<div><span style="color:var(--faint)">Type:</span> ${sess.isGroup ? 'Group' : sess.type === 'direct' ? 'Direct' : sess.type === 'cfws' ? 'Cloudflare Relay' : 'Firebase Room'}</div>
 			${sess.roomId ? `<div><span style="color:var(--faint)">Room ID:</span> <code style="font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--tp)">${escH(sess.roomId)}</code></div>` : ''}
 			<div><span style="color:var(--faint)">Status:</span> ${sess.connected ? '<span style="color:var(--ta)">Connected</span>' : 'Disconnected'}</div>
 		</div>
