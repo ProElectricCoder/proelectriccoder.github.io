@@ -32,7 +32,7 @@ export const DB = {
 		return this._p(db.transaction('sessions', 'readwrite').objectStore('sessions').put({
 			id: s.id, name: s.name, type: s.type, isGroup: s.isGroup, theme: s.theme,
 			createdAt: s.createdAt, lastActivity: s.lastActivity, lastMessage: s.lastMessage,
-			roomId: s.roomId || null, groupName: s.groupName || null,
+			roomId: s.roomId || null, wsUrl: s.wsUrl || null, groupName: s.groupName || null,
 			peerName: s.peerName || null, peerAvatar: s.peerAvatar || null, bg: s.bg || null,
 			myRole: s.myRole || 'member', groupIcon: s.groupIcon || null,
 			groupOwner: s.groupOwner || null, groupManagers: s.groupManagers || [],
