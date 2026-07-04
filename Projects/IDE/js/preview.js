@@ -1,784 +1,599 @@
 /**
- * preview.js — Preview execution system: runWeb, runPython, tab manager,
- *              blob-URL dependency resolver, and open-in-new-tab (Task 3).
+ * collab.js — Real-time collaborative editing for DeepBlue IDE.
  *
- * Console panel lives UNDER the preview panel only (#web-console) and is
- * split into tabs: a permanent "System" tab (IDE-internal console mirror)
- * plus one dynamic tab per open preview tab, synced to the preview tab
- * lifecycle (created/activated/closed alongside the matching preview tab).
+ * Stack:
+ *   - Yjs (CRDT document model) — one shared Y.Doc per session, one Y.Text
+ *     per collaboratively-open file, keyed by full virtual path.
+ *   - y-codemirror.next — binds a Y.Text + Awareness straight into a CM6
+ *     EditorState (live co-editing, remote cursors/selections, collab-aware
+ *     undo/redo). See js/editor.js's switchFile()/refreshActiveFileForCollab().
+ *   - CloudflareWSEngine (Projects/Chat/engine.js, used UNMODIFIED) as the
+ *     WebRTC signalling + relay transport. Yjs sync + awareness messages are
+ *     just opaque binary payloads to it.
+ *   - Firebase Auth (same "proelectriccoder" project already used for
+ *     GitHub sign-in) to mint the ID token the /api/ChatRooms Durable Object
+ *     verifies, and to derive a stable name/photo/color identity.
  *
- * ── Bug fix (regex file linking) ──────────────────────────────────────────────
- * The virtual JSX shell's <script src="..."> used to be stamped with the
- * file's FULL virtual path (e.g. "DeepBlue/Component.jsx"). resolveVirtualPath()
- * treats whatever it's given as relative to the *directory* of targetFile, so
- * feeding it that same full path back doubled the folder
- * ("DeepBlue/DeepBlue/Component.jsx"), which doesn't exist in S.fileSystem.
- * The href/src rewrite regex below then found no blobMap entry for that bogus
- * path and silently left the original (non-existent, once rendered in the
- * iframe) path in place — so JSX previews never actually linked to their own
- * compiled blob. Fixed by stamping just the file's basename, which resolves
- * relative to its own directory correctly.
+ * ── Module boundary (breaks the editor.js <-> collab.js circular import) ──
+ * editor.js cannot import this file directly (this file imports FROM
+ * editor.js), so it asks for collab bindings indirectly via
+ * S._callbacks.getCollabBinding(filename) — wired up in main.js, exactly
+ * like every other cross-module callback in this codebase. This file is
+ * free to import editor.js's refreshActiveFileForCollab() directly since that
+ * direction has no cycle.
+ *
+ * ── Scope / known limitations (by design, not oversights) ─────────────────
+ *  1. This syncs file CONTENT for files that get opened during a session,
+ *     not the virtual file tree itself. Creating/renaming/deleting files
+ *     locally does not (yet) propagate to other participants — only text
+ *     edits inside a shared file do. A Y.Map keyed by filename
+ *     (`ydoc.getMap('files')`) tracks which filenames are "claimed" into the
+ *     session; see getCollabBinding() below for exactly how that's used to
+ *     avoid a nasty edge case (two people with same-named-but-different
+ *     local files stomping each other the instant a guest opens, say,
+ *     "index.html" before sync has finished).
+ *  2. Topology is a star (host relays between guests), not a full mesh —
+ *     that's what CloudflareWSEngine actually implements. If the host
+ *     leaves, remaining guests lose their only path to each other. Guests
+ *     get notified and the session is cleanly torn down locally when that
+ *     happens (see onHostLost below); they'd need to start a fresh session
+ *     to keep collaborating.
+ *  3. Joining replaces the local view of any file that's already part of
+ *     the session with the session's shared content — that's the whole
+ *     point of joining a live session, but the UI confirms before doing it.
  */
 
 import { S } from './state.js';
-import { syncDocsToContent } from './editor.js';
-import { customAlert } from './dialogs.js';
-import { getSafePreviewParams } from './routing.js';
+import { customAlert, customConfirm, customPrompt, showCustomDialog } from './dialogs.js';
+import { isGdriveConnected } from './gdrive.js';
+import { initFirebase } from './github.js';
+import { refreshActiveFileForCollab } from './editor.js';
 
-// ─── Lazy Babel ───────────────────────────────────────────────────────────────
-let _babelLoading = false;
-export async function loadBabel() {
-  if (window.Babel) return;
-  if (_babelLoading) { while (!window.Babel) await _sleep(100); return; }
-  _babelLoading = true;
-  return new Promise((res, rej) => {
-    const s = document.createElement('script');
-    s.src = 'https://unpkg.com/@babel/standalone/babel.min.js';
-    s.onload  = () => res();
-    s.onerror = () => rej(new Error('Failed to load Babel'));
-    document.head.appendChild(s);
-  });
-}
+// ─── Collaboration library imports ─────────────────────────────────────────────
+// yjs, y-protocols, and y-codemirror.next come from js/vendor/collab-libs.bundle.js
+// — a locally pre-built, single-copy bundle of all four — instead of separate
+// esm.sh CDN URLs. That's not the original design: separate pinned-version CDN
+// imports (with esm.sh's `?deps=` override telling y-codemirror.next/y-protocols
+// to resolve yjs to the same pinned version this file imports) were tried first,
+// on the theory that identical version strings would make esm.sh serve identical
+// URLs and let the browser's module cache dedupe them into one instance. In
+// practice that didn't hold — esm.sh's exact resolved/redirected URL for a
+// `?deps=`-pinned transitive import isn't guaranteed to string-match a separate
+// top-level import of that same version, and two DIFFERENT yjs module instances
+// loaded is exactly what breaks this integration: Yjs's classes (Y.Doc, Y.Text,
+// Y.UndoManager, …) are matched with `instanceof` internally, so a second copy
+// causes the "Yjs was already imported" console warning and knock-on failures
+// like UndoManager logging "[yjs#509] Not same Y.Doc" and refusing to track a
+// Y.Text it doesn't recognise as belonging to its own doc's class hierarchy.
+// Bundling those four packages together at build time with esbuild sidesteps
+// the CDN-resolution question entirely — see the vendor file's own header
+// comment for exactly how it's built and how to regenerate it.
+//
+// @codemirror/state and @codemirror/view have this SAME singleton requirement
+// (CM6 Facets/ViewPlugins are also matched by reference identity) but are
+// handled differently: the vendor bundle deliberately does NOT bundle them in,
+// and instead imports them from the exact same URL js/editor.js uses
+// (`https://esm.sh/@codemirror/state@6` / `https://esm.sh/@codemirror/view@6`),
+// baked in at build time. `keymap` below is imported directly from that
+// identical URL for the same reason — so all three references (editor.js, the
+// vendor bundle's internal CM6 imports, and this file's own `keymap` import)
+// resolve to one browser module-cache entry. If editor.js's pinned CM6 URL
+// ever changes, the vendor bundle needs rebuilding to match — see its header.
+import { Y, yCollab, yUndoManagerKeymap, awarenessProtocol, syncProtocol, encoding, decoding } from './vendor/collab-libs.bundle.js';
+import { keymap } from 'https://esm.sh/@codemirror/view@6';
 
-// ─── Path resolution ──────────────────────────────────────────────────────────
-export function resolveVirtualPath(baseFile, relativePath) {
-  if (!relativePath) return baseFile;
-  let parts = baseFile ? baseFile.split('/') : [];
-  const projectRoot = parts.length ? parts[0] : '';
-  if (relativePath.startsWith('/')) {
-    relativePath = relativePath.substring(1);
-    parts = projectRoot ? [projectRoot] : [];
-  } else {
-    if (parts.length) parts.pop();
-  }
-  for (const part of relativePath.split('/')) {
-    if (part === '.' || part === '') continue;
-    if (part === '..') { if (parts.length) parts.pop(); }
-    else parts.push(part);
-  }
-  const resolved = parts.join('/');
-  if (S.fileSystem[resolved] && S.fileSystem[resolved].type !== 'folder') return resolved;
-  const fallback = resolved ? resolved + '/index.html' : 'index.html';
-  if (S.fileSystem[fallback]) return fallback;
-  return resolved;
-}
+// ─── Outer transport envelope (first byte of every payload we hand the engine) ─
+const MESSAGE_SYNC      = 0;
+const MESSAGE_AWARENESS = 1;
 
-// ─── Tab management (preview) ─────────────────────────────────────────────────
-export function setTabsEmptyState(isEmpty) {
-  const controls = document.getElementById('device-controls');
-  const tabsCtr  = document.getElementById('preview-tabs');
-  if (isEmpty) {
-    controls?.classList.add('disabled');
-    controls?.setAttribute('title', 'Run a file to enable controls');
-    if (tabsCtr) tabsCtr.innerHTML = '<div class="empty-tabs-msg">Execute a file to preview</div>';
-  } else {
-    controls?.classList.remove('disabled');
-    controls?.removeAttribute('title');
-    tabsCtr?.querySelector('.empty-tabs-msg')?.remove();
-  }
-}
+// Tag applied to transactions/awareness-updates we apply because a message
+// arrived over the wire, so our own 'update' listeners know NOT to re-send
+// them (avoids echo loops). The engine's own relay — not this tag — is what
+// actually fans messages out to other peers; this only governs what WE
+// originate vs. merely receive.
+const REMOTE_ORIGIN = 'deepblue-collab:remote';
 
-export function createTab(id, type) {
-  setTabsEmptyState(false);
-  if (S.openTabs.includes(id)) { activateTab(id); return; }
-  S.openTabs.push(id);
+const PRESENCE_PALETTE = ['#00e5ff', '#ff6b6b', '#ffd166', '#06d6a0', '#c77dff', '#ff8fab', '#7bdff2', '#f4a259'];
 
-  const tabCtr = document.getElementById('preview-tabs');
-  const tabEl  = document.createElement('div');
-  tabEl.className = 'preview-tab';
-  tabEl.id = `tab-header-${id}`;
-  tabEl.onclick = e => { if (!e.target.closest('.tab-close')) activateTab(id); };
-  tabEl.innerHTML = `<div class="preview-tab-title" title="${id}">&lrm;${id}</div><div class="tab-close" onclick="IDE.closePreviewTab('${id}')">✕</div>`;
-  tabCtr?.appendChild(tabEl);
-
-  const contentArea = document.getElementById('content-area');
-  const contentEl   = document.createElement('div');
-  contentEl.className = 'tab-content';
-  contentEl.id = `tab-content-${id}`;
-  if (type === 'web') {
-    contentEl.className += ' web-mode-container';
-    contentEl.innerHTML = `<div class="iframe-wrapper"><iframe id="iframe-${id}" class="responsive"></iframe></div>`;
-  }
-  contentArea?.appendChild(contentEl);
-
-  // ── Console tab lifecycle: mirror the preview tab 1:1 ──────────────────────
-  createConsoleTab(id);
-  activateTab(id);
-
-  if (type === 'web') {
-    const zs = document.getElementById('zoom-slider');
-    const zv = document.getElementById('zoom-val');
-    if (zs) zs.value = '1';
-    if (zv) zv.innerText = '100%';
-    updateZoom(1);
-  }
-}
-
-export function activateTab(id) {
-  S.activeTabId = id;
-  document.querySelectorAll('.preview-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById(`tab-header-${id}`)?.classList.add('active');
-  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  document.getElementById(`tab-content-${id}`)?.classList.add('active');
-  activateConsoleTab(id);
-}
-
-export function closePreviewTab(id) {
-  const idx = S.openTabs.indexOf(id);
-  if (idx > -1) S.openTabs.splice(idx, 1);
-  document.getElementById(`tab-header-${id}`)?.remove();
-  document.getElementById(`tab-content-${id}`)?.remove();
-  closeConsoleTab(id);
-  if (S.activeTabId === id) {
-    if (S.openTabs.length) { const nid = S.openTabs[idx - 1] || S.openTabs[0]; activateTab(nid); }
-    else {
-      S.activeTabId = null;
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      setTabsEmptyState(true);
-      activateConsoleTab('system');
-    }
-  }
-}
-
-// ─── Console panel (tabs: System + one per open preview tab) ─────────────────
-function _findConsoleTab(id) {
-  return document.querySelector(`#console-tabs .console-tab[data-console-tab="${id}"]`);
-}
-function _findConsolePanel(id) {
-  return document.querySelector(`#console-panels .console-panel[data-console-tab="${id}"]`);
-}
-
-export function createConsoleTab(id) {
-  const tabsCtr   = document.getElementById('console-tabs');
-  const panelsCtr = document.getElementById('console-panels');
-  if (!tabsCtr || !panelsCtr || _findConsoleTab(id)) return;
-
-  const label = id.split('/').pop();
-  const tabEl = document.createElement('div');
-  tabEl.className = 'console-tab';
-  tabEl.dataset.consoleTab = id;
-  tabEl.innerHTML = `<span class="console-tab-title" title="${id}">&lrm;${label}</span><span class="console-tab-close" title="Close">✕</span>`;
-  tabEl.querySelector('.console-tab-close').onclick = e => { e.stopPropagation(); closePreviewTab(id); };
-  tabEl.onclick = () => activateTab(id);
-  tabsCtr.appendChild(tabEl);
-
-  const panelEl = document.createElement('div');
-  panelEl.className = 'console-panel';
-  panelEl.dataset.consoleTab = id;
-  panelEl.innerHTML = '<div class="console-log-container"></div>';
-  panelsCtr.appendChild(panelEl);
-}
-
-export function activateConsoleTab(id) {
-  S.activeConsoleTab = id;
-  document.querySelectorAll('#console-tabs .console-tab')
-    .forEach(t => t.classList.toggle('active', t.dataset.consoleTab === id));
-  document.querySelectorAll('#console-panels .console-panel')
-    .forEach(p => p.classList.toggle('active', p.dataset.consoleTab === id));
-}
-
-export function closeConsoleTab(id) {
-  if (id === 'system') return; // permanent tab, never closed
-  _findConsoleTab(id)?.remove();
-  _findConsolePanel(id)?.remove();
-  if (S.activeConsoleTab === id) activateConsoleTab('system');
-}
-
-// ─── Console logging ──────────────────────────────────────────────────────────
-export function logToConsole(level, msg, tabId = 'system') {
-  const panel = _findConsolePanel(tabId) || _findConsolePanel('system');
-  const container = panel?.querySelector('.console-log-container');
-  if (!container) return;
-  const e = document.createElement('div');
-  e.className = `console-entry ${level}`;
-  e.innerText = msg;
-  container.appendChild(e);
-  container.scrollTop = container.scrollHeight;
-}
-
-/** Renders a console.table()-style grid into the given console tab. */
-export function logTableToConsole(data, columns, tabId = 'system') {
-  const panel = _findConsolePanel(tabId) || _findConsolePanel('system');
-  const container = panel?.querySelector('.console-log-container');
-  if (!container) return;
-  const entry = document.createElement('div');
-  entry.className = 'console-entry table';
-  entry.appendChild(_buildTableElement(data, columns));
-  container.appendChild(entry);
-  container.scrollTop = container.scrollHeight;
-}
-
-function _buildTableElement(data, columns) {
-  const wrapper = document.createElement('div');
-  wrapper.className = 'console-table-wrapper';
-
-  if (data === null || typeof data !== 'object') {
-    wrapper.innerText = String(data);
-    return wrapper;
-  }
-
-  const rows = Array.isArray(data)
-    ? data.map((v, i) => ({ idx: String(i), value: v }))
-    : Object.entries(data).map(([k, v]) => ({ idx: k, value: v }));
-
-  let cols = columns;
-  if (!cols) {
-    const colSet = new Set();
-    rows.forEach(r => {
-      if (r.value && typeof r.value === 'object' && !Array.isArray(r.value)) {
-        Object.keys(r.value).forEach(k => colSet.add(k));
-      } else {
-        colSet.add('Values');
-      }
-    });
-    cols = Array.from(colSet);
-  }
-
-  const table = document.createElement('table');
-  table.className = 'console-table';
-
-  const thead = document.createElement('thead');
-  const headRow = document.createElement('tr');
-  headRow.appendChild(_th('(index)'));
-  cols.forEach(c => headRow.appendChild(_th(c)));
-  thead.appendChild(headRow);
-  table.appendChild(thead);
-
-  const tbody = document.createElement('tbody');
-  rows.forEach(r => {
-    const tr = document.createElement('tr');
-    tr.appendChild(_td(r.idx));
-    cols.forEach(c => {
-      let cell = '';
-      if (r.value && typeof r.value === 'object' && !Array.isArray(r.value)) {
-        if (c in r.value) cell = _cellFmt(r.value[c]);
-      } else if (c === 'Values') {
-        cell = _cellFmt(r.value);
-      }
-      tr.appendChild(_td(cell));
-    });
-    tbody.appendChild(tr);
-  });
-  table.appendChild(tbody);
-  wrapper.appendChild(table);
-  return wrapper;
-}
-function _th(text) { const th = document.createElement('th'); th.innerText = text; return th; }
-function _td(text) { const td = document.createElement('td'); td.innerText = text; return td; }
-function _cellFmt(v) {
-  if (v === null) return 'null';
-  if (v === undefined) return '';
-  if (typeof v === 'object') { try { return JSON.stringify(v); } catch { return String(v); } }
-  return String(v);
-}
-
-/**
- * Mirrors the top-level (IDE's own) console.* calls into the System console
- * tab, so the System tab "works on the IDE itself" — any internal log,
- * warning, error, or console.table() call made by DeepBlue's own code (or
- * typed into the System console input) shows up here, in addition to
- * whatever the real browser DevTools console shows.
- */
-export function installSystemConsoleBridge() {
-  const fmt = x => {
-    if (typeof x === 'object' && x !== null) { try { return JSON.stringify(x, null, 2); } catch { return String(x); } }
-    return String(x);
-  };
-
-  ['log', 'warn', 'error', 'info', 'debug'].forEach(level => {
-    const orig = console[level];
-    if (typeof orig !== 'function') return; // Skip if console method doesn't exist
-    
-    console[level] = function (...args) {
-      try { orig.apply(console, args); } catch (e) { /* silently fail if console unavailable */ }
-      try { logToConsole(level, args.map(fmt).join(' '), 'system'); } catch {}
-    };
-  });
-
-  const origTable = console.table;
-  if (typeof origTable === 'function') {
-    console.table = function (data, columns) {
-      try { origTable.call(console, data, columns); } catch {} 
-      try { logTableToConsole(data, columns, 'system'); } catch {}
-    };
-  }
-
-  window.addEventListener('error', e => {
-    logToConsole('error', `IDE Error: ${e.message} (${e.filename}:${e.lineno})`, 'system');
-  });
-  window.addEventListener('unhandledrejection', e => {
-    logToConsole('error', `IDE Unhandled Promise: ${e.reason}`, 'system');
-  });
-}
-
-// ─── Execution loading indicator ──────────────────────────────────────────────
-export function setExecLoading(state) {
-  const bar = document.getElementById('execution-loading-bar');
-  if (bar) bar.style.display = state ? 'block' : 'none';
-}
-
-// ─── Zoom / device ────────────────────────────────────────────────────────────
-export function updateZoom(value) {
-  const iframe = document.getElementById(`iframe-${S.activeTabId}`);
-  if (!iframe) return;
-  if (S.viewMode === 'responsive') {
-    const pct = 100 / value;
-    iframe.style.width  = `${pct}%`;
-    iframe.style.height = `${pct}%`;
-    iframe.style.transform = `scale(${value})`;
-  } else {
-    iframe.style.transform = `scale(${value})`;
-  }
-  const zv = document.getElementById('zoom-val');
-  if (zv) zv.innerText = Math.round(value * 100) + '%';
-}
-
-export function setPresetSize(mode) {
-  if (!S.activeTabId) return;
-  const iframe = document.getElementById(`iframe-${S.activeTabId}`);
-  if (!iframe) return;
-  iframe.style.width = iframe.style.height = iframe.style.borderLeft = iframe.style.borderRight = '';
-  iframe.classList.remove('responsive', 'fixed');
-  if (mode === 'desktop') { S.viewMode = 'responsive'; iframe.classList.add('responsive'); }
-  else {
-    S.viewMode = mode;
-    iframe.classList.add('fixed');
-    if (mode === 'tablet') { iframe.style.width = '768px';  iframe.style.height = '1024px'; }
-    else if (mode === 'mobile') { iframe.style.width = '375px'; iframe.style.height = '667px'; }
-    iframe.style.borderLeft = iframe.style.borderRight = '1px solid #333';
-  }
-  const zs = document.getElementById('zoom-slider');
-  if (zs) updateZoom(parseFloat(zs.value));
-  document.querySelectorAll('.device-btn').forEach(b => b.classList.remove('active'));
-  if (event?.currentTarget) event.currentTarget.classList.add('active');
-}
-
-// ─── Main run dispatch ────────────────────────────────────────────────────────
-export async function runCode() {
-  if (!S.activeFile) { await runWeb(null, getSafePreviewParams()); return; }
-  await syncDocsToContent();
-
-  // Animate button
-  const btn = document.querySelector('.btn[onclick*="runCode"]');
-  if (btn) { btn.style.transform = 'scale(0.95)'; setTimeout(() => (btn.style.transform = ''), 150); }
-
-  const queryParams = getSafePreviewParams();
-  const fObj        = S.fileSystem[S.activeFile];
-  const isEnc       = S.activeFile.endsWith('.enc');
-  const trueExt     = isEnc
-    ? (fObj?.originalExt || '.txt').toLowerCase()
-    : '.' + S.activeFile.split('.').pop().toLowerCase();
-
-  if (fObj?.type === 'asset' || (isEnc && !['.html','.css','.js','.jsx','.json','.md','.txt','.py'].includes(trueExt))) {
-    await renderAssetPreview(S.activeFile);
-  } else if (trueExt === '.py') {
-    await runPython(S.activeFile);
-  } else {
-    await runWeb(null, queryParams);
-  }
-}
-
-// ─── Web runner ───────────────────────────────────────────────────────────────
-// `inPlace` is used by auto-run (see autoRunActiveFile below): it never spawns
-// a new tab, and writes the refreshed HTML into the EXISTING iframe's document
-// via document.open/write/close instead of swapping in a new iframe + blob URL
-// — that in-place rewrite avoids the navigation-style "blank/white" flash a
-// full iframe replacement causes, so edits can be auto-previewed continuously
-// without the screen flickering on every keystroke.
-export async function runWeb(overrideFile = null, queryParams = '', inPlace = false) {
-  if (!inPlace) setExecLoading(true);
-  await syncDocsToContent();
-
+// ─── CloudflareWSEngine loader (same dual-path pattern as js/crypto.js's
+//     loadCryptoLib() for the cross-project SEP library) ─────────────────────
+let _engineLib = null;
+async function loadEngineLib() {
+  if (_engineLib) return _engineLib;
   try {
-    let targetFile = overrideFile || S.activeFile;
-    if (!targetFile) { if (!inPlace) _clearPreview(); return; }
-
-    const ext = targetFile.split('.').pop().toLowerCase();
-
-    // Plain text / markdown / JSON — use native viewer
-    if (['txt','md','json'].includes(ext)) {
-      const existing = document.getElementById(`iframe-${targetFile}`);
-      if (inPlace && !existing) return; // nothing open yet — don't auto-spawn a tab
-      if (!inPlace) createTab(targetFile, 'web');
-      let content = S.fileSystem[targetFile].content;
-      if (content === null && S.fileSystem[targetFile].ghUrl) {
-        content = await S._callbacks.fetchWithProgress?.(S.fileSystem[targetFile].ghUrl) ?? '';
-        S.fileSystem[targetFile].content = content;
-      }
-      let finalContent = content;
-      let mime = 'text/plain';
-      if (ext === 'md') {
-        mime = 'text/html';
-        const body = marked.parse(content);
-        // Fenced code blocks (```lang ... ```) get highlighted via highlight.js,
-        // coloured to match the editor's Cobalt theme (see css/cm6-cobalt.css
-        // for the live-editor equivalent of these same token colours). marked
-        // already tags <code> with `language-<lang>` from the text right
-        // after the opening fence, and hljs.highlightAll() picks that up.
-        finalContent = `<!DOCTYPE html><html><head><meta charset="utf-8">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"><\/script>
-<style>
-body{font-family:system-ui;line-height:1.6;padding:2rem;max-width:800px;margin:0 auto;color:#e2f1f8;background:#000;}
-pre{background:#000;border:1px solid #283548;padding:1rem;border-radius:6px;overflow-x:auto;}
-pre code{background:transparent;padding:0;color:#e2f1f8;}
-code{font-family:monospace;background:#1a2332;padding:2px 4px;border-radius:4px;color:#00e5ff;}
-a{color:#00e5ff;}
-.hljs{color:#e2f1f8;background:transparent;}
-.hljs-keyword,.hljs-built_in,.hljs-selector-tag{color:#ff9d00;}
-.hljs-string,.hljs-attr,.hljs-regexp{color:#a5ff90;}
-.hljs-comment,.hljs-quote{color:#0088ff;font-style:italic;}
-.hljs-number,.hljs-literal{color:#ff628c;}
-.hljs-title,.hljs-title.function_,.hljs-section{color:#ffc600;}
-.hljs-variable,.hljs-name{color:#e2f1f8;}
-.hljs-type,.hljs-class .hljs-title{color:#9effff;}
-.hljs-tag{color:#00e5ff;}
-.hljs-attribute{color:#a5ff90;}
-.hljs-property{color:#80fcff;}
-.hljs-operator,.hljs-punctuation{color:#ff9d00;}
-.hljs-meta{color:#ff9d00;}
-.hljs-deletion{background:rgba(248,113,113,0.15);}
-.hljs-addition{background:rgba(74,222,128,0.15);}
-</style></head><body>${body}<script>if(window.hljs)hljs.highlightAll();<\/script></body></html>`;
-      }
-      const iframe = document.getElementById(`iframe-${targetFile}`);
-      if (iframe) {
-        if (inPlace) _writeIframeInPlace(iframe, finalContent);
-        else iframe.src = URL.createObjectURL(new Blob([finalContent], { type: mime })) + queryParams;
-      }
-      return;
-    }
-
-    // JSX virtual shell
-    let isVirtualJSX = false, htmlContent = '';
-    const needsBabel = Object.keys(S.fileSystem).some(f => f.endsWith('.jsx')) || targetFile.endsWith('.jsx');
-    if (needsBabel) await loadBabel();
-
-    if (ext === 'jsx') {
-      isVirtualJSX = true;
-      // ── Bug fix: use the basename here, NOT the full virtual path. ──────────
-      // resolveVirtualPath(targetFile, path) resolves `path` relative to
-      // targetFile's own directory. Embedding the full path
-      // ("DeepBlue/Component.jsx") made it resolve to
-      // "DeepBlue/DeepBlue/Component.jsx" below, which isn't a real file, so
-      // the href/src rewrite pass found no blobMap entry and left the broken
-      // path in place. The basename round-trips correctly.
-      const jsxBaseName = targetFile.split('/').pop();
-      htmlContent  = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;background:#0a0e14;color:#fff;font-family:system-ui;}</style><script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin><\/script><script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin><\/script></head><body><div id="react-root"></div><script type="module" src="${jsxBaseName}"><\/script></body></html>`;
-    } else if (!S.fileSystem[targetFile] || S.fileSystem[targetFile].type !== 'html') {
-      if (S.fileSystem['index.html']) targetFile = 'index.html';
-      else { if (!inPlace) _clearPreview(); return; }
-    }
-
-    const tabId = isVirtualJSX ? S.activeFile : targetFile;
-
-    const existingIframe = document.getElementById(`iframe-${tabId}`);
-    if (inPlace && !existingIframe) return; // nothing open yet — don't auto-spawn a tab
-
-    if (!inPlace) createTab(tabId, 'web');
-
-    // Clear & mark this tab's console panel for the new run (skip the marker
-    // spam for silent auto-run refreshes — only an explicit Run should log it)
-    if (!inPlace) {
-      const runPanel = _findConsolePanel(tabId);
-      const runLogEl = runPanel?.querySelector('.console-log-container');
-      if (runLogEl) runLogEl.innerHTML = '';
-      logToConsole('marker', '--- Run Started ---', tabId);
-    }
-
-    if (!isVirtualJSX) {
-      htmlContent = S.fileSystem[targetFile].content;
-      if (htmlContent === null && S.fileSystem[targetFile].ghUrl) {
-        try { htmlContent = await S._callbacks.fetchWithProgress?.(S.fileSystem[targetFile].ghUrl) ?? ''; S.fileSystem[targetFile].content = htmlContent; }
-        catch { htmlContent = '<h1>Error loading entry file</h1>'; }
-      }
-    }
-
-    // Build blob map
-    const blobMap = {}, visiting = new Set();
-    const getUrl = (filePath) => {
-      if (blobMap[filePath]) return blobMap[filePath];
-      if (visiting.has(filePath)) return filePath;
-      const fObj = S.fileSystem[filePath];
-      if (!fObj) return null;
-      if (fObj.content === null && fObj.type !== 'asset') return null;
-      visiting.add(filePath);
-      let url = null;
-      if (fObj.type === 'asset') {
-        if (fObj.subtype === 'svg' && fObj.content === null) {}
-        else if (fObj.subtype === 'svg') url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(fObj.content);
-        else url = fObj.src;
-      } else {
-        let fc = S.editorDocs[filePath] ? S.editorDocs[filePath].getValue() : fObj.content;
-        const tExt = filePath.endsWith('.enc') ? (fObj.originalExt || '.txt').toLowerCase() : '.' + filePath.split('.').pop().toLowerCase();
-        let mime = 'text/plain';
-        if (['.js','.jsx'].includes(tExt)) mime = 'application/javascript';
-        else if (tExt === '.css') mime = 'text/css';
-        else if (tExt === '.json') mime = 'application/json';
-        else if (tExt === '.html') mime = 'text/html';
-        if (['.jsx','.js'].includes(tExt) && window.Babel && fc) {
-          if (tExt === '.jsx') { try { fc = window.Babel.transform(fc, { presets: ['react'] }).code; } catch {} }
-        }
-        if ((['.js','.jsx'].includes(tExt)) && fc) {
-          fc = fc.replace(/(import\s+.*?from\s+|import\s+|export\s+.*?from\s+|import\s*\(\s*)(["'])(.*?)\2/g, (m, prefix, q, path) => {
-            if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:')) return m;
-            let res = resolveVirtualPath(filePath, path);
-            if (!S.fileSystem[res]) { if (S.fileSystem[res+'.js']) res += '.js'; else if (S.fileSystem[res+'.jsx']) res += '.jsx'; }
-            const du = getUrl(res);
-            return du ? `${prefix}${q}${du}${q}` : m;
-          });
-        }
-        if (tExt === '.css' && fc) {
-          fc = fc.replace(/url\(\s*(["']?)([^"')]+)\1\s*\)/g, (m, q, path) => {
-            if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:')) return m;
-            const res = resolveVirtualPath(filePath, path);
-            if (S.fileSystem[res]) { const du = getUrl(res); if (du) return `url(${q||'"'}${du}${q||'"'})`; }
-            return m;
-          });
-        }
-        if (fc) url = URL.createObjectURL(new Blob([fc], { type: mime }));
-      }
-      visiting.delete(filePath);
-      if (url) blobMap[filePath] = url;
-      return url;
-    };
-
-    for (const fname of Object.keys(S.fileSystem)) { if (!isVirtualJSX && fname === targetFile) continue; getUrl(fname); }
-
-    // Interceptor scripts — tag every console/table message with this preview
-    // tab's id so logs route to the matching console tab, not just "system".
-    const tabIdJSON = JSON.stringify(tabId);
-    const consoleScript = `<script>(function(){function fmt(x){if(typeof x==='object'&&x!==null){try{return JSON.stringify(x,null,2);}catch(e){return String(x);}}return String(x);}function s(t,a){var m=a.map(fmt).join(' ');window.parent.postMessage({type:'console',level:t,msg:m,tabId:${tabIdJSON}},'*');}['log','warn','error','info','debug'].forEach(m=>{var o=console[m];console[m]=(...a)=>{if(o)o.apply(console,a);s(m,a);};});var ot=console.table;console.table=function(data,cols){if(ot){try{ot.call(console,data,cols);}catch(e){}}window.parent.postMessage({type:'console-table',data:data,columns:cols||null,tabId:${tabIdJSON}},'*');};window.onerror=function(m,u,l){s('error',['Runtime Error: '+m+' (Line '+l+')']);};window.addEventListener('unhandledrejection',function(e){s('error',['Unhandled Promise: '+(e.reason?e.reason.toString():'Unknown')]);});})();<\/script>`;
-    const navScript     = `<script>(function(){document.addEventListener('click',function(e){const a=e.target.closest('a');if(a){const h=a.getAttribute('href');if(h&&!h.startsWith('http')&&!h.startsWith('data:')&&!h.startsWith('blob:')&&!h.startsWith('#')){e.preventDefault();window.parent.postMessage({type:'navigate',path:h},'*');}}});document.addEventListener('submit',function(e){const f=e.target;const ac=f.getAttribute('action')||'';if(!ac.startsWith('http')&&!ac.startsWith('data:')&&!ac.startsWith('blob:')){e.preventDefault();const fd=new FormData(f);const p=new URLSearchParams(fd).toString();window.parent.postMessage({type:'navigate',path:ac+(p?'?'+p:'')},'*');}});})();<\/script>`;
-    const qpPolyfill    = queryParams ? `<script>(function(){var _s="${queryParams}";if(_s){var _O=window.URLSearchParams;window.URLSearchParams=class extends _O{constructor(i){super(i===undefined||i===null||i===window.location.search?_s:i);}};}})(window._mock_search="${queryParams}");<\/script>` : '';
-
-    const injected = consoleScript + navScript + qpPolyfill;
-    let processed  = htmlContent
-      .replace(/(href|src)\s*=\s*["']([^"']+)["']/g, (m, attr, path) => {
-        if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:') || path.startsWith('#')) return m;
-        const res = resolveVirtualPath(targetFile, path);
-        const fo  = S.fileSystem[res];
-        if (fo && (fo.type === 'html' || fo.type === 'text' || fo.type === 'python')) return m;
-        if (blobMap[res]) return `${attr}="${blobMap[res]}"`;
-        if (fo?.ghUrl) return `${attr}="${fo.ghUrl}"`;
-        return m;
-      })
-      .replace(/(<script[^>]*>)([\s\S]*?)(<\/script>)/gi, (m, open, body, close) => {
-        if (open.includes('src=')) return m;
-        const nb = body.replace(/(import\s+.*?from\s+|import\s+|export\s+.*?from\s+|import\s*\(\s*)(["'])(.*?)\2/g, (im, prefix, q, path) => {
-          if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:')) return im;
-          let res = resolveVirtualPath(targetFile, path);
-          if (!S.fileSystem[res]) { if (S.fileSystem[res+'.js']) res += '.js'; else if (S.fileSystem[res+'.jsx']) res += '.jsx'; }
-          const du = getUrl(res);
-          return du ? `${prefix}${q}${du}${q}` : im;
-        });
-        return `${open}${nb}${close}`;
-      })
-      .replace(/type\s*=\s*["']text\/babel["']/g, 'type="application/javascript"');
-
-    if (processed.includes('<head>')) processed = processed.replace('<head>', '<head>' + injected);
-    else processed = injected + processed;
-
-    const oldIframe = document.getElementById(`iframe-${tabId}`);
-    if (oldIframe) {
-      if (inPlace) {
-        _writeIframeInPlace(oldIframe, processed);
-      } else {
-        const ni = document.createElement('iframe');
-        ni.id = oldIframe.id; ni.className = oldIframe.className; ni.style.cssText = oldIframe.style.cssText;
-        oldIframe.parentNode.replaceChild(ni, oldIframe);
-        const blob = new Blob([processed], { type: 'text/html' });
-        ni.src = URL.createObjectURL(blob) + queryParams;
-      }
-    }
-  } finally { if (!inPlace) setExecLoading(false); }
-}
-
-/**
- * Rewrites an existing iframe's document in place (document.open/write/close)
- * instead of giving it a new src — this updates the content without a
- * navigation, so there's no blank/white flash. Blob URLs created by this
- * page are same-origin for script-access purposes, so contentDocument access
- * works; if anything ever prevents that, fall back to a normal reload.
- */
-function _writeIframeInPlace(iframe, html) {
-  try {
-    const doc = iframe.contentDocument;
-    if (!doc) throw new Error('iframe document not accessible');
-    doc.open();
-    doc.write(html);
-    doc.close();
+    _engineLib = await import('https://proelectriccoder.github.io/Projects/Chat/engine.js');
   } catch {
-    iframe.src = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+    // Adjust this path if DeepBlue IDE and the Chat app aren't deployed in a
+    // way that makes this relative path resolve (see js/crypto.js's
+    // loadCryptoLib() for the precedent this mirrors).
+    _engineLib = await import('../Chat/engine.js');
+  }
+  return _engineLib;
+}
+
+async function buildEngine(roomId, idToken, isHost) {
+  const { CloudflareWSEngine } = await loadEngineLib();
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${proto}//${location.host}/api/ChatRooms`;
+  const engine = new CloudflareWSEngine({ relay: isHost, wsUrl });
+  if (isHost) await engine.createRoom(roomId, idToken);
+  else        await engine.joinRoom(roomId, idToken);
+  return engine;
+}
+
+// ─── CollabSession — wraps one CloudflareWSEngine connection as a Yjs
+//     sync + awareness transport ──────────────────────────────────────────────
+class CollabSession {
+  constructor({ engine, identity, isHost }) {
+    this.engine   = engine;
+    this.identity = identity;
+    this.isHost   = isHost;
+    this.ydoc     = new Y.Doc();
+    this.awareness = new awarenessProtocol.Awareness(this.ydoc);
+    this.undoManagers = new Map(); // filename -> Y.UndoManager
+    this._presenceListeners = new Set();
+    this._hostLostCb = null;
+    this._destroyed = false;
+
+    this.awareness.setLocalStateField('user', {
+      name: identity.name,
+      color: identity.color,
+      colorLight: identity.color + '33',
+      provider: identity.provider,
+      photo: identity.photo || null,
+    });
+
+    this.ydoc.on('update', (update, origin) => {
+      if (origin === REMOTE_ORIGIN || this._destroyed) return;
+      const encoder = encoding.createEncoder();
+      encoding.writeVarUint(encoder, MESSAGE_SYNC);
+      syncProtocol.writeUpdate(encoder, update);
+      this._send(encoder);
+    });
+
+    this.awareness.on('update', ({ added, updated, removed }, origin) => {
+      if (origin === REMOTE_ORIGIN || this._destroyed) return;
+      const changed = added.concat(updated).concat(removed);
+      if (!changed.length) return;
+      const encoder = encoding.createEncoder();
+      encoding.writeVarUint(encoder, MESSAGE_AWARENESS);
+      encoding.writeVarUint8Array(encoder, awarenessProtocol.encodeAwarenessUpdate(this.awareness, changed));
+      this._send(encoder);
+    });
+
+    this.engine.onMessage(data => this._handleMessage(data));
+    this.engine.onPeerConnected(() => this._onPeerConnected());
+    this.engine.onPeerDisconnected(() => this._onPeerDisconnected());
+  }
+
+  // Hands the engine a real ArrayBuffer. CloudflareWSEngine's own _ser() only
+  // treats actual ArrayBuffer/Blob instances as binary-safe — anything else
+  // (including a bare Uint8Array, since typeof it is 'object') gets
+  // JSON.stringify'd, which would corrupt this payload. See
+  // Projects/Chat/engine.js's _ser()/_deser() and binaryType='arraybuffer'.
+  //
+  // Bails out before handing off to the engine if nobody has an open data
+  // channel yet. Y.Doc/Awareness fire their own 'update' event for purely
+  // LOCAL changes too — e.g. getCollabBinding() seeding a newly-claimed
+  // file's content the moment you start hosting, before any guest has
+  // joined — and engine.send() has nothing to relay those to. Without this
+  // guard, CloudflareWSEngine.send() runs its loop, finds zero open
+  // channels, and logs "[CloudflareWSEngine] no open channels" — harmless,
+  // but it fires on every local edit made while you're alone in a session
+  // (and periodically on its own, since Awareness re-announces presence on
+  // a timer). Skipping the send here loses nothing: a peer who joins later
+  // gets the full, current document via SyncStep1/SyncStep2 (see
+  // _onPeerConnected below), not by replaying whatever was broadcast while
+  // they were absent.
+  _send(encoder) {
+    if (!this._hasOpenChannel()) return;
+    const arr = encoding.toUint8Array(encoder);
+    const buf = arr.buffer.slice(arr.byteOffset, arr.byteOffset + arr.byteLength);
+    try { this.engine.send(buf); } catch (e) { console.warn('[Collab] send failed:', e.message); }
+  }
+
+  _hasOpenChannel() {
+    for (const { channel } of this.engine.peers.values()) {
+      if (channel?.readyState === 'open') return true;
+    }
+    return false;
+  }
+
+  _onPeerConnected() {
+    // Both sides proactively announce on every (re)connect, per y-protocols/
+    // sync's own guidance for peer-to-peer topologies ("both parties should
+    // initiate the connection with SyncStep1"). The engine has no per-peer
+    // unicast, so this broadcasts to everyone already connected too — a
+    // little wasteful in a 3+-person session, harmless since Yjs updates are
+    // idempotent.
+    const syncEncoder = encoding.createEncoder();
+    encoding.writeVarUint(syncEncoder, MESSAGE_SYNC);
+    syncProtocol.writeSyncStep1(syncEncoder, this.ydoc);
+    this._send(syncEncoder);
+
+    const states = this.awareness.getStates();
+    if (states.size) {
+      const awEncoder = encoding.createEncoder();
+      encoding.writeVarUint(awEncoder, MESSAGE_AWARENESS);
+      encoding.writeVarUint8Array(awEncoder, awarenessProtocol.encodeAwarenessUpdate(this.awareness, Array.from(states.keys())));
+      this._send(awEncoder);
+    }
+    this._notifyPresence();
+  }
+
+  _onPeerDisconnected() {
+    this._notifyPresence();
+    // Star topology: a guest's ONLY peer is the host. If that connection
+    // drops, the guest has no path to anyone else either.
+    if (!this.isHost && this.engine.peers.size === 0 && !this._destroyed) {
+      this._hostLostCb?.();
+    }
+  }
+
+  _handleMessage(data) {
+    if (!(data instanceof ArrayBuffer)) return;
+    const decoder = decoding.createDecoder(new Uint8Array(data));
+    const messageType = decoding.readVarUint(decoder);
+    if (messageType === MESSAGE_SYNC) {
+      const replyEncoder = encoding.createEncoder();
+      encoding.writeVarUint(replyEncoder, MESSAGE_SYNC);
+      syncProtocol.readSyncMessage(decoder, replyEncoder, this.ydoc, REMOTE_ORIGIN);
+      if (encoding.length(replyEncoder) > 1) this._send(replyEncoder);
+    } else if (messageType === MESSAGE_AWARENESS) {
+      awarenessProtocol.applyAwarenessUpdate(this.awareness, decoding.readVarUint8Array(decoder), REMOTE_ORIGIN);
+      this._notifyPresence();
+    }
+  }
+
+  onPresenceChange(cb) { this._presenceListeners.add(cb); }
+  _notifyPresence() { this._presenceListeners.forEach(cb => { try { cb(); } catch (e) { console.warn(e); } }); }
+
+  onHostLost(cb) { this._hostLostCb = cb; }
+
+  getOrCreateUndoManager(filename, ytext) {
+    let um = this.undoManagers.get(filename);
+    if (!um) { um = new Y.UndoManager(ytext); this.undoManagers.set(filename, um); }
+    return um;
+  }
+
+  destroy() {
+    if (this._destroyed) return;
+    this._destroyed = true;
+    // awareness.destroy() internally calls setLocalState(null), which fires
+    // our own 'update' listener (origin 'local', not REMOTE_ORIGIN) one last
+    // time — broadcasting our departure — BEFORE we tear the engine down.
+    try { this.awareness.destroy(); } catch {}
+    this.undoManagers.forEach(um => { try { um.destroy(); } catch {} });
+    this.undoManagers.clear();
+    try { this.ydoc.destroy(); } catch {}
+    try { this.engine.disconnect(); } catch {}
   }
 }
 
+// ─── Identity resolution (Firebase Auth account-selection logic) ─────────────
+//   1. GitHub connected (S.githubToken)            -> GitHub
+//   2. else Google Drive connected (isGdriveConnected()) -> Google
+//   3. (GitHub wins whenever both are available, per spec)
+//   4. neither -> ask the person to pick one
+async function resolveCollabIdentity() {
+  await initFirebase();
+
+  const githubConnected = !!S.githubToken;
+  const driveConnected  = isGdriveConnected();
+
+  let providerChoice = null;
+  if (githubConnected)      providerChoice = 'github';
+  else if (driveConnected)  providerChoice = 'google';
+
+  if (!providerChoice) {
+    providerChoice = await _promptProviderChoice();
+    if (!providerChoice) return null; // cancelled
+  }
+
+  try {
+    const fbUser  = await _signInForCollab(providerChoice);
+    const idToken = await fbUser.getIdToken();
+    const cached  = _loadCachedIdentity();
+    const color   = (cached && cached.uid === fbUser.uid && cached.color) || _colorForUid(fbUser.uid);
+    const identity = {
+      uid: fbUser.uid,
+      name: fbUser.displayName || (cached && cached.uid === fbUser.uid && cached.name) || (providerChoice === 'github' ? 'GitHub User' : 'Google User'),
+      photo: fbUser.photoURL || null,
+      provider: providerChoice,
+      color,
+      idToken,
+    };
+    _persistIdentity(identity);
+    return identity;
+  } catch (e) {
+    await customAlert('Sign-in failed: ' + e.message, 'Collaborate');
+    return null;
+  }
+}
+
+function _promptProviderChoice() {
+  return showCustomDialog(
+    'confirm',
+    'Sign in to Collaborate',
+    'Choose an account for this collaboration session. Your name and a cursor colour derived from your account will be visible to everyone else in the session.',
+    { okText: 'Continue with GitHub', cancelText: 'Cancel', extraText: 'Continue with Google' }
+  ).then(res => (res === true ? 'github' : res === 'extra' ? 'google' : null));
+}
+
+function _waitForAuthReady() {
+  return new Promise(resolve => {
+    if (!S.firebaseAuth) { resolve(null); return; }
+    let settled = false;
+    const timer = setTimeout(() => { if (!settled) { settled = true; resolve(S.firebaseAuth.currentUser || null); } }, 2500);
+    const unsub = S.firebaseAuth.onAuthStateChanged(user => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try { unsub(); } catch {}
+      resolve(user);
+    });
+  });
+}
+
+async function _signInForCollab(providerChoice) {
+  const { GoogleAuthProvider, GithubAuthProvider, signInWithPopup } =
+    await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
+
+  const current = await _waitForAuthReady();
+  const wantsProviderId = providerChoice === 'github' ? 'github.com' : 'google.com';
+  if (current && current.providerData.some(p => p.providerId === wantsProviderId)) {
+    return current; // already signed in with the right provider — no popup needed
+  }
+
+  const provider = providerChoice === 'github' ? new GithubAuthProvider() : new GoogleAuthProvider();
+  const result = await signInWithPopup(S.firebaseAuth, provider);
+  return result.user;
+}
+
+function _colorForUid(uid) {
+  let hash = 0;
+  for (let i = 0; i < uid.length; i++) hash = (hash * 31 + uid.charCodeAt(i)) >>> 0;
+  return PRESENCE_PALETTE[hash % PRESENCE_PALETTE.length];
+}
+
+function _loadCachedIdentity() {
+  try { return JSON.parse(localStorage.getItem('deepBlue_collab_identity') || 'null'); } catch { return null; }
+}
+function _persistIdentity(identity) {
+  try {
+    localStorage.setItem('deepBlue_collab_identity', JSON.stringify({
+      uid: identity.uid, name: identity.name, photo: identity.photo, color: identity.color, provider: identity.provider,
+    }));
+  } catch {}
+}
+
+// ─── Room codes / invite links ────────────────────────────────────────────────
+function _generateRoomId() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous 0/O/1/I
+  let id = '';
+  for (let i = 0; i < 6; i++) id += chars[Math.floor(Math.random() * chars.length)];
+  return id;
+}
+
+function _extractRoomId(input) {
+  if (!input) return null;
+  const trimmed = input.trim();
+  try {
+    const url = new URL(trimmed);
+    const fromUrl = url.searchParams.get('collab');
+    if (fromUrl) return fromUrl;
+  } catch { /* not a URL — fall through and treat as a raw code */ }
+  return /^[A-Za-z0-9_-]{4,64}$/.test(trimmed) ? trimmed : null;
+}
+
+function _inviteLink(roomId) {
+  return `${location.origin}${location.pathname}?collab=${encodeURIComponent(roomId)}`;
+}
+
+async function _shareInviteLink(roomId, title) {
+  const link = _inviteLink(roomId);
+  try {
+    await navigator.clipboard.writeText(link);
+    await customAlert(`Invite link copied to clipboard:\n${link}`, title);
+  } catch {
+    await customPrompt('Copy this invite link manually:', link, title);
+  }
+}
+
+// ─── Public session lifecycle ─────────────────────────────────────────────────
+export async function startCollabSession() {
+  if (S.collab.session) { await customAlert('A collaboration session is already active. Leave it first.', 'Collaborate'); return; }
+
+  const proceed = await customConfirm(
+    'Start a live collaboration session? Anyone with the invite link will be able to view and edit files you open, in real time.',
+    'Start Session'
+  );
+  if (!proceed) return;
+
+  const identity = await resolveCollabIdentity();
+  if (!identity) return;
+
+  const roomId = _generateRoomId();
+  let engine;
+  try {
+    engine = await buildEngine(roomId, identity.idToken, true);
+  } catch (e) {
+    await customAlert('Could not start session: ' + e.message, 'Collaborate');
+    return;
+  }
+
+  const session = new CollabSession({ engine, identity, isHost: true });
+  S.collab.session = session;
+  S.collab.roomId  = roomId;
+  S.collab.isHost  = true;
+
+  session.onPresenceChange(_renderCollabUI);
+  refreshActiveFileForCollab();
+  _renderCollabUI();
+
+  await _shareInviteLink(roomId, 'Session Started');
+}
+
+export async function joinCollabSessionPrompt() {
+  const input = await customPrompt('Enter the session code or paste an invite link:', '', 'Join Collaboration Session');
+  if (!input) return;
+  const roomId = _extractRoomId(input);
+  if (!roomId) { await customAlert("That doesn't look like a valid session code or link.", 'Join Session'); return; }
+  await joinCollabSession(roomId);
+}
+
+export async function joinCollabSession(roomId) {
+  if (S.collab.session) { await customAlert('Leave the current session before joining another.', 'Collaborate'); return; }
+
+  const proceed = await customConfirm(
+    "Joining will load this project's shared files from the session host, which may replace the content of any matching files you have open locally. Continue?",
+    'Join Collaboration Session'
+  );
+  if (!proceed) return;
+
+  const identity = await resolveCollabIdentity();
+  if (!identity) return;
+
+  let engine;
+  try {
+    engine = await buildEngine(roomId, identity.idToken, false);
+  } catch (e) {
+    await customAlert('Could not join session: ' + e.message, 'Collaborate');
+    return;
+  }
+
+  const session = new CollabSession({ engine, identity, isHost: false });
+  S.collab.session = session;
+  S.collab.roomId  = roomId;
+  S.collab.isHost  = false;
+
+  session.onPresenceChange(_renderCollabUI);
+  session.onHostLost(async () => {
+    if (S.collab.session !== session) return;
+    await customAlert('Lost connection to the session host.', 'Collaborate');
+    await leaveCollabSession();
+  });
+
+  refreshActiveFileForCollab();
+  _renderCollabUI();
+
+  await customAlert('Joined the collaboration session.', 'Collaborate');
+}
+
+export async function leaveCollabSession() {
+  if (!S.collab.session) return;
+  const wasHost = S.collab.isHost;
+
+  S.collab.session.destroy();
+  S.collab.session = null;
+  S.collab.roomId  = null;
+  S.collab.isHost  = false;
+
+  refreshActiveFileForCollab(); // unbinds yCollab from open tabs, keeping current text
+  _renderCollabUI();
+
+  await customAlert(wasHost ? 'Session ended.' : 'Left the session.', 'Collaborate');
+}
+
+export async function copyCollabInviteLink() {
+  if (!S.collab.roomId) return;
+  await _shareInviteLink(S.collab.roomId, 'Invite Link');
+}
+
+// ─── editor.js integration point (wired onto S._callbacks in main.js) ─────────
 /**
- * Auto-run: silently refreshes an ALREADY-open HTML/Markdown preview tab
- * whenever the active file changes (see editor.js's update listener →
- * S._callbacks.autoRun, debounced from main.js). Toggled from Settings.
- * Scoped to html/md only, and only refreshes a tab that's already open —
- * it never spawns a preview on its own.
+ * Returns { extensions, initialContent } for a collaboratively-bound file,
+ * or null if this file should just be edited locally (no active session, or
+ * — for a guest — this filename hasn't been claimed into the session yet).
+ *
+ * `ydoc.getMap('files')` is the session's shared registry of which filenames
+ * are part of it. Only the HOST may claim a new filename into that registry
+ * (and seed its Y.Text from local content) — guests only ever bind to
+ * filenames that are ALREADY claimed. Without that restriction, a guest
+ * opening a commonly-named local file (e.g. "index.html") the instant they
+ * join — before the host's content has finished syncing to them — would
+ * race to seed the SAME shared Y.Text with their own, unrelated local
+ * content, corrupting it for everyone. With it, guests just bind and wait
+ * for sync; only the host (the one source of "what this session's files
+ * actually are") ever originates content for a not-yet-seen filename.
  */
-export async function autoRunActiveFile() {
-  if (!S.autoRun || !S.activeFile) return;
-  const ext = S.activeFile.split('.').pop().toLowerCase();
-  if (!['html', 'md'].includes(ext)) return;
-  const fObj = S.fileSystem[S.activeFile];
-  if (!fObj || fObj.type === 'asset') return;
-  await runWeb(null, getSafePreviewParams(), true);
-}
+export function getCollabBinding(filename) {
+  const session = S.collab.session;
+  if (!session) return null;
 
-// ─── Open in new tab (Task 3) ─────────────────────────────────────────────────
-export async function openPreviewInNewTab() {
-  if (!S.activeFile) { await customAlert('No active file to preview.'); return; }
-  // Reuse the currently rendered blob URL if available
-  const iframe = document.getElementById(`iframe-${S.activeTabId}`);
-  if (iframe?.src?.startsWith('blob:')) {
-    window.open(iframe.src, '_blank');
-    return;
+  const filesMap = session.ydoc.getMap('files');
+  if (!filesMap.has(filename)) {
+    if (!session.isHost) return null;
+    filesMap.set(filename, true);
+    const ytext = session.ydoc.getText(filename);
+    const existing = S.fileSystem[filename]?.content;
+    if (typeof existing === 'string' && existing.length) ytext.insert(0, existing);
   }
-  // Otherwise build fresh
-  await syncDocsToContent();
-  const qp = getSafePreviewParams();
-  // Temporarily capture: create a temp tab, get the blob URL, open, remove tab
-  await runWeb(null, qp);
-  const newIframe = document.getElementById(`iframe-${S.activeTabId}`);
-  if (newIframe?.src) window.open(newIframe.src, '_blank');
-}
 
-// ─── Python runner ────────────────────────────────────────────────────────────
-const PY_SERVER_CODE = `import http.server,json,sys,io,threading\nclass ES:\n def __init__(self):self.out,self.err,self.status,self.inp,self.ev,self.lock=io.StringIO(),io.StringIO(),'idle',None,threading.Event(),threading.Lock()\nstate=ES()\ndef ci(p=''):\n print(p,end='',flush=True)\n with state.lock:state.status,_='waiting_input',state.ev.clear()\n state.ev.wait()\n with state.lock:state.status='running';return state.inp\ndef rc(code):\n global state;env={'input':ci}\n class SC(io.StringIO):\n  def __init__(self,b):super().__init__();self.b=b\n  def write(self,s):\n   with state.lock:self.b.write(s)\n  def flush(self):pass\n old_o,old_e=sys.stdout,sys.stderr;sys.stdout,sys.stderr=SC(state.out),SC(state.err)\n with state.lock:state.status='running'\n try:exec(code,env)\n except Exception as e:print(e,file=sys.stderr)\n finally:\n  sys.stdout,sys.stderr=old_o,old_e\n  with state.lock:state.status='finished'\nclass H(http.server.SimpleHTTPRequestHandler):\n def log_message(self,f,*a):pass\n def do_OPTIONS(self):self.send_response(200);[self.send_header(k,v) for k,v in [('Access-Control-Allow-Origin','*'),('Access-Control-Allow-Methods','POST,GET,OPTIONS'),('Access-Control-Allow-Headers','Content-Type')]];self.end_headers()\n def sj(self,d):self.send_response(200);self.send_header('Access-Control-Allow-Origin','*');self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(json.dumps(d).encode())\n def do_POST(self):\n  n=int(self.headers.get('Content-Length',0));d=json.loads(self.rfile.read(n)) if n else {}\n  if self.path=='/execute':\n   with state.lock:state.out,state.err=io.StringIO(),io.StringIO()\n   threading.Thread(target=rc,args=(d.get('code',''),),daemon=True).start()\n  elif self.path=='/input':\n   with state.lock:state.inp=d.get('input','');state.ev.set()\n  self.sj({'success':True})\n def do_GET(self):\n  if self.path=='/poll':\n   with state.lock:\n    o,e=state.out.getvalue(),state.err.getvalue();state.out.seek(0);state.out.truncate(0);state.err.seek(0);state.err.truncate(0)\n    self.sj({'status':state.status,'stdout':o,'stderr':e})\nprint('DeepBlue Python Server');http.server.HTTPServer(('127.0.0.1',8765),H).serve_forever()`;
-
-export async function runPython(targetFile) {
-  let code = S.fileSystem[targetFile].content;
-  if (code === null && S.fileSystem[targetFile].ghUrl) {
-    code = await S._callbacks.fetchWithProgress?.(S.fileSystem[targetFile].ghUrl) ?? '';
-    S.fileSystem[targetFile].content = code;
-  }
-  const tryRun = async () => {
-    try { const r = await fetch('http://127.0.0.1:8765/execute', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ code }) }); return r.ok; }
-    catch { return false; }
+  const ytext = session.ydoc.getText(filename);
+  const undoManager = session.getOrCreateUndoManager(filename, ytext);
+  return {
+    extensions: [
+      ...yCollab(ytext, session.awareness, { undoManager }),
+      keymap.of(yUndoManagerKeymap),
+    ],
+    initialContent: ytext.toString(),
   };
-
-  setExecLoading(true);
-  let running = await tryRun();
-  setExecLoading(false);
-
-  const hasSetup = localStorage.getItem('deepBlue_python_setup');
-  if (!running || !hasSetup) {
-    const { showCustomDialog } = await import('./dialogs.js');
-    const act = await showCustomDialog('confirm', 'Python Execution Required',
-      'Run DeepBluePython.py first, then click Run File.',
-      { okText: 'Run File', cancelText: 'Cancel', extraText: 'Download Runner' }
-    );
-    if (act === 'extra') {
-      const blob = new Blob([PY_SERVER_CODE], { type: 'text/plain' });
-      saveAs(blob, 'DeepBluePython.py');
-      localStorage.setItem('deepBlue_python_setup', 'true');
-      return;
-    } else if (act) {
-      setExecLoading(true); running = await tryRun(); setExecLoading(false);
-      if (!running) { await customAlert('Run DeepBluePython.py first.', 'Execution Failed'); return; }
-      localStorage.setItem('deepBlue_python_setup', 'true');
-    } else { return; }
-  }
-
-  createTab(targetFile, 'web');
-  const termHTML = `<!DOCTYPE html><html><head><style>body{background:#000;color:#e2e8f0;font-family:monospace;padding:1rem;margin:0;height:100vh;box-sizing:border-box;overflow-y:auto;font-size:14px;}.err{color:#f87171;}#tc{white-space:pre-wrap;word-break:break-all;}#ai{color:#fff;white-space:pre-wrap;}#cur{display:none;width:6px;height:12px;background:#e2e8f0;vertical-align:bottom;animation:blink 1s step-end infinite;margin-left:1px;}@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}#hi{position:absolute;opacity:0;width:1px;height:1px;}</style></head><body><span id="tc"></span><span id="ai"></span><span id="cur"></span><input id="hi" autocomplete="off" spellcheck="false"></body></html>`;
-  const blob   = new Blob([termHTML], { type: 'text/html' });
-  const iframe = document.getElementById(`iframe-${targetFile}`);
-  if (iframe) iframe.src = URL.createObjectURL(blob);
-
-  await _sleep(100);
-  const poll = async () => {
-    try {
-      const r = await fetch('http://127.0.0.1:8765/poll');
-      if (!r.ok) throw new Error();
-      const data  = await r.json();
-      const doc   = iframe.contentDocument;
-      if (!doc) return;
-      const tc = doc.getElementById('tc'), ai = doc.getElementById('ai');
-      const cur = doc.getElementById('cur'), hi = doc.getElementById('hi');
-      if (!doc.body.hasAttribute('data-bound')) {
-        doc.body.setAttribute('data-bound','1');
-        doc.addEventListener('click', () => { if (cur.style.display === 'inline-block') hi.focus(); });
-        hi.addEventListener('input', () => { ai.textContent = hi.value; doc.body.scrollTop = doc.body.scrollHeight; });
-      }
-      if (data.stdout && tc) { tc.appendChild(doc.createTextNode(data.stdout)); doc.body.scrollTop = doc.body.scrollHeight; }
-      if (data.stderr && tc) { const s = doc.createElement('span'); s.className='err'; s.textContent=data.stderr; tc.appendChild(s); doc.body.scrollTop = doc.body.scrollHeight; }
-      if (data.status === 'waiting_input') {
-        cur.style.display = 'inline-block'; hi.focus();
-        hi.onkeydown = async e => {
-          if (e.key !== 'Enter') return;
-          const val = hi.value; hi.value = ''; ai.textContent = ''; cur.style.display = 'none';
-          tc.appendChild(doc.createTextNode(val + '\n')); doc.body.scrollTop = doc.body.scrollHeight;
-          hi.onkeydown = null;
-          await fetch('http://127.0.0.1:8765/input', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ input: val }) });
-          poll();
-        };
-      } else if (data.status === 'finished') {
-        setExecLoading(false);
-        const d = doc.createElement('div'); d.style = 'color:#64748b;margin-top:10px;font-style:italic'; d.textContent='--- Program finished ---';
-        tc.appendChild(d); doc.body.scrollTop = doc.body.scrollHeight;
-      } else { S.pythonPollTimer = setTimeout(poll, 200); }
-    } catch {
-      setExecLoading(false);
-      const doc = iframe.contentDocument;
-      if (doc?.getElementById('tc')) { const s = doc.createElement('span'); s.className='err'; s.textContent='\n[Disconnected from Python Server]\n'; doc.getElementById('tc').appendChild(s); }
-    }
-  };
-  poll();
 }
 
-// ─── Asset preview ────────────────────────────────────────────────────────────
-export async function renderAssetPreview(filename) {
-  createTab(filename, 'web');
-  const iframe = document.getElementById(`iframe-${filename}`);
-  if (!iframe) return;
-  const asset = S.fileSystem[filename];
+// ─── Presence UI (badge + dropdown list) — owned entirely by this module ──────
+function _renderCollabUI() {
+  const badge  = document.getElementById('collab-badge');
+  const list   = document.getElementById('collab-presence-list');
+  const status = document.getElementById('collab-status');
+  const session = S.collab.session;
 
-  if (filename.endsWith('.enc')) {
-    let unlockData = S.unlockedKeys[filename];
-    if (!unlockData) {
-      const res = await S._callbacks.openCryptoModalAsync?.('unlock', 'Unlock Media', asset.strategy || 'double_pass');
-      if (!res) return;
-      unlockData = { password: res.password, keyPath: res.keyPath };
-      S.unlockedKeys[filename] = unlockData; asset.strategy = res.strategy;
-    }
-    const lib = await S._callbacks.loadCryptoLib?.();
-    const eb  = _b64ToBytes(asset.content);
-    let kc = '';
-    if (unlockData.keyPath && S.fileSystem[unlockData.keyPath]) {
-      kc = S.editorDocs[unlockData.keyPath] ? S.editorDocs[unlockData.keyPath].getValue() : S.fileSystem[unlockData.keyPath].content;
-    }
-    const secret = (unlockData.password || '') + kc;
-    let dec;
-    if (asset.strategy?.includes('double')) dec = await lib.decryptFile(eb, secret);
-    else if (asset.strategy?.includes('sep')) dec = await lib.decryptSEP(eb, secret);
-    else dec = { data: await lib.decryptAES(eb, secret), ext: asset.originalExt || '.bin' };
-    const mimeMap = { png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif', webp:'image/webp', mp3:'audio/mpeg', wav:'audio/wav', mp4:'video/mp4', webm:'video/webm', pdf:'application/pdf', svg:'image/svg+xml' };
-    const ext  = dec.ext.replace('.','');
-    const mime = mimeMap[ext] || 'application/octet-stream';
-    iframe.src = URL.createObjectURL(new Blob([dec.data], { type: mime }));
+  if (!session) {
+    if (badge)  badge.style.display = 'none';
+    if (list)   list.innerHTML = '';
+    if (status) status.innerText = 'Not connected';
     return;
   }
 
-  if (asset.subtype === 'svg') iframe.src = URL.createObjectURL(new Blob([asset.content], { type: 'image/svg+xml' }));
-  else iframe.src = asset.src;
+  const others = Array.from(session.awareness.getStates().entries())
+    .filter(([id]) => id !== session.awareness.clientID)
+    .map(([, s]) => s.user)
+    .filter(Boolean);
+
+  if (badge) {
+    if (others.length) { badge.style.display = 'flex'; badge.innerText = String(others.length); }
+    else badge.style.display = 'none';
+  }
+
+  if (status) {
+    status.innerText = session.isHost
+      ? `Hosting · code ${S.collab.roomId}`
+      : `Connected · code ${S.collab.roomId}`;
+  }
+
+  if (list) {
+    const me = session.awareness.getLocalState()?.user;
+    const rows = [];
+    if (me) rows.push(_presenceRow(me, true));
+    others.forEach(u => rows.push(_presenceRow(u, false)));
+    list.innerHTML = rows.join('');
+  }
 }
 
-// ─── Private helpers ──────────────────────────────────────────────────────────
-function _clearPreview() {
-  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  document.querySelectorAll('.preview-tab').forEach(t => t.classList.remove('active'));
-  S.activeTabId = null;
-  setTabsEmptyState(true);
+function _presenceRow(user, isYou) {
+  const name    = _escapeHtml(user.name || 'Anonymous');
+  const initial = (user.name || '?').trim().charAt(0).toUpperCase();
+  const avatar  = user.photo
+    ? `<img src="${user.photo}" class="collab-avatar-img" alt="">`
+    : `<span class="collab-avatar-fallback" style="background:${user.color}">${initial}</span>`;
+  return `<div class="collab-presence-row">${avatar}<span class="collab-presence-name">${name}${isYou ? ' (you)' : ''}</span><span class="collab-presence-dot" style="background:${user.color}"></span></div>`;
 }
 
-function _b64ToBytes(b64) {
-  const bin = atob(b64); const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
+function _escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+// Exposed so main.js's header-dropdown refresh logic can show/hide the
+// Start/Join/Invite/Leave menu items without duplicating session state here.
+export function isCollabActive() { return !!S.collab.session; }
+export function isCollabHost()   { return !!S.collab.session && S.collab.isHost; }
