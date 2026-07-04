@@ -28,7 +28,7 @@ export function initFirebase() {
 		} else {
 			Inbox.stop();
 		}
-		syncAuthSection('spAuthArea'); syncAuthSection('ncRoomAuth'); syncAuthSection('ncGroupAuth');
+		syncAuthSection('spAuthArea'); syncAuthSection('ncRoomAuth'); syncAuthSection('ncGroupAuth'); syncAuthSection('ncWsAuth');
 	});
 }
 
