@@ -30,7 +30,7 @@ export class ChatEngine {
 				const sig=ch.doc.data(),gid=ch.doc.id;
 				if(sig.type==='offer'&&!this.peers.has(gid))await this._handleOffer(gid,sig,ref);
 			}
-		},error=>{console.error('[ChatEngine] stream broken:',error);});
+		},error=>{this._safeLog('error','[ChatEngine] stream broken:',error);});
 		this._unsubs.push(unsub); return roomId;
 	}
 
@@ -50,14 +50,14 @@ export class ChatEngine {
 				await pc.setRemoteDescription(new RTCSessionDescription({type:'answer',sdp:d.answer}));
 				for(const c of(d.hostCandidates||[]))await pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
 			}
-		},error=>{console.error('[ChatEngine] stream broken:',error);});
+		},error=>{this._safeLog('error','[ChatEngine] stream broken:',error);});
 		this._unsubs.push(unsub);
 	}
 
 	send(data){
 		const payload=this._ser(data); let sent=0;
 		this.peers.forEach(({channel})=>{if(channel?.readyState==='open'){try{channel.send(payload);sent++;}catch{}}});
-		if(!sent)console.warn('[ChatEngine] no open channels');
+		if(!sent)this._safeLog('warn','[ChatEngine] no open channels');
 	}
 
 	onTrack(cb){this._onTrack=cb;}
@@ -108,7 +108,7 @@ export class ChatEngine {
 			this._startHeartbeat(ch,peerId);
 		};
 		ch.onclose=()=>{this._removePeer(peerId);};
-		ch.onerror=e=>console.error(`[ChatEngine] ch err (${peerId}):`,e);
+		ch.onerror=e=>this._safeLog('error',`[ChatEngine] ch err (${peerId}):`,e);
 		ch.onmessage=evt=>{
 			// Handle heartbeat internally
 			if(evt.data==='{"type":"__ping"}'){try{ch.send('{"type":"__pong"}');}catch{}return;}
@@ -176,6 +176,7 @@ export class ChatEngine {
 	_roomRef(id){return this.db.collection('chatRooms').doc(String(id));}
 	_assertDB(){if(!this.db)throw new Error('[ChatEngine] call init(db) first');}
 	_uid(){return Math.random().toString(36).slice(2)+Date.now().toString(36);}
+	_safeLog(level,...args){if(typeof console!=='undefined'&&console[level]){try{console[level](...args);}catch{}}}
 }
 
 export class DirectEngine {
@@ -200,7 +201,7 @@ export class DirectEngine {
 		await this._waitICE();return JSON.stringify(this.pc.localDescription.toJSON());
 	}
 	send(d){
-		if(this.channel?.readyState!=='open'){console.warn('[DirectEngine] not open');return;}
+		if(this.channel?.readyState!=='open'){this._safeLog('warn','[DirectEngine] not open');return;}
 		this.channel.send(typeof d==='object'&&!(d instanceof ArrayBuffer)?JSON.stringify(d):d);
 	}
 	onTrack(cb){this._onTrack=cb;}
@@ -263,6 +264,8 @@ export class DirectEngine {
 			this.pc.onicegatheringstatechange=()=>{if(this.pc.iceGatheringState==='complete'){clearTimeout(t);res();}};
 		});
 	}
+
+	_safeLog(level,...args){if(typeof console!=='undefined'&&console[level]){try{console[level](...args);}catch{}}}
 }
 // ============================================================================
 // CloudflareWSEngine - Durable Objects + WebSocket + Firebase Auth Signaling
@@ -357,10 +360,10 @@ export class CloudflareWSEngine {
 			}
 		};
 		this._ws.onerror = (evt) => {
-			console.error('[CloudflareWSEngine] WebSocket error:', evt);
+			this._safeLog('error', '[CloudflareWSEngine] WebSocket error:', evt);
 		};
 		this._ws.onclose = () => {
-			console.log('[CloudflareWSEngine] WebSocket closed');
+			this._safeLog('log', '[CloudflareWSEngine] WebSocket closed');
 		};
 	}
 
@@ -447,7 +450,7 @@ export class CloudflareWSEngine {
 				} catch {} 
 			} 
 		});
-		if (!sent) console.warn('[CloudflareWSEngine] no open channels');
+		if (!sent) this._safeLog('warn', '[CloudflareWSEngine] no open channels');
 	}
 
 	onTrack(cb) { this._onTrack = cb; }
@@ -479,7 +482,7 @@ export class CloudflareWSEngine {
 			this._startHeartbeat(ch, peerId);
 		};
 		ch.onclose = () => { this._removePeer(peerId); };
-		ch.onerror = e => console.error(`[CloudflareWSEngine] ch err (${peerId}):`, e);
+		ch.onerror = e => this._safeLog('error', `[CloudflareWSEngine] ch err (${peerId}):`, e);
 		ch.onmessage = evt => {
 			if (evt.data === '{"type":"__ping"}') { try { ch.send('{"type":"__pong"}'); } catch {} return; }
 			if (evt.data === '{"type":"__pong"}') { this._heartbeats.get(peerId)?.pong(); return; }
@@ -524,4 +527,5 @@ export class CloudflareWSEngine {
 	_ser(d) { if (d instanceof ArrayBuffer || d instanceof Blob) return d; if (typeof d === 'object') return JSON.stringify(d); return String(d); }
 	_deser(r) { if (r instanceof ArrayBuffer) return r; if (typeof r === 'string') { try { return JSON.parse(r); } catch {} } return r; }
 	_uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+	_safeLog(level,...args){if(typeof console!=='undefined'&&console[level]){try{console[level](...args);}catch{}}}
 }
