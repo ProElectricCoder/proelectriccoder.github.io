@@ -22,7 +22,7 @@ export function renderChatList() {
 		const dotClass = s.connected ? (inCall ? 'ci-dot call' : 'ci-dot on') : 'ci-dot';
 		const unreadBadge = s.unread > 0 ? `<div class="ci-badge">${s.unread > 99 ? '99+' : s.unread}</div>` : '';
 		const time = s.lastActivity ? relTime(s.lastActivity) : '';
-		const type = s.isGroup ? '👥' : (s.type === 'direct' ? '⚡' : '🔗');
+		const type = s.isGroup ? '👥' : (s.type === 'direct' ? '⚡' : s.type === 'cfws' ? '☁️' : '🔗');
 		let avHtml = `${initials}<div class="${dotClass}"></div>`;
 		if (s.isGroup && s.groupIcon) {
 			avHtml = `<img src="${escH(s.groupIcon)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none'"><div class="${dotClass}"></div>`;
