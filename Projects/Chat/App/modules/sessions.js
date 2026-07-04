@@ -45,8 +45,8 @@ export function setThemeForSess(sessId, themeId) {
 }
 
 // Find or create firebase session for a given roomId (dedup)
-export function findSessByRoomId(rid, isGroup = false) {
-	return [...S.sessions.values()].find(s => s.roomId === rid && s.isGroup === isGroup) || null;
+export function findSessByRoomId(rid, isGroup = false, type = null) {
+	return [...S.sessions.values()].find(s => s.roomId === rid && s.isGroup === isGroup && (!type || s.type === type)) || null;
 }
 
 export function peerName(sess, peerId) { return sess.peers.get(peerId)?.name || 'Peer'; }
