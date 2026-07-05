@@ -151,6 +151,31 @@ class CollabSession {
       this._send(encoder);
     });
 
+    // A file only becomes collaboratively editable the moment its name shows
+    // up in ydoc.getMap('files') — see getCollabBinding() below. For the
+    // host that happens synchronously (hosts claim on the spot), but a
+    // GUEST is never allowed to claim (by design — see getCollabBinding()'s
+    // own comment on why: it's what stops two guests racing to seed the same
+    // filename with different local content). So a guest who already has
+    // that exact file open the instant they join — before the first
+    // SyncStep1/SyncStep2 round-trip has even completed — has
+    // switchFile()'s one-time getCollabBinding() check find the claim map
+    // still empty, and fall back to a plain local doc. Nothing was watching
+    // for the claim to arrive later: the Yjs merge underneath keeps working
+    // fine regardless (the host's edits genuinely land in the shared
+    // ytext), there's just nothing bound to *display* them, so the guest's
+    // editor stays a disconnected local doc for the rest of the session and
+    // their own keystrokes never reach the shared doc either. This re-runs
+    // the binding check for whichever file is currently open the moment its
+    // name is added to the map — locally (host claiming) or via a merged
+    // remote update (Yjs fires Y.Map observers either way) — so a guest
+    // already sitting on the right file gets bound the moment it's claimed,
+    // not just on their next manual file switch.
+    this.ydoc.getMap('files').observe(({ keysChanged }) => {
+      if (this._destroyed) return;
+      if (S.activeFile && keysChanged.has(S.activeFile)) refreshActiveFileForCollab();
+    });
+
     this.awareness.on('update', ({ added, updated, removed }, origin) => {
       if (origin === REMOTE_ORIGIN || this._destroyed) return;
       const changed = added.concat(updated).concat(removed);
