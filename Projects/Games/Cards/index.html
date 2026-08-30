@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+	<title>Getaway — ProElectricCoder</title>
+	<link rel="icon" href="/Favicon.svg">
+	<meta name="description" content="Getaway — a shedding trick-taking card game for 3-10 players, solo vs bots or online with friends.">
+
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=JetBrains+Mono:wght@400;500;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700&display=swap" rel="stylesheet">
+
+	<!-- Firebase Auth only — CloudflareWSEngine needs an ID token, nothing here touches Firestore -->
+	<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+	<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+	<style>
+		*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+		html,body{height:100dvh;max-height:100dvh;overflow:hidden}
+		:root{
+			--tp:#00ffff;--ts:#3d6eff;--ta:#00ff99;--tr:#ff4d6d;
+			--tb:rgba(0,255,255,.12);--tbh:rgba(0,255,255,.28);
+			--tbg:rgba(0,255,255,.09);--tbb:rgba(0,255,255,.2);
+			--text:#e8edf8;--dim:rgba(232,237,248,.6);--faint:rgba(232,237,248,.32);
+			--card-face:#f2ede1;
+		}
+		body{font-family:'DM Sans',sans-serif;color:var(--text);background:radial-gradient(ellipse at 50% 0%,#052029,#010409 65%)}
+		.noise{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.03;
+			background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+		.hidden{display:none!important}
+		::-webkit-scrollbar{width:5px;height:5px}
+		::-webkit-scrollbar-track{background:transparent}
+		::-webkit-scrollbar-thumb{background:rgba(0,255,255,.15);border-radius:3px}
+
+		.screen{position:fixed;inset:0;z-index:1}
+
+		/* ── Setup / Lobby shared card ── */
+		.setup-screen{display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
+		.setup-card{width:100%;max-width:400px;background:rgba(6,14,20,.85);border:1px solid var(--tb);border-radius:16px;padding:30px 28px;backdrop-filter:blur(12px);box-shadow:0 0 60px rgba(0,255,255,.06)}
+		.setup-eyebrow{font-family:'JetBrains Mono',monospace;font-size:.65rem;letter-spacing:.22em;text-transform:uppercase;color:var(--tp)}
+		.setup-title{font-family:'Syne',sans-serif;font-size:2.1rem;font-weight:900;letter-spacing:-.02em;margin:6px 0 10px;background:linear-gradient(120deg,#fff,var(--tp));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+		.setup-sub{font-size:.83rem;color:var(--dim);line-height:1.6;margin-bottom:20px}
+
+		.mode-tabs{display:flex;gap:6px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:4px;margin-bottom:18px}
+		.mode-tab{flex:1;padding:9px;border:none;background:none;color:var(--dim);font-family:'JetBrains Mono',monospace;font-size:.72rem;border-radius:7px;cursor:pointer;transition:all .15s}
+		.mode-tab.active{background:rgba(0,255,255,.1);color:var(--tp)}
+		.online-subtabs{display:flex;gap:6px;margin:14px 0}
+		.online-subtabs .mode-tab{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07)}
+
+		.f-lbl{font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:6px}
+		.f-in{width:100%;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.86rem;padding:10px 12px;outline:none;transition:border-color .2s;margin-bottom:4px}
+		.f-in:focus{border-color:var(--tp)}
+		.f-in::placeholder{color:var(--faint)}
+
+		.pc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:8px 0 18px}
+		.pc-btn{padding:10px 0;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);color:var(--dim);font-family:'JetBrains Mono',monospace;font-size:.85rem;font-weight:700;cursor:pointer;transition:all .15s}
+		.pc-btn:hover{background:rgba(255,255,255,.08)}
+		.pc-btn.active{background:rgba(0,255,255,.12);border-color:var(--tbh);color:var(--tp)}
+
+		.btn-start{width:100%;padding:13px;border:none;border-radius:10px;background:var(--tp);color:#001;font-family:'JetBrains Mono',monospace;font-size:.82rem;font-weight:700;letter-spacing:.03em;cursor:pointer;transition:all .18s;box-shadow:0 0 24px rgba(0,255,255,.18)}
+		.btn-start:hover{filter:brightness(1.08);transform:translateY(-1px)}
+		.btn-start:disabled{opacity:.5;cursor:not-allowed;transform:none}
+		.btn-link{display:block;width:100%;text-align:center;background:none;border:none;color:var(--dim);font-family:'JetBrains Mono',monospace;font-size:.72rem;padding:12px 0 2px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+		.btn-link:hover{color:var(--tp)}
+
+		.sign-in-btn{width:100%;padding:11px;margin-bottom:8px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--text);font-family:'DM Sans',sans-serif;font-size:.83rem;cursor:pointer;transition:all .15s}
+		.sign-in-btn:hover{background:rgba(255,255,255,.09)}
+		.auth-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:.8rem;color:var(--dim);margin-bottom:14px;padding:9px 12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:8px}
+
+		/* ── Lobby ── */
+		.lobby-seats{display:flex;flex-direction:column;gap:6px;margin:8px 0 20px;max-height:260px;overflow-y:auto}
+		.lobby-seat{padding:9px 12px;border-radius:8px;font-size:.82rem;border:1px solid rgba(255,255,255,.07)}
+		.lobby-seat.filled{background:rgba(0,255,153,.06);border-color:rgba(0,255,153,.2);color:var(--text)}
+		.lobby-seat.filled.me{background:rgba(0,255,255,.08);border-color:var(--tbh);color:var(--tp);font-weight:700}
+		.lobby-seat.empty{background:rgba(255,255,255,.02);color:var(--faint);font-style:italic}
+		.lobby-wait{text-align:center;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--dim);padding:10px 0}
+
+		/* ── Game screen ── */
+		.game-screen{display:flex;flex-direction:column;height:100dvh}
+		.hdr{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:52px;flex-shrink:0;background:rgba(0,0,0,.4);border-bottom:1px solid var(--tb);backdrop-filter:blur(10px)}
+		.hdr-title{font-family:'Syne',sans-serif;font-weight:900;font-size:.95rem;letter-spacing:.02em;color:var(--tp);flex-shrink:0}
+		.hdr-mid{font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--dim);text-align:center;flex:1;padding:0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+		.hdr-actions{display:flex;gap:6px;flex-shrink:0}
+		.hdr-btn{padding:6px 11px;border-radius:7px;border:1px solid var(--tb);background:rgba(255,255,255,.03);color:var(--dim);font-family:'JetBrains Mono',monospace;font-size:.65rem;cursor:pointer;transition:all .15s}
+		.hdr-btn:hover{background:rgba(255,255,255,.08);color:var(--text)}
+
+		.table-wrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:10px;position:relative}
+		.table{position:relative;width:100%;max-width:900px;height:100%;max-height:560px;aspect-ratio:16/11}
+		.seats{position:absolute;inset:0}
+		.seat{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;transition:transform .2s}
+		.seat-av{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;font-size:1rem;font-family:'Syne',sans-serif;font-weight:800;transition:all .25s}
+		.seat-local .seat-av{border-color:var(--tbh);background:rgba(0,255,255,.08);color:var(--tp)}
+		.seat-bot .seat-av{opacity:.75}
+		.seat.seat-active .seat-av{border-color:var(--ta);box-shadow:0 0 16px rgba(0,255,153,.45);transform:scale(1.12)}
+		.seat.seat-out .seat-av{opacity:.35}
+		.seat-name{font-size:.66rem;color:var(--dim);max-width:78px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+		.seat-count{font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--faint)}
+
+		.discard-indicator{position:absolute;top:0;left:0;display:flex;align-items:center;gap:5px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:4px 10px;font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--faint);z-index:3}
+		.discard-icon{font-size:.85rem;opacity:.6}
+
+		.trick-pile{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:4px;max-width:70%;min-height:70px}
+		.pile-card-wrap{position:relative;transform:rotate(calc((var(--i,0) - 3) * 6deg))}
+		.pile-card-in{animation:cardDropIn .3s ease-out}
+		.pile-card-out{animation:cardFlyOut .4s ease-in forwards}
+		.pile-card-name{position:absolute;left:50%;bottom:-15px;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:.52rem;color:var(--faint);white-space:nowrap}
+		@keyframes cardDropIn{from{opacity:0;transform:scale(.4) translateY(12px)}to{opacity:1;transform:scale(1) translateY(0)}}
+		@keyframes cardFlyOut{to{opacity:0;transform:translate(var(--dx,0),var(--dy,60px)) scale(.3)}}
+
+		/* ── Cards ── */
+		.card{width:52px;height:74px;border-radius:8px;background:var(--card-face);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;box-shadow:0 3px 8px rgba(0,0,0,.4);flex-shrink:0;transition:opacity .2s,transform .15s,box-shadow .2s;user-select:none}
+		.card-rank{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;color:var(--suit-color);line-height:1}
+		.card-suit{font-size:1.05rem;color:var(--suit-color);line-height:1}
+		.card-sm{width:38px;height:54px;border-radius:6px}
+		.card-sm .card-rank{font-size:.74rem}
+		.card-sm .card-suit{font-size:.8rem}
+		.card-playable{cursor:pointer;box-shadow:0 0 0 2px var(--tp),0 4px 14px rgba(0,255,255,.35)}
+		.card-playable:hover{transform:translateY(-6px)}
+		.card-disabled{opacity:.4;filter:grayscale(.4)}
+
+		/* ── Hand dock ── */
+		.hand-dock{flex-shrink:0;background:rgba(0,0,0,.38);border-top:1px solid var(--tb);padding:10px 14px calc(10px + env(safe-area-inset-bottom))}
+		.prompt{font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--dim);text-align:center;margin-bottom:9px;min-height:1.1em}
+		.hand-row{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;min-height:74px;align-items:center}
+		.hand-empty{font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--ta)}
+
+		/* ── Log panel ── */
+		.log-panel{position:absolute;top:44px;left:10px;width:220px;max-height:150px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.08);border-radius:10px;overflow:hidden;z-index:2;backdrop-filter:blur(6px)}
+		.log-head{font-family:'JetBrains Mono',monospace;font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);padding:6px 10px;border-bottom:1px solid rgba(255,255,255,.06)}
+		.log-feed{max-height:120px;overflow-y:auto;padding:5px 10px 8px}
+		.log-line{font-size:.68rem;color:var(--dim);line-height:1.6}
+		@media(max-width:640px){.log-panel{display:none}}
+
+		/* ── Rules drawer ── */
+		.drawer{position:fixed;top:0;right:0;bottom:0;width:360px;max-width:92vw;background:rgba(4,10,15,.97);border-left:1px solid var(--tb);z-index:50;transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column}
+		.drawer.open{transform:translateX(0)}
+		.drawer-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid rgba(255,255,255,.08);font-family:'Syne',sans-serif;font-weight:800}
+		.drawer-close{width:26px;height:26px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--dim);cursor:pointer}
+		.drawer-body{flex:1;overflow-y:auto;padding:16px 18px 40px;font-size:.83rem;line-height:1.68;color:var(--dim)}
+		.drawer-body h3{font-family:'Syne',sans-serif;color:var(--tp);font-size:.88rem;margin:18px 0 6px}
+		.drawer-body h3:first-child{margin-top:0}
+		.drawer-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:49;opacity:0;pointer-events:none;transition:opacity .25s}
+		.drawer-backdrop.open{opacity:1;pointer-events:auto}
+
+		/* ── Game over modal ── */
+		.modal-overlay{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;padding:16px}
+		.modal-overlay.open{display:flex}
+		.modal-box{width:100%;max-width:360px;background:rgba(6,14,20,.97);border:1px solid var(--tb);border-radius:16px;padding:26px}
+		.modal-box h2{font-family:'Syne',sans-serif;font-size:1.3rem;margin-bottom:16px}
+		.standings-list{list-style:none;display:flex;flex-direction:column;gap:6px;margin-bottom:20px;font-size:.85rem;color:var(--dim)}
+		.standings-list li{padding:7px 10px;background:rgba(255,255,255,.03);border-radius:7px}
+		.loser-line{color:var(--tr)!important;background:rgba(255,77,109,.08)!important}
+	</style>
+</head>
+<body>
+<div class="noise"></div>
+
+<!-- ══ SETUP ══════════════════════════════════════════════════════ -->
+<div id="setupScreen" class="screen setup-screen">
+	<div class="setup-card">
+		<div class="setup-eyebrow">Shedding · Trick-Taking</div>
+		<h1 class="setup-title">GETAWAY</h1>
+		<p class="setup-sub">Shed every card before anyone else. Follow suit, dodge the highest card, and don't get stuck holding the pile.</p>
+
+		<div class="mode-tabs">
+			<button class="mode-tab active" id="modeTabLocal" onclick="CardsApp.setupMode('local')">Play vs Bots</button>
+			<button class="mode-tab" id="modeTabOnline" onclick="CardsApp.setupMode('online')">Play Online</button>
+		</div>
+
+		<div id="localSetup">
+			<div class="f-lbl">Your name</div>
+			<input id="humanNameInput" class="f-in" placeholder="You" maxlength="20">
+			<div class="f-lbl" style="margin-top:14px">Players (you + bots)</div>
+			<div id="playerCountGrid" class="pc-grid"></div>
+			<button id="startGameBtn" class="btn-start">Deal Cards →</button>
+		</div>
+
+		<div id="onlineSetup" class="hidden">
+			<div id="onlineAuthArea"></div>
+			<div id="onlineRoomArea" class="hidden">
+				<div class="f-lbl">Your name</div>
+				<input id="onlineNameInput" class="f-in" placeholder="You" maxlength="20">
+				<div class="online-subtabs">
+					<button class="mode-tab active" id="onlineSubHost" onclick="CardsApp.onlineSub('host')">Host</button>
+					<button class="mode-tab" id="onlineSubJoin" onclick="CardsApp.onlineSub('join')">Join</button>
+				</div>
+				<div id="onlineHostPane">
+					<div class="f-lbl">Total seats (empty ones fill with bots)</div>
+					<div id="onlinePcGrid" class="pc-grid"></div>
+					<button id="createRoomBtn" class="btn-start" onclick="CardsApp.createRoom()">Create Room →</button>
+				</div>
+				<div id="onlineJoinPane" class="hidden">
+					<div class="f-lbl">Room code</div>
+					<input id="roomIdInput" class="f-in" placeholder="getaway-ab12cd">
+					<button id="joinRoomBtn" class="btn-start" onclick="CardsApp.joinRoomAction()">Join Room →</button>
+				</div>
+			</div>
+		</div>
+
+		<button class="btn-link" onclick="CardsApp.openRules()">How to play</button>
+	</div>
+</div>
+
+<!-- ══ LOBBY ══════════════════════════════════════════════════════ -->
+<div id="lobbyScreen" class="screen setup-screen hidden">
+	<div class="setup-card">
+		<div class="setup-eyebrow" id="lobbyEyebrow">Room</div>
+		<h1 class="setup-title" id="lobbyRoomId" style="font-size:1.5rem">—</h1>
+		<button class="btn-link" style="margin-bottom:6px" onclick="CardsApp.copyRoomLink()">Copy invite link</button>
+		<div class="f-lbl" style="margin-top:14px">Players</div>
+		<div id="lobbySeats" class="lobby-seats"></div>
+		<button id="lobbyStartBtn" class="btn-start hidden" onclick="CardsApp.startHostedGame()">Start Game →</button>
+		<div id="lobbyWaitMsg" class="lobby-wait hidden">Waiting for the host to start…</div>
+		<button class="btn-link" onclick="CardsApp.leaveLobby()">Leave</button>
+	</div>
+</div>
+
+<!-- ══ GAME ═══════════════════════════════════════════════════════ -->
+<div id="gameScreen" class="screen game-screen hidden">
+	<header class="hdr">
+		<div class="hdr-title">GETAWAY</div>
+		<div class="hdr-mid" id="hdrStatus">—</div>
+		<div class="hdr-actions">
+			<button class="hdr-btn" onclick="CardsApp.openRules()">Rules</button>
+			<button class="hdr-btn" onclick="CardsApp.newGame()">New Game</button>
+		</div>
+	</header>
+
+	<div class="table-wrap">
+		<div id="logPanel" class="log-panel">
+			<div class="log-head">Game Log</div>
+			<div id="logFeed" class="log-feed"></div>
+		</div>
+		<div id="table" class="table">
+			<div id="discardPileIndicator" class="discard-indicator" title="Removed from play for good (opening trick)">
+				<span class="discard-icon">🂠</span><span id="discardCount">0</span>
+			</div>
+			<div id="trickPile" class="trick-pile"></div>
+			<div id="seats" class="seats"></div>
+		</div>
+	</div>
+
+	<div class="hand-dock">
+		<div id="prompt" class="prompt">—</div>
+		<div id="humanHand" class="hand-row"></div>
+	</div>
+</div>
+
+<!-- ══ RULES DRAWER ═══════════════════════════════════════════════ -->
+<div id="rulesBackdrop" class="drawer-backdrop" onclick="CardsApp.closeRules()"></div>
+<div id="rulesDrawer" class="drawer">
+	<div class="drawer-head"><span>How To Play</span><button class="drawer-close" onclick="CardsApp.closeRules()">✕</button></div>
+	<div class="drawer-body">
+		<h3>Objective</h3>
+		<p>Get rid of every card in your hand. Whoever is still holding cards when everyone else has escaped is stuck — that's the loser.</p>
+
+		<h3>The Deal</h3>
+		<p>A standard 52-card deck is shuffled and dealt out evenly to every player (3–10, including you). Whoever holds the Ace of Spades opens the game.</p>
+
+		<h3>Opening Trick</h3>
+		<p>The Ace of Spades leads the very first trick. Everyone else throws their highest Spade; anyone with no Spades throws their highest Club, or their highest card if they have neither. This one trick is special — every card played in it is removed from the game for good. Nobody picks it up.</p>
+
+		<h3>Leading a Trick</h3>
+		<p>After the opening trick, whoever leads plays their lowest card. If their lowest card is a 2 and they're holding an unbroken run right above it (like 2-3-4), they lead the top of that run instead — dumping as many low cards as possible in one go.</p>
+
+		<h3>Following Suit</h3>
+		<p>Everyone else must follow the suit that was led, if they can.</p>
+
+		<h3>Penalty Cut</h3>
+		<p>Can't follow suit? You're forced to throw your highest card overall — a penalty for being caught without the suit.</p>
+
+		<h3>Who Picks Up</h3>
+		<p>Once everyone's played, whoever threw the highest card of the suit that was led has to scoop the entire trick into their hand. That player leads the next trick.</p>
+
+		<h3>Escaping</h3>
+		<p>Play your last card and survive the trick without picking up, and you're out — safely shed. Play continues until one unlucky player is left holding cards.</p>
+
+		<h3>How the bots play</h3>
+		<p>Bots follow the rules mechanically: lead their lowest card (or a low run), play defensively in the middle of a trick (their highest card that still stays under the table), and — as the last to act — throw their highest card of the suit, since by then they can see exactly what's safe. You get to choose for yourself within the same constraints.</p>
+
+		<h3>Playing Online</h3>
+		<p>Sign in, then either host a room (pick how many total seats — any left empty when you start fill in with bots) or join one with a room code. The host's browser runs the game; everyone else's hand stays private to them.</p>
+	</div>
+</div>
+
+<!-- ══ GAME OVER ══════════════════════════════════════════════════ -->
+<div id="gameOverModal" class="modal-overlay">
+	<div class="modal-box">
+		<h2 id="gameOverTitle">Game Over</h2>
+		<ol class="standings-list" id="standingsList"></ol>
+		<button class="btn-start" onclick="CardsApp.playAgain()">Play Again</button>
+	</div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
