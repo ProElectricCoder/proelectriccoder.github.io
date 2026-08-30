@@ -1,11 +1,5 @@
-// ── Legal-move & trick-outcome rules shared by the human-facing UI ──────
-// Bots never call these — they use Bot.js's fully deterministic
-// getBotMove() instead. These functions describe what's *legal*; within
-// that legal set, a person is free to choose (see the fidelity note in
-// Bot.js re: the one deliberate Club-fallback divergence on trick one).
 import {
-	handHasSuit, handGetCard, handGetCardsOfSuit, handGetHighestCard,
-	handGetHighestCardOverall, trickIsEmpty, trickGetLeadSuit,
+	handHasSuit, handGetCard, handGetCardsOfSuit, trickIsEmpty, trickGetLeadSuit,
 } from '../Bot.js';
 
 export function getLegalMoves(hand, trick, isFirstTrick) {
@@ -14,30 +8,84 @@ export function getLegalMoves(hand, trick, isFirstTrick) {
 			const ace = handGetCard(hand, 'S', 14);
 			return ace ? [ace] : hand.slice();
 		}
-		if (handHasSuit(hand, 'S')) return [handGetHighestCard(hand, 'S')];
-		if (handHasSuit(hand, 'C')) return [handGetHighestCard(hand, 'C')];
-		return [handGetHighestCardOverall(hand)];
+		// Allow humans to play ANY Spade/Club, not just the highest
+		if (handHasSuit(hand, 'S')) return handGetCardsOfSuit(hand, 'S');
+		if (handHasSuit(hand, 'C')) return handGetCardsOfSuit(hand, 'C');
+		return hand.slice();
 	}
+
 	if (trickIsEmpty(trick)) {
-		return hand.slice(); // leading — free choice of any card
+		return hand.slice(); // Leading — free choice
 	}
+
 	const leadSuit = trickGetLeadSuit(trick);
 	if (handHasSuit(hand, leadSuit)) {
-		return handGetCardsOfSuit(hand, leadSuit); // must follow suit — free choice among them
+		return handGetCardsOfSuit(hand, leadSuit); // Must follow suit — free choice
 	}
-	return [handGetHighestCardOverall(hand)]; // void — forced penalty cut
+
+	// Void / Tulla — human can throw ANY card as a penalty
+	return hand.slice();
 }
 
-// Who must pick up the trick pile: whoever played the highest card of the
-// led suit. Always resolves — the leader's own card is guaranteed to be
-// of the led suit.
-export function getTrickPickup(trick) {
-	const leadSuit = trickGetLeadSuit(trick);
-	let winner = null;
-	for (const play of trick.plays) {
-		if (play.card.suit === leadSuit && (!winner || play.card.rank > winner.card.rank)) {
-			winner = play;
+// Determines if the engine should resolve the trick immediately.
+// Call this after every single card play.
+export function isTrickComplete(trick, activePlayerCount, isFirstTrick) {
+	if (!trick || !trick.plays) return false;
+
+	if (trick.plays.length === activePlayerCount) return true;
+
+	// If not the first trick, check if the last played card was a Tulla.
+	// If yes, trick ends immediately. Remaining players are skipped.
+	if (!isFirstTrick && trick.plays.length > 1) {
+		const leadSuit = trickGetLeadSuit(trick);
+		const lastPlay = trick.plays[trick.plays.length - 1];
+		if (lastPlay.card.suit !== leadSuit) {
+			return true;
 		}
 	}
-	return winner;
+
+	return false;
+}
+
+// Evaluates trick outcome (Pickup vs Clear)
+export function evaluateTrickOutcome(trick, isFirstTrick) {
+	const leadSuit = trickGetLeadSuit(trick);
+	let highestLeadPlay = null;
+	let tullaOccurred = false;
+
+	for (const play of trick.plays) {
+		if (play.card.suit === leadSuit) {
+			if (!highestLeadPlay || play.card.rank > highestLeadPlay.card.rank) {
+				highestLeadPlay = play;
+			}
+		} else {
+			tullaOccurred = true;
+		}
+	}
+
+	// First trick is always discarded. Winner of the trick leads next.
+	if (isFirstTrick) {
+		return {
+			action: 'CLEAR',
+			nextLeaderIdx: highestLeadPlay.playerIdx,
+			pileToPickup: []
+		};
+	}
+
+	// Tulla occurred. Victim picks up all cards and leads next.
+	if (tullaOccurred) {
+		return {
+			action: 'PICKUP',
+			victimIdx: highestLeadPlay.playerIdx,
+			nextLeaderIdx: highestLeadPlay.playerIdx,
+			pileToPickup: trick.plays.map(p => p.card)
+		};
+	}
+
+	// Clean trick. Cards are discarded.
+	return {
+		action: 'CLEAR',
+		nextLeaderIdx: highestLeadPlay.playerIdx,
+		pileToPickup: []
+	};
 }
