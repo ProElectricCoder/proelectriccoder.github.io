@@ -7,7 +7,7 @@
 import { S, resetState, pushLog } from './state.js';
 import { createDeck, shuffle, deal, cardLabel, SUIT_META } from './deck.js';
 import { getBotMove, trickGetLeadSuit } from '../Bot.js';
-import { getLegalMoves, getTrickPickup } from './rules.js';
+import { getLegalMoves, isTrickComplete, evaluateTrickOutcome } from './rules.js';
 import * as Render from './render.js';
 import * as Net from './net.js';
 
@@ -152,15 +152,15 @@ function describePrompt(legal) {
 		return 'You hold the Ace of Spades — lead it to open the game.';
 	}
 	if (trick.isFirstTrick) {
-		const c = legal[0];
-		if (c.suit === 'S') return `Opening trick — forced to follow with your highest Spade: ${cardLabel(c)}.`;
-		if (c.suit === 'C') return `Opening trick — no Spades: forced to follow with your highest Club: ${cardLabel(c)}.`;
-		return `Opening trick — no Spades or Clubs: forced to play your highest card, ${cardLabel(c)}.`;
+		const suit = legal[0]?.suit;
+		if (suit === 'S') return 'Opening trick — play any Spade.';
+		if (suit === 'C') return 'Opening trick — no Spades: play any Club.';
+		return 'Opening trick — no Spades or Clubs: play any card.';
 	}
 	if (trick.plays.length === 0) return 'Your lead — choose any card from your hand.';
 	const leadSuit = trickGetLeadSuit(trick);
 	const following = legal.some(c => c.suit === leadSuit);
-	if (!following) return `Out of ${SUIT_META[leadSuit].name} — penalty cut, forced to play ${cardLabel(legal[0])}.`;
+	if (!following) return `Out of ${SUIT_META[leadSuit].name} — throw any card as your penalty cut (ends the trick right away).`;
 	const singular = SUIT_META[leadSuit].name.slice(0, -1);
 	return `Follow suit (${SUIT_META[leadSuit].symbol}) — choose any ${singular}.`;
 }
@@ -173,12 +173,13 @@ function playCard(playerIdx, card) {
 	player.count = player.hand.length;
 	S.trick.plays.push({ playerIdx, card });
 
-	pushLog(`${player.name} plays ${cardLabel(card)}${S.trick.plays.length === 1 ? ' (leads)' : ''}.`);
+	const isTulla = S.trick.plays.length > 1 && !S.trick.isFirstTrick && card.suit !== trickGetLeadSuit(S.trick);
+	pushLog(`${player.name} plays ${cardLabel(card)}${S.trick.plays.length === 1 ? ' (leads)' : isTulla ? ' — penalty cut, trick over!' : ''}.`);
 	Render.animatePlay(playerIdx, card);
 	Render.renderLog();
 	Render.setPrompt('—');
 
-	const trickComplete = S.trick.plays.length === S.activeOrder.length;
+	const trickComplete = isTrickComplete(S.trick, S.activeOrder.length, S.trick.isFirstTrick);
 	if (!trickComplete) S.turnPointer++;
 
 	if (S.mode === 'host') Net.broadcast(publicEventMsg('play', { playerIdx, card }));
