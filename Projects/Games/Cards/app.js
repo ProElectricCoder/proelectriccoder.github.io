@@ -12,6 +12,7 @@ import * as Auth from './modules/auth.js';
 import * as Net from './modules/net.js';
 import * as Lobby from './modules/lobby.js';
 import * as Guest from './modules/guest-client.js';
+import * as Chat from './modules/chat.js';
 
 firebase.initializeApp(FB_CFG);
 
@@ -93,6 +94,13 @@ window.CardsApp = {
 			() => {},
 			() => prompt('Copy this link:', url),
 		);
+	},
+
+	// ── Chat ─────────────────────────────────────────────────────────
+	toggleChat() { Chat.toggleChat(); },
+	sendChat() {
+		const input = document.getElementById('chatInput');
+		Chat.sendChatMessage(input?.value || '');
 	},
 };
 
