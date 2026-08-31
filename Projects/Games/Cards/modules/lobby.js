@@ -3,6 +3,7 @@ import { S, pushLog } from './state.js';
 import * as Net from './net.js';
 import { startHostGame, handleRemoteMove, convertSeatToBot } from './game.js';
 import * as Render from './render.js';
+import * as Chat from './chat.js';
 
 const roster = new Map(); // gid -> { name, seatIdx }
 let hostName = 'You';
@@ -12,6 +13,8 @@ export async function createHostedRoom(numSeats, name) {
 	hostName = (name || '').trim() || 'You';
 	roster.clear();
 	started = false;
+	S.mode = 'host';
+	Chat.clearMessages();
 
 	Net.onNet('peer-connected', () => {}); // seat assignment waits for their 'hello' (need a name first)
 	Net.onNet('peer-disconnected', ({ gid }) => onPeerLeft(gid));
@@ -22,6 +25,11 @@ export async function createHostedRoom(numSeats, name) {
 	S.maxSeats = numSeats;
 	broadcastRoster();
 	return roomId;
+}
+
+function systemNotice(text) {
+	Net.broadcast({ type: 'CHAT_BROADCAST', sender: 'System', text, system: true });
+	Chat.addMessage('System', text, true);
 }
 
 function onPeerMessage(gid, data) {
@@ -35,9 +43,16 @@ function onPeerMessage(gid, data) {
 		Net.sendTo(gid, { type: 'seat', seatIdx });
 		pushLog(`${name} joined the room.`);
 		Render.renderLog();
+		systemNotice(`${name} joined the room.`);
 		broadcastRoster();
 	} else if (data.type === 'move' && started) {
 		handleRemoteMove(gid, data.cardId);
+	} else if (data.type === 'CHAT_MESSAGE') {
+		const senderName = roster.get(gid)?.name || 'Player';
+		const text = String(data.text || '').trim().slice(0, 500);
+		if (!text) return;
+		Net.broadcast({ type: 'CHAT_BROADCAST', sender: senderName, text, system: false });
+		Chat.addMessage(senderName, text);
 	}
 }
 
@@ -46,8 +61,10 @@ function onPeerLeft(gid) {
 	if (!entry) return;
 	if (started) {
 		convertSeatToBot(gid);
+		systemNotice(`${entry.name} left — a bot is taking over their hand.`);
 	} else {
 		roster.delete(gid);
+		systemNotice(`${entry.name} left the room.`);
 		broadcastRoster();
 	}
 }
@@ -64,7 +81,7 @@ function broadcastRoster() {
 }
 
 export function startHostedGame() {
-	if (started || roster.size + 1 < 3 && S.maxSeats < 3) return;
+	if (started) return;
 	started = true;
 	const seatToGid = new Map();
 	for (const [gid, entry] of roster) seatToGid.set(entry.seatIdx, gid);
