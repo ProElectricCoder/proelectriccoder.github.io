@@ -1,6 +1,7 @@
 // ── Screens, setup form, lobby shell, rules drawer ───────────────────
 import { S } from './state.js';
 import { escapeHtml } from './render.js';
+import * as Chat from './chat.js';
 
 let onlineSubTab = 'host';
 let chosenLocalCount = 6;
@@ -13,12 +14,15 @@ function hide(id) { document.getElementById(id)?.classList.add('hidden'); }
 export function showSetupScreen() {
 	show('setupScreen'); hide('lobbyScreen'); hide('gameScreen');
 	document.getElementById('gameOverModal')?.classList.remove('open');
+	Chat.setVisible(false);
 }
 export function showLobbyScreen() {
 	hide('setupScreen'); show('lobbyScreen'); hide('gameScreen');
+	Chat.setVisible(S.mode !== 'local');
 }
 export function showGameScreen() {
 	hide('setupScreen'); hide('lobbyScreen'); show('gameScreen');
+	Chat.setVisible(S.mode !== 'local');
 }
 export function showRoomFullMessage() {
 	alert('That room is already full.');
