@@ -7,16 +7,20 @@ import { S, pushLog } from './state.js';
 import * as Net from './net.js';
 import * as Render from './render.js';
 import * as UI from './ui.js';
+import * as Chat from './chat.js';
 import { getLegalMoves } from './rules.js';
 
 export async function joinHostedRoom(roomId, name) {
 	S.roomId = roomId;
+	S.mode = 'guest';
+	Chat.clearMessages();
 	Net.onNet('connected', () => {
 		Net.sendToHost({ type: 'hello', name: (name || '').trim() || 'You' });
 	});
 	Net.onNet('disconnected', () => {
 		pushLog('Disconnected from the host.');
 		Render.renderLog();
+		Chat.addMessage('System', 'Disconnected from the host.', true);
 		Render.setHeaderStatus('Disconnected');
 		Render.setPrompt('Lost connection to the host — they may have closed the room.');
 	});
@@ -95,6 +99,9 @@ function handleHostMessage(data) {
 			Render.setHeaderStatus('Game over');
 			Render.setPrompt('—');
 			Render.showGameOver(data.loserIdx != null ? S.players[data.loserIdx] : null);
+			break;
+		case 'CHAT_BROADCAST':
+			Chat.addMessage(data.sender, data.text, !!data.system);
 			break;
 	}
 }
