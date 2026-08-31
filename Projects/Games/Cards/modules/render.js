@@ -3,7 +3,7 @@
 // on this particular browser gets the interactive hand row; everyone else
 // is just rendered from whatever's currently in S.
 import { S } from './state.js';
-import { cardLabel, SUIT_META, sortHand } from './deck.js';
+import { SUIT_META, RANK_LABEL, sortHand } from './deck.js';
 
 function $(id) { return document.getElementById(id); }
 
@@ -87,15 +87,51 @@ function renderDiscardCounter() {
 }
 
 // ── Card markup ─────────────────────────────────────────────────────
-function cardHtml(card, variant) {
+// Traditional pip layout per rank: [xPercent, yPercent, rotationDeg].
+// Bottom-half pips get rot:180 so the card reads correctly either way up,
+// exactly like a real deck.
+const PIP_LAYOUTS = {
+	2:  [[50, 16, 0], [50, 84, 180]],
+	3:  [[50, 16, 0], [50, 50, 0], [50, 84, 180]],
+	4:  [[25, 16, 0], [75, 16, 0], [25, 84, 180], [75, 84, 180]],
+	5:  [[25, 16, 0], [75, 16, 0], [50, 50, 0], [25, 84, 180], [75, 84, 180]],
+	6:  [[25, 16, 0], [75, 16, 0], [25, 50, 0], [75, 50, 0], [25, 84, 180], [75, 84, 180]],
+	7:  [[25, 16, 0], [75, 16, 0], [50, 32, 0], [25, 50, 0], [75, 50, 0], [25, 84, 180], [75, 84, 180]],
+	8:  [[25, 16, 0], [75, 16, 0], [50, 32, 0], [25, 50, 0], [75, 50, 0], [50, 68, 180], [25, 84, 180], [75, 84, 180]],
+	9:  [[25, 13, 0], [75, 13, 0], [25, 37, 0], [75, 37, 0], [50, 50, 0], [25, 63, 180], [75, 63, 180], [25, 87, 180], [75, 87, 180]],
+	10: [[25, 13, 0], [75, 13, 0], [50, 26, 0], [25, 39, 0], [75, 39, 0], [25, 61, 180], [75, 61, 180], [50, 74, 180], [25, 87, 180], [75, 87, 180]],
+};
+
+export function renderCard(card, variant) {
 	const meta = SUIT_META[card.suit];
+	const rank = card.rank;
+	const rankLabel = RANK_LABEL[rank];
+
+	let center;
+	if (rank === 14) {
+		center = `<span class="pip ace-pip" style="color:${meta.color}">${meta.symbol}</span>`;
+	} else if (rank >= 11) {
+		center = `<div class="face-frame" style="border-color:${meta.color}">
+			<span class="face-suit-corner tl" style="color:${meta.color}">${meta.symbol}</span>
+			<span class="face-letter" style="color:${meta.color}">${rankLabel}</span>
+			<span class="face-suit-corner br" style="color:${meta.color}">${meta.symbol}</span>
+		</div>`;
+	} else {
+		center = (PIP_LAYOUTS[rank] || []).map(([x, y, rot]) =>
+			`<span class="pip" style="left:${x}%;top:${y}%;color:${meta.color};transform:translate(-50%,-50%) rotate(${rot}deg)">${meta.symbol}</span>`,
+		).join('');
+	}
+
+	const idx = `<span class="idx-rank">${rankLabel}</span><span class="idx-suit">${meta.symbol}</span>`;
 	const cls = ['card'];
 	if (variant === 'pile') cls.push('card-sm');
 	if (variant === 'hand-playable') cls.push('card-playable');
 	if (variant === 'hand-disabled') cls.push('card-disabled');
 	const click = variant === 'hand-playable' ? ` onclick="CardsApp.humanPlay('${card.id}')"` : '';
-	return `<div class="${cls.join(' ')}" data-card-id="${card.id}"${click} style="--suit-color:${meta.color}">
-		<span class="card-rank">${cardLabel(card).slice(0, -1)}</span><span class="card-suit">${meta.symbol}</span>
+	return `<div class="${cls.join(' ')}" data-card-id="${card.id}"${click}>
+		<div class="card-idx tl" style="color:${meta.color}">${idx}</div>
+		<div class="card-center">${center}</div>
+		<div class="card-idx br" style="color:${meta.color}">${idx}</div>
 	</div>`;
 }
 
@@ -110,7 +146,7 @@ export function renderHumanHand(legalCards) {
 			: '<div class="hand-empty">You&rsquo;re out — nothing left to play. 🎉</div>';
 		return;
 	}
-	wrap.innerHTML = hand.map(c => cardHtml(c, legalIds.has(c.id) ? 'hand-playable' : 'hand-disabled')).join('');
+	wrap.innerHTML = hand.map(c => renderCard(c, legalIds.has(c.id) ? 'hand-playable' : 'hand-disabled')).join('');
 }
 
 // ── Trick pile: play-in / fly-out animation ─────────────────────────
@@ -122,7 +158,7 @@ export function animatePlay(playerIdx, card) {
 	wrap.style.setProperty('--i', i >= 0 ? i : 0);
 	const anim = document.createElement('div');
 	anim.className = 'pile-card-anim pile-card-in';
-	anim.innerHTML = cardHtml(card, 'pile') + `<div class="pile-card-name">${escapeHtml(S.players[playerIdx]?.name || '')}</div>`;
+	anim.innerHTML = renderCard(card, 'pile') + `<div class="pile-card-name">${escapeHtml(S.players[playerIdx]?.name || '')}</div>`;
 	wrap.appendChild(anim);
 	pile.appendChild(wrap);
 	refreshBoard();
