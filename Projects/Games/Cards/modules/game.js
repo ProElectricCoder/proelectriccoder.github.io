@@ -196,24 +196,26 @@ function playCard(playerIdx, card) {
 
 function resolveTrick() {
 	const trick = S.trick;
-	const pickup = getTrickPickup(trick);
+	const outcome = evaluateTrickOutcome(trick, trick.isFirstTrick);
 	const cards = trick.plays.map(p => p.card);
 
-	if (trick.isFirstTrick) {
+	if (outcome.action === 'PICKUP') {
+		const victim = S.players[outcome.victimIdx];
+		victim.hand.push(...outcome.pileToPickup);
+		victim.count = victim.hand.length;
+		pushLog(`${victim.name} couldn't follow suit and must pick up ${outcome.pileToPickup.length} cards.`);
+		Render.animatePickup(outcome.victimIdx);
+		if (S.mode === 'host') {
+			Net.broadcast(publicEventMsg('resolve-pickup', { pickupPlayerIdx: outcome.victimIdx }));
+			if (victim.kind === 'remote') Net.sendTo(victim.gid, { type: 'hand', hand: victim.hand });
+		}
+	} else {
 		S.discardPile.push(...cards);
-		pushLog(`Opening trick discarded — ${cards.length} card${cards.length === 1 ? '' : 's'} removed from play for good.`);
+		pushLog(trick.isFirstTrick
+			? `Opening trick discarded — ${cards.length} card${cards.length === 1 ? '' : 's'} removed from play for good.`
+			: `Clean trick — everyone followed suit, ${cards.length} card${cards.length === 1 ? '' : 's'} cleared from play.`);
 		Render.animateDiscard();
 		if (S.mode === 'host') Net.broadcast(publicEventMsg('resolve-discard'));
-	} else {
-		const winner = S.players[pickup.playerIdx];
-		winner.hand.push(...cards);
-		winner.count = winner.hand.length;
-		pushLog(`${winner.name} played the highest card of the trick and must pick up ${cards.length} cards.`);
-		Render.animatePickup(pickup.playerIdx);
-		if (S.mode === 'host') {
-			Net.broadcast(publicEventMsg('resolve-pickup', { pickupPlayerIdx: pickup.playerIdx }));
-			if (winner.kind === 'remote') Net.sendTo(winner.gid, { type: 'hand', hand: winner.hand });
-		}
 	}
 
 	for (const p of S.players) {
@@ -236,7 +238,7 @@ function resolveTrick() {
 			if (S.mode === 'host') Net.broadcast({ type: 'game-over', finishOrder: S.finishOrder, loserIdx: loser?.idx ?? null, snapshot: snapshot() });
 			return;
 		}
-		let nextLeader = pickup.playerIdx;
+		let nextLeader = outcome.nextLeaderIdx;
 		for (let i = 0; i < S.numPlayers; i++) {
 			const idx = (nextLeader + i) % S.numPlayers;
 			if (S.players[idx].hand.length > 0) { nextLeader = idx; break; }
