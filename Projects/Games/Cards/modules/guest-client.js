@@ -15,7 +15,11 @@ export async function joinHostedRoom(roomId, name) {
 	S.mode = 'guest';
 	Chat.clearMessages();
 	Net.onNet('connected', () => {
-		Net.sendToHost({ type: 'hello', name: (name || '').trim() || 'You' });
+		Net.sendToHost({
+			type: 'hello',
+			name: (name || '').trim() || 'You',
+			avatarUrl: firebase.auth().currentUser?.photoURL || null,
+		});
 	});
 	Net.onNet('disconnected', () => {
 		pushLog('Disconnected from the host.');
@@ -40,16 +44,17 @@ function applySnapshot(snap) {
 	S.log = snap.log;
 	snap.players.forEach(sp => {
 		const p = S.players[sp.idx];
-		if (p) { p.name = sp.name; p.kind = sp.kind; p.count = sp.count; }
+		if (p) { p.name = sp.name; p.kind = sp.kind; p.count = sp.count; p.avatarUrl = sp.avatarUrl || null; }
 	});
 }
 
 function ensureRoster(snapPlayers) {
-	if (S.players.length === snapPlayers.length) return;
 	S.numPlayers = snapPlayers.length;
+	const prevHand = S.players[S.localSeatIdx]?.hand;
 	S.players = snapPlayers.map(sp => ({
 		idx: sp.idx, name: sp.name, kind: sp.kind, gid: null,
-		hand: sp.idx === S.localSeatIdx ? (S.players[S.localSeatIdx]?.hand || []) : [],
+		avatarUrl: sp.avatarUrl || null,
+		hand: sp.idx === S.localSeatIdx ? (prevHand || []) : [],
 		handKnown: sp.idx === S.localSeatIdx,
 		count: sp.count,
 	}));
@@ -75,6 +80,7 @@ function handleHostMessage(data) {
 				S.players[S.localSeatIdx].count = data.hand.length;
 				S.players[S.localSeatIdx].handKnown = true;
 			}
+			refreshPrompt();
 			break;
 		case 'state':
 			if (data.event === 'deal') {
