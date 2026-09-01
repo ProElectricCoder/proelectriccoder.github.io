@@ -10,6 +10,7 @@ import { getBotMove, trickGetLeadSuit } from '../Bot.js';
 import { getLegalMoves, isTrickComplete, evaluateTrickOutcome } from './rules.js';
 import * as Render from './render.js';
 import * as Net from './net.js';
+import * as UI from './ui.js';
 
 const BOT_DELAY_MS = 700, FAST_BOT_DELAY_MS = 90;          // spec: 600-800ms normally
 const TRICK_PAUSE_MS = 550, FAST_TRICK_PAUSE_MS = 120;
@@ -42,7 +43,8 @@ function allBotsRemaining() {
 }
 
 export function startLocalGame(numPlayers, humanName) {
-	const specs = [{ name: (humanName || '').trim() || 'You', kind: 'local' }];
+	const avatarUrl = firebase.auth().currentUser?.photoURL || null;
+	const specs = [{ name: (humanName || '').trim() || 'You', kind: 'local', avatarUrl }];
 	for (let i = 1; i < numPlayers; i++) specs.push({ name: `Bot ${i}`, kind: 'bot' });
 	beginGame(specs, 'local', 0);
 }
@@ -54,6 +56,7 @@ export function startHostGame(seatSpecs) {
 function beginGame(seatSpecs, mode, localSeatIdx) {
 	resetState(seatSpecs, mode, localSeatIdx);
 	seenStates = new Set();
+	UI.showGameScreen();
 
 	const hands = deal(shuffle(createDeck()), S.numPlayers);
 	hands.forEach((h, i) => { S.players[i].hand = h; S.players[i].count = h.length; });
@@ -72,8 +75,12 @@ function beginGame(seatSpecs, mode, localSeatIdx) {
 	Render.renderLog();
 
 	if (S.mode === 'host') {
-		S.players.forEach(p => { if (p.kind === 'remote') Net.sendTo(p.gid, { type: 'hand', hand: p.hand }); });
+		// Broadcast the public snapshot FIRST so every guest's S.players
+		// array exists (built from snapshot.players) before their private
+		// 'hand' message arrives on the same ordered channel — otherwise
+		// the guest has nowhere to put it and the hand is silently lost.
 		Net.broadcast(publicEventMsg('deal'));
+		S.players.forEach(p => { if (p.kind === 'remote') Net.sendTo(p.gid, { type: 'hand', hand: p.hand }); });
 	}
 
 	advanceTurn();
@@ -102,7 +109,7 @@ function snapshot() {
 		discardCount: S.discardPile.length,
 		finishOrder: S.finishOrder,
 		phase: S.phase,
-		players: S.players.map(p => ({ idx: p.idx, name: p.name, kind: p.kind, count: p.hand.length })),
+		players: S.players.map(p => ({ idx: p.idx, name: p.name, kind: p.kind, count: p.hand.length, avatarUrl: p.avatarUrl || null })),
 		log: S.log.slice(-12),
 	};
 }
