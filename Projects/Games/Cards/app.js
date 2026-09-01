@@ -13,6 +13,7 @@ import * as Net from './modules/net.js';
 import * as Lobby from './modules/lobby.js';
 import * as Guest from './modules/guest-client.js';
 import * as Chat from './modules/chat.js';
+import * as RoomDirectory from './modules/room-directory.js';
 
 firebase.initializeApp(FB_CFG);
 
@@ -47,6 +48,7 @@ window.CardsApp = {
 
 	// ── Hosting ──────────────────────────────────────────────────────
 	async createRoom() {
+		if (!Auth.isRealUser()) { alert('Sign in first to host a room.'); return; }
 		const name = document.getElementById('onlineNameInput')?.value || '';
 		const seats = UI.getChosenHostSeats();
 		const btn = document.getElementById('createRoomBtn');
@@ -80,6 +82,23 @@ window.CardsApp = {
 			if (btn) { btn.disabled = false; btn.textContent = 'Join Room →'; }
 		}
 	},
+	async quickJoin() {
+		const name = document.getElementById('onlineNameInput')?.value || '';
+		const btn = document.getElementById('quickJoinBtn');
+		if (btn) { btn.disabled = true; btn.textContent = 'Finding a room…'; }
+		try {
+			await Auth.ensureGuestAuth();
+			const roomId = await RoomDirectory.findOpenRoom(firebase.auth().currentUser?.uid);
+			if (!roomId) { alert("No open rooms right now — try Host instead, or ask a friend for their room code."); return; }
+			await Guest.joinHostedRoom(roomId, name);
+			onlineRole = 'guest';
+			UI.showLobbyScreen();
+		} catch (e) {
+			alert('Could not quick join: ' + e.message);
+		} finally {
+			if (btn) { btn.disabled = false; btn.textContent = '⚡ Quick Join →'; }
+		}
+	},
 
 	// ── Lobby ────────────────────────────────────────────────────────
 	leaveLobby() {
@@ -107,7 +126,6 @@ window.CardsApp = {
 // ── Boot ────────────────────────────────────────────────────────────
 Auth.initAuth(user => UI.renderAuthArea(user));
 UI.initSetupScreen((numPlayers, name) => {
-	UI.showGameScreen();
 	startLocalGame(numPlayers, name);
 });
 UI.initOnlineHostGrid();
