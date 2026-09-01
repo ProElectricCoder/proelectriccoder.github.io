@@ -218,26 +218,35 @@
 		</div>
 
 		<div id="onlineSetup" class="hidden">
-			<div id="onlineAuthArea"></div>
-			<div id="onlineRoomArea" class="hidden">
-				<div class="f-lbl">Your name</div>
-				<input id="onlineNameInput" class="f-in" placeholder="You" maxlength="20">
-				<div class="online-subtabs">
-					<button class="mode-tab active" id="onlineSubHost" onclick="CardsApp.onlineSub('host')">Host</button>
-					<button class="mode-tab" id="onlineSubJoin" onclick="CardsApp.onlineSub('join')">Join</button>
+			<div class="f-lbl">Your name</div>
+			<input id="onlineNameInput" class="f-in" placeholder="You" maxlength="20">
+
+			<div class="online-subtabs">
+				<button class="mode-tab active" id="onlineSubJoin" onclick="CardsApp.onlineSub('join')">Join</button>
+				<button class="mode-tab" id="onlineSubHost" onclick="CardsApp.onlineSub('host')">Host</button>
+			</div>
+
+			<div id="onlineJoinPane">
+				<button id="quickJoinBtn" class="btn-start" onclick="CardsApp.quickJoin()">⚡ Quick Join →</button>
+				<div class="or-divider">or enter a room code</div>
+				<input id="roomIdInput" class="f-in" placeholder="getaway-ab12cd">
+				<button id="joinRoomBtn" class="btn-start btn-secondary" onclick="CardsApp.joinRoomAction()">Join Room →</button>
+			</div>
+
+			<div id="onlineHostPane" class="hidden">
+				<div id="hostAuthGate">
+					<p class="setup-sub" style="margin-bottom:14px">Hosting needs an account, so everyone in the room knows who's running it.</p>
+					<div id="onlineAuthArea"></div>
 				</div>
-				<div id="onlineHostPane">
+				<div id="onlineHostForm" class="hidden">
 					<div class="f-lbl">Total seats (empty ones fill with bots)</div>
 					<div id="onlinePcGrid" class="pc-grid"></div>
 					<button id="createRoomBtn" class="btn-start" onclick="CardsApp.createRoom()">Create Room →</button>
 				</div>
-				<div id="onlineJoinPane" class="hidden">
-					<div class="f-lbl">Room code</div>
-					<input id="roomIdInput" class="f-in" placeholder="getaway-ab12cd">
-					<button id="joinRoomBtn" class="btn-start" onclick="CardsApp.joinRoomAction()">Join Room →</button>
-				</div>
 			</div>
 		</div>
+	</div>
+</div>
 
 		<button class="btn-link" onclick="CardsApp.openRules()">How to play</button>
 	</div>
