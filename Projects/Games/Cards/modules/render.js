@@ -20,10 +20,22 @@ function seatPos(i, n) {
 	return { x: 50 + rx * Math.cos(theta), y: 50 + ry * Math.sin(theta) };
 }
 
-function seatAvatar(p, i) {
+function seatAvatarFallback(p, i) {
 	if (i === S.localSeatIdx) return '★';
 	if (p.kind === 'bot') return '🤖';
 	return '👤';
+}
+
+// Shared avatar markup for any circular frame (.seat-av, .lobby-seat-av,
+// .mini-avatar — each just needs position:relative + overflow:hidden in
+// CSS). The fallback (letter/emoji) sits in normal flow; a photo, if
+// present, layers on top via .av-img and just removes itself on a load
+// error, letting the fallback show through underneath — no inline-string
+// escaping tricks needed either way.
+export function avatarHtml(url, fallback) {
+	if (!url) return fallback;
+	const img = `<img src="${escapeHtml(url)}" alt="" class="av-img" referrerpolicy="no-referrer" onerror="this.remove()">`;
+	return fallback + img;
 }
 
 function seatCardCount(p) {
@@ -43,7 +55,7 @@ export function renderTable() {
 		seat.style.left = x + '%';
 		seat.style.top = y + '%';
 		seat.innerHTML = `
-			<div class="seat-av">${seatAvatar(p, i)}</div>
+			<div class="seat-av">${avatarHtml(p.avatarUrl, seatAvatarFallback(p, i))}</div>
 			<div class="seat-name">${escapeHtml(p.name)}</div>
 			<div class="seat-count">${seatCardCount(p)} 🂠</div>
 		`;
@@ -217,9 +229,11 @@ export function renderLobby({ roomId, maxSeats, seats, isHost, started }) {
 		const rows = [];
 		for (let i = 0; i < maxSeats; i++) {
 			const seat = seats.find(s => s.idx === i);
-			const label = seat ? escapeHtml(seat.name) + (seat.kind === 'local' && isHost && i === 0 ? ' (host)' : '') : 'Open — bot will fill in';
-			const cls = seat ? (seat.kind === 'local' ? 'lobby-seat filled me' : 'lobby-seat filled') : 'lobby-seat empty';
-			rows.push(`<div class="${cls}">${label}</div>`);
+			if (!seat) { rows.push('<div class="lobby-seat empty">Open — bot will fill in</div>'); continue; }
+			const label = escapeHtml(seat.name) + (seat.kind === 'local' && isHost && i === 0 ? ' (host)' : '');
+			const cls = seat.kind === 'local' ? 'lobby-seat filled me' : 'lobby-seat filled';
+			const av = avatarHtml(seat.avatarUrl, seat.kind === 'local' ? '★' : '👤');
+			rows.push(`<div class="${cls}"><span class="lobby-seat-av">${av}</span>${label}</div>`);
 		}
 		list.innerHTML = rows.join('');
 	}
