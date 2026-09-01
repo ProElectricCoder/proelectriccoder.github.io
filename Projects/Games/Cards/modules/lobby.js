@@ -4,13 +4,16 @@ import * as Net from './net.js';
 import { startHostGame, handleRemoteMove, convertSeatToBot } from './game.js';
 import * as Render from './render.js';
 import * as Chat from './chat.js';
+import * as RoomDirectory from './room-directory.js';
 
-const roster = new Map(); // gid -> { name, seatIdx }
+const roster = new Map(); // gid -> { name, seatIdx, avatarUrl }
 let hostName = 'You';
+let hostAvatarUrl = null;
 let started = false;
 
 export async function createHostedRoom(numSeats, name) {
 	hostName = (name || '').trim() || 'You';
+	hostAvatarUrl = firebase.auth().currentUser?.photoURL || null;
 	roster.clear();
 	started = false;
 	S.mode = 'host';
@@ -24,6 +27,14 @@ export async function createHostedRoom(numSeats, name) {
 	S.roomId = roomId;
 	S.maxSeats = numSeats;
 	broadcastRoster();
+
+	// Best-effort: Quick Join simply won't find this room if this fails
+	// (e.g. Firestore rules for `openRooms` aren't set up yet) — that
+	// must never block the room itself from working via a direct code.
+	RoomDirectory.publishRoom(roomId, {
+		hostName, maxSeats: numSeats, hostUid: firebase.auth().currentUser?.uid || null,
+	}).catch(e => console.warn('[RoomDirectory] publish failed — Quick Join won\'t find this room:', e));
+
 	return roomId;
 }
 
@@ -39,12 +50,13 @@ function onPeerMessage(gid, data) {
 		if (roster.size >= S.maxSeats - 1) { Net.sendTo(gid, { type: 'full' }); return; }
 		const seatIdx = roster.size + 1; // seat 0 is always the host
 		const name = (data.name || '').trim() || `Player ${seatIdx}`;
-		roster.set(gid, { name, seatIdx });
+		roster.set(gid, { name, seatIdx, avatarUrl: data.avatarUrl || null });
 		Net.sendTo(gid, { type: 'seat', seatIdx });
 		pushLog(`${name} joined the room.`);
 		Render.renderLog();
 		systemNotice(`${name} joined the room.`);
 		broadcastRoster();
+		RoomDirectory.updateFilledSeats(S.roomId, roster.size + 1).catch(() => {});
 	} else if (data.type === 'move' && started) {
 		handleRemoteMove(gid, data.cardId);
 	} else if (data.type === 'CHAT_MESSAGE') {
@@ -66,12 +78,13 @@ function onPeerLeft(gid) {
 		roster.delete(gid);
 		systemNotice(`${entry.name} left the room.`);
 		broadcastRoster();
+		RoomDirectory.updateFilledSeats(S.roomId, roster.size + 1).catch(() => {});
 	}
 }
 
 function rosterSeats() {
-	const seats = [{ idx: 0, name: hostName, kind: 'local' }];
-	for (const [, entry] of roster) seats.push({ idx: entry.seatIdx, name: entry.name, kind: 'remote' });
+	const seats = [{ idx: 0, name: hostName, kind: 'local', avatarUrl: hostAvatarUrl }];
+	for (const [, entry] of roster) seats.push({ idx: entry.seatIdx, name: entry.name, kind: 'remote', avatarUrl: entry.avatarUrl });
 	return seats.sort((a, b) => a.idx - b.idx);
 }
 
@@ -83,15 +96,17 @@ function broadcastRoster() {
 export function startHostedGame() {
 	if (started) return;
 	started = true;
+	RoomDirectory.closeRoom(S.roomId).catch(() => {});
 	const seatToGid = new Map();
 	for (const [gid, entry] of roster) seatToGid.set(entry.seatIdx, gid);
 
 	const specs = [];
 	for (let i = 0; i < S.maxSeats; i++) {
-		if (i === 0) { specs.push({ name: hostName, kind: 'local' }); continue; }
+		if (i === 0) { specs.push({ name: hostName, kind: 'local', avatarUrl: hostAvatarUrl }); continue; }
 		if (seatToGid.has(i)) {
 			const gid = seatToGid.get(i);
-			specs.push({ name: roster.get(gid).name, kind: 'remote', gid });
+			const entry = roster.get(gid);
+			specs.push({ name: entry.name, kind: 'remote', gid, avatarUrl: entry.avatarUrl });
 		} else {
 			specs.push({ name: `Bot ${i}`, kind: 'bot' });
 		}
@@ -100,6 +115,7 @@ export function startHostedGame() {
 }
 
 export function leaveHostedRoom() {
+	RoomDirectory.closeRoom(S.roomId).catch(() => {});
 	Net.disconnectNet();
 	roster.clear();
 	started = false;
