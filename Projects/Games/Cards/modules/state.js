@@ -7,7 +7,7 @@ export const S = {
 	user: null,               // Firebase user once signed in (online mode)
 
 	numPlayers: 0,
-	players: [],              // { idx, name, kind:'local'|'bot'|'remote', gid, hand, handKnown, count }
+	players: [],              // { idx, name, kind:'local'|'bot'|'remote', gid, avatarUrl, hand, handKnown, count }
 	trick: { plays: [], isFirstTrick: true },
 	leaderIdx: null,
 	activeOrder: [],          // player indices in turn order for the current trick
@@ -29,6 +29,7 @@ export function resetState(seatSpecs, mode, localSeatIdx) {
 		name: spec.name,
 		kind: spec.kind,             // 'local' | 'bot' | 'remote'
 		gid: spec.gid || null,
+		avatarUrl: spec.avatarUrl || null,
 		hand: [],
 		handKnown: mode !== 'guest' || i === localSeatIdx,
 		count: 0,
