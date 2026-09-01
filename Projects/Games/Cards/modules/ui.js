@@ -1,9 +1,9 @@
 // ── Screens, setup form, lobby shell, rules drawer ───────────────────
 import { S } from './state.js';
-import { escapeHtml } from './render.js';
+import { escapeHtml, avatarHtml } from './render.js';
 import * as Chat from './chat.js';
 
-let onlineSubTab = 'host';
+let onlineSubTab = 'join'; // Join is the no-friction default; Host needs an account
 let chosenLocalCount = 6;
 let chosenHostSeats = 6;
 
@@ -74,16 +74,24 @@ export function initOnlineHostGrid() {
 }
 export function getChosenHostSeats() { return chosenHostSeats; }
 
+// Join (including Quick Join) never needs sign-in — modules/net.js gets a
+// guest a silent anonymous session under the hood. Hosting needs a real
+// (Google/GitHub) account, so this only gates the Host pane's form.
 export function renderAuthArea(user) {
 	const a = document.getElementById('onlineAuthArea'); if (!a) return;
-	const roomArea = document.getElementById('onlineRoomArea');
-	if (user) {
-		a.innerHTML = `<div class="auth-row"><span>Signed in as ${escapeHtml(user.displayName || user.email || 'you')}</span><button class="btn-link" onclick="CardsApp.signOut()">Sign out</button></div>`;
-		roomArea?.classList.remove('hidden');
+	const gate = document.getElementById('hostAuthGate');
+	const form = document.getElementById('onlineHostForm');
+	const realUser = !!user && !user.isAnonymous;
+	if (realUser) {
+		const av = avatarHtml(user.photoURL, '👤');
+		a.innerHTML = `<div class="auth-row"><span class="mini-avatar">${av}</span><span>Signed in as ${escapeHtml(user.displayName || user.email || 'you')}</span><button class="btn-link" onclick="CardsApp.signOut()">Sign out</button></div>`;
+		gate?.classList.add('hidden');
+		form?.classList.remove('hidden');
 	} else {
 		a.innerHTML = `<button class="sign-in-btn" onclick="CardsApp.signInGoogle()">Sign in with Google</button>
 			<button class="sign-in-btn" onclick="CardsApp.signInGitHub()">Sign in with GitHub</button>`;
-		roomArea?.classList.add('hidden');
+		gate?.classList.remove('hidden');
+		form?.classList.add('hidden');
 	}
 }
 
