@@ -6,7 +6,7 @@
 // time — this file lives in a different project than engine.js, and a
 // pure Local (vs bots) game should never depend on that cross-project
 // file being reachable. Only entering Online mode ever triggers the load.
-import { getIdToken } from './auth.js';
+import * as Auth from './auth.js';
 import { CFWS_URL } from './constants.js';
 
 let engine = null;
@@ -32,7 +32,8 @@ function newRoomId() {
 
 // ── Host ──────────────────────────────────────────────────────────────
 export async function hostRoom() {
-	const token = await getIdToken();
+	if (!Auth.isRealUser()) throw new Error('Sign in first to host a room');
+	const token = await Auth.getIdToken();
 	if (!token) throw new Error('Sign in first');
 	const Engine = await loadEngineClass();
 	const roomId = newRoomId();
@@ -64,8 +65,9 @@ export function sendTo(gid, msg) {
 
 // ── Guest ─────────────────────────────────────────────────────────────
 export async function joinRoom(roomId) {
-	const token = await getIdToken();
-	if (!token) throw new Error('Sign in first');
+	await Auth.ensureGuestAuth();
+	const token = await Auth.getIdToken();
+	if (!token) throw new Error('Could not connect — try again');
 	const Engine = await loadEngineClass();
 	engine = new Engine({ relay: false, wsUrl: CFWS_URL });
 	engine.onPeerConnected(() => emit('connected', {}));
