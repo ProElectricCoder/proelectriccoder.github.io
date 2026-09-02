@@ -61,16 +61,33 @@
 		.btn-start{width:100%;padding:13px;border:none;border-radius:10px;background:var(--tp);color:#001;font-family:'JetBrains Mono',monospace;font-size:.82rem;font-weight:700;letter-spacing:.03em;cursor:pointer;transition:all .18s;box-shadow:0 0 24px rgba(0,255,255,.18)}
 		.btn-start:hover{filter:brightness(1.08);transform:translateY(-1px)}
 		.btn-start:disabled{opacity:.5;cursor:not-allowed;transform:none}
+		.btn-start.btn-secondary{background:rgba(255,255,255,.06);color:var(--text);box-shadow:none;border:1px solid rgba(255,255,255,.12);margin-top:8px}
+		.btn-start.btn-secondary:hover{background:rgba(255,255,255,.1)}
 		.btn-link{display:block;width:100%;text-align:center;background:none;border:none;color:var(--dim);font-family:'JetBrains Mono',monospace;font-size:.72rem;padding:12px 0 2px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 		.btn-link:hover{color:var(--tp)}
 
+		.or-divider{display:flex;align-items:center;gap:10px;font-family:'JetBrains Mono',monospace;font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin:16px 0}
+		.or-divider::before,.or-divider::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.1)}
+
 		.sign-in-btn{width:100%;padding:11px;margin-bottom:8px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--text);font-family:'DM Sans',sans-serif;font-size:.83rem;cursor:pointer;transition:all .15s}
 		.sign-in-btn:hover{background:rgba(255,255,255,.09)}
-		.auth-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:.8rem;color:var(--dim);margin-bottom:14px;padding:9px 12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:8px}
+		.auth-row{display:flex;align-items:center;gap:10px;font-size:.8rem;color:var(--dim);margin-bottom:14px;padding:9px 12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:8px}
+		.auth-row span:nth-child(2){flex:1}
+		.email-auth-msg{font-size:.72rem;margin-top:8px;min-height:1.1em;line-height:1.5}
+		.email-auth-msg.error{color:var(--tr)}
+		.email-auth-msg.success{color:var(--ta)}
+
+		/* ── Avatars (Google/GitHub profile photos, layered over the
+		     letter/emoji fallback — any container just needs position:
+		     relative + overflow:hidden) ── */
+		.av-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%}
+		.mini-avatar,.lobby-seat-av{position:relative;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0}
+		.mini-avatar{width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.08);font-size:.72rem}
+		.lobby-seat-av{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.08);font-size:.68rem}
 
 		/* ── Lobby ── */
 		.lobby-seats{display:flex;flex-direction:column;gap:6px;margin:8px 0 20px;max-height:260px;overflow-y:auto}
-		.lobby-seat{padding:9px 12px;border-radius:8px;font-size:.82rem;border:1px solid rgba(255,255,255,.07)}
+		.lobby-seat{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;font-size:.82rem;border:1px solid rgba(255,255,255,.07)}
 		.lobby-seat.filled{background:rgba(0,255,153,.06);border-color:rgba(0,255,153,.2);color:var(--text)}
 		.lobby-seat.filled.me{background:rgba(0,255,255,.08);border-color:var(--tbh);color:var(--tp);font-weight:700}
 		.lobby-seat.empty{background:rgba(255,255,255,.02);color:var(--faint);font-style:italic}
@@ -89,7 +106,7 @@
 		.table{position:relative;width:100%;max-width:900px;height:100%;max-height:560px;aspect-ratio:16/11}
 		.seats{position:absolute;inset:0}
 		.seat{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;transition:transform .2s}
-		.seat-av{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;font-size:1rem;font-family:'Syne',sans-serif;font-weight:800;transition:all .25s}
+		.seat-av{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;font-size:1rem;font-family:'Syne',sans-serif;font-weight:800;transition:all .25s;position:relative;overflow:hidden}
 		.seat-local .seat-av{border-color:var(--tbh);background:rgba(0,255,255,.08);color:var(--tp)}
 		.seat-bot .seat-av{opacity:.75}
 		.seat.seat-active .seat-av{border-color:var(--ta);box-shadow:0 0 16px rgba(0,255,153,.45);transform:scale(1.12)}
@@ -236,7 +253,30 @@
 			<div id="onlineHostPane" class="hidden">
 				<div id="hostAuthGate">
 					<p class="setup-sub" style="margin-bottom:14px">Hosting needs an account, so everyone in the room knows who's running it.</p>
-					<div id="onlineAuthArea"></div>
+					<div id="onlineAuthArea">
+						<div id="authSignedOut">
+							<div id="authFormFields">
+								<button class="sign-in-btn" onclick="CardsApp.signInGoogle()">Sign in with Google</button>
+								<button class="sign-in-btn" onclick="CardsApp.signInGitHub()">Sign in with GitHub</button>
+								<div class="or-divider">or use email</div>
+								<div class="online-subtabs">
+									<button class="mode-tab active" id="emailTabSignin" onclick="CardsApp.emailAuthTab('signin')">Sign In</button>
+									<button class="mode-tab" id="emailTabSignup" onclick="CardsApp.emailAuthTab('signup')">Sign Up</button>
+								</div>
+								<input id="emailAuthEmail" class="f-in" type="email" placeholder="Email" autocomplete="email">
+								<input id="emailAuthPassword" class="f-in" type="password" placeholder="Password" autocomplete="current-password">
+								<button id="emailAuthSubmitBtn" class="btn-start btn-secondary" onclick="CardsApp.emailAuthSubmit()">Sign In →</button>
+								<div id="emailAuthMsg" class="email-auth-msg"></div>
+							</div>
+							<div id="authVerifyPanel" class="hidden">
+								<p class="setup-sub">Verify <strong id="authVerifyEmail"></strong> to finish creating your account — check your inbox for the link.</p>
+								<button class="btn-start btn-secondary" onclick="CardsApp.emailAuthRefresh()">I've verified — refresh</button>
+								<button class="btn-link" onclick="CardsApp.emailAuthResend()">Resend verification email</button>
+								<button class="btn-link" onclick="CardsApp.signOut()">Use a different account</button>
+							</div>
+						</div>
+						<div id="authSignedIn" class="hidden"></div>
+					</div>
 				</div>
 				<div id="onlineHostForm" class="hidden">
 					<div class="f-lbl">Total seats (empty ones fill with bots)</div>
@@ -245,8 +285,6 @@
 				</div>
 			</div>
 		</div>
-	</div>
-</div>
 
 		<button class="btn-link" onclick="CardsApp.openRules()">How to play</button>
 	</div>
