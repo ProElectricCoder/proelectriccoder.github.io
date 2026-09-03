@@ -11,9 +11,11 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=JetBrains+Mono:wght@400;500;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700&display=swap" rel="stylesheet">
 
-	<!-- Firebase Auth only — CloudflareWSEngine needs an ID token, nothing here touches Firestore -->
+	<!-- Firebase Auth + Firestore — Auth for the ID token CloudflareWSEngine
+	     needs, Firestore only as a lightweight "which rooms are open" registry for Quick Join -->
 	<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 	<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+	<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 	<style>
 		*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -368,7 +370,7 @@
 		<p>Bots follow the rules mechanically: lead their lowest card (or a low run), play defensively in the middle of a trick (their highest card that still stays under the table), and — as the last to act — throw their highest card of the suit, since by then they can see exactly what's safe. You get to choose for yourself within the same constraints.</p>
 
 		<h3>Playing Online</h3>
-		<p>Sign in, then either host a room (pick how many total seats — any left empty when you start fill in with bots) or join one with a room code. The host's browser runs the game; everyone else's hand stays private to them. A chat bubble in the corner lets everyone in the room talk while you play.</p>
+		<p>Joining a room — Quick Join or a room code — never needs an account. Hosting does, since everyone in the room should be able to trust who's running it; sign in with Google, GitHub, or an email you can verify. The host's browser runs the game; everyone else's hand stays private to them. A chat bubble in the corner lets everyone in the room talk while you play.</p>
 	</div>
 </div>
 
