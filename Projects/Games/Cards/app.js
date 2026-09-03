@@ -42,9 +42,49 @@ window.CardsApp = {
 	onlineSub(sub) { UI.onlineSub(sub); },
 
 	// ── Auth ─────────────────────────────────────────────────────────
-	async signInGoogle() { try { await Auth.signInGoogle(); } catch (e) { alert(e.message); } },
-	async signInGitHub() { try { await Auth.signInGitHub(); } catch (e) { alert(e.message); } },
+	async signInGoogle() { try { await Auth.signInGoogle(); } catch (e) { alert(Auth.friendlyAuthError(e)); } },
+	async signInGitHub() { try { await Auth.signInGitHub(); } catch (e) { alert(Auth.friendlyAuthError(e)); } },
 	async signOut() { await Auth.signOutUser(); },
+
+	emailAuthTab(mode) {
+		document.getElementById('emailTabSignin')?.classList.toggle('active', mode === 'signin');
+		document.getElementById('emailTabSignup')?.classList.toggle('active', mode === 'signup');
+		const btn = document.getElementById('emailAuthSubmitBtn');
+		if (btn) btn.textContent = mode === 'signup' ? 'Create Account →' : 'Sign In →';
+		const msg = document.getElementById('emailAuthMsg');
+		if (msg) { msg.textContent = ''; msg.className = 'email-auth-msg'; }
+	},
+	async emailAuthSubmit() {
+		const email = (document.getElementById('emailAuthEmail')?.value || '').trim();
+		const password = document.getElementById('emailAuthPassword')?.value || '';
+		const msgEl = document.getElementById('emailAuthMsg');
+		const isSignup = document.getElementById('emailTabSignup')?.classList.contains('active');
+		const setMsg = (text, ok) => { if (msgEl) { msgEl.textContent = text; msgEl.className = 'email-auth-msg' + (ok ? ' success' : ' error'); } };
+		if (!email || !password) { setMsg('Enter an email and password.', false); return; }
+		const btn = document.getElementById('emailAuthSubmitBtn');
+		if (btn) btn.disabled = true;
+		try {
+			if (isSignup) {
+				await Auth.signUpWithEmail(email, password);
+				setMsg('Account created — check your inbox for a verification link.', true);
+			} else {
+				await Auth.signInWithEmail(email, password);
+			}
+		} catch (e) {
+			setMsg(Auth.friendlyAuthError(e), false);
+		} finally {
+			if (btn) btn.disabled = false;
+		}
+	},
+	async emailAuthResend() {
+		try { await Auth.resendVerification(); alert('Verification email sent — check your inbox.'); }
+		catch (e) { alert(Auth.friendlyAuthError(e)); }
+	},
+	async emailAuthRefresh() {
+		const user = await Auth.refreshUser();
+		UI.renderAuthArea(user);
+		if (!user || Auth.needsEmailVerification(user)) alert("Still not verified — check your inbox (and spam folder), then try again.");
+	},
 
 	// ── Hosting ──────────────────────────────────────────────────────
 	async createRoom() {
