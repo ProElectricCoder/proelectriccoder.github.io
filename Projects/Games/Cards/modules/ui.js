@@ -2,6 +2,7 @@
 import { S } from './state.js';
 import { escapeHtml, avatarHtml } from './render.js';
 import * as Chat from './chat.js';
+import * as Auth from './auth.js';
 
 let onlineSubTab = 'join'; // Join is the no-friction default; Host needs an account
 let chosenLocalCount = 6;
@@ -75,23 +76,43 @@ export function initOnlineHostGrid() {
 export function getChosenHostSeats() { return chosenHostSeats; }
 
 // Join (including Quick Join) never needs sign-in — modules/net.js gets a
-// guest a silent anonymous session under the hood. Hosting needs a real
-// (Google/GitHub) account, so this only gates the Host pane's form.
+// guest a silent anonymous session under the hood. Hosting needs a real,
+// verified account, so this only gates the Host pane's form. The signed-
+// out markup is static in index.html (not rebuilt here) so an in-progress
+// email/password entry never gets wiped by an unrelated auth-state tick.
 export function renderAuthArea(user) {
-	const a = document.getElementById('onlineAuthArea'); if (!a) return;
 	const gate = document.getElementById('hostAuthGate');
 	const form = document.getElementById('onlineHostForm');
-	const realUser = !!user && !user.isAnonymous;
-	if (realUser) {
+	const signedOut = document.getElementById('authSignedOut');
+	const signedIn = document.getElementById('authSignedIn');
+	const formFields = document.getElementById('authFormFields');
+	const verifyPanel = document.getElementById('authVerifyPanel');
+	if (!signedOut || !signedIn) return;
+
+	const needsVerify = Auth.needsEmailVerification(user);
+	const real = !!user && !user.isAnonymous && !needsVerify;
+
+	gate?.classList.toggle('hidden', real);
+	form?.classList.toggle('hidden', !real);
+
+	if (real) {
+		signedOut.classList.add('hidden');
+		signedIn.classList.remove('hidden');
 		const av = avatarHtml(user.photoURL, '👤');
-		a.innerHTML = `<div class="auth-row"><span class="mini-avatar">${av}</span><span>Signed in as ${escapeHtml(user.displayName || user.email || 'you')}</span><button class="btn-link" onclick="CardsApp.signOut()">Sign out</button></div>`;
-		gate?.classList.add('hidden');
-		form?.classList.remove('hidden');
+		signedIn.innerHTML = `<div class="auth-row"><span class="mini-avatar">${av}</span><span>Signed in as ${escapeHtml(user.displayName || user.email || 'you')}</span><button class="btn-link" onclick="CardsApp.signOut()">Sign out</button></div>`;
+		return;
+	}
+
+	signedIn.classList.add('hidden');
+	signedOut.classList.remove('hidden');
+	if (needsVerify) {
+		formFields?.classList.add('hidden');
+		verifyPanel?.classList.remove('hidden');
+		const emailEl = document.getElementById('authVerifyEmail');
+		if (emailEl) emailEl.textContent = user.email || 'your email';
 	} else {
-		a.innerHTML = `<button class="sign-in-btn" onclick="CardsApp.signInGoogle()">Sign in with Google</button>
-			<button class="sign-in-btn" onclick="CardsApp.signInGitHub()">Sign in with GitHub</button>`;
-		gate?.classList.remove('hidden');
-		form?.classList.add('hidden');
+		formFields?.classList.remove('hidden');
+		verifyPanel?.classList.add('hidden');
 	}
 }
 
