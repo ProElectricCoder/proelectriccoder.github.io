@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Built with Claude Sonnet 5 - ProElectricCoder -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<title>Canvas Recorder - ProElectricCoder</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0a0f'/%3E%3Ccircle cx='16' cy='16' r='8' fill='%23e74c3c'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+	--accent:      #3d6eff;
+	--accent-dim:  rgba(61, 110, 255, 0.10);
+	--border:      rgba(255,255,255,0.08);
+	--border-hi:   rgba(255,255,255,0.15);
+	--card:        rgba(255,255,255,0.035);
+	--card-hi:     rgba(255,255,255,0.06);
+	--text:        #ffffff;
+	--text-dim:    rgba(255,255,255,0.55);
+	--text-faint:  rgba(255,255,255,0.30);
+	--green:       #2ecc71;
+	--red:         #e74c3c;
+	--yellow:      #f1c40f;
+}
+
+html, body { height: 100%; }
+body { background: #000000; color: var(--text); font-family: 'DM Sans', sans-serif; font-weight: 400; min-height: 100vh; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible {
+	outline: 2px solid var(--accent); outline-offset: 2px;
+}
+
+header.topbar {
+	position: sticky; top: 0; z-index: 50;
+	display: flex; align-items: center; gap: 14px;
+	padding: 0 28px; height: 58px;
+	background: rgba(0,0,0,0.7); backdrop-filter: blur(16px);
+	border-bottom: 1px solid var(--border);
+}
+.brand { display:flex; align-items:center; gap:12px; }
+.brand-mark { width:26px; height:26px; flex-shrink:0; }
+.brand-title { font-family:'Syne',sans-serif; font-weight:700; font-size:0.98rem; }
+.brand-tag { font-family:'JetBrains Mono',monospace; font-size:0.68rem; color:var(--accent); background:var(--accent-dim); border:1px solid rgba(61,110,255,0.25); padding:3px 9px; border-radius:20px; }
+
+.app-shell {
+	max-width: 1360px; margin: 0 auto;
+	padding: 28px 24px 56px;
+	display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr);
+	gap: 22px; align-items: start;
+}
+@media (max-width: 980px) { .app-shell { grid-template-columns: 1fr; } }
+
+.panel {
+	background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+	padding: 22px; display: flex; flex-direction: column; gap: 16px;
+}
+.section-heading { font-family:'Syne',sans-serif; font-weight:700; font-size:1.02rem; letter-spacing:-0.01em; }
+.hint { font-size:0.84rem; color:var(--text-dim); line-height:1.6; max-width: 56ch; }
+
+/* Load tabs */
+.tab-row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.tab-btn { background:transparent; border:1px solid var(--border); color:var(--text-dim); padding:7px 13px; border-radius:8px; font-size:0.78rem; cursor:pointer; transition:all .15s; }
+.tab-btn.active { color:var(--text); border-color:var(--border-hi); background:var(--card-hi); }
+.link-btn { background:none; border:none; color:var(--text-dim); font-size:0.78rem; text-decoration:underline; cursor:pointer; padding:4px 0; margin-left:auto; }
+.link-btn:hover { color:var(--text); }
+
+.load-panel { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.load-panel input[type="url"], .load-panel textarea {
+	background: rgba(0,0,0,0.4); border:1px solid var(--border); border-radius:8px; color:var(--text);
+	padding:9px 12px; font-family:'JetBrains Mono',monospace; font-size:0.78rem; flex:1; min-width:200px;
+}
+.load-panel textarea { width:100%; resize:vertical; }
+
+/* Stage sizing */
+.preset-row { display:flex; gap:8px; flex-wrap:wrap; }
+.custom-size-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.custom-size-row input[type="number"] {
+	width:80px; background:rgba(0,0,0,0.4); border:1px solid var(--border); border-radius:8px;
+	padding:8px 10px; font-family:'JetBrains Mono',monospace; font-size:0.82rem; text-align:center;
+}
+.custom-size-row span { color: var(--text-faint); }
+
+/* Stage viewport */
+#stageViewport { display:flex; justify-content:center; padding:18px; overflow:auto; background:rgba(0,0,0,0.3); border-radius:12px; border:1px solid var(--border); min-height:200px; }
+#stageScaleBox { position:relative; overflow:hidden; }
+#stageWrap { position:relative; background:#15151b; border:1px solid var(--border-hi); border-radius:8px; overflow:hidden; transform-origin: top left; }
+#stageFrame { width:100%; height:100%; border:none; display:block; background:#ffffff; }
+.stage-meta { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; font-family:'JetBrains Mono',monospace; font-size:0.72rem; color:var(--text-faint); }
+
+/* Buttons */
+.btn { display:inline-flex; align-items:center; gap:8px; padding:10px 18px; border-radius:9px; font-size:0.85rem; font-weight:500; cursor:pointer; border:none; transition:all .15s ease; white-space:nowrap; }
+.btn svg { flex-shrink:0; }
+.btn-primary { background:var(--accent); color:#fff; }
+.btn-primary:hover { background:#5580ff; }
+.btn-secondary { background:var(--card); color:var(--text-dim); border:1px solid var(--border); }
+.btn-secondary:hover { background:var(--card-hi); color:var(--text); border-color:var(--border-hi); }
+.btn-danger { background: rgba(231,76,60,0.15); color:#ff8477; border:1px solid rgba(231,76,60,0.35); }
+.btn-danger:hover { background: rgba(231,76,60,0.25); }
+.btn:disabled { opacity:0.4; cursor:not-allowed; }
+
+/* Live preview */
+.preview-box { position:relative; border-radius:10px; overflow:hidden; background:#000; border:1px solid var(--border); }
+#recCanvas { width:100%; height:auto; display:block; }
+.preview-placeholder { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:20px; font-size:0.8rem; color:var(--text-faint); background:rgba(0,0,0,0.35); }
+
+.rec-indicator { display:flex; align-items:center; gap:8px; font-family:'JetBrains Mono',monospace; font-size:0.85rem; margin-left:auto; }
+.rec-dot { width:10px; height:10px; border-radius:50%; background:var(--text-faint); display:inline-block; }
+.rec-dot.live { background:var(--red); }
+.rec-dot.blink { animation: blinkDot 1s steps(2,start) infinite; }
+@keyframes blinkDot { to { opacity:0.2; } }
+@media (prefers-reduced-motion: reduce) { .rec-dot.blink { animation: none; } }
+
+.control-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.field-row { display:flex; align-items:center; gap:10px; }
+.field-row label { font-size:0.8rem; color:var(--text-dim); min-width:52px; }
+select {
+	background:rgba(0,0,0,0.4); border:1px solid var(--border); border-radius:8px;
+	padding:8px 12px; font-size:0.82rem; flex:1;
+}
+input[type="range"] { flex:1; accent-color: var(--accent); }
+input[type="checkbox"] { accent-color: var(--accent); width:15px; height:15px; }
+.checkbox-row { display:flex; align-items:center; gap:8px; font-size:0.8rem; color:var(--text-dim); }
+
+.status-line { font-family:'JetBrains Mono',monospace; font-size:0.76rem; color:var(--text-faint); min-height:16px; }
+.status-line.ok { color:var(--green); }
+.status-line.err { color:var(--red); }
+.status-line.loading { color:var(--yellow); }
+
+.divider { height:1px; background:var(--border); margin:2px 0; }
+
+/* Downloads */
+#downloadsLog { display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; }
+.dl-row { display:flex; align-items:center; gap:10px; background:rgba(0,0,0,0.25); border:1px solid var(--border); border-radius:8px; padding:9px 12px; }
+.dl-icon { font-size:1.1rem; }
+.dl-info { display:flex; flex-direction:column; gap:2px; overflow:hidden; }
+.dl-info a { color:var(--text); font-size:0.82rem; text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dl-info a:hover { color:var(--accent); text-decoration:underline; }
+.dl-meta { font-family:'JetBrains Mono',monospace; font-size:0.68rem; color:var(--text-faint); }
+.empty-note { font-size:0.8rem; color:var(--text-faint); }
+
+footer.foot { text-align:center; padding:26px 24px; color:var(--text-faint); font-size:0.78rem; border-top:1px solid var(--border); }
+
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.14); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+	<div class="brand">
+		<svg class="brand-mark" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+			<rect width="32" height="32" rx="8" fill="#0d0d12"/>
+			<circle cx="16" cy="16" r="8" fill="#e74c3c"/>
+		</svg>
+		<h1 class="brand-title">Canvas Recorder</h1>
+	</div>
+	<span class="brand-tag">no uploads</span>
+</header>
+
+<main class="app-shell">
+
+	<!-- Stage -->
+	<section class="panel">
+		<div>
+			<h2 class="section-heading">Stage</h2>
+			<p class="hint">Load an HTML file, a live URL, or a pasted snippet, then interact with it directly. Resize the stage to whatever resolution you want to record at.</p>
+		</div>
+
+		<div class="tab-row">
+			<button class="tab-btn active" data-tab="upload" type="button">Upload File</button>
+			<button class="tab-btn" data-tab="url" type="button">From URL</button>
+			<button class="tab-btn" data-tab="paste" type="button">Paste HTML</button>
+			<button class="link-btn" id="btnResetDemo" type="button">Reset to demo</button>
+		</div>
+		<div class="load-panel" data-panel="upload">
+			<button class="btn btn-secondary" id="btnPickFile" type="button">Choose .html file&hellip;</button>
+			<input type="file" id="fileInput" accept=".html,.htm" aria-label="Choose an HTML file to load" hidden>
+		</div>
+		<div class="load-panel" data-panel="url" style="display:none">
+			<input type="url" id="urlInput" placeholder="https://your-project.pages.dev/" aria-label="Page URL to load">
+			<button class="btn btn-secondary" id="btnLoadUrl" type="button">Load</button>
+		</div>
+		<div class="load-panel" data-panel="paste" style="display:none">
+			<textarea id="pasteArea" rows="3" placeholder="Paste a full HTML document here&hellip;" aria-label="HTML to load into the stage"></textarea>
+			<button class="btn btn-secondary" id="btnLoadPaste" type="button">Load</button>
+		</div>
+
+		<div class="preset-row">
+			<button class="btn btn-secondary size-preset" data-size="1920x1080" type="button">1920&times;1080</button>
+			<button class="btn btn-secondary size-preset" data-size="1280x720" type="button">1280&times;720</button>
+			<button class="btn btn-secondary size-preset" data-size="1080x1080" type="button">1080&times;1080</button>
+			<button class="btn btn-secondary size-preset" data-size="800x600" type="button">800&times;600</button>
+		</div>
+		<div class="custom-size-row">
+			<input type="number" id="customW" value="1280" min="160" max="3840" step="10" aria-label="Custom stage width in pixels">
+			<span>&times;</span>
+			<input type="number" id="customH" value="720" min="120" max="2160" step="10" aria-label="Custom stage height in pixels">
+			<button class="btn btn-secondary" id="btnApplySize" type="button">Apply custom size</button>
+		</div>
+
+		<div id="stageViewport">
+			<div id="stageScaleBox">
+				<div id="stageWrap">
+					<iframe id="stageFrame" title="Stage content" sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-pointer-lock allow-downloads"></iframe>
+				</div>
+			</div>
+		</div>
+		<div class="stage-meta">
+			<span id="stageDims">1280 &times; 720px</span>
+			<span>Pick "This Tab" when prompted for the cleanest crop</span>
+		</div>
+	</section>
+
+	<!-- Control deck -->
+	<section class="panel">
+		<div>
+			<h2 class="section-heading">Capture</h2>
+			<p class="hint">Screen sharing goes through your browser's own permission prompt. Nothing records without it.</p>
+		</div>
+		<div class="control-row">
+			<button class="btn btn-primary" id="btnStartCapture" type="button">
+				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true"><rect x="3" y="4.5" width="18" height="12" rx="2"/><path stroke-linecap="round" d="M8 20h8M12 16.5V20"/></svg>
+				Start Capture
+			</button>
+			<button class="btn btn-secondary" id="btnStopCapture" type="button" style="display:none">Stop Capture</button>
+			<label class="checkbox-row"><input type="checkbox" id="chkIncludeAudio" checked> Include audio if available</label>
+		</div>
+		<p class="status-line" id="statusLine">Start a capture to begin.</p>
+
+		<div class="divider"></div>
+
+		<h2 class="section-heading">Live preview</h2>
+		<div class="preview-box">
+			<canvas id="recCanvas" width="1280" height="720"></canvas>
+			<div id="previewPlaceholder" class="preview-placeholder">Start capture to see your stage here</div>
+		</div>
+
+		<div class="divider"></div>
+
+		<h2 class="section-heading">Record</h2>
+		<div class="field-row">
+			<label for="videoFormatSelect">Format</label>
+			<select id="videoFormatSelect"></select>
+		</div>
+		<div class="control-row">
+			<button class="btn btn-primary" id="btnStartRecording" type="button" disabled>Start Recording</button>
+			<button class="btn btn-secondary" id="btnPauseRecording" type="button" style="display:none">Pause</button>
+			<button class="btn btn-secondary" id="btnResumeRecording" type="button" style="display:none">Resume</button>
+			<button class="btn btn-danger" id="btnStopRecording" type="button" style="display:none">Stop</button>
+			<span class="rec-indicator"><span id="recDot" class="rec-dot"></span><span id="recTimer">00:00</span></span>
+		</div>
+
+		<div class="divider"></div>
+
+		<h2 class="section-heading">Screenshot</h2>
+		<div class="field-row">
+			<label for="shotFormatSelect">Format</label>
+			<select id="shotFormatSelect">
+				<option value="png" selected>PNG</option>
+				<option value="webp">WebP</option>
+				<option value="jpeg">JPEG</option>
+			</select>
+		</div>
+		<div class="field-row" id="shotQualityRow" style="display:none">
+			<label for="shotQuality">Quality</label>
+			<input type="range" id="shotQuality" min="10" max="100" value="88">
+		</div>
+		<div class="control-row">
+			<button class="btn btn-secondary" id="btnScreenshot" type="button" disabled>
+				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5h3.6l1.2-2h8.4l1.2 2H21a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.5"/></svg>
+				Take Screenshot
+			</button>
+		</div>
+
+		<div class="divider"></div>
+
+		<h2 class="section-heading">Saved this session</h2>
+		<div id="downloadsLog"></div>
+	</section>
+</main>
+
+<footer class="foot">Canvas Recorder runs entirely in your browser. Nothing here gets uploaded anywhere.</footer>
+
+<template id="demoTemplate">
+<style>
+html,body{margin:0;height:100%;background:#0e0e14;overflow:hidden;font-family:sans-serif}
+canvas{display:block}
+.hint{position:fixed;bottom:10px;left:10px;color:#8892b0;font-size:12px;font-family:monospace}
+</style>
+<canvas id="c"></canvas>
+<div class="hint">Click to add circles. Load your own HTML above to replace this demo.</div>
+<script>
+var c = document.getElementById('c');
+var ctx = c.getContext('2d');
+function resize(){ c.width = window.innerWidth; c.height = window.innerHeight; }
+window.addEventListener('resize', resize); resize();
+var circles = [];
+function spawn(x, y){
+  return {
+    x: (x === undefined) ? Math.random() * c.width : x,
+    y: (y === undefined) ? Math.random() * c.height : y,
+    r: 18 + Math.random() * 26,
+    dx: (Math.random() - 0.5) * 3.2,
+    dy: (Math.random() - 0.5) * 3.2,
+    hue: Math.floor(Math.random() * 360)
+  };
+}
+for (var i = 0; i < 6; i++) { circles.push(spawn()); }
+c.addEventListener('click', function (e) { circles.push(spawn(e.clientX, e.clientY)); });
+function tick(){
+  ctx.fillStyle = 'rgba(14,14,20,0.25)';
+  ctx.fillRect(0, 0, c.width, c.height);
+  for (var i = 0; i < circles.length; i++) {
+    var p = circles[i];
+    p.x += p.dx; p.y += p.dy;
+    if (p.x < 0 || p.x > c.width) p.dx *= -1;
+    if (p.y < 0 || p.y > c.height) p.dy *= -1;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = 'hsla(' + p.hue + ',80%,60%,0.85)';
+    ctx.fill();
+  }
+  requestAnimationFrame(tick);
+}
+tick();
+</script>
+</template>
+
+<script type="module">
+(async () => {
+  try {
+    const mod = await import('https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js');
+    document.body.style.background = mod.cubicGradient({ direction: 'to bottom right', start: '#000000', end: '#00051f', steps: 20, power: 3 });
+  } catch (e) {
+    /* Decorative background only - safe to ignore if unavailable */
+  }
+})();
+</script>
+
+<script>
+(function () {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- State ----------
+  let displayStream = null;
+  let videoEl = null;
+  let recCanvas = null, recCtx = null;
+  let rafId = null;
+  let isTabCapture = false;
+  let mediaRecorder = null;
+  let recordedChunks = [];
+  let isRecording = false;
+  let isPaused = false;
+  let recordStartTime = 0;
+  let pausedAccum = 0;
+  let pauseStartedAt = 0;
+  let timerInterval = null;
+  let downloads = [];
+
+  const CANDIDATE_TYPES = [
+    ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'MP4 (H.264)'],
+    ['video/mp4', 'MP4'],
+    ['video/webm;codecs=vp9,opus', 'WebM (VP9)'],
+    ['video/webm;codecs=vp8,opus', 'WebM (VP8)'],
+    ['video/webm', 'WebM'],
+    ['video/x-matroska;codecs=avc1', 'MKV (H.264)']
+  ];
+
+  // ---------- Status ----------
+  function setStatus(msg, kind) {
+    const el = $('statusLine');
+    el.textContent = msg;
+    el.className = 'status-line' + (kind ? ' ' + kind : '');
+  }
+
+  // ---------- Stage sizing ----------
+  function applyStageSize(w, h) {
+    const wrap = $('stageWrap');
+    wrap.style.width = w + 'px';
+    wrap.style.height = h + 'px';
+    recCanvas.width = w;
+    recCanvas.height = h;
+    $('stageDims').textContent = w + ' \u00D7 ' + h + 'px';
+    fitStageToViewport();
+  }
+
+  function fitStageToViewport() {
+    const viewport = $('stageViewport');
+    const scaleBox = $('stageScaleBox');
+    const wrap = $('stageWrap');
+    const w = parseInt(wrap.style.width, 10) || 1280;
+    const h = parseInt(wrap.style.height, 10) || 720;
+    const maxW = Math.max(160, viewport.clientWidth - 32);
+    const maxH = Math.max(160, Math.min(window.innerHeight * 0.58, 640));
+    const scale = Math.min(1, maxW / w, maxH / h);
+    wrap.style.transform = 'scale(' + scale + ')';
+    scaleBox.style.width = (w * scale) + 'px';
+    scaleBox.style.height = (h * scale) + 'px';
+  }
+
+  // ---------- Loading content into the stage ----------
+  function loadHtmlIntoStage(htmlText) {
+    const frame = $('stageFrame');
+    frame.removeAttribute('src');
+    frame.srcdoc = htmlText;
+  }
+  function loadUrlIntoStage(url) {
+    const frame = $('stageFrame');
+    frame.removeAttribute('srcdoc');
+    frame.src = url;
+  }
+
+  function initLoadControls() {
+    document.querySelectorAll('.tab-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        const tab = btn.dataset.tab;
+        document.querySelectorAll('.load-panel').forEach((p) => {
+          p.style.display = p.dataset.panel === tab ? '' : 'none';
+        });
+      });
+    });
+
+    $('btnPickFile').addEventListener('click', () => $('fileInput').click());
+    $('fileInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        loadHtmlIntoStage(text);
+        setStatus('Loaded ' + file.name + '.', 'ok');
+      } catch (err) {
+        setStatus("Couldn't read that file: " + err.message, 'err');
+      }
+    });
+
+    $('btnLoadUrl').addEventListener('click', () => {
+      const url = $('urlInput').value.trim();
+      if (!url) return;
+      try { new URL(url); } catch (e) {
+        setStatus('Enter a full URL, including https://', 'err');
+        return;
+      }
+      loadUrlIntoStage(url);
+      setStatus('Loading ' + url + '\u2026', 'loading');
+    });
+
+    $('btnLoadPaste').addEventListener('click', () => {
+      const html = $('pasteArea').value;
+      if (!html.trim()) return;
+      loadHtmlIntoStage(html);
+      setStatus('Loaded the pasted HTML.', 'ok');
+    });
+
+    $('btnResetDemo').addEventListener('click', () => {
+      loadHtmlIntoStage(document.getElementById('demoTemplate').innerHTML);
+      setStatus('Reset to the demo content.', 'ok');
+    });
+  }
+
+  // ---------- Size controls ----------
+  function initSizeControls() {
+    document.querySelectorAll('.size-preset').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const parts = btn.dataset.size.split('x');
+        const w = parseInt(parts[0], 10);
+        const h = parseInt(parts[1], 10);
+        $('customW').value = w;
+        $('customH').value = h;
+        applyStageSize(w, h);
+      });
+    });
+    $('btnApplySize').addEventListener('click', () => {
+      const w = Math.max(160, Math.min(3840, parseInt($('customW').value, 10) || 1280));
+      const h = Math.max(120, Math.min(2160, parseInt($('customH').value, 10) || 720));
+      applyStageSize(w, h);
+    });
+    window.addEventListener('resize', () => { if (!isRecording) fitStageToViewport(); });
+  }
+
+  function lockStageSizeControls(locked) {
+    document.querySelectorAll('.size-preset').forEach((el) => { el.disabled = locked; });
+    $('customW').disabled = locked;
+    $('customH').disabled = locked;
+    $('btnApplySize').disabled = locked;
+  }
+
+  // ---------- Capture session ----------
+  async function startCaptureSession() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+      setStatus("Screen capture isn't supported in this browser.", 'err');
+      return;
+    }
+    const includeAudio = $('chkIncludeAudio').checked;
+    try {
+      try {
+        displayStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { frameRate: 30 },
+          audio: includeAudio,
+          preferCurrentTab: true,
+          selfBrowserSurface: 'include'
+        });
+      } catch (innerErr) {
+        displayStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { frameRate: 30 },
+          audio: includeAudio
+        });
+      }
+    } catch (e) {
+      if (e && e.name === 'NotAllowedError') {
+        setStatus('Capture permission was denied or cancelled.', 'err');
+      } else {
+        setStatus("Couldn't start capture: " + (e && e.message ? e.message : e), 'err');
+      }
+      return;
+    }
+
+    const track = displayStream.getVideoTracks()[0];
+    const settings = track.getSettings ? track.getSettings() : {};
+    isTabCapture = settings.displaySurface === 'browser';
+    track.addEventListener('ended', handleTrackEnded);
+
+    videoEl = document.createElement('video');
+    videoEl.muted = true;
+    videoEl.playsInline = true;
+    videoEl.srcObject = displayStream;
+    try { await videoEl.play(); } catch (e) { /* autoplay guard, safe to ignore */ }
+
+    recCtx = recCanvas.getContext('2d');
+    $('previewPlaceholder').style.display = 'none';
+    drawLoop();
+
+    setCaptureUIState(true);
+    setStatus(
+      isTabCapture
+        ? 'Capturing this tab. The recording will be cropped to the stage.'
+        : 'Capturing a window or screen. The recording will include everything in that capture.',
+      'ok'
+    );
+  }
+
+  function drawLoop() {
+    if (!recCtx || !videoEl) return;
+    if (videoEl.readyState >= 2 && videoEl.videoWidth) {
+      if (isTabCapture) {
+        const scaleX = videoEl.videoWidth / window.innerWidth;
+        const scaleY = videoEl.videoHeight / window.innerHeight;
+        const rect = $('stageWrap').getBoundingClientRect();
+        const sx = Math.max(0, rect.left * scaleX);
+        const sy = Math.max(0, rect.top * scaleY);
+        const sw = Math.max(1, rect.width * scaleX);
+        const sh = Math.max(1, rect.height * scaleY);
+        recCtx.drawImage(videoEl, sx, sy, sw, sh, 0, 0, recCanvas.width, recCanvas.height);
+      } else {
+        drawContain(recCtx, videoEl, recCanvas.width, recCanvas.height);
+      }
+    }
+    rafId = requestAnimationFrame(drawLoop);
+  }
+
+  function drawContain(ctx, video, cw, ch) {
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if (!vw || !vh) return;
+    const scale = Math.min(cw / vw, ch / vh);
+    const dw = vw * scale, dh = vh * scale;
+    const dx = (cw - dw) / 2, dy = (ch - dh) / 2;
+    ctx.fillStyle = '#0a0a0f';
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.drawImage(video, 0, 0, vw, vh, dx, dy, dw, dh);
+  }
+
+  function handleTrackEnded() {
+    if (isRecording) stopRecording();
+    stopCaptureSession(true);
+  }
+
+  function stopCaptureSession(fromTrackEnded) {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = null;
+    if (displayStream) {
+      displayStream.getTracks().forEach((t) => t.stop());
+    }
+    displayStream = null;
+    videoEl = null;
+    $('previewPlaceholder').style.display = '';
+    setCaptureUIState(false);
+    setStatus(
+      fromTrackEnded ? "The browser's sharing indicator was stopped, so the capture ended." : 'Capture stopped.',
+      fromTrackEnded ? 'loading' : ''
+    );
+  }
+
+  function setCaptureUIState(active) {
+    $('btnStartCapture').style.display = active ? 'none' : '';
+    $('btnStopCapture').style.display = active ? '' : 'none';
+    $('btnStartRecording').disabled = !active;
+    $('btnScreenshot').disabled = !active;
+    $('chkIncludeAudio').disabled = active;
+  }
+
+  // ---------- Recording ----------
+  function populateFormatOptions() {
+    const sel = $('videoFormatSelect');
+    sel.innerHTML = '';
+    let any = false;
+    CANDIDATE_TYPES.forEach((pair) => {
+      const mime = pair[0], label = pair[1];
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported(mime)) {
+        const opt = document.createElement('option');
+        opt.value = mime;
+        opt.textContent = label;
+        sel.appendChild(opt);
+        any = true;
+      }
+    });
+    if (!any) {
+      const opt = document.createElement('option');
+      opt.textContent = 'No supported format';
+      opt.disabled = true;
+      sel.appendChild(opt);
+      $('btnStartRecording').disabled = true;
+    }
+  }
+
+  function extFromMime(mime) {
+    if (mime.indexOf('mp4') !== -1) return 'mp4';
+    if (mime.indexOf('webm') !== -1) return 'webm';
+    if (mime.indexOf('matroska') !== -1) return 'mkv';
+    return 'bin';
+  }
+
+  function startRecording() {
+    if (!displayStream) { setStatus('Start a capture first.', 'err'); return; }
+    if (typeof recCanvas.captureStream !== 'function') {
+      setStatus("This browser can't capture a canvas as a video stream.", 'err');
+      return;
+    }
+    const mime = $('videoFormatSelect').value;
+    if (!mime) { setStatus('No recording format is supported here.', 'err'); return; }
+    const canvasStream = recCanvas.captureStream(30);
+    displayStream.getAudioTracks().forEach((t) => canvasStream.addTrack(t));
+    recordedChunks = [];
+    try {
+      mediaRecorder = new MediaRecorder(canvasStream, { mimeType: mime });
+    } catch (e) {
+      setStatus("Couldn't start the recorder: " + e.message, 'err');
+      return;
+    }
+    mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
+    mediaRecorder.onstop = () => finalizeRecording(mime);
+    mediaRecorder.start(1000);
+    isRecording = true;
+    isPaused = false;
+    recordStartTime = Date.now();
+    pausedAccum = 0;
+    timerInterval = setInterval(updateTimer, 200);
+    setRecordingUIState('recording');
+    lockStageSizeControls(true);
+  }
+
+  function pauseRecording() {
+    if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
+    mediaRecorder.pause();
+    isPaused = true;
+    pauseStartedAt = Date.now();
+    clearInterval(timerInterval);
+    setRecordingUIState('paused');
+  }
+
+  function resumeRecording() {
+    if (!mediaRecorder || mediaRecorder.state !== 'paused') return;
+    mediaRecorder.resume();
+    isPaused = false;
+    pausedAccum += Date.now() - pauseStartedAt;
+    timerInterval = setInterval(updateTimer, 200);
+    setRecordingUIState('recording');
+  }
+
+  function stopRecording() {
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+    mediaRecorder.stop();
+    isRecording = false;
+    isPaused = false;
+    clearInterval(timerInterval);
+    setRecordingUIState('idle');
+    lockStageSizeControls(false);
+  }
+
+  function finalizeRecording(mime) {
+    const blob = new Blob(recordedChunks, { type: mime });
+    const ext = extFromMime(mime);
+    const name = 'recording-' + timestamp() + '.' + ext;
+    addDownload(name, blob, 'video');
+  }
+
+  function updateTimer() {
+    const elapsed = Date.now() - recordStartTime - pausedAccum;
+    $('recTimer').textContent = formatTime(elapsed);
+  }
+  function formatTime(ms) {
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    const ss = s % 60;
+    return pad2(m) + ':' + pad2(ss);
+  }
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function timestamp() {
+    const d = new Date();
+    return d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) + '-' +
+      pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds());
+  }
+
+  function setRecordingUIState(state) {
+    $('recDot').classList.toggle('live', state !== 'idle');
+    $('recDot').classList.toggle('blink', state === 'recording');
+    $('btnStartRecording').style.display = state === 'idle' ? '' : 'none';
+    $('btnPauseRecording').style.display = state === 'recording' ? '' : 'none';
+    $('btnResumeRecording').style.display = state === 'paused' ? '' : 'none';
+    $('btnStopRecording').style.display = state === 'idle' ? 'none' : '';
+    if (state === 'idle') $('recTimer').textContent = '00:00';
+  }
+
+  // ---------- Screenshot ----------
+  function takeScreenshot() {
+    if (!recCtx) { setStatus('Start a capture first.', 'err'); return; }
+    const format = $('shotFormatSelect').value;
+    const mimeMap = { png: 'image/png', webp: 'image/webp', jpeg: 'image/jpeg' };
+    const mime = mimeMap[format] || 'image/png';
+    const quality = format === 'png' ? undefined : (parseInt($('shotQuality').value, 10) / 100);
+    recCanvas.toBlob((blob) => {
+      if (!blob) { setStatus('The screenshot failed.', 'err'); return; }
+      const name = 'screenshot-' + timestamp() + '.' + format;
+      addDownload(name, blob, 'image');
+    }, mime, quality);
+  }
+
+  function initShotControls() {
+    $('shotFormatSelect').addEventListener('change', () => {
+      $('shotQualityRow').style.display = $('shotFormatSelect').value === 'png' ? 'none' : '';
+    });
+  }
+
+  // ---------- Downloads log ----------
+  function addDownload(name, blob, kind) {
+    const url = URL.createObjectURL(blob);
+    downloads.unshift({ name: name, url: url, size: blob.size, kind: kind, ts: new Date() });
+    renderDownloads();
+    setStatus('Saved ' + name, 'ok');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  function renderDownloads() {
+    const el = $('downloadsLog');
+    el.innerHTML = '';
+    if (!downloads.length) {
+      el.innerHTML = '<p class="empty-note">Nothing saved yet this session.</p>';
+      return;
+    }
+    downloads.forEach((d) => {
+      const row = document.createElement('div');
+      row.className = 'dl-row';
+      const icon = d.kind === 'video' ? '\uD83C\uDFAC' : '\uD83D\uDDBC\uFE0F';
+      row.innerHTML =
+        '<span class="dl-icon">' + icon + '</span>' +
+        '<div class="dl-info">' +
+        '<a href="' + d.url + '" download="' + d.name + '">' + d.name + '</a>' +
+        '<span class="dl-meta">' + formatBytes(d.size) + ' \u00B7 ' + d.ts.toLocaleTimeString() + '</span>' +
+        '</div>';
+      el.appendChild(row);
+    });
+  }
+
+  function formatBytes(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+    return (n / 1024 / 1024).toFixed(1) + ' MB';
+  }
+
+  // ---------- Compatibility ----------
+  function checkCompatibility() {
+    const hasDisplayMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+    const hasRecorder = !!window.MediaRecorder;
+    if (!hasDisplayMedia || !hasRecorder) {
+      setStatus("This browser doesn't support screen capture or recording. Try a recent desktop build of Chrome, Edge, or Firefox.", 'err');
+      $('btnStartCapture').disabled = true;
+    }
+  }
+
+  // ---------- Init ----------
+  function init() {
+    recCanvas = $('recCanvas');
+    initLoadControls();
+    initSizeControls();
+    initShotControls();
+    populateFormatOptions();
+    applyStageSize(1280, 720);
+    setCaptureUIState(false);
+    setRecordingUIState('idle');
+    renderDownloads();
+    checkCompatibility();
+    loadHtmlIntoStage(document.getElementById('demoTemplate').innerHTML);
+
+    $('btnStartCapture').addEventListener('click', startCaptureSession);
+    $('btnStopCapture').addEventListener('click', () => stopCaptureSession(false));
+    $('btnStartRecording').addEventListener('click', startRecording);
+    $('btnPauseRecording').addEventListener('click', pauseRecording);
+    $('btnResumeRecording').addEventListener('click', resumeRecording);
+    $('btnStopRecording').addEventListener('click', stopRecording);
+    $('btnScreenshot').addEventListener('click', takeScreenshot);
+
+    window.addEventListener('beforeunload', () => {
+      downloads.forEach((d) => URL.revokeObjectURL(d.url));
+    });
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
