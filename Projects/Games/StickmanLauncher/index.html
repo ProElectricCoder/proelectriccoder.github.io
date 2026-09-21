@@ -1,0 +1,2309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Stickman Launcher: Fort Destruction</title>
+
+<!--
+  CrazyGames SDK v3 -- live.
+  ------------------------------------------------------------------
+  The CrazySDK wrapper in the <script> below (search "CrazySDK") checks
+  for window.CrazyGames before touching it, so this build still runs
+  fine anywhere the SDK isn't present (local testing, other hosts) --
+  it just skips ads/saves/etc. and plays standalone.
+  Docs: https://docs.crazygames.com/sdk/html5-v3/ (verified Sept 2026).
+-->
+<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
+
+<style>
+  :root {
+    --ink: #16213E;
+    --ink-deep: #0D1526;
+    --gold: #FFC94C;
+    --teal: #43D9C8;
+    --violet: #B79CF2;
+    --ember: #FF8A3D;
+    --paper: #E9ECF5;
+    --font-ui: ui-rounded, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", Consolas, "Liberation Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; padding: 0; overflow: hidden;
+    height: 100%;
+    background: #6EC6E8;
+    user-select: none; -webkit-user-select: none;
+    touch-action: none;
+    font-family: var(--font-ui);
+  }
+
+  button { font-family: inherit; border: none; cursor: pointer; background: none; padding: 0; color: inherit; }
+  button:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+
+  canvas { display: block; touch-action: none; }
+
+  #game-container { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+
+  #ui-layer {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 16px;
+    pointer-events: none;
+  }
+
+  /* Loading */
+  #loading-screen {
+    position: absolute; inset: 0; z-index: 20;
+    background: var(--ink);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: var(--paper);
+    font-size: 0.95rem;
+    transition: opacity 0.35s ease;
+  }
+  #loading-screen.hidden { opacity: 0; pointer-events: none; }
+  .spinner {
+    width: 40px; height: 40px; margin-bottom: 14px;
+    border: 4px solid rgba(255, 255, 255, 0.15);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.85s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Title screen -- visible only before the player's first launch */
+  #title-screen {
+    position: absolute; top: 12%; left: 50%;
+    transform: translateX(-50%);
+    width: 100%; padding: 0 16px;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+  body.pre-launch #title-screen { opacity: 1; }
+  .title-main {
+    font-family: "Comic Sans MS", "Comic Neue", "Chalkboard SE", "Marker Felt", cursive;
+    font-size: clamp(1.5rem, 6vw, 2.5rem);
+    font-weight: 700;
+    color: #000;
+    text-shadow: 0 4px 0 var(--gold), 0 10px 18px rgba(0, 0, 0, 0.35);
+  }
+  .title-stickman {
+    width: 0.6em;
+    height: 0.88em;
+    vertical-align: -0.14em;
+    margin: 0 0.02em;
+    overflow: visible;
+  }
+  .title-sub {
+    font-family: var(--font-mono);
+    font-size: clamp(0.7rem, 2.2vw, 0.95rem);
+    font-weight: 700;
+    color: var(--paper);
+    letter-spacing: 0.2em;
+    margin-top: 6px;
+    text-shadow: 0 2px 0 var(--ink-deep);
+  }
+
+  /* Before the first launch, show nothing but the title + aim-hint --
+     hud-panel, the mute button, and the minimap fade in once you launch. */
+  .hud-panel, #mute-btn, .minimap-wrap { transition: opacity 0.35s ease; }
+  body.pre-launch .hud-panel,
+  body.pre-launch #mute-btn,
+  body.pre-launch .minimap-wrap {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* Top cluster: minimap + HUD row, grouped so both stay pinned to the
+     top edge while #ui-layer space-betweens against the bottom cluster */
+  .top-cluster { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+
+  .minimap-wrap {
+    align-self: center;
+    width: min(92vw, 560px);
+    height: 56px;
+    background: var(--ink);
+    border-radius: 10px;
+    border-bottom: 3px solid var(--ink-deep);
+    padding: 4px;
+    overflow: hidden;
+  }
+  #minimapCanvas { display: block; width: 100%; height: 100%; }
+
+  /* HUD */
+  .hud-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+
+  .hud-panel {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 10px 20px;
+    border-radius: 10px;
+    border-bottom: 3px solid var(--ink-deep);
+  }
+  .hud-cash { font-family: var(--font-mono); font-size: 1.45rem; font-weight: 700; color: var(--gold); }
+  .hud-stat { font-family: var(--font-mono); font-size: 0.95rem; color: var(--paper); margin-top: 2px; }
+  #hud-dist { color: var(--teal); font-weight: 600; }
+  #hud-height { color: var(--violet); font-weight: 600; }
+  #hud-fuel { color: #fb923c; font-weight: 600; }
+
+  .top-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+
+  .icon-btn {
+    pointer-events: auto;
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    background: var(--ink);
+    border-bottom: 3px solid var(--ink-deep);
+    font-size: 1.1rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .icon-btn:active { transform: translateY(2px); border-bottom-width: 1px; }
+
+  #power-btn {
+    pointer-events: none;
+    background: var(--violet);
+    color: var(--ink-deep);
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 8px 14px;
+    border-radius: 10px;
+    box-shadow: 0 6px 14px rgba(183, 156, 242, 0.45);
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    white-space: nowrap;
+  }
+  #power-btn.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  #power-btn:active { transform: translateY(2px); }
+
+  .aim-hint {
+    background: var(--teal);
+    color: var(--ink-deep);
+    padding: 9px 18px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  .aim-hint.hidden { display: none; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+  /* Bottom cluster: toasts, reward button, shop */
+  .bottom-cluster { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+
+  .toast {
+    text-align: center;
+    border-radius: 10px;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  #last-run-toast {
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--font-mono);
+    font-size: 0.88rem;
+    padding: 6px 18px;
+  }
+
+  #landing-cash-toast {
+    background: var(--gold);
+    color: var(--ink-deep);
+    padding: 10px 26px;
+    border-radius: 20px;
+    box-shadow: 0 10px 24px rgba(255, 201, 76, 0.4);
+  }
+  .cash-amount { display: block; font-family: var(--font-mono); font-size: 1.6rem; font-weight: 800; }
+  .cash-label { font-size: 0.68rem; font-weight: 600; opacity: 0.75; }
+
+  #reward-btn {
+    pointer-events: none;
+    background: var(--ember);
+    color: #331700;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 9px 16px;
+    border-radius: 10px;
+    box-shadow: 0 8px 18px rgba(255, 138, 61, 0.4);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+  #reward-btn.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  #reward-btn:active { transform: translateY(2px); }
+
+  #power-ad-btn {
+    pointer-events: none;
+    background: var(--teal);
+    color: var(--ink-deep);
+    font-weight: 700;
+    font-size: 0.82rem;
+    padding: 9px 16px;
+    border-radius: 10px;
+    box-shadow: 0 8px 16px rgba(67, 217, 200, 0.35);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+  #power-ad-btn.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  #power-ad-btn:active { transform: translateY(2px); }
+
+  /* SHOW_AD_UI (in the script below) toggles this class at boot -- hides
+     every ad-related button outright, regardless of what .show is doing. */
+  body.hide-ad-ui #reward-btn,
+  body.hide-ad-ui #power-ad-btn {
+    display: none !important;
+  }
+
+  /* Shop */
+  #shop-bar {
+    display: flex; justify-content: center; gap: 8px;
+    width: 100%; max-width: 720px;
+    opacity: 0; transform: translateY(30px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    pointer-events: none;
+  }
+  #shop-bar.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+
+  .shop-btn {
+    flex: 1; min-width: 0;
+    padding: 9px;
+    border-radius: 12px;
+    border-bottom: 3px solid var(--ink-deep);
+    background: var(--ink);
+    color: #7C879E;
+    display: flex; flex-direction: column; justify-content: space-between;
+    text-align: left;
+    cursor: not-allowed;
+  }
+  .shop-btn.affordable { color: var(--paper); cursor: pointer; }
+  .shop-btn:active { transform: translateY(2px); border-bottom-width: 1px; }
+  .shop-name { font-weight: 700; font-size: 0.72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .shop-meta { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.65rem; margin-top: 3px; }
+  .shop-meta .lvl-val { color: var(--gold); font-weight: 700; }
+  .shop-price {
+    margin-top: 7px; text-align: center;
+    font-family: var(--font-mono); font-weight: 700; font-size: 0.78rem;
+    padding: 4px 0; border-radius: 7px;
+    background: var(--ink-deep); color: #5A6478;
+  }
+  .shop-btn.affordable .shop-price { background: var(--gold); color: var(--ink-deep); }
+  .shop-btn.maxed .shop-price { color: var(--paper); }
+
+  @media (max-width: 480px) {
+    .minimap-wrap { height: 42px; }
+    .hud-cash { font-size: 1.2rem; }
+    .hud-stat { font-size: 0.82rem; }
+    .hud-panel { padding: 8px 14px; }
+    #shop-bar { flex-wrap: wrap; }
+    .shop-btn { min-width: calc(50% - 4px); flex: 0 0 calc(50% - 4px); }
+  }
+</style>
+</head>
+<body>
+<div id="game-container">
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="loading-screen">
+    <div class="spinner"></div>
+    <div>Prepping the launch pad&hellip;</div>
+  </div>
+
+  <div id="title-screen">
+    <div class="title-main" aria-label="Stickman Launcher">ST<svg class="title-stickman" viewBox="0 0 24 32" aria-hidden="true"><circle cx="12" cy="6" r="5" fill="none" stroke="currentColor" stroke-width="2.6"/><line x1="12" y1="11" x2="12" y2="22" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><line x1="12" y1="14" x2="4" y2="10" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><line x1="12" y1="14" x2="20" y2="10" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><line x1="12" y1="22" x2="5" y2="30" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><line x1="12" y1="22" x2="19" y2="30" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>CKMAN LAUNCHER</div>
+    <div class="title-sub">FORT DESTRUCTION</div>
+  </div>
+
+  <div id="ui-layer">
+    <div class="top-cluster">
+      <div class="minimap-wrap">
+        <canvas id="minimapCanvas"></canvas>
+      </div>
+      <div class="hud-row">
+        <div class="hud-panel">
+          <div class="hud-cash">Cash: $<span id="hud-cash">0</span></div>
+          <div class="hud-stat">Distance: <span id="hud-dist">0</span>m</div>
+          <div class="hud-stat">Height: <span id="hud-height">0</span>m</div>
+          <div class="hud-stat">Fuel: <span id="hud-fuel">0</span>%</div>
+        </div>
+        <div class="top-right">
+          <button id="mute-btn" class="icon-btn" aria-label="Mute">&#128266;</button>
+          <button id="power-btn">Power</button>
+          <div id="aim-hint" class="aim-hint hidden">Drag back, then release to launch.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-cluster">
+      <div id="last-run-toast" class="toast"><span id="last-run-text">Last run: 0m</span></div>
+      <div id="landing-cash-toast" class="toast">
+        <span class="cash-amount">+$<span id="landing-cash-val">0</span></span>
+        <span class="cash-label">cash earned</span>
+      </div>
+      <button id="reward-btn">Watch ad for 2&times; cash</button>
+      <button id="power-ad-btn">Watch ad: get a power</button>
+      <div id="shop-bar"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ============================================================================
+// CrazyGames SDK v3 -- commented integration
+// ----------------------------------------------------------------------------
+// Every method below checks `this.ready` (or `window.CrazyGames` directly in
+// init) before touching the SDK, so this same file still runs standalone
+// anywhere the SDK script doesn't load -- local testing, other hosts, etc.
+// Verified against https://docs.crazygames.com/sdk/html5-v3/ (Sept 2026).
+// ============================================================================
+const CrazySDK = {
+    ready: false,
+
+    init() {
+        if (typeof window.CrazyGames === 'undefined') {
+            console.warn('[CrazySDK] SDK script not present -- running standalone.');
+            return;
+        }
+        window.CrazyGames.SDK.init().then(() => {
+            this.ready = true;
+            console.log('[CrazySDK] ready, environment:', window.CrazyGames.SDK.environment);
+            this.loadingStart();
+            loadGame();
+            updateShopUI();
+            updateHUD();
+            this.loadingStop();
+            this.gameplayStart();
+        }).catch((e) => console.warn('[CrazySDK] init failed', e));
+    },
+
+    loadingStart() {
+        if (this.ready) window.CrazyGames.SDK.game.loadingStart();
+    },
+
+    loadingStop() {
+        if (this.ready) window.CrazyGames.SDK.game.loadingStop();
+    },
+
+    // Call whenever the player is actively playing / resumes after a break.
+    gameplayStart() {
+        if (this.ready) window.CrazyGames.SDK.game.gameplayStart();
+    },
+
+    // Call on every break: menu, pause, or right before an ad.
+    gameplayStop() {
+        if (this.ready) window.CrazyGames.SDK.game.gameplayStop();
+    },
+
+    // Use sparingly -- reserved for genuinely special moments (new best run).
+    happytime() {
+        if (this.ready) window.CrazyGames.SDK.game.happytime();
+    },
+
+    // CrazyGames auto-throttles midgame ads (max ~1 every 3 min), so it's
+    // fine to just call this after every landing with no extra bookkeeping.
+    requestMidgameAd() {
+        if (!this.ready) return;
+        window.CrazyGames.SDK.ad.requestAd('midgame', {
+            adStarted: () => {
+                gamePaused = true; adMuted = true;
+                if (audioCtx) audioCtx.suspend();
+                CrazySDK.gameplayStop();
+            },
+            adFinished: () => {
+                gamePaused = false; adMuted = false;
+                if (audioCtx) audioCtx.resume();
+                CrazySDK.gameplayStart();
+            },
+            adError: (error) => {
+                console.log('[CrazySDK] midgame ad error', error);
+                gamePaused = false; adMuted = false;
+                if (audioCtx) audioCtx.resume();
+                CrazySDK.gameplayStart();
+            },
+        });
+    },
+
+    // CrazyGames requires rewarded-ad buttons to always have a real effect;
+    // if the SDK isn't connected we just grant the reward directly so the
+    // button still does something (and stays testable locally).
+    requestRewardedAd(onReward) {
+        if (this.ready) {
+            window.CrazyGames.SDK.ad.requestAd('rewarded', {
+                adStarted: () => {
+                    gamePaused = true; adMuted = true;
+                    if (audioCtx) audioCtx.suspend();
+                    CrazySDK.gameplayStop();
+                },
+                adFinished: () => {
+                    gamePaused = false; adMuted = false;
+                    if (audioCtx) audioCtx.resume();
+                    CrazySDK.gameplayStart();
+                    onReward();
+                },
+                adError: (error) => {
+                    console.log('[CrazySDK] rewarded ad error', error);
+                    gamePaused = false; adMuted = false;
+                    if (audioCtx) audioCtx.resume();
+                    CrazySDK.gameplayStart();
+                },
+            });
+            return;
+        }
+        onReward();
+    },
+
+    // CrazyGames' data module survives third-party storage restrictions
+    // inside their iframe and syncs across a signed-in player's devices --
+    // used by saveGame()/loadGame() below for cash, best run, and upgrades.
+    saveProgress(data) {
+        if (this.ready) window.CrazyGames.SDK.data.setItem('save', JSON.stringify(data));
+    },
+
+    loadProgress() {
+        if (this.ready) {
+            const raw = window.CrazyGames.SDK.data.getItem('save');
+            return raw ? JSON.parse(raw) : null;
+        }
+        return null;
+    },
+};
+
+// ============================================================================
+// DOM references
+// ============================================================================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+const hudCash = document.getElementById('hud-cash');
+const hudDist = document.getElementById('hud-dist');
+const hudHeight = document.getElementById('hud-height');
+const hudFuel = document.getElementById('hud-fuel');
+const aimHint = document.getElementById('aim-hint');
+const lastRunToast = document.getElementById('last-run-toast');
+const lastRunText = document.getElementById('last-run-text');
+const landingCashToast = document.getElementById('landing-cash-toast');
+const landingCashVal = document.getElementById('landing-cash-val');
+const shopBar = document.getElementById('shop-bar');
+const rewardBtn = document.getElementById('reward-btn');
+const powerBtn = document.getElementById('power-btn');
+const powerAdBtn = document.getElementById('power-ad-btn');
+const muteBtn = document.getElementById('mute-btn');
+const loadingScreen = document.getElementById('loading-screen');
+const minimapCanvas = document.getElementById('minimapCanvas');
+const mctx = minimapCanvas.getContext('2d');
+
+// ============================================================================
+// Audio -- small synthesized effects via Web Audio API (no external files)
+// ============================================================================
+let audioCtx = null;
+let muted = false;
+let adMuted = false;
+
+function ensureAudio() {
+    if (!audioCtx) {
+        try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) {
+            audioCtx = null;
+        }
+    } else if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+
+function beep({ freq = 440, freqEnd = null, duration = 0.12, type = 'sine', gain = 0.15 } = {}) {
+    if (muted || adMuted || !audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = type;
+    const now = audioCtx.currentTime;
+    osc.frequency.setValueAtTime(freq, now);
+    if (freqEnd) osc.frequency.exponentialRampToValueAtTime(Math.max(freqEnd, 1), now + duration);
+    g.gain.setValueAtTime(gain, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    osc.connect(g);
+    g.connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + duration);
+}
+
+function playLaunch() { beep({ freq: 180, freqEnd: 700, duration: 0.18, type: 'sawtooth', gain: 0.12 }); }
+function playBounce() { beep({ freq: 220, freqEnd: 80, duration: 0.09, type: 'square', gain: 0.10 }); }
+function playLand() {
+    beep({ freq: 523.25, duration: 0.10, type: 'sine', gain: 0.14 });
+    setTimeout(() => beep({ freq: 783.99, duration: 0.16, type: 'sine', gain: 0.14 }), 90);
+}
+
+let jetpackOsc = null, jetpackGain = null;
+function startJetpackSound() {
+    if (jetpackOsc || !audioCtx || muted || adMuted) return;
+    jetpackOsc = audioCtx.createOscillator();
+    jetpackGain = audioCtx.createGain();
+    jetpackOsc.type = 'sawtooth';
+    jetpackOsc.frequency.value = 90;
+    jetpackGain.gain.value = 0.05;
+    jetpackOsc.connect(jetpackGain);
+    jetpackGain.connect(audioCtx.destination);
+    jetpackOsc.start();
+}
+function stopJetpackSound() {
+    if (!jetpackOsc) return;
+    try { jetpackOsc.stop(); } catch (e) { /* already stopped */ }
+    jetpackOsc.disconnect();
+    jetpackGain.disconnect();
+    jetpackOsc = null;
+    jetpackGain = null;
+}
+
+// ============================================================================
+// Particles (landing dust) + screen shake
+// ============================================================================
+let particles = [];
+let shake = 0;
+
+function spawnDust(x, y, count = 14, color = '#a8a29e') {
+    for (let i = 0; i < count; i++) {
+        let angle = Math.PI + Math.random() * Math.PI;
+        let speed = 2 + Math.random() * 4;
+        particles.push({
+            x, y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 1,
+            life: 1,
+            size: 3 + Math.random() * 4,
+            color,
+        });
+    }
+}
+
+function updateParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.vy += 0.15;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 0.025;
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+}
+
+function drawParticles() {
+    particles.forEach((p) => {
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+}
+
+function triggerShake(amount) {
+    shake = Math.max(shake, amount);
+}
+
+let floaters = [];
+
+function spawnFloater(x, y, text, color) {
+    floaters.push({ x, y, vy: -1.2, life: 1, text, color });
+}
+
+function updateFloaters() {
+    for (let i = floaters.length - 1; i >= 0; i--) {
+        let f = floaters[i];
+        f.y += f.vy;
+        f.life -= 0.02;
+        if (f.life <= 0) floaters.splice(i, 1);
+    }
+}
+
+function drawFloaters() {
+    ctx.font = 'bold 16px ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    floaters.forEach((f) => {
+        ctx.globalAlpha = Math.max(0, f.life);
+        ctx.fillStyle = f.color;
+        ctx.fillText(f.text, f.x, f.y);
+    });
+    ctx.globalAlpha = 1;
+}
+
+// ============================================================================
+// Config & core state
+// ============================================================================
+let width, height;
+let state = 'AIMING';
+let cash = 0;
+let gamePaused = false;
+
+const upgrades = {
+    power: { name: 'Cannon Power', level: 1, baseCost: 50, costMult: 1.5, value: 25, valStep: 5, desc: 'Launch speed' },
+    aero: { name: 'Aerodynamics', level: 1, baseCost: 75, costMult: 1.6, value: 0.985, valStep: 0.001, desc: 'Less air resistance', maxLvl: 10 },
+    bounce: { name: 'Bounciness', level: 1, baseCost: 100, costMult: 1.7, value: 0.35, valStep: 0.05, desc: 'Conserve speed on hit', maxLvl: 10 },
+    mult: { name: 'Cash Multiplier', level: 1, baseCost: 200, costMult: 2.0, value: 1.0, valStep: 0.5, desc: 'Earn more money' },
+    jetpack: { name: 'Jetpack Fuel', level: 1, baseCost: 150, costMult: 1.65, value: 50, valStep: 15, desc: 'Thrust duration', maxLvl: 10 },
+};
+
+const gravity = 0.4;
+const groundFriction = 0.85;
+const pixelsPerMeter = 50;
+const JETPACK_THRUST = 0.75;
+const JETPACK_ANGLE = -Math.PI / 4; // up-right (screen convention: -y is up)
+const JETPACK_THRUST_X = JETPACK_THRUST * Math.cos(JETPACK_ANGLE);
+const JETPACK_THRUST_Y = JETPACK_THRUST * Math.sin(JETPACK_ANGLE);
+const LANDING_HEIGHT_LIMIT = 5; // meters -- see the landing condition in update()
+
+// Power-ups: each round has a chance of granting a one-shot ability for the
+// upcoming flight (bomb head or rocket head), or the player can watch an ad
+// to guarantee one. Toggle SHOW_AD_UI to hide every ad-related button (the
+// cash-double reward and the get-a-power offer) without touching any logic.
+const SHOW_AD_UI = false;
+const POWER_CHANCE = 0.2;
+const ROCKET_ANGLE = Math.PI / 4; // 45 degrees, down-right
+
+let player = { x: 0, y: 0, vx: 0, vy: 0, rotation: 0, radius: 15, startX: 200, groundY: 700 };
+let camera = { x: 0, y: 0, targetX: 0, targetY: 0, zoom: 1 };
+
+let isDragging = false;
+let dragStartX = 0, dragStartY = 0, dragCurrentX = 0, dragCurrentY = 0;
+let thrustHeld = false;
+let jetpackFuel = 0;
+let activePower = null; // null | 'bomb' | 'rocket'
+let powerUsed = false;
+
+let bestRunX = 0, lastRunX = 0, landingTimer = 0, landingDist = 0, landingEarned = 0, flagProgress = 0;
+let rewardUsedThisRun = false;
+let hasLaunchedOnce = false;
+
+// Per-run stats, tallied during flight and paid out (with the Cash
+// Multiplier applied to the whole total) when this run lands.
+let maxHeightReached = 0;
+let woodBlocksDestroyed = 0;
+let stoneBlocksDestroyed = 0;
+let tntBlocksDestroyed = 0;
+let guardsDestroyed = 0;
+let armedGuardsDestroyed = 0;
+
+// Clouds are generated procedurally from world position (see drawClouds)
+// rather than stored in a fixed array, so they cover any distance the
+// player reaches instead of a small repeating band. cloudDrift is a shared
+// slow offset so every cloud drifts together, like wind.
+let cloudDrift = 0;
+
+// ============================================================================
+// Character animation -- rigid, fixed-length limbs that swing at the joint
+// (like a jointed paper doll) instead of stretching. "angle" is a spring-
+// damped deflection added on top of each part's rest angle; length never
+// changes, so nothing ever looks stretchy -- only movable.
+// ============================================================================
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+let limbs = {
+    torso: { angle: 0, angVel: 0, restAngle: -Math.PI / 2, length: 16 },
+    lh: { angle: 0, angVel: 0, restAngle: Math.atan2(5, -10), length: Math.hypot(10, 5) },
+    rh: { angle: 0, angVel: 0, restAngle: Math.atan2(5, 10), length: Math.hypot(10, 5) },
+    lf: { angle: 0, angVel: 0, restAngle: Math.atan2(13, -8), length: Math.hypot(8, 13) },
+    rf: { angle: 0, angVel: 0, restAngle: Math.atan2(13, 8), length: Math.hypot(8, 13) },
+};
+let prevRotation = 0;
+
+function updateAngleSpring(part, target) {
+    let accel = (target - part.angle) * 0.22 - part.angVel * 0.38;
+    part.angVel += accel;
+    part.angle += part.angVel;
+}
+
+function updateLimbs() {
+    let angVel = player.rotation - prevRotation;
+    prevRotation = player.rotation;
+
+    // Velocity in the body's own (rotated) frame, so limbs swing relative
+    // to the direction of travel no matter how the body has spun.
+    let cosR = Math.cos(-player.rotation), sinR = Math.sin(-player.rotation);
+    let localVx = player.vx * cosR - player.vy * sinR;
+    let localVy = player.vx * sinR + player.vy * cosR;
+
+    let sweep = clamp(-localVx * 0.025, -0.5, 0.5);
+    let bob = clamp(-localVy * 0.015, -0.25, 0.25);
+    let spin = clamp(angVel * 1.6, -0.6, 0.6);
+
+    updateAngleSpring(limbs.torso, clamp(sweep * 0.5 + spin * 0.4, -0.45, 0.45));
+    updateAngleSpring(limbs.lh, sweep + bob - spin);
+    updateAngleSpring(limbs.rh, sweep + bob + spin);
+    updateAngleSpring(limbs.lf, (sweep + bob) * 0.55 - spin * 0.5);
+    updateAngleSpring(limbs.rf, (sweep + bob) * 0.55 + spin * 0.5);
+}
+
+// ============================================================================
+// Terrain
+// ============================================================================
+function naturalGroundY(x) {
+    let base = player.groundY;
+    if (x <= player.startX + 800) return base;
+    let dx = x - (player.startX + 800);
+    let h1 = Math.sin(dx * 0.0012) * 200;
+    let h2 = Math.sin(dx * 0.0035) * 120;
+    let h3 = Math.sin(dx * 0.008) * 50;
+    return base - (h1 + h2 + h3);
+}
+
+// Flat pads carved into the terrain so buildings always sit level instead of
+// on a slope. Registered by generateForts() before anything else queries
+// getGroundY for those X ranges.
+let flatZones = [];
+
+function getGroundY(x) {
+    for (let i = 0; i < flatZones.length; i++) {
+        let z = flatZones[i];
+        let d = Math.abs(x - z.x);
+        if (d <= z.halfWidth) return z.height;
+        if (d <= z.halfWidth + z.blend) {
+            let t = (d - z.halfWidth) / z.blend;
+            return z.height * (1 - t) + naturalGroundY(x) * t;
+        }
+    }
+    return naturalGroundY(x);
+}
+
+// ============================================================================
+// Forts -- fixed-preset buildings (25-50 blocks) on flat pads, sometimes
+// guarded by a sentry on top. Generated once at boot with fixed world
+// positions; destroyed blocks/guards stay destroyed for the rest of the
+// session. Hitting a block or guard always saps velocity; only a hit above
+// BLOCK_BREAK_SPEED actually breaks it -- otherwise it's just a solid bump.
+// ============================================================================
+const BLOCK_SIZE = 28;
+const FORT_COUNT = 55;
+const BLOCK_BREAK_SPEED = 5;
+const BOMB_RADIUS = 5 * BLOCK_SIZE;
+const ROCKET_EXPLOSION_RADIUS = 2.2 * BLOCK_SIZE;
+let forts = [];
+let projectiles = [];
+let rockets = [];
+
+const FORT_PRESETS = [
+    // Tower, 52 blocks
+    ['111111111', '111111111', '111111111', '111111111', '101111101', '101110101', '100010001'],
+    // Pyramid, 64 blocks
+    ['111111111111111', '011111111111110', '001111111111100', '000111111111000', '000011111110000', '000001111100000', '000000111000000', '000000010000000'],
+    // Wall with crenellations, 63 blocks
+    ['11111111111111', '11111111111111', '11111111111111', '11111111111111', '10101010101010'],
+    // Twin towers, 51 blocks
+    ['111111111', '111111111', '111111111', '110000011', '110000011', '110000011', '110000011', '110000011', '110000011'],
+    // Staircase, 68 blocks
+    ['111111111111', '111111111110', '111111111100', '111111111000', '111111110000', '111111100000', '111111000000', '111110000000'],
+];
+
+function rollMaterial() {
+    let r = Math.random();
+    if (r < 0.05) return 'tnt';
+    if (r < 0.30) return 'stone';
+    return 'wood';
+}
+
+function makeGuard(x, y, col, type) {
+    return { x, y, vy: 0, col, type, alive: true, shootCooldown: 40 + Math.random() * 80 };
+}
+
+function buildBlocksAndGuards(x, plateauHeight, preset) {
+    let width = preset[0].length;
+    let blocks = [];
+    let tallestRow = -1, tallestCol = 0;
+    for (let row = 0; row < preset.length; row++) {
+        let rowStr = preset[row];
+        for (let col = 0; col < rowStr.length; col++) {
+            if (rowStr[col] !== '1') continue;
+            let bx = x + (col - (width - 1) / 2) * BLOCK_SIZE;
+            blocks.push({
+                alive: true, material: rollMaterial(), col, row,
+                x: bx, y: plateauHeight - (row + 1) * BLOCK_SIZE, vy: 0,
+            });
+            if (row > tallestRow) { tallestRow = row; tallestCol = col; }
+        }
+    }
+    return { blocks, width, tallestRow, tallestCol };
+}
+
+// A wide, heavily-guarded fortress placed every BOSS_SPACING_M meters:
+// one column of blocks per "column slot", corner towers and alternating
+// merlons for a castle-wall silhouette, and a shooter/gunner guard
+// standing on every single column's top block.
+const BOSS_WIDTH = 24;
+function generateBossFort(x) {
+    const plateauHeight = naturalGroundY(x);
+    const halfWidth = (BOSS_WIDTH * BLOCK_SIZE) / 2 + 30;
+    flatZones.push({ x, halfWidth, blend: 150, height: plateauHeight });
+
+    let blocks = [];
+    let guards = [];
+    for (let col = 0; col < BOSS_WIDTH; col++) {
+        let h = (col === 0 || col === BOSS_WIDTH - 1) ? 18 : (col % 2 === 0 ? 14 : 10);
+        let bx = x + (col - (BOSS_WIDTH - 1) / 2) * BLOCK_SIZE;
+        for (let row = 0; row < h; row++) {
+            blocks.push({
+                alive: true, material: rollMaterial(), col, row,
+                x: bx, y: plateauHeight - (row + 1) * BLOCK_SIZE, vy: 0,
+            });
+        }
+        guards.push(makeGuard(bx, plateauHeight - h * BLOCK_SIZE - 34, col, 'shooter'));
+    }
+
+    return {
+        x, baseY: plateauHeight, blocks, guards, isBoss: true,
+        collisionRadius: halfWidth + 40,
+    };
+}
+
+const BOSS_SPACING_M = 500;
+const BOSS_COUNT = 10;
+
+function generateForts() {
+    forts = [];
+    flatZones = [];
+
+    let bossSpacingPx = BOSS_SPACING_M * pixelsPerMeter;
+    let bossPositions = [];
+    for (let i = 1; i <= BOSS_COUNT; i++) {
+        let bx = player.startX + i * bossSpacingPx;
+        bossPositions.push(bx);
+        forts.push(generateBossFort(bx));
+    }
+
+    function tooCloseToBoss(x) {
+        return bossPositions.some((b) => Math.abs(x - b) < 1000);
+    }
+
+    let x = player.startX + 900;
+    for (let i = 0; i < FORT_COUNT; i++) {
+        x += 900 + Math.random() * 900;
+        while (tooCloseToBoss(x)) x += 400;
+
+        let preset = FORT_PRESETS[Math.floor(Math.random() * FORT_PRESETS.length)];
+        let plateauHeight = naturalGroundY(x);
+        let built = buildBlocksAndGuards(x, plateauHeight, preset);
+        flatZones.push({ x, halfWidth: (built.width * BLOCK_SIZE) / 2 + 24, blend: 130, height: plateauHeight });
+
+        let guards = [];
+        if (Math.random() < 0.75) {
+            let guardType = Math.random() < 0.2 ? 'shooter' : 'passive';
+            let guardX = x + (built.tallestCol - (built.width - 1) / 2) * BLOCK_SIZE;
+            guards.push(makeGuard(guardX, plateauHeight - (built.tallestRow + 1) * BLOCK_SIZE - 34, built.tallestCol, guardType));
+        }
+
+        forts.push({
+            x, baseY: plateauHeight, blocks: built.blocks, guards, isBoss: false,
+            collisionRadius: (built.width * BLOCK_SIZE) / 2 + 40,
+        });
+    }
+
+    forts.sort((a, b) => a.x - b.x);
+}
+
+// Settles blocks/guards straight down onto whatever's still alive beneath
+// them (ground or another block), closing gaps left by destroyed blocks.
+function updateFortPhysics() {
+    forts.forEach((fort) => {
+        let columns = {};
+        fort.blocks.forEach((b) => {
+            if (!b.alive) return;
+            (columns[b.col] = columns[b.col] || []).push(b);
+        });
+
+        Object.keys(columns).forEach((colKey) => {
+            let colBlocks = columns[colKey];
+            colBlocks.sort((a, b) => a.row - b.row);
+            colBlocks.forEach((b, idx) => {
+                let targetY = fort.baseY - (idx + 1) * BLOCK_SIZE;
+                if (b.y < targetY - 0.5) {
+                    b.vy += gravity * 0.6;
+                    b.y = Math.min(b.y + b.vy, targetY);
+                    if (b.y >= targetY) b.vy = 0;
+                } else {
+                    b.y = targetY;
+                    b.vy = 0;
+                }
+            });
+        });
+
+        fort.guards.forEach((g) => {
+            if (!g.alive) return;
+            let support = columns[g.col] || [];
+            let targetY = fort.baseY - support.length * BLOCK_SIZE - 34;
+            if (g.y < targetY - 0.5) {
+                g.vy += gravity * 0.6;
+                g.y = Math.min(g.y + g.vy, targetY);
+                if (g.y >= targetY) g.vy = 0;
+            } else {
+                g.y = targetY;
+                g.vy = 0;
+            }
+        });
+    });
+}
+
+function resolveCircleBox(px, py, r, bx, by, bw, bh) {
+    let closestX = clamp(px, bx, bx + bw);
+    let closestY = clamp(py, by, by + bh);
+    let dx = px - closestX, dy = py - closestY;
+    let distSq = dx * dx + dy * dy;
+    if (distSq >= r * r) return null;
+    let dist = Math.sqrt(distSq);
+    let nx = dist > 0.0001 ? dx / dist : 0;
+    let ny = dist > 0.0001 ? dy / dist : -1;
+    return { nx, ny, penetration: r - dist };
+}
+
+// Pushes the player out of the hit box, then either lets them punch through
+// (mild slowdown) or bounces them off it (heavy slowdown), depending on speed.
+// Natural bounce damping lets speed decay to a genuine stop when resting on
+// top of a block (needed so landing can trigger there -- see the stopping
+// condition in update()); the stuckTicks counter in checkFortCollisions is
+// the backstop for a hit that never resolves (e.g. wedged against a side).
+function resolveFortHit(hit) {
+    player.x += hit.nx * (hit.penetration + 0.5);
+    player.y += hit.ny * (hit.penetration + 0.5);
+
+    let speed = Math.hypot(player.vx, player.vy);
+    if (speed > BLOCK_BREAK_SPEED) {
+        player.vx *= 0.85;
+        player.vy *= 0.85;
+        return true;
+    }
+    let vDotN = player.vx * hit.nx + player.vy * hit.ny;
+    player.vx -= 2 * vDotN * hit.nx;
+    player.vy -= 2 * vDotN * hit.ny;
+    player.vx *= 0.5;
+    player.vy *= 0.5;
+
+    return false;
+}
+
+function playBlockBreak() { beep({ freq: 300, freqEnd: 120, duration: 0.08, type: 'square', gain: 0.11 }); }
+function playGuardHit() {
+    beep({ freq: 200, freqEnd: 60, duration: 0.12, type: 'sawtooth', gain: 0.16 });
+    setTimeout(() => beep({ freq: 660, duration: 0.08, type: 'square', gain: 0.1 }), 60);
+}
+function playShoot() { beep({ freq: 500, freqEnd: 250, duration: 0.07, type: 'triangle', gain: 0.09 }); }
+function playProjectileHit() { beep({ freq: 180, freqEnd: 40, duration: 0.14, type: 'sawtooth', gain: 0.15 }); }
+function playExplosion() {
+    beep({ freq: 150, freqEnd: 40, duration: 0.22, type: 'sawtooth', gain: 0.2 });
+    setTimeout(() => beep({ freq: 80, freqEnd: 30, duration: 0.18, type: 'square', gain: 0.15 }), 40);
+}
+
+const TNT_PUSH = 13;
+const BLOCK_REWARD = 1;   // wood or stone
+const TNT_REWARD = 3;
+const GUARD_REWARD = 5;
+const SHOOTER_REWARD = 8;
+
+// TNT takes out its 4 orthogonal neighbors (no chain reaction, even if one
+// of them is also TNT -- keeps the blast radius predictable) and shoves the
+// player away from the blast center.
+function explodeTnt(fort, block) {
+    [[-1, 0], [1, 0], [0, -1], [0, 1]].forEach(([dc, dr]) => {
+        let target = fort.blocks.find((b) => b.alive && b.col === block.col + dc && b.row === block.row + dr);
+        if (!target) return;
+        target.alive = false;
+        if (target.material === 'tnt') tntBlocksDestroyed++;
+        else if (target.material === 'stone') stoneBlocksDestroyed++;
+        else woodBlocksDestroyed++;
+        spawnDust(target.x, target.y + BLOCK_SIZE / 2, 10, '#f97316');
+    });
+
+    let dx = player.x - block.x, dy = player.y - (block.y + BLOCK_SIZE / 2);
+    let dist = Math.hypot(dx, dy) || 1;
+    player.vx += (dx / dist) * TNT_PUSH;
+    player.vy += (dy / dist) * TNT_PUSH - TNT_PUSH * 0.3;
+
+    spawnDust(block.x, block.y + BLOCK_SIZE / 2, 30, '#f97316');
+    triggerShake(12);
+    playExplosion();
+}
+
+// Destroys any alive block/guard within `radius` px of (cx, cy), across every
+// fort close enough to matter, crediting the same per-run counters as any
+// other destruction. Shared by bomb head and rocket-head explosions below.
+function destroyInRadius(cx, cy, radius, dustColor) {
+    forts.forEach((fort) => {
+        if (Math.abs(fort.x - cx) > radius + fort.collisionRadius) return;
+        fort.blocks.forEach((block) => {
+            if (!block.alive) return;
+            let by = block.y + BLOCK_SIZE / 2;
+            if (Math.hypot(block.x - cx, by - cy) > radius) return;
+            block.alive = false;
+            if (block.material === 'tnt') tntBlocksDestroyed++;
+            else if (block.material === 'stone') stoneBlocksDestroyed++;
+            else woodBlocksDestroyed++;
+            spawnDust(block.x, by, 6, dustColor);
+        });
+        fort.guards.forEach((g) => {
+            if (!g.alive) return;
+            let gy = g.y + 17;
+            if (Math.hypot(g.x - cx, gy - cy) > radius) return;
+            g.alive = false;
+            if (g.type === 'shooter') armedGuardsDestroyed++;
+            else guardsDestroyed++;
+            spawnDust(g.x, gy, 8, '#ef4444');
+        });
+    });
+}
+
+function triggerBombHead() {
+    if (activePower !== 'bomb' || powerUsed || state !== 'FLYING') return;
+    powerUsed = true;
+    updatePowerUI();
+
+    destroyInRadius(player.x, player.y, BOMB_RADIUS, '#f97316');
+
+    spawnDust(player.x, player.y, 46, '#f97316');
+    spawnFloater(player.x, player.y - 26, 'BOOM!', '#f97316');
+    triggerShake(18);
+    playExplosion();
+}
+
+function playRocketLaunch() {
+    beep({ freq: 300, freqEnd: 700, duration: 0.12, type: 'sawtooth', gain: 0.13 });
+    setTimeout(() => beep({ freq: 350, freqEnd: 750, duration: 0.12, type: 'sawtooth', gain: 0.1 }), 40);
+}
+
+function triggerRocketHead() {
+    if (activePower !== 'rocket' || powerUsed || state !== 'FLYING') return;
+    powerUsed = true;
+    updatePowerUI();
+
+    let dirX = Math.cos(ROCKET_ANGLE), dirY = Math.sin(ROCKET_ANGLE);
+    let perpX = -dirY, perpY = dirX;
+    let speed = 12, spacing = 20;
+    for (let i = -1; i <= 1; i++) {
+        rockets.push({
+            x: player.x + perpX * i * spacing,
+            y: player.y + perpY * i * spacing,
+            vx: dirX * speed, vy: dirY * speed,
+            life: 220,
+        });
+    }
+    playRocketLaunch();
+}
+
+function updateRockets() {
+    for (let i = rockets.length - 1; i >= 0; i--) {
+        let r = rockets[i];
+        r.x += r.vx;
+        r.y += r.vy;
+        r.life--;
+
+        let exploded = false;
+        for (let f = 0; f < forts.length && !exploded; f++) {
+            let fort = forts[f];
+            if (Math.abs(fort.x - r.x) > fort.collisionRadius) continue;
+            for (let b = 0; b < fort.blocks.length && !exploded; b++) {
+                let block = fort.blocks[b];
+                if (block.alive && resolveCircleBox(r.x, r.y, 5, block.x - BLOCK_SIZE / 2, block.y, BLOCK_SIZE, BLOCK_SIZE)) exploded = true;
+            }
+            for (let g = 0; g < fort.guards.length && !exploded; g++) {
+                let guard = fort.guards[g];
+                if (guard.alive && resolveCircleBox(r.x, r.y, 5, guard.x - 10, guard.y, 20, 34)) exploded = true;
+            }
+        }
+
+        if (exploded) {
+            destroyInRadius(r.x, r.y, ROCKET_EXPLOSION_RADIUS, '#f97316');
+            spawnDust(r.x, r.y, 22, '#f97316');
+            triggerShake(7);
+            playExplosion();
+        }
+
+        if (exploded || r.life <= 0) rockets.splice(i, 1);
+    }
+}
+
+function drawRockets() {
+    rockets.forEach((r) => {
+        ctx.save();
+        ctx.translate(r.x, r.y);
+        ctx.rotate(ROCKET_ANGLE);
+        ctx.fillStyle = '#dc2626';
+        ctx.fillRect(-9, -3, 16, 6);
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath();
+        ctx.moveTo(7, -3.5);
+        ctx.lineTo(13, 0);
+        ctx.lineTo(7, 3.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+    });
+}
+
+let stuckTicks = 0;
+const STUCK_LIMIT = 20; // ~0.33s -- backstop for genuine wedge/corner cases;
+                        // a normal rest-on-top landing converges naturally
+                        // well before this (verified: ~25 ticks to settle).
+
+function checkFortCollisions() {
+    let anyHit = false;
+
+    for (let f = 0; f < forts.length; f++) {
+        let fort = forts[f];
+        if (Math.abs(fort.x - player.x) > fort.collisionRadius) continue;
+
+        for (let b = 0; b < fort.blocks.length; b++) {
+            let block = fort.blocks[b];
+            if (!block.alive) continue;
+            let hit = resolveCircleBox(player.x, player.y, player.radius, block.x - BLOCK_SIZE / 2, block.y, BLOCK_SIZE, BLOCK_SIZE);
+            if (!hit) continue;
+            anyHit = true;
+
+            let broke = resolveFortHit(hit) || stuckTicks > STUCK_LIMIT;
+            if (broke) {
+                block.alive = false;
+                if (block.material === 'tnt') tntBlocksDestroyed++;
+                else if (block.material === 'stone') stoneBlocksDestroyed++;
+                else woodBlocksDestroyed++;
+                let reward = block.material === 'tnt' ? TNT_REWARD : BLOCK_REWARD;
+                spawnDust(block.x, block.y + BLOCK_SIZE / 2, block.material === 'tnt' ? 22 : 8, block.material === 'tnt' ? '#f97316' : '#a9784f');
+                spawnFloater(player.x, player.y - 20, `+$${reward}`, '#c99a63');
+                playBlockBreak();
+                triggerShake(block.material === 'tnt' ? 7 : 3);
+                if (block.material === 'tnt') explodeTnt(fort, block);
+            } else {
+                spawnDust(block.x, block.y + BLOCK_SIZE / 2, 4);
+                triggerShake(2);
+            }
+        }
+
+        for (let g = 0; g < fort.guards.length; g++) {
+            let guard = fort.guards[g];
+            if (!guard.alive) continue;
+            let hit = resolveCircleBox(player.x, player.y, player.radius, guard.x - 10, guard.y, 20, 34);
+            if (!hit) continue;
+            anyHit = true;
+            let broke = resolveFortHit(hit) || stuckTicks > STUCK_LIMIT;
+            if (broke) {
+                guard.alive = false;
+                if (guard.type === 'shooter') armedGuardsDestroyed++;
+                else guardsDestroyed++;
+                let reward = guard.type === 'shooter' ? SHOOTER_REWARD : GUARD_REWARD;
+                spawnDust(guard.x, guard.y + 17, 14);
+                spawnFloater(player.x, player.y - 20, `+$${reward}`, '#ef4444');
+                playGuardHit();
+                triggerShake(6);
+            } else {
+                spawnDust(guard.x, guard.y + 17, 4);
+                triggerShake(2);
+            }
+        }
+    }
+
+    stuckTicks = anyHit ? stuckTicks + 1 : 0;
+    return anyHit;
+}
+
+function updateShooterGuards() {
+    if (state !== 'FLYING') return;
+    forts.forEach((fort) => {
+        fort.guards.forEach((g) => {
+            if (g.type !== 'shooter' || !g.alive) return;
+            g.shootCooldown--;
+            let dx = player.x - g.x, dy = player.y - g.y;
+            let dist = Math.hypot(dx, dy) || 1;
+            if (g.shootCooldown <= 0 && dist < 750 && dx < 40) {
+                let speed = 15;
+                projectiles.push({ x: g.x, y: g.y - 20, vx: (dx / dist) * speed, vy: (dy / dist) * speed, life: 150 });
+                g.shootCooldown = 55;
+                playShoot();
+            }
+        });
+    });
+}
+
+function updateProjectiles() {
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+        let p = projectiles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        if (state === 'FLYING' && Math.hypot(p.x - player.x, p.y - player.y) < player.radius + 5) {
+            player.vx *= 0.55;
+            player.vy *= 0.55;
+            cash = Math.max(0, cash - 1);
+            updateHUD();
+            spawnDust(player.x, player.y, 10, '#c084fc');
+            spawnFloater(player.x, player.y - 20, '-$1 HIT!', '#c084fc');
+            playProjectileHit();
+            triggerShake(5);
+            projectiles.splice(i, 1);
+            continue;
+        }
+        if (p.life <= 0) projectiles.splice(i, 1);
+    }
+}
+
+// ============================================================================
+// Aiming helpers -- shared by the main-canvas trajectory preview and the
+// minimap aim indicator so both always agree on where a launch will go.
+// ============================================================================
+function getDragVelocity() {
+    let dx = dragStartX - dragCurrentX;
+    let dy = dragStartY - dragCurrentY;
+    let dist = Math.sqrt(dx * dx + dy * dy);
+    let maxDrag = 200;
+    if (dist > maxDrag) {
+        dx = (dx / dist) * maxDrag;
+        dy = (dy / dist) * maxDrag;
+    }
+    let powerScale = upgrades.power.value / maxDrag;
+    return { dx, dy, vx: dx * powerScale, vy: dy * powerScale };
+}
+
+// Simplified (non-substepped) forward simulation, run only while aiming --
+// cheap enough to do every rendered frame. Ignores forts; it's a guide, not
+// an exact replay of the real physics. Samples points along the way so the
+// minimap can draw the actual arc instead of a straight shortcut line.
+function predictTrajectoryPoints(vx, vy) {
+    let points = [{ x: player.x, y: player.y }];
+    let tx = player.x, ty = player.y;
+    let tvx = vx, tvy = vy;
+    for (let i = 0; i < 2000; i++) {
+        tvy += gravity;
+        tvx *= upgrades.aero.value;
+        tvy *= upgrades.aero.value;
+        tx += tvx;
+        ty += tvy;
+        let cgy = getGroundY(tx);
+        if (ty >= cgy) {
+            ty = cgy;
+            if (Math.abs(tvy) > 2) {
+                tvy = -tvy * Math.min(0.85, upgrades.bounce.value);
+            } else {
+                tvy = 0;
+            }
+            tvx *= groundFriction;
+        }
+        if (i % 14 === 0) points.push({ x: tx, y: ty });
+        if (Math.abs(tvx) < 0.2 && Math.abs(tvy) < 0.5 && ty >= cgy - 2) break;
+    }
+    points.push({ x: tx, y: ty });
+    return points;
+}
+
+function predictLandingX(vx, vy) {
+    let points = predictTrajectoryPoints(vx, vy);
+    return points[points.length - 1].x;
+}
+
+// ============================================================================
+// Resize
+// ============================================================================
+function resize() {
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+
+    // The minimap has its own canvas -- keep its backing store matched to
+    // its actual rendered box so it stays crisp at any size.
+    let mapRect = minimapCanvas.getBoundingClientRect();
+    if (mapRect.width > 0 && mapRect.height > 0) {
+        minimapCanvas.width = mapRect.width;
+        minimapCanvas.height = mapRect.height;
+    }
+}
+window.addEventListener('resize', resize);
+
+// ============================================================================
+// Economy helpers
+// ============================================================================
+function formatMoney(amount) {
+    return Math.floor(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function getCost(key) {
+    let u = upgrades[key];
+    return Math.floor(u.baseCost * Math.pow(u.costMult, u.level - 1));
+}
+
+function buyUpgrade(key) {
+    let cost = getCost(key);
+    let u = upgrades[key];
+    if (cash >= cost && (!u.maxLvl || u.level < u.maxLvl)) {
+        cash -= cost;
+        u.level++;
+        if (key === 'aero') u.value = Math.min(0.995, u.value + u.valStep);
+        else if (key === 'power') u.value += u.valStep;
+        else if (key === 'bounce') u.value = Math.min(0.85, u.value + u.valStep);
+        else if (key === 'mult') u.value += u.valStep;
+        else if (key === 'jetpack') { u.value += u.valStep; jetpackFuel = u.value; }
+        updateShopUI();
+        updateHUD();
+        saveGame();
+    }
+}
+
+// Persists cash, best distance, and upgrade levels through CrazyGames' data
+// module (see CrazySDK.saveProgress/loadProgress) -- no-ops standalone.
+function saveGame() {
+    CrazySDK.saveProgress({
+        cash,
+        bestRunX,
+        upgrades: {
+            power: { level: upgrades.power.level, value: upgrades.power.value },
+            aero: { level: upgrades.aero.level, value: upgrades.aero.value },
+            bounce: { level: upgrades.bounce.level, value: upgrades.bounce.value },
+            mult: { level: upgrades.mult.level, value: upgrades.mult.value },
+            jetpack: { level: upgrades.jetpack.level, value: upgrades.jetpack.value },
+        },
+    });
+}
+
+function loadGame() {
+    let data = CrazySDK.loadProgress();
+    if (!data) return;
+    if (typeof data.cash === 'number') cash = data.cash;
+    if (typeof data.bestRunX === 'number') bestRunX = data.bestRunX;
+    if (data.upgrades) {
+        Object.keys(upgrades).forEach((key) => {
+            if (data.upgrades[key]) {
+                upgrades[key].level = data.upgrades[key].level;
+                upgrades[key].value = data.upgrades[key].value;
+            }
+        });
+    }
+    jetpackFuel = upgrades.jetpack.value; // keep fuel in sync with the loaded upgrade
+}
+
+// ============================================================================
+// Input handling
+// ============================================================================
+canvas.addEventListener('mousedown', startDrag);
+window.addEventListener('mousemove', doDrag);
+window.addEventListener('mouseup', endDrag);
+
+canvas.addEventListener('touchstart', (e) => {
+    if (e.cancelable) e.preventDefault();
+    if (e.touches && e.touches[0]) startDrag(e.touches[0]);
+}, { passive: false });
+
+window.addEventListener('touchmove', (e) => {
+    if (isDragging && e.cancelable) e.preventDefault();
+    if (isDragging && e.touches && e.touches[0]) doDrag(e.touches[0]);
+}, { passive: false });
+
+window.addEventListener('touchend', endDrag);
+
+window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+        thrustHeld = true;
+        if (e.cancelable) e.preventDefault();
+    } else if (e.code === 'KeyB') {
+        if (activePower === 'bomb') triggerBombHead();
+        else if (activePower === 'rocket') triggerRocketHead();
+    }
+});
+window.addEventListener('keyup', (e) => {
+    if (e.code === 'Space') thrustHeld = false;
+});
+
+function startDrag(e) {
+    if (state === 'FLYING') {
+        ensureAudio();
+        thrustHeld = true;
+        return;
+    }
+    if (state !== 'AIMING') return;
+    ensureAudio();
+    isDragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    dragCurrentX = dragStartX;
+    dragCurrentY = dragStartY;
+    shopBar.classList.remove('show');
+    rewardBtn.classList.remove('show');
+    powerAdBtn.classList.remove('show');
+}
+
+function doDrag(e) {
+    if (!isDragging || state !== 'AIMING') return;
+    dragCurrentX = e.clientX;
+    dragCurrentY = e.clientY;
+}
+
+function endDrag() {
+    thrustHeld = false;
+    if (!isDragging || state !== 'AIMING') return;
+    isDragging = false;
+
+    let dx = dragStartX - dragCurrentX;
+    let dy = dragStartY - dragCurrentY;
+
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+        shopBar.classList.add('show');
+        if (!rewardUsedThisRun) rewardBtn.classList.add('show');
+        return;
+    }
+
+    let launch = getDragVelocity();
+    player.vx = launch.vx;
+    player.vy = launch.vy;
+
+    state = 'FLYING';
+    aimHint.classList.add('hidden');
+    playLaunch();
+
+    if (!hasLaunchedOnce) {
+        hasLaunchedOnce = true;
+        document.body.classList.remove('pre-launch');
+    }
+}
+
+// ============================================================================
+// Reset / physics / landing
+// ============================================================================
+function resetPlayer() {
+    player.x = player.startX;
+    player.y = player.groundY - player.radius;
+    player.vx = 0;
+    player.vy = 0;
+    player.rotation = 0;
+    prevRotation = 0;
+    jetpackFuel = upgrades.jetpack.value;
+    maxHeightReached = 0;
+    woodBlocksDestroyed = 0;
+    stoneBlocksDestroyed = 0;
+    tntBlocksDestroyed = 0;
+    guardsDestroyed = 0;
+    armedGuardsDestroyed = 0;
+    stuckTicks = 0;
+    powerUsed = false;
+    activePower = Math.random() < POWER_CHANCE ? (Math.random() < 0.5 ? 'bomb' : 'rocket') : null;
+    updatePowerUI();
+    camera.x = player.startX - width * 0.2;
+    camera.y = player.groundY - height * 0.7;
+    camera.zoom = 1;
+}
+
+function update() {
+    if (shake > 0) { shake *= 0.85; if (shake < 0.1) shake = 0; }
+    updateParticles();
+    updateFloaters();
+    updateLimbs();
+    updateFortPhysics();
+    updateShooterGuards();
+    updateProjectiles();
+    updateRockets();
+    cloudDrift += 0.08;
+
+    let thrusting = thrustHeld && jetpackFuel > 0 && state === 'FLYING';
+    if (thrusting) startJetpackSound(); else stopJetpackSound();
+
+    if (state === 'AIMING') {
+        camera.targetX = player.startX - width * 0.2;
+        camera.targetY = player.groundY - height * 0.7;
+        camera.zoom = 1;
+        camera.x += (camera.targetX - camera.x) * 0.1;
+        camera.y += (camera.targetY - camera.y) * 0.1;
+    } else if (state === 'FLYING') {
+        let currentHeightM = Math.max(0, (getGroundY(player.x) - player.radius - player.y) / pixelsPerMeter);
+        if (currentHeightM > maxHeightReached) maxHeightReached = currentHeightM;
+
+        player.vy += gravity;
+        if (thrusting) {
+            player.vx += JETPACK_THRUST_X;
+            player.vy += JETPACK_THRUST_Y;
+            jetpackFuel--;
+            if (Math.random() < 0.6) spawnDust(player.x - 12 + (Math.random() - 0.5) * 6, player.y + 14 + (Math.random() - 0.5) * 6, 2, '#fb923c');
+        }
+        player.vx *= upgrades.aero.value;
+        player.vy *= upgrades.aero.value;
+
+        // Sub-step the position integration so fast flights can't tunnel
+        // through steep terrain within a single physics tick.
+        let frameSpeed = Math.hypot(player.vx, player.vy);
+        let steps = Math.min(8, Math.max(1, Math.ceil(frameSpeed / 18)));
+        let touchedFort = false;
+
+        for (let s = 0; s < steps; s++) {
+            player.x += player.vx / steps;
+            player.y += player.vy / steps;
+            player.rotation += (player.vx / steps) * 0.02;
+
+            if (checkFortCollisions()) touchedFort = true;
+
+            let cg = getGroundY(player.x);
+            if (player.y >= cg - player.radius) {
+                player.y = cg - player.radius;
+
+                let slopeY = getGroundY(player.x + 10) - getGroundY(player.x - 10);
+                let slopeAngle = Math.atan2(slopeY, 20);
+
+                let spd = Math.sqrt(player.vx * player.vx + player.vy * player.vy);
+                let velAngle = Math.atan2(player.vy, player.vx);
+                let localAngle = velAngle - slopeAngle;
+
+                let localVx = spd * Math.cos(localAngle);
+                let localVy = spd * Math.sin(localAngle);
+
+                if (localVy > 0) {
+                    let impactSpeed = localVy;
+                    if (localVy > 2) {
+                        localVy = -localVy * Math.min(0.85, upgrades.bounce.value);
+                        spawnDust(player.x, player.y, 10);
+                        playBounce();
+                        triggerShake(Math.min(10, impactSpeed * 0.6));
+                        limbs.lf.angVel += impactSpeed * 0.018;
+                        limbs.rf.angVel -= impactSpeed * 0.018;
+                        limbs.torso.angVel += impactSpeed * 0.01;
+                    } else {
+                        localVy = 0;
+                    }
+                    localVx *= groundFriction;
+                }
+
+                player.vx = localVx * Math.cos(slopeAngle) - localVy * Math.sin(slopeAngle);
+                player.vy = localVx * Math.sin(slopeAngle) + localVy * Math.cos(slopeAngle);
+            }
+        }
+
+        // Low speed alone isn't enough on its own anymore -- a jetpack can
+        // hold the player nearly still well above the ground (intentional
+        // hovering), and that shouldn't end the run. So: low speed AND
+        // either close to the local ground (covers terrain and most forts)
+        // OR actually touching fort geometry (covers tall forts and
+        // notch/wedge cases where "close to local ground" doesn't apply,
+        // since standing on a tall tower reads as high above its base pad).
+        let heightM = Math.max(0, (getGroundY(player.x) - player.radius - player.y) / pixelsPerMeter);
+        if (Math.abs(player.vx) < 0.1 && Math.abs(player.vy) < 0.1 && (heightM <= LANDING_HEIGHT_LIMIT || touchedFort)) {
+            triggerLanding();
+        }
+
+        let targetZoom = 1;
+        let speed = Math.sqrt(player.vx * player.vx + player.vy * player.vy);
+        if (speed > 10) targetZoom = Math.max(0.3, 1 - (speed * 0.015));
+        camera.zoom += (targetZoom - camera.zoom) * 0.05;
+
+        // Look-ahead scales with speed instead of being a hard per-state
+        // constant, so there's no camera pop at launch or at touchdown --
+        // it just fades to 0 as player.vx approaches 0, which is exactly
+        // what the LANDED branch below already assumes.
+        let lookAhead = clamp(player.vx * 3, -60, 220);
+        camera.targetX = player.x - (width / 2) / camera.zoom + lookAhead;
+        camera.targetY = player.y - (height / 2) / camera.zoom;
+
+        let playerGround = getGroundY(player.x);
+        let maxCamY = playerGround + 100 - (height / camera.zoom);
+        if (camera.targetY > maxCamY) camera.targetY = maxCamY;
+
+        camera.x += (camera.targetX - camera.x) * 0.3;
+        camera.y += (camera.targetY - camera.y) * 0.3;
+        if (camera.x < -200) camera.x = -200;
+    } else if (state === 'LANDED') {
+        player.vx = 0;
+        player.vy = 0;
+        player.rotation *= 0.7;
+        if (Math.abs(player.rotation) < 0.01) player.rotation = 0;
+
+        if (flagProgress < 1) flagProgress += 0.08;
+
+        camera.targetX = player.x - (width / 2) / camera.zoom;
+        camera.targetY = player.y - (height / 2) / camera.zoom;
+        camera.x += (camera.targetX - camera.x) * 0.1;
+        camera.y += (camera.targetY - camera.y) * 0.1;
+
+        landingTimer--;
+        if (landingTimer <= 0) {
+            finishLandingAndReset();
+        }
+    }
+
+    updateHUD();
+}
+
+function triggerLanding() {
+    state = 'LANDED';
+    landingTimer = 90;
+    flagProgress = 0;
+
+    landingDist = Math.max(0, (player.x - player.startX) / pixelsPerMeter);
+    landingEarned = Math.floor((landingDist * 2 + maxHeightReached
+        + woodBlocksDestroyed * BLOCK_REWARD
+        + stoneBlocksDestroyed * BLOCK_REWARD
+        + tntBlocksDestroyed * TNT_REWARD
+        + guardsDestroyed * GUARD_REWARD
+        + armedGuardsDestroyed * SHOOTER_REWARD) * upgrades.mult.value);
+    cash += landingEarned;
+
+    lastRunX = player.x;
+    let newBest = false;
+    if (lastRunX > bestRunX) { bestRunX = lastRunX; newBest = true; }
+
+    spawnDust(player.x, player.y, 20);
+    playLand();
+    triggerShake(4);
+
+    landingCashVal.textContent = formatMoney(landingEarned);
+    landingCashToast.classList.add('show');
+
+    lastRunText.textContent = `Last run: ${landingDist.toFixed(1)}m`;
+    lastRunToast.classList.add('show');
+
+    rewardUsedThisRun = false;
+    rewardBtn.classList.add('show');
+
+    shopBar.classList.add('show');
+    updateShopUI();
+
+    if (newBest) CrazySDK.happytime();
+    saveGame();
+}
+
+function finishLandingAndReset() {
+    landingCashToast.classList.remove('show');
+    lastRunToast.classList.remove('show');
+
+    resetPlayer();
+    state = 'AIMING';
+    aimHint.classList.remove('hidden');
+    updateShopUI();
+
+    CrazySDK.requestMidgameAd();
+}
+
+// ============================================================================
+// Minimap -- own canvas, drawn once per rendered frame
+// ============================================================================
+let minimapMaxX = 900; // only ever grows -- keeps the view stable instead of
+                        // rescaling (and dragging the player dot around) every frame
+
+function drawMinimap() {
+    let mw = minimapCanvas.width;
+    let mh = minimapCanvas.height;
+    if (mw <= 0 || mh <= 0) return;
+
+    mctx.clearRect(0, 0, mw, mh);
+
+    let needed = Math.max(player.x, bestRunX, lastRunX) + 300;
+    if (needed > minimapMaxX) minimapMaxX = needed;
+
+    let scaleX = mw / minimapMaxX;
+    let markerX = (worldX) => worldX * scaleX;
+
+    let sampleCount = Math.min(400, Math.max(40, Math.ceil(minimapMaxX / 80)));
+    let heights = [];
+    let minH = Infinity, maxH = -Infinity;
+    for (let i = 0; i <= sampleCount; i++) {
+        let wx = (i / sampleCount) * minimapMaxX;
+        let gy = getGroundY(wx);
+        heights.push(gy);
+        if (gy < minH) minH = gy;
+        if (gy > maxH) maxH = gy;
+    }
+    // Extend the range to cover the player's current altitude so the dot
+    // is always plotted on the exact same scale as the terrain under it.
+    minH = Math.min(minH, player.y - 20);
+    let hRange = Math.max(1, maxH - minH);
+    let toMinimapY = (worldY) => 8 + ((worldY - minH) / hRange) * (mh - 16);
+
+    mctx.beginPath();
+    mctx.moveTo(0, mh);
+    for (let i = 0; i <= sampleCount; i++) {
+        mctx.lineTo((i / sampleCount) * mw, toMinimapY(heights[i]));
+    }
+    mctx.lineTo(mw, mh);
+    mctx.closePath();
+    mctx.fillStyle = 'rgba(67, 217, 200, 0.35)';
+    mctx.fill();
+
+    forts.forEach((fort) => {
+        if (fort.x > minimapMaxX) return;
+        let fx = markerX(fort.x);
+        let fy = toMinimapY(fort.baseY);
+        if (fort.isBoss) {
+            mctx.fillStyle = '#ef4444';
+            mctx.strokeStyle = '#450a0a';
+            mctx.lineWidth = 1.5;
+            mctx.beginPath();
+            mctx.arc(fx, fy - 10, 5, 0, Math.PI * 2);
+            mctx.fill();
+            mctx.stroke();
+            return;
+        }
+        if (fort.blocks.some((b) => b.alive)) {
+            mctx.fillStyle = '#a9784f';
+            mctx.fillRect(fx - 1.5, fy - 5, 3, 5);
+        }
+        if (fort.guards.some((g) => g.alive)) {
+            mctx.fillStyle = fort.guards.some((g) => g.alive && g.type === 'shooter') ? '#a855f7' : '#ef4444';
+            mctx.beginPath();
+            mctx.arc(fx, fy - 8, 2, 0, Math.PI * 2);
+            mctx.fill();
+        }
+    });
+
+    mctx.fillStyle = '#94a3b8';
+    mctx.fillRect(markerX(player.startX) - 1, 4, 2, mh - 8);
+
+    if (bestRunX > player.startX) {
+        mctx.fillStyle = '#eab308';
+        mctx.beginPath();
+        mctx.arc(markerX(bestRunX), toMinimapY(getGroundY(bestRunX)), 3, 0, Math.PI * 2);
+        mctx.fill();
+    }
+
+    if (lastRunX > player.startX) {
+        mctx.fillStyle = '#3b82f6';
+        mctx.beginPath();
+        mctx.arc(markerX(lastRunX), toMinimapY(getGroundY(lastRunX)), 3, 0, Math.PI * 2);
+        mctx.fill();
+    }
+
+    if (state === 'AIMING' && isDragging) {
+        let launch = getDragVelocity();
+        let points = predictTrajectoryPoints(launch.vx, launch.vy);
+
+        mctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+        mctx.lineWidth = 1.3;
+        mctx.setLineDash([3, 3]);
+        mctx.beginPath();
+        points.forEach((p, i) => {
+            let px = markerX(p.x), py = toMinimapY(p.y);
+            if (i === 0) mctx.moveTo(px, py); else mctx.lineTo(px, py);
+        });
+        mctx.stroke();
+        mctx.setLineDash([]);
+
+        let landing = points[points.length - 1];
+        mctx.fillStyle = '#ef4444';
+        mctx.beginPath();
+        mctx.arc(markerX(landing.x), toMinimapY(landing.y), 3, 0, Math.PI * 2);
+        mctx.fill();
+    }
+
+    mctx.fillStyle = '#ffffff';
+    mctx.beginPath();
+    mctx.arc(markerX(player.x), toMinimapY(player.y), 4, 0, Math.PI * 2);
+    mctx.fill();
+    mctx.strokeStyle = '#16213E';
+    mctx.lineWidth = 1.5;
+    mctx.stroke();
+}
+
+// ============================================================================
+// Drawing
+// ============================================================================
+
+// Cheap deterministic pseudo-random in [0, 1) from an integer-ish seed --
+// same seed always gives the same value, so clouds don't flicker or need
+// to be stored anywhere.
+function cloudHash(seed) {
+    let s = Math.sin(seed * 12.9898) * 43758.5453123;
+    return s - Math.floor(s);
+}
+
+const CLOUD_PARALLAX = 0.3; // <1 so clouds drift slower than the foreground
+const CLOUD_SLOT_WIDTH = 340;
+
+function drawClouds() {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+
+    // The scene is drawn inside a context already translated by -camera.x,
+    // so to make a cloud sit at parallax-scaled position
+    // (baseX - camera.x*CLOUD_PARALLAX) on screen, we feed it
+    // baseX + camera.x*(1-CLOUD_PARALLAX) here.
+    let visLeft = camera.x * CLOUD_PARALLAX - 300;
+    let visRight = camera.x * CLOUD_PARALLAX + (width / camera.zoom) + 300;
+    let startSlot = Math.floor(visLeft / CLOUD_SLOT_WIDTH) - 1;
+    let endSlot = Math.ceil(visRight / CLOUD_SLOT_WIDTH) + 1;
+
+    for (let slot = startSlot; slot <= endSlot; slot++) {
+        if (cloudHash(slot * 12.37) > 0.5) continue; // ~half the slots have a cloud
+
+        let jitterX = cloudHash(slot * 3.71 + 5) * CLOUD_SLOT_WIDTH;
+        let baseX = slot * CLOUD_SLOT_WIDTH + jitterX + cloudDrift;
+        let cy = 40 + cloudHash(slot * 5.91 + 9) * Math.max(60, height - 340);
+        let size = 26 + cloudHash(slot * 8.13 + 13) * 46;
+        let cx = baseX + camera.x * (1 - CLOUD_PARALLAX);
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, size, 0, Math.PI * 2);
+        ctx.arc(cx + size * 0.5, cy - size * 0.3, size * 0.8, 0, Math.PI * 2);
+        ctx.arc(cx + size, cy, size * 0.9, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+function roundedRectPath(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+}
+
+function drawBlock(block) {
+    let bx = block.x - BLOCK_SIZE / 2, by = block.y;
+
+    if (block.material === 'wood') {
+        // Thick curved border only -- no fill, so it reads as a wooden crate outline.
+        roundedRectPath(bx + 3, by + 3, BLOCK_SIZE - 6, BLOCK_SIZE - 6, 7);
+        ctx.strokeStyle = '#6b4a2e';
+        ctx.lineWidth = 5;
+        ctx.stroke();
+    } else if (block.material === 'stone') {
+        roundedRectPath(bx, by, BLOCK_SIZE, BLOCK_SIZE, 7);
+        ctx.fillStyle = '#8b93a1';
+        ctx.fill();
+        ctx.strokeStyle = '#5b6270';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    } else {
+        // TNT -- red block, white stripe, black label.
+        roundedRectPath(bx, by, BLOCK_SIZE, BLOCK_SIZE, 7);
+        ctx.fillStyle = '#dc2626';
+        ctx.fill();
+        ctx.save();
+        ctx.clip();
+        ctx.fillStyle = '#f5f5f4';
+        ctx.fillRect(bx, by + BLOCK_SIZE * 0.34, BLOCK_SIZE, BLOCK_SIZE * 0.32);
+        ctx.restore();
+        ctx.strokeStyle = '#7f1d1d';
+        ctx.lineWidth = 2;
+        roundedRectPath(bx, by, BLOCK_SIZE, BLOCK_SIZE, 7);
+        ctx.stroke();
+        ctx.fillStyle = '#7f1d1d';
+        ctx.font = 'bold 8px ui-monospace, monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('TNT', block.x, by + BLOCK_SIZE * 0.58);
+    }
+}
+
+function drawBossLabel(fort) {
+    let topY = fort.baseY - 18 * BLOCK_SIZE - 40;
+    ctx.save();
+    ctx.font = 'bold 22px ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#450a0a';
+    ctx.strokeText('\u2620 BOSS FORTRESS \u2620', fort.x, topY);
+    ctx.fillStyle = '#ef4444';
+    ctx.fillText('\u2620 BOSS FORTRESS \u2620', fort.x, topY);
+    ctx.restore();
+}
+
+function drawForts(viewLeft, viewRight) {
+    forts.forEach((fort) => {
+        if (fort.x < viewLeft - BLOCK_SIZE * 14 || fort.x > viewRight + BLOCK_SIZE * 14) return;
+        fort.blocks.forEach((block) => { if (block.alive) drawBlock(block); });
+        fort.guards.forEach((g) => { if (g.alive) drawGuard(g.x, g.y + 34, g.type); });
+        if (fort.isBoss) drawBossLabel(fort);
+    });
+}
+
+function drawGuard(x, standY, type) {
+    ctx.save();
+    ctx.translate(x, standY);
+    let isShooter = type === 'shooter';
+    ctx.strokeStyle = isShooter ? '#4c1d95' : '#7f1d1d';
+    ctx.fillStyle = isShooter ? '#c4b5fd' : '#fca5a5';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(0, -26, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, -20);
+    ctx.lineTo(0, -6);
+    ctx.moveTo(0, -16);
+    ctx.lineTo(-7, -10);
+    ctx.moveTo(0, -16);
+    ctx.lineTo(isShooter ? 11 : 7, isShooter ? -13 : -10);
+    ctx.moveTo(0, -6);
+    ctx.lineTo(-6, 0);
+    ctx.moveTo(0, -6);
+    ctx.lineTo(6, 0);
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawProjectiles() {
+    ctx.fillStyle = '#a855f7';
+    projectiles.forEach((p) => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+    });
+}
+
+function drawFlag(x, color, label) {
+    if (x <= player.startX) return;
+    let y = getGroundY(x);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(x - 2, y - 60, 4, 60);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x + 2, y - 60);
+    ctx.lineTo(x + 30, y - 45);
+    ctx.lineTo(x + 2, y - 30);
+    ctx.fill();
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 14px ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, x + 15, y - 70);
+}
+
+function draw() {
+    let h = Math.max(0, player.groundY - player.y);
+    let spaceFactor = Math.min(1, h / 10000);
+    let r = Math.floor(135 * (1 - spaceFactor));
+    let g = Math.floor(206 * (1 - spaceFactor));
+    let b = Math.floor(235 * (1 - spaceFactor) + 50 * spaceFactor);
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.save();
+    ctx.scale(camera.zoom, camera.zoom);
+    let shakeX = shake > 0 ? (Math.random() - 0.5) * shake : 0;
+    let shakeY = shake > 0 ? (Math.random() - 0.5) * shake : 0;
+    ctx.translate(-(camera.x + shakeX), -(camera.y + shakeY));
+
+    drawClouds();
+
+    let startGridX = Math.floor((camera.x - 500) / (pixelsPerMeter * 10)) * (pixelsPerMeter * 10);
+    let endGridX = camera.x + (width / camera.zoom) + 1000;
+
+    ctx.fillStyle = '#4ade80';
+    ctx.beginPath();
+    ctx.moveTo(startGridX, player.groundY + 2000);
+    for (let x = startGridX; x <= endGridX; x += 25) ctx.lineTo(x, getGroundY(x));
+    ctx.lineTo(endGridX, player.groundY + 2000);
+    ctx.fill();
+
+    ctx.fillStyle = '#166534';
+    ctx.beginPath();
+    ctx.moveTo(startGridX, player.groundY + 2000);
+    for (let x = startGridX; x <= endGridX; x += 25) ctx.lineTo(x, getGroundY(x) + 20);
+    ctx.lineTo(endGridX, player.groundY + 2000);
+    ctx.fill();
+
+    drawForts(startGridX, endGridX);
+
+    ctx.fillStyle = 'white';
+    ctx.font = '20px ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    let markerSpacing = pixelsPerMeter * 10;
+    let markerGridX = player.startX + Math.floor((startGridX - player.startX) / markerSpacing) * markerSpacing;
+    for (let x = markerGridX; x < endGridX; x += markerSpacing) {
+        if (x > player.startX) {
+            let gy = getGroundY(x);
+            ctx.fillRect(x, gy, 2, 15);
+            ctx.fillText(`${Math.round((x - player.startX) / pixelsPerMeter)}m`, x, gy + 35);
+        }
+    }
+
+    drawFlag(lastRunX, '#3b82f6', 'LAST');
+    if (Math.abs(bestRunX - lastRunX) > 20) drawFlag(bestRunX, '#eab308', 'BEST');
+
+    if (state === 'LANDED') {
+        let fx = player.x + 30;
+        let fy = getGroundY(fx);
+        let poleH = 70 * Math.min(1, flagProgress);
+
+        ctx.fillStyle = '#f87171';
+        ctx.fillRect(fx - 2, fy - poleH, 4, poleH);
+
+        if (flagProgress > 0.5) {
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.moveTo(fx + 2, fy - poleH);
+            ctx.lineTo(fx + 35, fy - poleH + 15);
+            ctx.lineTo(fx + 2, fy - poleH + 30);
+            ctx.fill();
+
+            let badgeX = fx + 42;
+            let badgeY = fy - poleH - 10;
+            ctx.font = 'bold 16px ui-monospace, monospace';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'left';
+            ctx.fillText(`${landingDist.toFixed(1)}m`, badgeX, badgeY);
+        }
+    }
+
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(player.startX - 30, player.groundY - 10, 60, 10);
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath();
+    ctx.arc(player.startX, player.groundY - 10, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (state === 'AIMING' && isDragging) {
+        let launch = getDragVelocity();
+        let dx = launch.dx, dy = launch.dy;
+
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y);
+        ctx.lineTo(player.x - dx, player.y - dy);
+        ctx.stroke();
+
+        let tx = player.x;
+        let ty = player.y;
+        let tvx = launch.vx;
+        let tvy = launch.vy;
+
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        for (let i = 0; i < 60; i += 2) {
+            tvy += gravity;
+            tvx *= upgrades.aero.value;
+            tvy *= upgrades.aero.value;
+            tx += tvx;
+            ty += tvy;
+            let cgy = getGroundY(tx);
+            if (ty > cgy) {
+                ty = cgy;
+                tvy = -tvy * Math.min(0.85, upgrades.bounce.value);
+            }
+            ctx.lineTo(tx, ty);
+        }
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([10, 10]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    drawParticles();
+    drawFloaters();
+    drawProjectiles();
+    drawRockets();
+    drawStickman(player.x, player.y, player.rotation);
+
+    ctx.restore();
+
+    drawMinimap();
+}
+
+function drawRigidLimb(anchorX, anchorY, part) {
+    let a = part.restAngle + part.angle;
+    let endX = anchorX + part.length * Math.cos(a);
+    let endY = anchorY + part.length * Math.sin(a);
+    ctx.beginPath();
+    ctx.moveTo(anchorX, anchorY);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+}
+
+function drawStickman(x, y, rot) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // Torso, shoulder, neck and head all ride the same rigid rod pivoting
+    // at the hip -- it can lean, but it's always exactly `length` long.
+    let torsoA = limbs.torso.restAngle + limbs.torso.angle;
+    let dirX = Math.cos(torsoA), dirY = Math.sin(torsoA);
+    let hipX = 0, hipY = 12;
+    let shoulderX = hipX + 12 * dirX, shoulderY = hipY + 12 * dirY;
+    let neckX = hipX + 16 * dirX, neckY = hipY + 16 * dirY;
+    let headX = hipX + 24 * dirX, headY = hipY + 24 * dirY;
+
+    ctx.beginPath();
+    ctx.moveTo(hipX, hipY);
+    ctx.lineTo(neckX, neckY);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.fillStyle = '#fff';
+    ctx.arc(headX, headY, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    drawRigidLimb(shoulderX, shoulderY, limbs.lh);
+    drawRigidLimb(shoulderX, shoulderY, limbs.rh);
+    drawRigidLimb(hipX, hipY, limbs.lf);
+    drawRigidLimb(hipX, hipY, limbs.rf);
+
+    ctx.restore();
+}
+
+// ============================================================================
+// HUD & shop UI
+// ============================================================================
+function updateHUD() {
+    hudCash.textContent = formatMoney(cash);
+    let dist = Math.max(0, (player.x - player.startX) / pixelsPerMeter);
+    let currentHeight = Math.max(0, (getGroundY(player.x) - player.radius - player.y) / pixelsPerMeter);
+    hudDist.textContent = dist.toFixed(1);
+    hudHeight.textContent = currentHeight.toFixed(1);
+    let fuelPct = upgrades.jetpack.value > 0 ? Math.round((jetpackFuel / upgrades.jetpack.value) * 100) : 0;
+    hudFuel.textContent = Math.max(0, fuelPct);
+}
+
+function updatePowerUI() {
+    if (activePower && !powerUsed) {
+        powerBtn.textContent = activePower === 'bomb' ? '\u{1F4A3} Bomb (B)' : '\u{1F680} Rocket (B)';
+        powerBtn.classList.add('show');
+    } else {
+        powerBtn.classList.remove('show');
+    }
+    if (!activePower) {
+        powerAdBtn.classList.add('show');
+    } else {
+        powerAdBtn.classList.remove('show');
+    }
+}
+
+function getUpgradeValDisplay(key) {
+    let u = upgrades[key];
+    if (key === 'power') return `${u.value}`;
+    if (key === 'aero') return `${(u.value * 100).toFixed(1)}%`;
+    if (key === 'bounce') return `${Math.round(u.value * 100)}%`;
+    if (key === 'mult') return `${u.value.toFixed(1)}x`;
+    if (key === 'jetpack') return `${(u.value / 60).toFixed(1)}s`;
+    return u.value;
+}
+
+function updateShopUI() {
+    shopBar.innerHTML = '';
+
+    for (let key in upgrades) {
+        let u = upgrades[key];
+        let cost = getCost(key);
+        let isMax = u.maxLvl && u.level >= u.maxLvl;
+        let canAfford = cash >= cost && !isMax;
+
+        let btn = document.createElement('button');
+        btn.className = 'shop-btn' + (canAfford ? ' affordable' : '') + (isMax ? ' maxed' : '');
+        btn.onclick = () => buyUpgrade(key);
+        btn.innerHTML = `
+            <div class="shop-name">${u.name}</div>
+            <div class="shop-meta">
+                <span>Lvl ${u.level}${isMax ? ' (MAX)' : ''}</span>
+                <span class="lvl-val">${getUpgradeValDisplay(key)}</span>
+            </div>
+            <div class="shop-price">${isMax ? 'MAX' : '$' + formatMoney(cost)}</div>
+        `;
+        shopBar.appendChild(btn);
+    }
+}
+
+// ============================================================================
+// Reward ad, mute, and visibility handling
+// ============================================================================
+function grantRewardDouble() {
+    if (rewardUsedThisRun) return;
+    cash += landingEarned;
+    landingEarned *= 2;
+    landingCashVal.textContent = formatMoney(landingEarned);
+    rewardUsedThisRun = true;
+    rewardBtn.classList.remove('show');
+    updateHUD();
+    updateShopUI();
+    saveGame();
+}
+
+rewardBtn.addEventListener('click', () => {
+    if (rewardUsedThisRun) return;
+    CrazySDK.requestRewardedAd(grantRewardDouble);
+});
+
+powerBtn.addEventListener('click', () => {
+    if (activePower === 'bomb') triggerBombHead();
+    else if (activePower === 'rocket') triggerRocketHead();
+});
+
+powerAdBtn.addEventListener('click', () => {
+    if (activePower) return;
+    CrazySDK.requestRewardedAd(() => {
+        activePower = Math.random() < 0.5 ? 'bomb' : 'rocket';
+        powerUsed = false;
+        updatePowerUI();
+    });
+});
+
+muteBtn.addEventListener('click', () => {
+    muted = !muted;
+    muteBtn.innerHTML = muted ? '&#128263;' : '&#128266;';
+    muteBtn.setAttribute('aria-label', muted ? 'Unmute' : 'Mute');
+});
+
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        CrazySDK.gameplayStop();
+    } else {
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        CrazySDK.gameplayStart();
+    }
+});
+
+// ============================================================================
+// Fixed-timestep main loop
+// ----------------------------------------------------------------------------
+// Physics run on a fixed 60Hz-equivalent tick regardless of the display's
+// real refresh rate, so the game plays identically on a 60Hz and a 165Hz
+// monitor -- CrazyGames explicitly requires physics to be refresh-rate
+// independent. Rendering still runs every animation frame.
+// ============================================================================
+const FIXED_DT = 1000 / 60;
+const MAX_ACCUMULATED = FIXED_DT * 5;
+let lastTime = 0;
+let accumulator = 0;
+
+function gameLoop(timestamp) {
+    if (!lastTime) lastTime = timestamp;
+    let frameTime = timestamp - lastTime;
+    lastTime = timestamp;
+
+    if (!gamePaused) {
+        if (frameTime > MAX_ACCUMULATED) frameTime = MAX_ACCUMULATED;
+        accumulator += frameTime;
+        while (accumulator >= FIXED_DT) {
+            update();
+            accumulator -= FIXED_DT;
+        }
+    } else {
+        accumulator = 0;
+    }
+
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+// ============================================================================
+// Boot
+// ============================================================================
+CrazySDK.init();
+
+if (!SHOW_AD_UI) document.body.classList.add('hide-ad-ui');
+document.body.classList.add('pre-launch');
+resize();
+resetPlayer();
+generateForts();
+updateShopUI();
+aimHint.classList.remove('hidden');
+requestAnimationFrame(gameLoop);
+
+loadingScreen.classList.add('hidden');
+</script>
+</body>
+</html>
