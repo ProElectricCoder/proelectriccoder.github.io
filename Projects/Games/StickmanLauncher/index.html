@@ -109,13 +109,44 @@
   }
 
   /* Before the first launch, show nothing but the title + aim-hint --
-     hud-panel, the mute button, and the minimap fade in once you launch. */
-  .hud-panel, #mute-btn, .minimap-wrap { transition: opacity 0.35s ease; }
+     hud-panel, the mute button, the minimap, and the fuel tank fade in once
+     you launch. */
+  .hud-panel, #mute-btn, .minimap-wrap, .fuel-tank { transition: opacity 0.35s ease; }
   body.pre-launch .hud-panel,
   body.pre-launch #mute-btn,
-  body.pre-launch .minimap-wrap {
+  body.pre-launch .minimap-wrap,
+  body.pre-launch .fuel-tank {
     opacity: 0;
     pointer-events: none;
+  }
+
+  /* Thin jetpack-fuel gauge, pinned to the left edge. */
+  .fuel-tank {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    width: 16px; height: 150px;
+    background: var(--ink-deep);
+    border-radius: 8px;
+    border: 2px solid var(--ink);
+    overflow: hidden;
+    pointer-events: none;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+  }
+  .fuel-tank-fill {
+    width: 100%; height: 0%;
+    background: linear-gradient(to top, #ea580c, #fb923c 60%, #fde68a);
+    transition: height 0.12s linear;
+  }
+  .fuel-tank-cap {
+    position: absolute; left: 50%; top: -6px; transform: translateX(-50%);
+    width: 10px; height: 8px;
+    background: var(--ink);
+    border-radius: 3px 3px 0 0;
+    border: 2px solid var(--ink-deep);
+    border-bottom: none;
+  }
+  @media (max-width: 480px) {
+    .fuel-tank { height: 110px; width: 13px; left: 8px; }
   }
 
   /* Top cluster: minimap + HUD row, grouped so both stay pinned to the
@@ -445,8 +476,8 @@
           <button id="achievements-btn" class="icon-btn" aria-label="Achievements and daily challenges">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0V4z"/><path d="M8 5H5a3 3 0 0 0 3 5"/><path d="M16 5h3a3 3 0 0 1-3 5"/><path d="M12 13v3"/><path d="M9 20h6"/><path d="M10 16h4l1 4H9l1-4z"/></svg>
           </button>
-          <button id="characters-btn" class="icon-btn" aria-label="Stickman and costume">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
+          <button id="characters-btn" class="icon-btn" aria-label="Shop: stickman types and costumes">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8h12l-1 12H7L6 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>
           </button>
           <button id="record-btn" class="icon-btn" aria-label="Arm run recording">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="#dc2626" aria-hidden="true"><circle cx="12" cy="12" r="9"/></svg>
@@ -470,6 +501,11 @@
       </a>
       <div id="shop-bar"></div>
     </div>
+  </div>
+
+  <div id="fuel-tank" class="fuel-tank" aria-hidden="true">
+    <div id="fuel-tank-fill" class="fuel-tank-fill"></div>
+    <div class="fuel-tank-cap"></div>
   </div>
 
   <div id="unlock-toast" class="toast">
@@ -661,6 +697,7 @@ const unlockToast = document.getElementById('unlock-toast');
 const unlockToastTitle = document.getElementById('unlock-toast-title');
 const unlockToastText = document.getElementById('unlock-toast-text');
 const recordingDownloadEl = document.getElementById('recording-download');
+const fuelTankFillEl = document.getElementById('fuel-tank-fill');
 
 // ============================================================================
 // Audio -- small synthesized effects via Web Audio API (no external files)
@@ -855,21 +892,31 @@ const ROCKET_ANGLE = Math.PI / 4; // 45 degrees, down-right
 // alters the run in progress.
 const STICKMAN_TYPES = {
     classic: { name: 'Classic', desc: 'Balanced all-rounder.', unlockCost: 0, gravityMult: 1, dragMult: 1, powerMult: 1, breakSpeedMult: 1 },
-    bombhead: { name: 'Bombhead', desc: 'Bursts in a small blast on the first fort impact each flight.', unlockCost: 300, gravityMult: 1, dragMult: 1, powerMult: 1, breakSpeedMult: 1 },
-    heavy: { name: 'Heavy Brick', desc: 'Slower launch, but shatters blocks far more easily.', unlockCost: 250, gravityMult: 1.15, dragMult: 1, powerMult: 0.7, breakSpeedMult: 0.55 },
-    mini: { name: 'Minis', desc: 'Press B in flight to split into three small stickmen.', unlockCost: 400, gravityMult: 1, dragMult: 1, powerMult: 0.95, breakSpeedMult: 1 },
-    light: { name: 'Light', desc: 'Very fast launch and a floaty fall, but needs real speed to break blocks.', unlockCost: 350, gravityMult: 0.6, dragMult: 1.85, powerMult: 1.3, breakSpeedMult: 1.8 },
+    bombhead: { name: 'Bombhead', desc: 'Bursts in a small blast on the first fort impact each flight.', unlockCost: 600, gravityMult: 1, dragMult: 1, powerMult: 1, breakSpeedMult: 1 },
+    heavy: { name: 'Heavy Brick', desc: 'Slower launch, but shatters blocks far more easily.', unlockCost: 500, gravityMult: 1.15, dragMult: 1, powerMult: 0.7, breakSpeedMult: 0.55 },
+    mini: { name: 'Minis', desc: 'Press B in flight to split into three small stickmen.', unlockCost: 800, gravityMult: 1, dragMult: 1, powerMult: 0.95, breakSpeedMult: 1 },
+    light: { name: 'Light', desc: 'Very fast launch and a floaty fall, but needs real speed to break blocks.', unlockCost: 700, gravityMult: 0.6, dragMult: 1.85, powerMult: 1.3, breakSpeedMult: 1.8 },
 };
 
+// Three costume families: 'cape-*' (a trailing cape, see drawStickman),
+// 'glow-*' (a four-point star-shaped aura, brighter and sparkier at speed),
+// and 'hat-*' (a small fixed accessory, no dynamic effect).
 const COSTUMES = {
     none: { name: 'No Costume', desc: 'Just the stickman.', unlockCost: 0 },
-    'cape-red': { name: 'Red Cape', desc: 'A dashing red cape.', unlockCost: 120 },
-    'cape-gold': { name: 'Gold Cape', desc: 'A flashy gold cape.', unlockCost: 220 },
-    'glow-teal': { name: 'Teal Glow', desc: 'A soft teal aura.', unlockCost: 150 },
-    'glow-violet': { name: 'Violet Glow', desc: 'A soft violet aura.', unlockCost: 150 },
+    'cape-red': { name: 'Red Cape', desc: 'A dashing red cape.', unlockCost: 280 },
+    'cape-gold': { name: 'Gold Cape', desc: 'A flashy gold cape.', unlockCost: 450 },
+    'cape-blue': { name: 'Blue Cape', desc: 'A cool blue cape.', unlockCost: 350 },
+    'cape-black': { name: 'Black Cape', desc: 'A shadowy black cape.', unlockCost: 550 },
+    'glow-teal': { name: 'Teal Glow', desc: 'A soft teal star-glow, brighter at speed.', unlockCost: 320 },
+    'glow-violet': { name: 'Violet Glow', desc: 'A soft violet star-glow, brighter at speed.', unlockCost: 320 },
+    'glow-gold': { name: 'Gold Glow', desc: 'A radiant gold star-glow, brighter at speed.', unlockCost: 500 },
+    'glow-ember': { name: 'Ember Glow', desc: 'A fiery orange star-glow, brighter at speed.', unlockCost: 500 },
+    'hat-red': { name: 'Red Cap', desc: 'A jaunty red cap.', unlockCost: 220 },
+    'hat-blue': { name: 'Blue Cap', desc: 'A jaunty blue cap.', unlockCost: 220 },
 };
-const COSTUME_CAPE_COLORS = { 'cape-red': '#ef4444', 'cape-gold': '#eab308' };
-const COSTUME_GLOW_COLORS = { 'glow-teal': '#43D9C8', 'glow-violet': '#B79CF2' };
+const COSTUME_CAPE_COLORS = { 'cape-red': '#ef4444', 'cape-gold': '#eab308', 'cape-blue': '#3b82f6', 'cape-black': '#1f2430' };
+const COSTUME_GLOW_COLORS = { 'glow-teal': '#43D9C8', 'glow-violet': '#B79CF2', 'glow-gold': '#FFC94C', 'glow-ember': '#FF8A3D' };
+const COSTUME_HAT_COLORS = { 'hat-red': '#ef4444', 'hat-blue': '#3b82f6' };
 
 let playerType = 'classic';
 let unlockedTypes = ['classic'];
@@ -914,6 +961,7 @@ let dailyState = { dayKey: '', challenges: [], progress: {}, claimed: {} };
 // mid-flight split, each running the same fort-collision code as the
 // main player via checkFortCollisions(body).
 let miniShards = [];
+let miniBagDrop = null; // { x, y, vx, vy, rotation, angVel, life } | null -- purely decorative
 let miniSplitUsed = false;
 const MINI_SCALE = 0.55;
 
@@ -934,6 +982,10 @@ const BULLSEYE_FALLOFF_RADIUS_M = 16;
 // Ghost aim -- the drag vector from the last launch, redrawn faintly during
 // the next aiming phase so the player can compare against it.
 let lastAimDx = 0, lastAimDy = 0, hasLastAim = false;
+
+// 0 = standing beside the cannon, 1 = loaded into the barrel -- eased
+// toward isDragging each tick during AIMING (see update()).
+let cannonEnterProgress = 0;
 
 // Slow-motion + camera zoom when flying very near a guard.
 let nearGuardFactor = 0; // 0..1, eased -- how "close" the player currently is
@@ -1347,7 +1399,7 @@ function resolveFortHitSolid(body, hit) {
 
 const SPRING_LAUNCH_SPEED = 14;
 const SPRING_BOUNCE_SPREAD = 0.26; // radians, ~15 degrees either side
-const SPRING_BREAK_SPEED = 34; // hit it this fast and it shatters instead of bouncing
+const SPRING_BREAK_SPEED = 30; // hit it this fast and it shatters instead of bouncing (base max launch is 25)
 const SPRING_REWARD = 5;
 function playSpring() { beep({ freq: 500, freqEnd: 1100, duration: 0.1, type: 'triangle', gain: 0.14 }); }
 function playSpringBreak() {
@@ -1581,6 +1633,12 @@ function isTouchingFort(x, y, r) {
 
 function checkFortCollisions(body) {
     let anyHit = false;
+    // Captured once, before any block in this pass has damped the body's
+    // speed -- springs sit embedded in walls of ordinary blocks, and those
+    // neighbors usually get processed first (each punch-through saps 15%),
+    // which would otherwise drop a genuinely very fast hit just under
+    // SPRING_BREAK_SPEED by the time the spring itself is evaluated.
+    let entrySpeed = Math.hypot(body.vx, body.vy);
 
     for (let f = 0; f < forts.length; f++) {
         let fort = forts[f];
@@ -1595,7 +1653,7 @@ function checkFortCollisions(body) {
             if (fort.isIsland && body === player) touchedIslandThisFlight = true;
 
             if (block.material === 'spring') {
-                if (Math.hypot(body.vx, body.vy) > SPRING_BREAK_SPEED) {
+                if (entrySpeed > SPRING_BREAK_SPEED) {
                     block.alive = false;
                     springsDestroyed++;
                     spawnDust(block.x, block.y + BLOCK_SIZE / 2, 18, '#134e4a');
@@ -1688,6 +1746,15 @@ function triggerMiniSplit() {
     spawnFloater(player.x, player.y - 26, 'SPLIT!', '#7dd3fc');
     triggerShake(6);
     playRocketLaunch();
+
+    // Purely decorative: the now-empty bag tumbles down and vanishes on its
+    // own timer -- no collision, no reward, just flavor for the split.
+    miniBagDrop = {
+        x: player.x, y: player.y,
+        vx: (Math.random() - 0.5) * 3, vy: -2,
+        rotation: 0, angVel: (Math.random() - 0.5) * 0.3,
+        life: 80,
+    };
 }
 
 // Shards run a simplified version of the main flight physics: gravity +
@@ -1729,6 +1796,19 @@ function updateMiniShards() {
             s.settleTimer = 50;
         }
     }
+}
+
+// The empty bag dropped by triggerMiniSplit() -- tumbles under gravity with
+// no collision or gameplay effect at all, and just clears itself once its
+// timer runs out.
+function updateMiniBagDrop() {
+    if (!miniBagDrop) return;
+    miniBagDrop.vy += gravity;
+    miniBagDrop.x += miniBagDrop.vx;
+    miniBagDrop.y += miniBagDrop.vy;
+    miniBagDrop.rotation += miniBagDrop.angVel;
+    miniBagDrop.life--;
+    if (miniBagDrop.life <= 0) miniBagDrop = null;
 }
 
 function updateShooterGuards() {
@@ -2056,8 +2136,10 @@ function resetPlayer() {
     powerUsed = false;
     miniSplitUsed = false;
     miniShards = [];
+    miniBagDrop = null;
     bombheadExplodedThisFlight = false;
     touchedIslandThisFlight = false;
+    cannonEnterProgress = 0;
     activePower = Math.random() < POWER_CHANCE ? (Math.random() < 0.5 ? 'bomb' : 'rocket') : null;
 
     applyCharacterStats();
@@ -2101,6 +2183,7 @@ function update() {
     updateProjectiles();
     updateRockets();
     updateMiniShards();
+    updateMiniBagDrop();
     updateNearGuardEffect();
     cloudDrift += 0.08;
 
@@ -2108,6 +2191,7 @@ function update() {
     if (thrusting) startJetpackSound(); else stopJetpackSound();
 
     if (state === 'AIMING') {
+        cannonEnterProgress += ((isDragging ? 1 : 0) - cannonEnterProgress) * 0.3;
         camera.targetX = player.startX - width * 0.2;
         camera.targetY = player.groundY - height * 0.7;
         camera.zoom = 1;
@@ -2508,15 +2592,40 @@ const CLOUD_BAND_TOP = 7200; // px above player.groundY -- past the highest isla
 const CLOUD_BAND_BOTTOM = 60; // px above player.groundY
 const CLOUD_LAYERS = 2;
 
-function drawClouds() {
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+// Puffy cumulus low down, flatter wispy stratus in the middle band, thin
+// wind-streaked cirrus near the top of the band (closest to "space").
+function drawCloudShape(cx, cy, size, kind) {
+    if (kind === 'cirrus') {
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, size * 2.4, size * 0.18, 0.12, 0, Math.PI * 2);
+        ctx.ellipse(cx + size * 1.3, cy + size * 0.22, size * 1.6, size * 0.14, 0.12, 0, Math.PI * 2);
+        ctx.fill();
+    } else if (kind === 'wispy') {
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, size * 1.5, size * 0.4, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx + size, cy - size * 0.12, size * 1.05, size * 0.32, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx - size * 0.9, cy + size * 0.08, size * 0.85, size * 0.28, 0, 0, Math.PI * 2);
+        ctx.fill();
+    } else {
+        ctx.beginPath();
+        ctx.arc(cx, cy, size, 0, Math.PI * 2);
+        ctx.arc(cx + size * 0.5, cy - size * 0.3, size * 0.8, 0, Math.PI * 2);
+        ctx.arc(cx + size, cy, size * 0.9, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
 
-    // The scene is drawn inside a context already translated by -camera.x,
-    // so to make a cloud sit at parallax-scaled position
-    // (baseX - camera.x*CLOUD_PARALLAX) on screen, we feed it
-    // baseX + camera.x*(1-CLOUD_PARALLAX) here.
-    let visLeft = camera.x * CLOUD_PARALLAX - 300;
-    let visRight = camera.x * CLOUD_PARALLAX + (width / camera.zoom) + 300;
+function drawClouds() {
+    // cloudDrift is a slow uniform "wind" added to every cloud's X below, so
+    // clouds visibly drift even while the camera itself is still. It grows
+    // without bound over a session, so the slot-visibility range here has
+    // to be computed in the SAME pre-drift space (subtract it before
+    // dividing into slots, add it back per-cloud when positioning) --
+    // otherwise, as it accumulates, the slots needed to cover the side the
+    // wind blows away from (the left) fall outside the checked range and
+    // stop being generated, and clouds thin out and vanish there.
+    let visLeft = camera.x * CLOUD_PARALLAX - 300 - cloudDrift;
+    let visRight = camera.x * CLOUD_PARALLAX + (width / camera.zoom) + 300 - cloudDrift;
     let startSlot = Math.floor(visLeft / CLOUD_SLOT_WIDTH) - 1;
     let endSlot = Math.ceil(visRight / CLOUD_SLOT_WIDTH) + 1;
     let bandTop = player.groundY - CLOUD_BAND_TOP;
@@ -2529,15 +2638,15 @@ function drawClouds() {
 
             let jitterX = cloudHash(slot * 3.71 + layer * 6.2 + 5) * CLOUD_SLOT_WIDTH;
             let baseX = slot * CLOUD_SLOT_WIDTH + jitterX + cloudDrift;
-            let cy = bandTop + cloudHash(seed + 2.3) * (bandBottom - bandTop);
+            let vPos = cloudHash(seed + 2.3); // 0 = top of band (highest up), 1 = bottom (near ground)
+            let cy = bandTop + vPos * (bandBottom - bandTop);
             let size = 24 + cloudHash(seed + 4.1) * 42;
             let cx = baseX + camera.x * (1 - CLOUD_PARALLAX);
 
-            ctx.beginPath();
-            ctx.arc(cx, cy, size, 0, Math.PI * 2);
-            ctx.arc(cx + size * 0.5, cy - size * 0.3, size * 0.8, 0, Math.PI * 2);
-            ctx.arc(cx + size, cy, size * 0.9, 0, Math.PI * 2);
-            ctx.fill();
+            let kind = vPos < 0.3 ? 'cirrus' : vPos < 0.62 ? 'wispy' : 'puffy';
+            let alpha = kind === 'cirrus' ? 0.35 : kind === 'wispy' ? 0.5 : 0.6;
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+            drawCloudShape(cx, cy, size, kind);
         }
     }
 }
@@ -2578,6 +2687,56 @@ const MOUNTAIN_NEAR_PARALLAX = 0.32;
 function drawMountains() {
     drawMountainLayer(MOUNTAIN_FAR_PARALLAX, 260, 520, 'rgba(120, 140, 190, 0.55)', 0);
     drawMountainLayer(MOUNTAIN_NEAR_PARALLAX, 170, 260, 'rgba(90, 150, 130, 0.65)', 4000);
+}
+
+// Stars -- further back than even the mountains, so an almost-static
+// parallax; fade in with spaceFactor (see draw()) so they're invisible near
+// the ground and emerge the higher the player climbs. Same deterministic
+// cloudHash() + drift-compensated slot math as drawClouds, for the same
+// reason (see its comment).
+const STAR_PARALLAX = 0.03;
+const STAR_SLOT_WIDTH = 90;
+const STAR_BAND_TOP = 9000;
+const STAR_BAND_BOTTOM = 500;
+
+function drawStars(spaceFactor) {
+    if (spaceFactor < 0.04) return;
+    let visLeft = camera.x * STAR_PARALLAX - 300 - cloudDrift;
+    let visRight = camera.x * STAR_PARALLAX + (width / camera.zoom) + 300 - cloudDrift;
+    let startSlot = Math.floor(visLeft / STAR_SLOT_WIDTH) - 1;
+    let endSlot = Math.ceil(visRight / STAR_SLOT_WIDTH) + 1;
+    let bandTop = player.groundY - STAR_BAND_TOP;
+    let bandBottom = player.groundY - STAR_BAND_BOTTOM;
+    let parallaxShift = camera.x * (1 - STAR_PARALLAX);
+
+    ctx.fillStyle = '#ffffff';
+    for (let slot = startSlot; slot <= endSlot; slot++) {
+        let seed = slot * 7.91;
+        if (cloudHash(seed) > 0.55) continue;
+        let jitterX = cloudHash(slot * 2.13 + 3) * STAR_SLOT_WIDTH;
+        let sx = slot * STAR_SLOT_WIDTH + jitterX + cloudDrift + parallaxShift;
+        let sy = bandTop + cloudHash(seed + 5.5) * (bandBottom - bandTop);
+        let size = 0.8 + cloudHash(seed + 9.1) * 1.6;
+        let twinkle = 0.7 + Math.sin(cloudDrift * 0.06 + seed) * 0.3;
+        ctx.globalAlpha = spaceFactor * twinkle;
+        ctx.beginPath();
+        ctx.arc(sx, sy, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+}
+
+// A 4-point sparkle/star outline (sharp inner radius relative to outer) --
+// used by the glow costumes below.
+function starPath(cx, cy, outerR, innerR, points, rotation) {
+    ctx.beginPath();
+    for (let i = 0; i < points * 2; i++) {
+        let r = i % 2 === 0 ? outerR : innerR;
+        let a = rotation + (i / (points * 2)) * Math.PI * 2;
+        let px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
 }
 
 function roundedRectPath(x, y, w, h, r) {
@@ -2728,6 +2887,59 @@ function drawBossLabel(fort) {
     drawSkullIcon(fort.x + textW / 2 + 16, topY - 7, 20);
 }
 
+// Draws the island's floating base as one cohesive chunk of land -- a grass
+// cap over a dirt body with a rough, organic underside (as if it tore away
+// from the ground) -- instead of the individual 'island' material blocks,
+// which read as a stack of stone rather than a landmass. The blocks
+// themselves still exist and still drive collision; this only replaces
+// how they're drawn (see drawForts, which skips them for drawBlock).
+function drawIslandLand(fort) {
+    let islandBlocks = fort.blocks.filter((b) => b.material === 'island');
+    if (!islandBlocks.length) return;
+    let left = Math.min(...islandBlocks.map((b) => b.x)) - BLOCK_SIZE / 2;
+    let right = Math.max(...islandBlocks.map((b) => b.x)) + BLOCK_SIZE / 2;
+    let top = fort.baseY;
+    let bottom = top + ISLAND_BASE_ROWS * BLOCK_SIZE + 30;
+    let corner = Math.min(14, (right - left) / 4);
+
+    ctx.save();
+    ctx.fillStyle = '#8b6b4a';
+    ctx.beginPath();
+    ctx.moveTo(left, top + 10);
+    ctx.quadraticCurveTo(left, top, left + corner, top);
+    ctx.lineTo(right - corner, top);
+    ctx.quadraticCurveTo(right, top, right, top + 10);
+    for (let x = right; x >= left; x -= 26) {
+        let depth = bottom + cloudHash(fort.x * 0.31 + x * 0.07) * 26;
+        ctx.lineTo(x, depth);
+    }
+    ctx.lineTo(left, top + 10);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#4ade80';
+    ctx.beginPath();
+    ctx.moveTo(left, top + 10);
+    ctx.quadraticCurveTo(left, top, left + corner, top);
+    ctx.lineTo(right - corner, top);
+    ctx.quadraticCurveTo(right, top, right, top + 10);
+    ctx.lineTo(right, top + 16);
+    ctx.lineTo(left, top + 16);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    for (let x = left + 10; x <= right - 10; x += 20) {
+        let h = 4 + cloudHash(fort.x * 0.19 + x * 0.11) * 5;
+        ctx.strokeStyle = '#3fae63';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(x, top);
+        ctx.lineTo(x + (cloudHash(x * 0.7 + fort.x) - 0.5) * 4, top - h);
+        ctx.stroke();
+    }
+}
+
 function drawIslandLabel(fort) {
     let topY = fort.baseY - 11 * BLOCK_SIZE - 30;
     let label = 'SKY FORT';
@@ -2748,7 +2960,8 @@ function drawIslandLabel(fort) {
 function drawForts(viewLeft, viewRight) {
     forts.forEach((fort) => {
         if (fort.x < viewLeft - BLOCK_SIZE * 14 || fort.x > viewRight + BLOCK_SIZE * 14) return;
-        fort.blocks.forEach((block) => { if (block.alive) drawBlock(block); });
+        if (fort.isIsland) drawIslandLand(fort);
+        fort.blocks.forEach((block) => { if (block.alive && block.material !== 'island') drawBlock(block); });
         fort.guards.forEach((g) => { if (g.alive) drawGuard(g.x, g.y + 34, g.type); });
         if (fort.isBoss) drawBossLabel(fort);
         if (fort.isIsland) drawIslandLabel(fort);
@@ -2806,6 +3019,98 @@ function drawFlag(x, color, label) {
     ctx.font = 'bold 14px ui-monospace, monospace';
     ctx.textAlign = 'center';
     ctx.fillText(label, x + 15, y - 70);
+}
+
+const CANNON_IDLE_ANGLE = -Math.PI * 0.35;
+const CANNON_BARREL_LENGTH = 30;
+
+// The launch site: a wheeled mount (drawn unrotated, so it stays upright
+// regardless of aim) and a barrel that rotates to the given angle. Split in
+// two so the barrel can be drawn again after the stickman -- see draw() --
+// which is what makes the "loaded" pose read as being inside the tube
+// rather than floating in front of it.
+function drawCannonMount() {
+    let cx = player.startX, cy = player.groundY - 10;
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    ctx.fillStyle = '#3a4256';
+    ctx.beginPath();
+    ctx.arc(0, 8, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#1b2233';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 3) {
+        ctx.beginPath();
+        ctx.moveTo(0, 8);
+        ctx.lineTo(Math.cos(a) * 15, 8 + Math.sin(a) * 15);
+        ctx.stroke();
+    }
+    ctx.fillStyle = '#0D1526';
+    ctx.beginPath();
+    ctx.arc(0, 8, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+}
+
+function drawCannonBarrel(angle) {
+    let cx = player.startX, cy = player.groundY - 10;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+    ctx.fillStyle = '#2f3a52';
+    roundedRectPath(-6, -10, CANNON_BARREL_LENGTH, 20, 6);
+    ctx.fill();
+    ctx.strokeStyle = '#1b2233';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.strokeStyle = '#FFC94C';
+    ctx.lineWidth = 2;
+    [4, 14].forEach((bx) => {
+        ctx.beginPath();
+        ctx.moveTo(bx, -10);
+        ctx.lineTo(bx, 10);
+        ctx.stroke();
+    });
+    ctx.fillStyle = '#1b2233';
+    ctx.beginPath();
+    ctx.arc(CANNON_BARREL_LENGTH - 4, 0, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#05070d';
+    ctx.beginPath();
+    ctx.arc(CANNON_BARREL_LENGTH - 4, 0, 6.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+}
+
+const SPEEDLINE_MIN_SPEED = 12;
+
+// Cartoon motion streaks trailing behind the stickman above a speed
+// threshold -- length/opacity scale with how far past that threshold.
+function drawSpeedLines(x, y, vx, vy) {
+    let speed = Math.hypot(vx, vy);
+    if (speed < SPEEDLINE_MIN_SPEED) return;
+    let angle = Math.atan2(vy, vx);
+    let back = angle + Math.PI;
+    let intensity = Math.min(1, (speed - SPEEDLINE_MIN_SPEED) / 25);
+    ctx.save();
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 3; i++) {
+        let perp = (i - 1) * 8;
+        let px = x + Math.cos(angle + Math.PI / 2) * perp;
+        let py = y + Math.sin(angle + Math.PI / 2) * perp;
+        let len = 12 + intensity * 22 + i * 3;
+        ctx.strokeStyle = `rgba(255, 255, 255, ${0.5 * intensity})`;
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.lineTo(px + Math.cos(back) * len, py + Math.sin(back) * len);
+        ctx.stroke();
+    }
+    ctx.restore();
 }
 
 // A flattened-ellipse archery target painted on the ground -- active for
@@ -2875,6 +3180,7 @@ function draw() {
     let shakeY = shake > 0 ? (Math.random() - 0.5) * shake : 0;
     ctx.translate(-(camera.x + shakeX), -(camera.y + shakeY));
 
+    drawStars(spaceFactor);
     drawMountains();
     drawClouds();
 
@@ -2940,12 +3246,8 @@ function draw() {
         }
     }
 
-    ctx.fillStyle = '#475569';
-    ctx.fillRect(player.startX - 30, player.groundY - 10, 60, 10);
-    ctx.fillStyle = '#fbbf24';
-    ctx.beginPath();
-    ctx.arc(player.startX, player.groundY - 10, 5, 0, Math.PI * 2);
-    ctx.fill();
+    let liveBarrelAngle = (state === 'AIMING' && isDragging) ? (() => { let d = getDragVelocity(); return Math.atan2(d.dy, d.dx); })() : CANNON_IDLE_ANGLE;
+    drawCannonMount();
 
     if (state === 'AIMING' && hasLastAim) {
         ctx.strokeStyle = 'rgba(183, 156, 242, 0.4)';
@@ -3002,7 +3304,25 @@ function draw() {
     drawProjectiles();
     drawRockets();
     miniShards.forEach((s) => drawSimpleStickman(s.x, s.y, s.rotation, MINI_SCALE));
-    drawStickman(player.x, player.y, player.rotation, 1, selectedCostume);
+    drawMiniBagDrop();
+
+    if (state === 'AIMING') {
+        let standX = player.startX - 40, standY = player.groundY - player.radius;
+        let muzzleX = player.startX + Math.cos(liveBarrelAngle) * (CANNON_BARREL_LENGTH - 4);
+        let muzzleY = (player.groundY - 10) + Math.sin(liveBarrelAngle) * (CANNON_BARREL_LENGTH - 4);
+        let sx = standX + (muzzleX - standX) * cannonEnterProgress;
+        let sy = standY + (muzzleY - standY) * cannonEnterProgress;
+        let srot = (liveBarrelAngle + Math.PI / 2) * cannonEnterProgress;
+        let sscale = 1 - 0.4 * cannonEnterProgress;
+        drawStickman(sx, sy, srot, sscale, selectedCostume);
+    } else {
+        drawSpeedLines(player.x, player.y, player.vx, player.vy);
+        drawStickman(player.x, player.y, player.rotation, 1, selectedCostume);
+    }
+    // Drawn AFTER the stickman (not with the mount, above) so the barrel
+    // visually covers them while loaded, instead of the stickman floating
+    // in front of the tube.
+    drawCannonBarrel(liveBarrelAngle);
 
     ctx.restore();
 
@@ -3047,26 +3367,78 @@ function drawStickman(x, y, rot, scale, costume) {
     let neckX = hipX + 16 * dirX, neckY = hipY + 16 * dirY;
     let headX = hipX + 24 * dirX, headY = hipY + 24 * dirY;
 
+    let speed = Math.hypot(player.vx, player.vy);
+    let speedBoost = clamp(speed / 30, 0, 1);
+
     if (costume.indexOf('glow-') === 0 && COSTUME_GLOW_COLORS[costume]) {
         let glowColor = COSTUME_GLOW_COLORS[costume];
-        let grad = ctx.createRadialGradient(0, 10, 2, 0, 10, 36);
-        grad.addColorStop(0, glowColor + 'aa');
+        let radius = 30 + speedBoost * 34;
+        let coreA = Math.round((0.55 + speedBoost * 0.4) * 255).toString(16).padStart(2, '0');
+        let midA = Math.round((0.35 + speedBoost * 0.3) * 255).toString(16).padStart(2, '0');
+        let grad = ctx.createRadialGradient(0, 10, 2, 0, 10, radius);
+        grad.addColorStop(0, glowColor + coreA);
+        grad.addColorStop(0.4, glowColor + midA);
         grad.addColorStop(1, glowColor + '00');
         ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(0, 10, 36, 0, Math.PI * 2);
+        starPath(0, 10, radius, radius * 0.22, 4, cloudDrift * 0.02);
         ctx.fill();
+
+        // Shines like a star the faster it's moving: a few rotating sparkle rays.
+        if (speedBoost > 0.15) {
+            ctx.save();
+            ctx.strokeStyle = glowColor;
+            ctx.lineWidth = 1.5;
+            ctx.globalAlpha = speedBoost * 0.7;
+            for (let i = 0; i < 4; i++) {
+                let a = (i / 4) * Math.PI * 2 + cloudDrift * 0.05;
+                let len = 14 + speedBoost * 20;
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(a) * 10, 10 + Math.sin(a) * 10);
+                ctx.lineTo(Math.cos(a) * (10 + len), 10 + Math.sin(a) * len);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
     }
 
     if (costume.indexOf('cape-') === 0 && COSTUME_CAPE_COLORS[costume]) {
-        let sway = clamp(-player.vx * 0.25, -10, 10);
+        // Trails toward wherever "behind" is in WORLD space (opposite the
+        // direction of travel), regardless of how the body itself is
+        // tumbling -- so it has to be converted into this already-rotated
+        // local frame by subtracting `rot`, the frame's own world angle.
+        let windAngle = Math.atan2(-player.vy, -player.vx) - rot;
+        let trail = clamp(10 + speed * 1.1, 10, 40);
+        let ripple = Math.sin(cloudDrift * 0.15) * 3;
+        let midX = shoulderX + Math.cos(windAngle) * trail * 0.55 + Math.cos(windAngle + Math.PI / 2) * ripple;
+        let midY = shoulderY + Math.sin(windAngle) * trail * 0.55 + 10 + Math.sin(windAngle + Math.PI / 2) * ripple;
+        let tipX = shoulderX + Math.cos(windAngle) * trail;
+        let tipY = shoulderY + Math.sin(windAngle) * trail * 0.65 + 14;
         ctx.fillStyle = COSTUME_CAPE_COLORS[costume];
         ctx.beginPath();
-        ctx.moveTo(shoulderX, shoulderY - 2);
-        ctx.lineTo(shoulderX - 9 + sway, shoulderY + 20);
-        ctx.lineTo(hipX - 3, hipY + 6);
+        ctx.moveTo(shoulderX - 2, shoulderY - 3);
+        ctx.quadraticCurveTo(midX, midY, tipX, tipY);
+        ctx.quadraticCurveTo(hipX + trail * 0.15, hipY + 10, hipX - 3, hipY + 6);
         ctx.closePath();
         ctx.fill();
+    }
+
+    // Minis: a small sack "containing" the others, worn until the split (see
+    // triggerMiniSplit(), which also spawns the decorative dropped bag).
+    if (playerType === 'mini' && !miniSplitUsed) {
+        let bagX = hipX - dirX * 10, bagY = hipY - dirY * 10 + 2;
+        ctx.save();
+        ctx.fillStyle = '#8b5e34';
+        ctx.beginPath();
+        ctx.ellipse(bagX, bagY, 6.5, 8.5, torsoA + Math.PI / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#5c3d1f';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(bagX - 4 * dirY, bagY + 4 * dirX);
+        ctx.lineTo(bagX + 4 * dirY, bagY - 4 * dirX);
+        ctx.stroke();
+        ctx.restore();
     }
 
     ctx.strokeStyle = '#000';
@@ -3079,16 +3451,46 @@ function drawStickman(x, y, rot, scale, costume) {
     ctx.lineTo(neckX, neckY);
     ctx.stroke();
 
+    // Bombhead: a bomb in place of the head until it's gone off this flight
+    // (bombheadExplodedThisFlight), then a normal head for the rest of the run.
+    let showBombHead = playerType === 'bombhead' && !bombheadExplodedThisFlight;
     ctx.beginPath();
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = showBombHead ? '#1f2430' : '#fff';
     ctx.arc(headX, headY, 8, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
+    if (showBombHead) {
+        ctx.save();
+        ctx.strokeStyle = '#a16207';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(headX + dirX * 8, headY + dirY * 8);
+        ctx.quadraticCurveTo(headX + dirX * 13 + 3, headY + dirY * 13 - 2, headX + dirX * 14 + 2, headY + dirY * 14 - 4);
+        ctx.stroke();
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath();
+        ctx.arc(headX + dirX * 14 + 2, headY + dirY * 14 - 4, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
 
     drawRigidLimb(shoulderX, shoulderY, limbs.lh);
     drawRigidLimb(shoulderX, shoulderY, limbs.rh);
     drawRigidLimb(hipX, hipY, limbs.lf);
     drawRigidLimb(hipX, hipY, limbs.rf);
+
+    if (costume.indexOf('hat-') === 0 && COSTUME_HAT_COLORS[costume]) {
+        ctx.fillStyle = COSTUME_HAT_COLORS[costume];
+        ctx.beginPath();
+        ctx.moveTo(headX - dirY * 6, headY + dirX * 6);
+        ctx.lineTo(headX + dirY * 6, headY - dirX * 6);
+        ctx.lineTo(headX + dirX * 12, headY + dirY * 12);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+    }
 
     ctx.restore();
 }
@@ -3124,6 +3526,25 @@ function drawSimpleStickman(x, y, rot, scale) {
     ctx.restore();
 }
 
+function drawMiniBagDrop() {
+    if (!miniBagDrop) return;
+    ctx.save();
+    ctx.translate(miniBagDrop.x, miniBagDrop.y);
+    ctx.rotate(miniBagDrop.rotation);
+    ctx.fillStyle = '#8b5e34';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 6.5, 8.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#5c3d1f';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-4, -6);
+    ctx.lineTo(4, -6);
+    ctx.stroke();
+    ctx.restore();
+}
+
 // ============================================================================
 // HUD & shop UI
 // ============================================================================
@@ -3134,7 +3555,9 @@ function updateHUD() {
     hudDist.textContent = dist.toFixed(1);
     hudHeight.textContent = currentHeight.toFixed(1);
     let fuelPct = upgrades.jetpack.value > 0 ? Math.round((jetpackFuel / upgrades.jetpack.value) * 100) : 0;
-    hudFuel.textContent = Math.max(0, fuelPct);
+    fuelPct = Math.max(0, fuelPct);
+    hudFuel.textContent = fuelPct;
+    fuelTankFillEl.style.height = Math.min(100, fuelPct) + '%';
 }
 
 const ICON_BOMB = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="14" r="7" fill="currentColor" stroke="none"/><path d="M15 8l2-3"/><path d="M17 3l2 1.5"/><path d="M17 3l-1 2.2"/></svg>';
@@ -3317,10 +3740,11 @@ const ICON_HOURGLASS = '<svg viewBox="0 0 24 24" width="14" height="14" fill="no
 function renderAchievementsPanel() {
     dailyListEl.innerHTML = dailyState.challenges.map((c) => {
         let val = Math.min(c.target, dailyState.progress[c.statKey] || 0);
+        let displayVal = Math.round(val);
         let done = dailyState.claimed[c.id];
         let pct = Math.min(100, Math.round((val / c.target) * 100));
         return `<div class="overlay-item${done ? ' done' : ''}">
-            <div class="overlay-item-top"><span class="overlay-item-label">${done ? ICON_CHECK : ICON_HOURGLASS} ${c.label}</span><span>${val}/${c.target}</span></div>
+            <div class="overlay-item-top"><span class="overlay-item-label">${done ? ICON_CHECK : ICON_HOURGLASS} ${c.label}</span><span>${displayVal}/${c.target}</span></div>
             <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
         </div>`;
     }).join('');
