@@ -47,7 +47,6 @@ export function ncSwitchTab(tab) {
 		el('nc' + t.charAt(0).toUpperCase() + t.slice(1))?.classList.toggle('hidden', t !== tab);
 	});
 	el('ncTitle').textContent = { direct: 'Direct Chat', room: 'Join / Create Room', group: 'Group Chat', ws: 'Cloudflare Relay' }[tab] || 'New Chat';
-	if (tab === 'ws') { const u = el('ncWsUrl'); if (u && !u.value) u.value = localStorage.getItem('pec_cfws_url') || ''; }
 }
 
 export function ncDirectSub(sub) {

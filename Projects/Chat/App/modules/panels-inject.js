@@ -202,8 +202,7 @@ export function injectPanels() {
 			<div class="row"><button class="btn btn-p" style="flex:1" onclick="App.fbCreateGroup()">Create Group</button><button class="btn btn-s" style="flex:1" onclick="App.fbJoinGroup()">Join Group</button></div>
 		</div>
 		<div id="ncWs" class="col hidden"><div id="ncWsAuth"></div>
-			<div class="note-box" style="margin-bottom:10px">☁️ <span>Signals over a Cloudflare Worker / Durable Object relay instead of Firebase — same P2P data channel once connected. Still needs sign-in for the auth token.</span></div>
-			<div class="f-grp"><div class="f-lbl">Relay WebSocket URL</div><input class="f-in" id="ncWsUrl" placeholder="wss://your-app.pages.dev/api/ChatRooms"></div>
+			<div class="note-box" style="margin-bottom:10px"><span>Signals over the ProElectricCoder Cloudflare Durable Object relay instead of Firebase — same P2P data channel once connected. Still needs sign-in for the auth token.</span></div>
 			<div class="f-grp"><div class="f-lbl">Room ID</div><input class="f-in" id="ncWsRoomId" placeholder="room-id"></div>
 			<div class="row"><button class="btn btn-p" style="flex:1" onclick="App.cfCreateRoom()">Create Room</button><button class="btn btn-s" style="flex:1" onclick="App.cfJoinRoom()">Join Room</button></div>
 		</div>

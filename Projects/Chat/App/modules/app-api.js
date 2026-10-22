@@ -22,7 +22,7 @@ import {
 } from './call-1to1.js';
 import { acceptGroupCall, declineGroupCall, _gcCleanup } from './call-group.js';
 import { Inbox } from './inbox.js';
-import { ChatEngine, DirectEngine, CloudflareWSEngine } from '../../engine.js';
+import { ChatEngine, DirectEngine, CloudflareWSEngine, CF_WS_URL } from '../../engine.js';
 
 export const App = {
 	openSidebar() { openSidebarUI(); },
@@ -147,54 +147,50 @@ export const App = {
 
 	async cfCreateRoom() {
 		if (!S.user) { toast('Sign in first'); return; }
-		const wsUrl = el('ncWsUrl')?.value.trim(); if (!wsUrl) { toast('Enter the relay WebSocket URL'); return; }
-		localStorage.setItem('pec_cfws_url', wsUrl);
 		const rid = el('ncWsRoomId')?.value.trim() || 'room-' + Math.random().toString(36).slice(2, 8);
 		const existing = findSessByRoomId(rid, false, 'cfws');
 		if (existing) {
 			if (!existing.connected) {
 				try {
-					const token = await S.user.getIdToken();
-					const eng = new CloudflareWSEngine({ wsUrl: existing.wsUrl || wsUrl });
+					const token = () => S.user.getIdToken();
+					const eng = new CloudflareWSEngine();
 					bindEngine(existing, eng); setStatus('connecting', 'Reconnecting…');
 					await (existing.isHost ? eng.createRoom(rid, token) : eng.joinRoom(rid, token));
 				} catch (e) { toast('Error: ' + e.message); }
 			}
 			await selectSess(existing.id); this.closeNewChat(); return;
 		}
-		const sess = makeSess({ name: rid, type: 'cfws', roomId: rid, wsUrl });
+		const sess = makeSess({ name: rid, type: 'cfws', roomId: rid, wsUrl: CF_WS_URL });
 		sess.isHost = true;
-		const eng = new CloudflareWSEngine({ wsUrl });
+		const eng = new CloudflareWSEngine();
 		S.sessions.set(sess.id, sess); bindEngine(sess, eng); setStatus('connecting', 'Waiting for peers…');
 		try {
-			const token = await S.user.getIdToken();
+			const token = () => S.user.getIdToken();
 			await eng.createRoom(rid, token);
 			await DB.saveSession(sess); await selectSess(sess.id); this.closeNewChat();
-			addSysMsg(sess, `Relay room "${rid}" created — share the room ID + relay URL`); toast('Room created');
+			addSysMsg(sess, `Relay room "${rid}" created — share the room ID`); toast('Room created');
 		} catch (e) { toast('Error: ' + e.message); S.sessions.delete(sess.id); }
 	},
 	async cfJoinRoom() {
 		if (!S.user) { toast('Sign in first'); return; }
-		const wsUrl = el('ncWsUrl')?.value.trim(); if (!wsUrl) { toast('Enter the relay WebSocket URL'); return; }
-		localStorage.setItem('pec_cfws_url', wsUrl);
 		const rid = el('ncWsRoomId')?.value.trim(); if (!rid) { toast('Enter a room ID'); return; }
 		const existing = findSessByRoomId(rid, false, 'cfws');
 		if (existing) {
 			if (!existing.connected) {
 				try {
-					const token = await S.user.getIdToken();
-					const eng = new CloudflareWSEngine({ wsUrl: existing.wsUrl || wsUrl });
+					const token = () => S.user.getIdToken();
+					const eng = new CloudflareWSEngine();
 					bindEngine(existing, eng); setStatus('connecting', 'Reconnecting…');
 					await eng.joinRoom(rid, token);
 				} catch (e) { toast('Error: ' + e.message); }
 			}
 			await selectSess(existing.id); this.closeNewChat(); return;
 		}
-		const sess = makeSess({ name: rid, type: 'cfws', roomId: rid, wsUrl });
-		const eng = new CloudflareWSEngine({ wsUrl });
+		const sess = makeSess({ name: rid, type: 'cfws', roomId: rid, wsUrl: CF_WS_URL });
+		const eng = new CloudflareWSEngine();
 		S.sessions.set(sess.id, sess); bindEngine(sess, eng); setStatus('connecting', 'Joining room…');
 		try {
-			const token = await S.user.getIdToken();
+			const token = () => S.user.getIdToken();
 			await eng.joinRoom(rid, token);
 			await DB.saveSession(sess); await selectSess(sess.id); this.closeNewChat();
 		} catch (e) { toast('Error: ' + e.message); S.sessions.delete(sess.id); }
@@ -321,8 +317,8 @@ export const App = {
 	copyInviteLink() {
 		const sess = getActiveSess(); if (!sess?.roomId) { toast('No room to link'); return; }
 		if (sess.type === 'cfws') {
-			const text = `Room ID: ${sess.roomId}\nRelay URL: ${sess.wsUrl || '(unknown)'}`;
-			navigator.clipboard.writeText(text).then(() => toast('Room ID + relay URL copied!')).catch(() => prompt('Share this with your peer:', text));
+			const text = `Room ID: ${sess.roomId}`;
+			navigator.clipboard.writeText(text).then(() => toast('Room ID copied!')).catch(() => prompt('Share this with your peer:', text));
 			return;
 		}
 		const b64 = btoa(sess.roomId);
@@ -418,11 +414,10 @@ export const App = {
 			if (sess.type === 'direct') { toast('Create a new offer to reconnect direct chats'); return; }
 			if (!S.user) { toast('Sign in to reconnect to rooms'); return; }
 			if (sess.type === 'cfws') {
-				if (!sess.wsUrl) { toast('Missing relay URL for this chat'); return; }
 				setStatus('connecting', 'Reconnecting...');
 				try {
-					const token = await S.user.getIdToken();
-					const eng = new CloudflareWSEngine({ wsUrl: sess.wsUrl });
+					const token = () => S.user.getIdToken();
+					const eng = new CloudflareWSEngine();
 					bindEngine(sess, eng);
 					await (sess.isHost ? eng.createRoom(sess.roomId, token) : eng.joinRoom(sess.roomId, token));
 				} catch (e) { toast('Error: ' + e.message); }

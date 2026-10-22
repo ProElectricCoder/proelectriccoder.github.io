@@ -5,6 +5,7 @@ import { DB } from './db.js';
 import { ticksHtml, formatText } from './text-format.js';
 import { renderFileBubbleFromMsg } from './file-transfer.js';
 import { renderCallCardFromMsg } from './call-card.js';
+import { iconSvg } from './icons.js';
 
 export function renderChatList() {
 	const container = el('chatList'); if (!container) return;
@@ -22,7 +23,7 @@ export function renderChatList() {
 		const dotClass = s.connected ? (inCall ? 'ci-dot call' : 'ci-dot on') : 'ci-dot';
 		const unreadBadge = s.unread > 0 ? `<div class="ci-badge">${s.unread > 99 ? '99+' : s.unread}</div>` : '';
 		const time = s.lastActivity ? relTime(s.lastActivity) : '';
-		const type = s.isGroup ? '👥' : (s.type === 'direct' ? '⚡' : s.type === 'cfws' ? '☁️' : '🔗');
+		const type = iconSvg(s.isGroup ? 'group' : (s.type === 'direct' ? 'bolt' : s.type === 'cfws' ? 'cloud' : 'link'), 1);
 		let avHtml = `${initials}<div class="${dotClass}"></div>`;
 		if (s.isGroup && s.groupIcon) {
 			avHtml = `<img src="${escH(s.groupIcon)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none'"><div class="${dotClass}"></div>`;
@@ -57,8 +58,16 @@ export function renderTopbar(sess) {
 	const displayName = (!sess.isGroup && sess.peerName) ? sess.peerName : sess.name;
 	nameEl.textContent = displayName;
 	dotEl.className = 'status-dot ' + (sess.connected ? 'connected' : '');
-	txtEl.textContent = sess.connected ? `${sess.peers.size} peer${sess.peers.size !== 1 ? 's' : ''} connected` : 'Disconnected';
+	txtEl.textContent = sess.connected ? connText(sess) : 'Disconnected';
 	enableCallBtns(sess.connected);
+}
+
+// "2 peers connected · TURN relay" — the suffix tells the user when direct P2P was not possible
+export function connText(sess) {
+	const n = sess.peers.size, base = `${n} peer${n !== 1 ? 's' : ''} connected`;
+	const routes = [...sess.routes.values()];
+	if (routes.includes('relay')) return base + ' · TURN relay';
+	return routes.length ? base + ' · direct P2P' : base;
 }
 
 export function setStatus(state, text) {
@@ -86,7 +95,7 @@ export function renderMsgItem(container, m) {
 	if (m.type === 'file') { renderFileBubbleFromMsg(container, m); return; }
 	if (m.type === 'call') { renderCallCardFromMsg(container, m); return; }
 	const side = m.mine ? 'mine' : 'theirs';
-	const enc = m.enc ? '<span class="enc-badge">🔒 enc</span>' : '';
+	const enc = m.enc ? `<span class="enc-badge">${iconSvg('lock', .9)} enc</span>` : '';
 	const ticks = m.mine ? ticksHtml(m.ticks || 1) : '';
 	const d = document.createElement('div'); d.className = `msg ${side}`; d.dataset.msgId = m.id;
 	d.innerHTML = `<div class="msg-meta">${escH(m.sender)} · ${fmtTime(m.timestamp)}${enc}${ticks}</div>
