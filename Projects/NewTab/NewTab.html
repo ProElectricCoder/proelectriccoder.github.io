@@ -35,6 +35,11 @@ body {
 	display: block;
 }
 
+/* Holds the <img> fallback, then the recolourable inline SVG once loaded.
+   Hidden until ready so a customised logo doesn't flash its original colours. */
+.logo-slot { opacity: 0; transition: opacity 0.15s ease; }
+.logo-slot.ready { opacity: 1; }
+
 .clock {
 	font-size: 3rem;
 	font-weight: 300;
@@ -112,6 +117,7 @@ body {
 
 .setting-item { display: flex; flex-direction: column; gap: 8px; }
 .setting-label { font-size: 0.9rem; color: #ccc; }
+.setting-hint { font-size: 0.75rem; color: rgba(255,255,255,0.4); }
 
 .range-row { display: flex; align-items: center; gap: 10px; }
 input[type="range"] {
@@ -146,6 +152,7 @@ input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
 input[type="color"]::-webkit-color-swatch {
 	border: 1px solid rgba(255,255,255,0.2); border-radius: 5px;
 }
+input[type="color"]:disabled { opacity: 0.35; cursor: not-allowed; }
 
 .settings-section-title {
 	font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;
@@ -159,6 +166,7 @@ input[type="color"]::-webkit-color-swatch {
 	color: white; border-radius: 5px; cursor: pointer; transition: background 0.2s;
 }
 .reset-btn:hover { background: rgba(255, 255, 255, 0.2); }
+.reset-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 .input-group { width: 100%; display: flex; flex-direction: column; position: relative; }
 
@@ -227,6 +235,7 @@ button[type="submit"] { display: none; }
 	justify-content: center; font-size: 24px; overflow: hidden;
 	position: relative; line-height: 0; box-sizing: border-box;
 }
+.add-plus { display: block; color: rgba(255,255,255,0.85); }
 .shortcut-icon { width: 100%; height: 100%; object-fit: contain; padding: 8px; box-sizing: border-box; }
 .shortcut-label {
 	font-size: 0.8rem; color: rgba(255,255,255,0.7); text-overflow: ellipsis;
@@ -263,6 +272,14 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); }
 .btn-cancel { background: transparent; color: #aaa; }
 .btn-save { background: white; color: black; }
 
+/* "Advanced" reveal in the shortcut dialog */
+.btn-advanced {
+	background: none; border: none; padding: 0; margin-bottom: 15px;
+	color: #aaa; font-size: 0.8rem; font-family: inherit; cursor: pointer;
+	transition: color 0.2s;
+}
+.btn-advanced:hover { color: white; }
+
 .shortcut-item.dragging { opacity: 0.6; transform: scale(1.08); z-index: 50; box-shadow: 0 15px 35px rgba(0,0,0,0.6); }
 .shortcut-item.drag-over { transform: translateY(-10px) scale(1.03); }
 
@@ -277,6 +294,8 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); }
 	background: rgba(255,255,255,0.2); border-radius: 11px; transition: 0.2s;
 }
 .toggle input:checked ~ .toggle-track { background: #4CAF50; }
+.toggle input:disabled ~ .toggle-track,
+.toggle input:disabled ~ .toggle-thumb { opacity: 0.4; }
 .toggle-thumb {
 	position: absolute; top: 2px; left: 2px;
 	width: 18px; height: 18px; background: white;
@@ -299,10 +318,16 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); }
 	bottom: 30px;
 	left: 50%;
 	transform: translateX(-50%) translateY(16px);
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	width: max-content;
+	max-width: min(92vw, 640px);
+	box-sizing: border-box;
 	background: rgba(5, 18, 8, 0.92);
 	border: 1px solid rgba(46, 204, 113, 0.45);
 	color: white;
-	padding: 11px 22px;
+	padding: 9px 12px 9px 20px;
 	border-radius: 10px;
 	font-size: 0.82rem;
 	font-family: monospace;
@@ -313,12 +338,55 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); }
 	z-index: 9999;
 	opacity: 0;
 	pointer-events: none;
-	white-space: nowrap;
 }
 .update-toast.show {
 	opacity: 1;
 	transform: translateX(-50%) translateY(0);
+	pointer-events: auto;
 }
+.update-toast-text {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.update-toast-btn {
+	flex-shrink: 0;
+	background: rgba(46, 204, 113, 0.16);
+	border: 1px solid rgba(46, 204, 113, 0.5);
+	color: white;
+	padding: 5px 12px;
+	border-radius: 6px;
+	font-family: inherit;
+	font-size: 0.78rem;
+	cursor: pointer;
+	transition: background 0.2s;
+}
+.update-toast-btn:hover { background: rgba(46, 204, 113, 0.32); }
+.update-toast-close {
+	flex-shrink: 0;
+	background: none;
+	border: none;
+	color: rgba(255,255,255,0.5);
+	font-size: 1.2rem;
+	line-height: 1;
+	padding: 0 4px;
+	cursor: pointer;
+	transition: color 0.2s;
+}
+.update-toast-close:hover { color: white; }
+
+/* ─── Changelog dialog ────────────────────────────────────────────────── */
+.changelog-modal { width: 440px; max-width: 92vw; }
+.changelog-body { max-height: 50vh; overflow-y: auto; margin-bottom: 18px; padding-right: 6px; }
+.cl-release { padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.cl-release:first-child { padding-top: 0; }
+.cl-release:last-child { border-bottom: none; }
+.cl-version { font-family: monospace; font-size: 0.95rem; color: #2ecc71; margin-bottom: 4px; }
+.cl-date { margin-left: 10px; font-size: 0.75rem; color: rgba(255,255,255,0.4); }
+.cl-summary { font-size: 0.85rem; color: rgba(255,255,255,0.85); line-height: 1.5; }
+.cl-list { margin: 8px 0 0 0; padding-left: 18px; font-size: 0.82rem; color: rgba(255,255,255,0.65); line-height: 1.55; }
+.cl-list li + li { margin-top: 4px; }
 	</style>
 </head>
 <body>
@@ -374,7 +442,30 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); }
 			</div>
 		</div>
 
-		<button class="reset-btn">Reset to Default</button>
+		<button class="reset-btn" id="bgResetBtn">Reset to Default</button>
+
+		<span class="settings-section-title" style="margin-top:15px">Logo</span>
+
+		<div class="setting-item">
+			<div class="setting-row">
+				<span class="setting-label">Match background palette</span>
+				<label class="toggle">
+					<input type="checkbox" id="logoMatchToggle" disabled>
+					<div class="toggle-track"></div>
+					<div class="toggle-thumb"></div>
+				</label>
+			</div>
+			<span class="setting-hint">Outline uses the start colour, fill uses the end colour.</span>
+		</div>
+		<div class="setting-item">
+			<span class="setting-label">Outline Colour</span>
+			<input type="color" id="logoOutlineInput" value="#ffffff" disabled>
+		</div>
+		<div class="setting-item">
+			<span class="setting-label">Fill Colour</span>
+			<input type="color" id="logoFillInput" value="#ffffff" disabled>
+		</div>
+		<button class="reset-btn" id="logoResetBtn" disabled>Original Logo Colours</button>
 
 		<span class="settings-section-title" style="margin-top:15px">Auto-Updates</span>
 
@@ -398,7 +489,8 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); }
 	</div>
 
 	<div class="search-container">
-		<img src="ProElectricCoder-logo-website-2.svg" alt="Logo" class="logo">
+		<!-- Plain <img> shows until NewTabJS.js swaps in the recolourable inline SVG -->
+		<div id="logoSlot" class="logo-slot"><img src="ProElectricCoder-logo-website-2.svg" alt="Logo" class="logo"></div>
 		<div id="clock" class="clock"></div>
 		<div id="date" class="date"></div>
 		<form id="searchForm" action="https://www.google.com/search" method="GET">
@@ -437,11 +529,22 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); }
 		<input type="text" id="shortcutName" class="modal-input" placeholder="e.g. YouTube" autocomplete="off">
 		<label class="modal-label">Website URL</label>
 		<input type="text" id="shortcutUrl" class="modal-input" placeholder="e.g. youtube.com" autocomplete="off">
-		<label class="modal-label">Icon URL (Optional)</label>
-		<input type="text" id="shortcutIcon" class="modal-input" placeholder="Auto-generated..." autocomplete="off">
+		<button type="button" class="btn-advanced" id="advancedToggle" aria-expanded="false" aria-controls="advancedSection">Advanced ▸</button>
+		<div id="advancedSection" hidden>
+			<label class="modal-label">Icon URL (Optional)</label>
+			<input type="text" id="shortcutIcon" class="modal-input" placeholder="Auto-detected from the site's favicon" autocomplete="off">
+		</div>
 		<div class="modal-buttons">
 			<button class="btn btn-cancel">Cancel</button>
 			<button class="btn btn-save">Save</button>
+		</div>
+	</dialog>
+
+	<dialog id="changelogModal" class="changelog-modal">
+		<h3 class="modal-title" id="changelogTitle">What's new</h3>
+		<div class="changelog-body" id="changelogBody"></div>
+		<div class="modal-buttons">
+			<button class="btn btn-save" id="changelogCloseBtn">Close</button>
 		</div>
 	</dialog>
 

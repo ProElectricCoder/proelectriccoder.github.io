@@ -62,6 +62,8 @@ function applyGradient() {
 	localStorage.setItem('bgDirection', direction);
 	localStorage.setItem('bgPower',     power);
 	localStorage.setItem('bgSteps',     steps);
+	// Logo follows the background palette when "match background" is on
+	if (logoMatchToggle.checked) refreshLogo();
 }
 
 function loadBackground() {
@@ -91,32 +93,262 @@ function resetBackground() {
 	applyGradient();
 }
 
+// ─── Logo colours ─────────────────────────────────────────────────────────
+// The logo SVG is fetched, recoloured as text, and inlined so its two colours
+// (outline + fill) can be changed from settings. Colours are detected from the
+// SVG itself: the first distinct paint colour in the file is treated as the
+// fill, the second as the outline. LOGO_SWAP_ROLES flips that for this logo,
+// where the file lists fill (#0ff) before stroke (#03A).
+const LOGO_SRC = 'ProElectricCoder-logo-website-2.svg';
+// Flip if the outline and fill controls come out the wrong way round.
+const LOGO_SWAP_ROLES = true;
+
+const logoSlot         = document.getElementById('logoSlot');
+const logoMatchToggle  = document.getElementById('logoMatchToggle');
+const logoOutlineInput = document.getElementById('logoOutlineInput');
+const logoFillInput    = document.getElementById('logoFillInput');
+
+// Matches fill / stroke / stop-color in attributes, inline styles and <style> blocks
+const LOGO_PAINT_RE = /\b(fill|stroke|stop-color)(\s*[:=]\s*["']?)(rgba?\([^)]*\)|[^"';}\s]+)/gi;
+const LOGO_NON_COLOURS = new Set(['none', 'transparent', 'currentcolor', 'inherit', 'initial', 'unset', 'context-fill', 'context-stroke']);
+
+let logoSvgText = null;
+let logoKeys = [];                                  // [outlineKey, fillKey] (normalised paint values)
+let logoOriginal = { outline: '#ffffff', fill: '#ffffff' };
+
+function isLogoColour(v) {
+	v = v.trim().toLowerCase();
+	return v !== '' && !v.startsWith('url(') && !LOGO_NON_COLOURS.has(v);
+}
+
+function normalisePaint(v) {
+	v = v.trim().toLowerCase();
+	const m = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/.exec(v);
+	return m ? `#${m[1]}${m[1]}${m[2]}${m[2]}${m[3]}${m[3]}` : v;
+}
+
+// Any CSS colour → #rrggbb (needed because <input type="color"> only accepts hex)
+function toHex(css) {
+	const el = document.createElement('span');
+	el.style.color = css;
+	document.body.appendChild(el);
+	const rgb = getComputedStyle(el).color;
+	el.remove();
+	const nums = rgb.match(/\d+(\.\d+)?/g);
+	if (!nums) return '#ffffff';
+	return '#' + nums.slice(0, 3).map(n => Math.round(+n).toString(16).padStart(2, '0')).join('');
+}
+
+function detectLogoPaints(text) {
+	const keys = [];
+	const firstRaw = {};
+	text.replace(LOGO_PAINT_RE, (m, prop, sep, val) => {
+		if (!isLogoColour(val)) return m;
+		const key = normalisePaint(val);
+		if (!keys.includes(key)) { keys.push(key); firstRaw[key] = val.trim(); }
+		return m;
+	});
+	return { keys, firstRaw };
+}
+
+function recolorLogo(outline, fill) {
+	const [outlineKey, fillKey] = logoKeys;
+	return logoSvgText.replace(LOGO_PAINT_RE, (m, prop, sep, val) => {
+		if (!isLogoColour(val)) return m;
+		const key = normalisePaint(val);
+		if (key === outlineKey) return prop + sep + outline;
+		if (key === fillKey)    return prop + sep + fill;
+		return m;
+	});
+}
+
+function currentLogoColours() {
+	if (logoMatchToggle.checked) {
+		// Match mode: outline = background start colour, fill = background end colour
+		return {
+			outline: document.getElementById('bgTopInput').value,
+			fill:    document.getElementById('bgBottomInput').value
+		};
+	}
+	return { outline: logoOutlineInput.value, fill: logoFillInput.value };
+}
+
+function refreshLogo() {
+	if (!logoSvgText) return;
+	const { outline, fill } = currentLogoColours();
+	const doc = new DOMParser().parseFromString(recolorLogo(outline, fill), 'image/svg+xml');
+	const svg = doc.documentElement;
+	if (svg.nodeName === 'parsererror' || svg.querySelector('parsererror')) return;
+
+	// Make sure it scales like the old <img class="logo"> did
+	if (!svg.hasAttribute('viewBox')) {
+		const w = parseFloat(svg.getAttribute('width'));
+		const h = parseFloat(svg.getAttribute('height'));
+		if (w && h) svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+	}
+	svg.removeAttribute('width');
+	svg.removeAttribute('height');
+	svg.setAttribute('class', 'logo');
+	svg.setAttribute('role', 'img');
+	svg.setAttribute('aria-label', 'Logo');
+	logoSlot.replaceChildren(document.importNode(svg, true));
+}
+
+function syncLogoControls() {
+	const match = logoMatchToggle.checked;
+	logoOutlineInput.disabled = match;
+	logoFillInput.disabled    = match;
+}
+
+function setLogoControlsEnabled(enabled) {
+	logoMatchToggle.disabled  = !enabled;
+	document.getElementById('logoResetBtn').disabled = !enabled;
+	if (enabled) syncLogoControls();
+	else { logoOutlineInput.disabled = true; logoFillInput.disabled = true; }
+}
+
+async function loadLogo() {
+	setLogoControlsEnabled(false);
+	try {
+		const res = await fetch(LOGO_SRC);
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		logoSvgText = await res.text();
+
+		const { keys, firstRaw } = detectLogoPaints(logoSvgText);
+		if (!keys.length) throw new Error('no fill/stroke colours found in SVG');
+		logoKeys = LOGO_SWAP_ROLES ? keys.slice(0, 2).reverse() : keys.slice(0, 2);
+
+		const [outlineKey, fillKey] = logoKeys;
+		logoOriginal = {
+			outline: toHex(firstRaw[outlineKey]),
+			fill:    toHex(firstRaw[fillKey] || firstRaw[outlineKey])
+		};
+
+		logoOutlineInput.value = localStorage.getItem('logoOutline') || logoOriginal.outline;
+		logoFillInput.value    = localStorage.getItem('logoFill')    || logoOriginal.fill;
+		logoMatchToggle.checked = localStorage.getItem('logoMatchBg') === '1';
+		setLogoControlsEnabled(true);
+		refreshLogo();
+	} catch (e) {
+		// Leave the plain <img> in place and keep the controls disabled
+		logoSvgText = null;
+		console.warn('[NewTab] Logo recolouring unavailable:', e.message);
+	}
+	logoSlot.classList.add('ready');
+}
+
+function resetLogoColours() {
+	localStorage.removeItem('logoOutline');
+	localStorage.removeItem('logoFill');
+	localStorage.removeItem('logoMatchBg');
+	logoOutlineInput.value  = logoOriginal.outline;
+	logoFillInput.value     = logoOriginal.fill;
+	logoMatchToggle.checked = false;
+	syncLogoControls();
+	refreshLogo();
+}
+
 // ─── Shortcuts ────────────────────────────────────────────────────────────
+// Adds https:// when the user typed a bare domain such as "youtube.com"
+function normalizeUrl(raw) {
+	raw = (raw || '').trim();
+	if (!raw) return '';
+	return /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : 'https://' + raw;
+}
+
+// Chrome's built-in favicon cache: chrome-extension://<id>/_favicon/?pageUrl=<encoded>&size=<size>
+// (needs the "favicon" permission in manifest.json)
+function getFaviconUrl(pageUrl, size = 64) {
+	if (!pageUrl || typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id) return '';
+	const base = chrome.runtime.getURL('/_favicon/');
+	return `${base}?pageUrl=${encodeURIComponent(pageUrl)}&size=${size}`;
+}
+
+function setAdvancedOpen(open) {
+	document.getElementById('advancedSection').hidden = !open;
+	const btn = document.getElementById('advancedToggle');
+	btn.setAttribute('aria-expanded', String(open));
+	btn.textContent = open ? 'Advanced ▾' : 'Advanced ▸';
+}
+
+function openShortcutModal(index) {
+	const sc = safeParseShortcuts();
+	const shortcut = index !== undefined ? sc[index] : null;
+	document.getElementById('modalTitle').textContent = shortcut ? 'Edit Shortcut' : 'Add Shortcut';
+	document.getElementById('editShortcutIndex').value = shortcut ? index : '';
+	document.getElementById('shortcutName').value = shortcut ? shortcut.name : '';
+	document.getElementById('shortcutUrl').value  = shortcut ? shortcut.url  : '';
+	document.getElementById('shortcutIcon').value = shortcut ? (shortcut.icon || '') : '';
+	setAdvancedOpen(!!(shortcut && shortcut.icon));   // reveal the icon field only if one is already set
+	document.getElementById('addShortcutModal').showModal();
+}
+
 function renderShortcuts() {
 	const grid = document.getElementById('shortcutsGrid');
 	grid.innerHTML = '';
 	const shortcuts = safeParseShortcuts();
 
 	shortcuts.forEach((s, i) => {
+		const url = normalizeUrl(s.url);
+		const faviconSrc = getFaviconUrl(url);
+
 		const item = document.createElement('div');
 		item.className = 'shortcut-item';
 		item.draggable = true;
-		item.innerHTML = `
-			<div class="shortcut-icon-wrapper"><img class="shortcut-icon" src="${s.icon || 'https://icons.duckduckgo.com/ip3/' + s.url.replace(/^https?:\/\//, '').split('/')[0] + '.ico'}" alt=""></div>
-			<span class="shortcut-label">${s.name}</span>
-			<div class="option-btn">⋮</div>
-		`;
-		item.onclick = () => window.open(s.url);
-		item.addEventListener('dragstart', () => draggedIndex = i);
+
+		const iconWrap = document.createElement('div');
+		iconWrap.className = 'shortcut-icon-wrapper';
+		const img = document.createElement('img');
+		img.className = 'shortcut-icon';
+		img.alt = '';
+		img.draggable = false;
+		const initialSrc = s.icon || faviconSrc;
+		if (initialSrc) img.src = initialSrc;
+		// A broken custom icon falls back to the favicon cache
+		if (s.icon && faviconSrc) img.addEventListener('error', () => { img.src = faviconSrc; }, { once: true });
+		iconWrap.appendChild(img);
+
+		const label = document.createElement('span');
+		label.className = 'shortcut-label';
+		label.textContent = s.name;
+
+		const optionBtn = document.createElement('div');
+		optionBtn.className = 'option-btn';
+		optionBtn.textContent = '⋮';
+
+		item.append(iconWrap, label, optionBtn);
+
+		item.onclick = () => { if (url) window.open(url); };
+
+		item.addEventListener('dragstart', (e) => {
+			draggedIndex = i;
+			item.classList.add('dragging');
+			e.dataTransfer.effectAllowed = 'move';
+			e.dataTransfer.setData('text/plain', String(i));
+		});
+		item.addEventListener('dragend', () => {
+			draggedIndex = null;
+			grid.querySelectorAll('.dragging, .drag-over').forEach(el => el.classList.remove('dragging', 'drag-over'));
+		});
 		item.addEventListener('dragover', (e) => e.preventDefault());
-		item.addEventListener('drop', () => {
+		item.addEventListener('dragenter', () => {
+			if (draggedIndex !== null && draggedIndex !== i) item.classList.add('drag-over');
+		});
+		item.addEventListener('dragleave', (e) => {
+			if (!item.contains(e.relatedTarget)) item.classList.remove('drag-over');
+		});
+		item.addEventListener('drop', (e) => {
+			e.preventDefault();
+			if (draggedIndex === null || draggedIndex === i) return;
 			const sc = safeParseShortcuts();
 			const moved = sc.splice(draggedIndex, 1)[0];
 			sc.splice(i, 0, moved);
 			localStorage.setItem('shortcuts', JSON.stringify(sc));
+			draggedIndex = null;
 			renderShortcuts();
 		});
-		item.querySelector('.option-btn').addEventListener('click', (e) => {
+
+		optionBtn.addEventListener('click', (e) => {
 			e.stopPropagation();
 			activeShortcutIndex = i;
 			const menu = document.getElementById('shortcutContextMenu');
@@ -129,31 +361,9 @@ function renderShortcuts() {
 
 	const add = document.createElement('div');
 	add.className = 'add-shortcut-btn';
-	add.innerHTML = '<div class="shortcut-icon-wrapper">+</div><span class="shortcut-label">Add</span>';
-	add.onclick = () => {
-		document.getElementById('modalTitle').textContent = 'Add Shortcut';
-		document.getElementById('editShortcutIndex').value = '';
-		document.getElementById('shortcutName').value = '';
-		document.getElementById('shortcutUrl').value = '';
-		document.getElementById('shortcutIcon').value = '';
-		document.getElementById('addShortcutModal').showModal();
-	};
+	add.innerHTML = '<div class="shortcut-icon-wrapper"><svg class="add-plus" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><span class="shortcut-label">Add</span>';
+	add.onclick = () => openShortcutModal();
 	grid.appendChild(add);
-}
-
-// ─── Toast notification ────────────────────────────────────────────────────
-function showUpdateToast(message) {
-	const existing = document.querySelector('.update-toast');
-	if (existing) existing.remove();
-	const toast = document.createElement('div');
-	toast.className = 'update-toast';
-	toast.textContent = '✓ ' + message;
-	document.body.appendChild(toast);
-	requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
-	setTimeout(() => {
-		toast.classList.remove('show');
-		toast.addEventListener('transitionend', () => toast.remove(), { once: true });
-	}, 5000);
 }
 
 // ─── Version comparison ────────────────────────────────────────────────────
@@ -172,10 +382,162 @@ const REMOTE_BASE = 'https://proelectriccoder.github.io/Projects/NewTab/';
 
 // Updates.json is NOT in this list — it's managed separately to preserve local logs
 const UPDATABLE_FILES = [
-	'manifest.json', 'NewTab.html', 'NewTabJS.js', 'CubicGradient.js',
+	'manifest.json', 'NewTab.html', 'NewTabJS.js', 'CubicGradient.js', 'Changelog.json',
 	'ProElectricCoder-logo-website-1.svg', 'ProElectricCoder-logo-website-2.svg',
 	'Icon16.png', 'Icon48.png', 'Icon128.png'
 ];
+
+// ─── Update toast + changelog ──────────────────────────────────────────────
+// Toast = one line + "Details" button. Details opens a dialog listing every
+// release between the old and new version, taken from Changelog.json.
+function showUpdateToast(message, onDetails) {
+	const existing = document.querySelector('.update-toast');
+	if (existing) existing.remove();
+
+	const toast = document.createElement('div');
+	toast.className = 'update-toast';
+
+	const text = document.createElement('span');
+	text.className = 'update-toast-text';
+	text.textContent = '✓ ' + message;
+	text.title = message;
+	toast.appendChild(text);
+
+	let timer;
+	const dismiss = () => {
+		clearTimeout(timer);
+		toast.classList.remove('show');
+		toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+		setTimeout(() => toast.remove(), 600);
+	};
+
+	if (onDetails) {
+		const detailsBtn = document.createElement('button');
+		detailsBtn.className = 'update-toast-btn';
+		detailsBtn.textContent = 'Details';
+		detailsBtn.onclick = () => { dismiss(); onDetails(); };
+		toast.appendChild(detailsBtn);
+	}
+
+	const closeBtn = document.createElement('button');
+	closeBtn.className = 'update-toast-close';
+	closeBtn.setAttribute('aria-label', 'Dismiss');
+	closeBtn.textContent = '×';
+	closeBtn.onclick = dismiss;
+	toast.appendChild(closeBtn);
+
+	// Stay put while hovered so there's time to click Details
+	toast.addEventListener('mouseenter', () => clearTimeout(timer));
+	toast.addEventListener('mouseleave', () => { timer = setTimeout(dismiss, 4000); });
+
+	document.body.appendChild(toast);
+	requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
+	timer = setTimeout(dismiss, 10000);
+}
+
+function openChangelog(releases, headline) {
+	const modal = document.getElementById('changelogModal');
+	document.getElementById('changelogTitle').textContent = headline;
+	const body = document.getElementById('changelogBody');
+	body.replaceChildren();
+
+	releases.forEach((r) => {
+		const block = document.createElement('div');
+		block.className = 'cl-release';
+
+		const head = document.createElement('div');
+		head.className = 'cl-version';
+		head.textContent = `v${r.version}`;
+		if (r.date) {
+			const date = document.createElement('span');
+			date.className = 'cl-date';
+			date.textContent = r.date;
+			head.appendChild(date);
+		}
+		block.appendChild(head);
+
+		if (r.summary) {
+			const summary = document.createElement('div');
+			summary.className = 'cl-summary';
+			summary.textContent = r.summary;
+			block.appendChild(summary);
+		}
+
+		if (Array.isArray(r.details) && r.details.length) {
+			const list = document.createElement('ul');
+			list.className = 'cl-list';
+			r.details.forEach((d) => {
+				const li = document.createElement('li');
+				li.textContent = d;
+				list.appendChild(li);
+			});
+			block.appendChild(list);
+		}
+		body.appendChild(block);
+	});
+
+	modal.showModal();
+}
+
+const isVersionString = (v) => /^\d+(\.\d+)*$/.test(v || '');
+
+function selectReleases(list, from, to) {
+	const fromOk = isVersionString(from);
+	return list
+		.filter(r => r && isVersionString(r.version) && (
+			fromOk ? compareVersions(r.version, from) > 0 && compareVersions(r.version, to) <= 0
+			       : r.version === to))
+		.sort((a, b) => compareVersions(b.version, a.version));
+}
+
+async function readChangelog(local) {
+	try {
+		let json;
+		if (local) {
+			if (!extDirHandle) return [];
+			const fh = await extDirHandle.getFileHandle('Changelog.json');
+			json = JSON.parse(await (await fh.getFile()).text());
+		} else {
+			const res = await fetch(REMOTE_BASE + 'Changelog.json?_=' + Date.now());
+			if (!res.ok) return [];
+			json = await res.json();
+		}
+		return Array.isArray(json) ? json : (json.releases || []);
+	} catch {
+		return [];
+	}
+}
+
+// notify is { from, to } (new) or a legacy string like "Updated from v1.4.3 to v1.4.4"
+function parseNotify(notify) {
+	if (!notify) return null;
+	if (typeof notify === 'object') return { from: String(notify.from ?? ''), to: String(notify.to ?? '') };
+	const text = String(notify);
+	const m = /v?(\d+(?:\.\d+)*)\s+to\s+v?(\d+(?:\.\d+)*)/i.exec(text);
+	return m ? { from: m[1], to: m[2] } : { text };
+}
+
+async function showUpdateNotification(notify) {
+	const n = parseNotify(notify);
+	if (!n) return;
+	if (!n.to) { showUpdateToast(n.text); return; }
+
+	const headline = isVersionString(n.from) ? `Updated v${n.from} → v${n.to}` : `Updated to v${n.to}`;
+
+	// Prefer the Changelog.json that was just written to the folder; fall back to the server
+	let releases = selectReleases(await readChangelog(true), n.from, n.to);
+	if (!releases.some(r => r.version === n.to)) {
+		const remote = selectReleases(await readChangelog(false), n.from, n.to);
+		if (remote.length) releases = remote;
+	}
+	if (!releases.length) { showUpdateToast(headline); return; }
+
+	const latest = releases[0];
+	const summary = latest.summary || (Array.isArray(latest.details) && latest.details[0]) || '';
+	let line = summary ? `${headline} · ${summary}` : headline;
+	if (releases.length > 1) line += ` (+${releases.length - 1} more)`;
+	showUpdateToast(line, () => openChangelog(releases, headline));
+}
 
 // ─── IndexedDB for folder handle ──────────────────────────────────────────
 const DB_NAME = 'NewTabExtDB';
@@ -238,11 +600,13 @@ async function silentUpdateCheck() {
 	try {
 		const data = await readUpdatesJson();
 
-		// Step 1: Show any pending notification from a previous update cycle
+		// Step 1: Show any pending notification from a previous update cycle.
+		// Cleared first so it can only ever be shown once.
 		if (data.notify) {
-			showUpdateToast(data.notify);
+			const pending = data.notify;
 			data.notify = null;
 			await writeUpdatesJson(data);
+			showUpdateNotification(pending).catch((e) => console.warn('[NewTab] Update toast failed:', e.message));
 		}
 
 		// Step 2: Auto-update check
@@ -284,14 +648,15 @@ async function performSilentUpdate(fromVersion, toVersion, updatesData) {
 		await wr.close();
 	}
 
-	// Update Updates.json: append log entry, set notify for next load, preserve autoUpdate
+	// Update Updates.json: append log entry, set notify for next load, preserve autoUpdate.
+	// notify carries only the version range — the toast looks up what changed in Changelog.json.
 	updatesData.log.push({
 		timestamp: new Date().toLocaleString(),
 		from: fromVersion,
 		to: toVersion,
 		note: 'Auto-updated by NewTab'
 	});
-	updatesData.notify = `Updated from v${fromVersion} to v${toVersion}`;
+	updatesData.notify = { from: fromVersion, to: toVersion };
 	// autoUpdate stays as-is
 	await writeUpdatesJson(updatesData);
 
@@ -394,6 +759,7 @@ async function toggleAutoUpdate() {
 updateClock();
 setInterval(updateClock, 1000);
 loadBackground();
+loadLogo();
 setEngine(localStorage.getItem('preferredEngine') || 'google');
 renderShortcuts();
 
@@ -414,9 +780,10 @@ document.getElementById('settingsBtn').onclick = () => {
 };
 document.getElementById('closeSidebarBtn').onclick = () => document.getElementById('settingsSidebar').classList.remove('open');
 
-document.getElementById('bgTopInput').onchange       = applyGradient;
-document.getElementById('bgBottomInput').onchange    = applyGradient;
-document.getElementById('bgDirectionInput').onchange = applyGradient;
+// "input" fires while dragging in the colour picker, so the preview is live
+document.getElementById('bgTopInput').addEventListener('input', applyGradient);
+document.getElementById('bgBottomInput').addEventListener('input', applyGradient);
+document.getElementById('bgDirectionInput').addEventListener('change', applyGradient);
 
 document.getElementById('bgPowerInput').oninput = (e) => {
 	document.getElementById('bgPowerValue').textContent = e.target.value;
@@ -427,26 +794,61 @@ document.getElementById('bgStepsInput').oninput = (e) => {
 	applyGradient();
 };
 
-document.querySelector('.reset-btn').onclick = resetBackground;
+document.getElementById('bgResetBtn').onclick = resetBackground;
+
+// Logo colour controls
+logoOutlineInput.addEventListener('input', () => {
+	localStorage.setItem('logoOutline', logoOutlineInput.value);
+	refreshLogo();
+});
+logoFillInput.addEventListener('input', () => {
+	localStorage.setItem('logoFill', logoFillInput.value);
+	refreshLogo();
+});
+logoMatchToggle.addEventListener('change', () => {
+	localStorage.setItem('logoMatchBg', logoMatchToggle.checked ? '1' : '0');
+	syncLogoControls();
+	refreshLogo();
+});
+document.getElementById('logoResetBtn').onclick = resetLogoColours;
+
 document.getElementById('btnLinkFolder').onclick = linkExtensionFolder;
 document.getElementById('extUpdateToggle').onchange = toggleAutoUpdate;
 
-document.querySelector('.engine-switcher').onclick = () => document.getElementById('engineDropdown').classList.toggle('show');
+// stopPropagation: otherwise the click bubbles to window.onclick below, which
+// closes the dropdown again in the same click (it could never be seen open).
+document.querySelector('.engine-switcher').onclick = (e) => {
+	e.stopPropagation();
+	document.getElementById('shortcutContextMenu').style.display = 'none';
+	document.getElementById('engineDropdown').classList.toggle('show');
+};
 document.getElementById('engineGoogle').onclick = () => { setEngine('google'); document.getElementById('engineDropdown').classList.remove('show'); };
 document.getElementById('engineBing').onclick   = () => { setEngine('bing');   document.getElementById('engineDropdown').classList.remove('show'); };
 
+// Shortcut dialog
+document.getElementById('advancedToggle').onclick = () => {
+	setAdvancedOpen(document.getElementById('advancedSection').hidden);
+};
 document.querySelector('.btn-cancel').onclick = () => document.getElementById('addShortcutModal').close();
 document.querySelector('.btn-save').onclick = () => {
+	const url = normalizeUrl(document.getElementById('shortcutUrl').value);
+	if (!url) { document.getElementById('shortcutUrl').focus(); return; }
+
+	let name = document.getElementById('shortcutName').value.trim();
+	if (!name) {
+		try { name = new URL(url).hostname.replace(/^www\./, ''); } catch { name = url; }
+	}
+
 	const sc = safeParseShortcuts();
 	const editIndex = document.getElementById('editShortcutIndex').value;
 	const newShortcut = {
-		name: document.getElementById('shortcutName').value,
-		url:  document.getElementById('shortcutUrl').value,
-		icon: document.getElementById('shortcutIcon').value
+		name,
+		url,
+		icon: document.getElementById('shortcutIcon').value.trim()
 	};
 
 	if (editIndex !== '') {
-		sc[editIndex] = newShortcut;
+		sc[Number(editIndex)] = newShortcut;
 	} else {
 		sc.push(newShortcut);
 	}
@@ -456,22 +858,22 @@ document.querySelector('.btn-save').onclick = () => {
 	document.getElementById('addShortcutModal').close();
 };
 
+// Changelog dialog
+document.getElementById('changelogCloseBtn').onclick = () => document.getElementById('changelogModal').close();
+document.getElementById('changelogModal').addEventListener('click', (e) => {
+	const modal = e.currentTarget;
+	const r = modal.getBoundingClientRect();
+	const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+	if (!inside) modal.close();   // click on the backdrop
+});
+
 window.onclick = () => {
 	document.getElementById('engineDropdown').classList.remove('show');
 	document.getElementById('shortcutContextMenu').style.display = 'none';
 };
 
 document.getElementById('menuEditBtn').onclick = () => {
-	const sc = safeParseShortcuts();
-	const shortcut = sc[activeShortcutIndex];
-	if (shortcut) {
-		document.getElementById('modalTitle').textContent = 'Edit Shortcut';
-		document.getElementById('editShortcutIndex').value = activeShortcutIndex;
-		document.getElementById('shortcutName').value = shortcut.name;
-		document.getElementById('shortcutUrl').value = shortcut.url;
-		document.getElementById('shortcutIcon').value = shortcut.icon || '';
-		document.getElementById('addShortcutModal').showModal();
-	}
+	if (safeParseShortcuts()[activeShortcutIndex]) openShortcutModal(activeShortcutIndex);
 	document.getElementById('shortcutContextMenu').style.display = 'none';
 };
 

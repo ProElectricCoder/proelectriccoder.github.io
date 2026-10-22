@@ -137,7 +137,7 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 	<div class="nav-left">
 		<img src="ProElectricCoder-logo-website-1.svg" alt="Logo" class="nav-logo" onerror="this.style.display='none'">
 		<span class="nav-title">ProElectricCoder New Tab</span>
-		<span class="nav-version" id="navVersion">v1.4.3</span>
+		<span class="nav-version" id="navVersion">v1.5.0</span>
 	</div>
 	<div class="nav-right">
 		<a class="nav-link" href="#features">Features</a>
@@ -277,7 +277,7 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 </section>
 
 <footer>
-	ProElectricCoder New Tab · <span id="footerVersion">v1.4.3</span> · Built with ElectronCSS
+	ProElectricCoder New Tab · <span id="footerVersion">v1.5.0</span> · Built with ElectronCSS
 </footer>
 
 <div id="updateBanner">
@@ -297,7 +297,7 @@ document.body.style.background = cubicGradient({ direction: 'to bottom right', s
 // ─── Extension files ───────────────────────────────────────────────────────
 // Updates.json is NOT in this list — it is created/updated separately to preserve local logs.
 const EXTENSION_FILES = [
-	'manifest.json', 'NewTab.html', 'NewTabJS.js', 'CubicGradient.js',
+	'manifest.json', 'NewTab.html', 'NewTabJS.js', 'CubicGradient.js', 'Changelog.json',
 	'ProElectricCoder-logo-website-1.svg', 'ProElectricCoder-logo-website-2.svg',
 	'Icon16.png', 'Icon48.png', 'Icon128.png'
 ];
@@ -668,7 +668,9 @@ window.triggerUpdate = async function (autoTriggered = false) {
 			}
 		}
 
-		// Update Updates.json in place — append log, set notify, preserve autoUpdate
+		// Update Updates.json in place — append log, set notify, preserve autoUpdate.
+		// notify carries only the version range; the new tab's toast looks up what
+		// changed in Changelog.json (written to the folder above).
 		const manifest = JSON.parse(await files['manifest.json'].text());
 		const data = (await readUpdatesJson(globalDirHandle)) || { autoUpdate: autoUpdateOn, log: [], notify: null };
 		data.log.push({
@@ -677,7 +679,7 @@ window.triggerUpdate = async function (autoTriggered = false) {
 			to: manifest.version,
 			note: 'Updated via homepage'
 		});
-		data.notify = `Updated from v${fromVersion} to v${manifest.version}`;
+		data.notify = { from: fromVersion, to: manifest.version };
 		data.autoUpdate = autoUpdateOn;
 		await writeUpdatesJson(globalDirHandle, data);
 
