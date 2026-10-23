@@ -156,6 +156,15 @@ export function injectPanels() {
 			</div>
 			<div id="spEncStatus" style="font-family:'JetBrains Mono',monospace;font-size:.68rem;margin-top:8px;color:var(--faint)">Encryption off</div>
 		</div>
+		<div class="panel-section">
+			<div class="panel-section-lbl">Google Drive Backup</div>
+			<div id="spDriveStatus" style="font-family:'JetBrains Mono',monospace;font-size:.68rem;margin-bottom:10px;color:var(--faint)">Not connected</div>
+			<div class="sp-row" id="spDriveAutoRow" style="margin-bottom:10px;display:none">
+				<div class="col" style="gap:2px"><span class="sp-label">Auto-save chats</span><span style="font-size:.65rem;color:var(--faint)">One JSON file per chat in “P2P Chat Backups”</span></div>
+				<label class="toggle"><input type="checkbox" id="spDriveToggle" onchange="App.driveToggle()"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+			</div>
+			<div class="col" id="spDriveBtns"></div>
+		</div>
 		<div class="panel-section"><div class="panel-section-lbl">Sign In (for Firebase rooms)</div><div id="spAuthArea"></div></div>
 		<div class="panel-section"><div class="panel-section-lbl">About</div>
 			<div style="font-size:.78rem;color:rgba(232,237,248,.4);line-height:1.7">P2P Chat v3.6.0 · ProElectricCoder<br>WebRTC + Firebase signaling</div>

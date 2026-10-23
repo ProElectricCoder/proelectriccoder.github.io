@@ -5,6 +5,8 @@ import { requestWakeLock } from './utils.js';
 import { injectPanels } from './panels-inject.js';
 import { initFirebase } from './firebase-auth.js';
 import { renderChatList } from './chat-render.js';
+import { DriveSync } from './drive-sync.js';
+import { refreshDriveUI } from './panels-ui.js';
 
 export async function init() {
 	// Check URL invite param before anything else
@@ -39,5 +41,7 @@ export async function init() {
 			S.sessions.set(sess.id, sess);
 		}
 		renderChatList();
+		DriveSync.onRestored = renderChatList; DriveSync.onStatus = refreshDriveUI;
+		DriveSync.syncStale();
 	} catch (e) { console.warn('[DB] load failed:', e); }
 }

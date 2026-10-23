@@ -1,8 +1,29 @@
 import { S } from './state.js';
+import { DriveSync } from './drive-sync.js';
 import { THEMES } from './constants.js';
 import { el, escH } from './utils.js';
 import { getActiveSess } from './sessions.js';
 import { computeGrad, makeDirGrid } from './theme.js';
+
+// Google Drive backup section of Settings
+export function refreshDriveUI() {
+	const st = el('spDriveStatus'), btns = el('spDriveBtns'); if (!st || !btns) return;
+	const connected = DriveSync.isConnected(), lost = DriveSync.state === 'reconnect';
+	const last = DriveSync.lastSync();
+	const text = lost ? DriveSync.error
+		: !connected ? 'Not connected — chats are only stored in this browser'
+		: DriveSync.state === 'saving' ? 'Saving to Google Drive…'
+		: DriveSync.state === 'error' ? 'Last save failed, retrying: ' + DriveSync.error
+		: 'Connected' + (last ? ' · last saved ' + new Date(last).toLocaleString() : '');
+	st.textContent = text; st.style.color = lost || DriveSync.state === 'error' ? '#ef4444' : connected ? 'var(--ta)' : 'var(--faint)';
+	const row = el('spDriveAutoRow'); if (row) row.style.display = connected ? 'flex' : 'none';
+	const tg = el('spDriveToggle'); if (tg) tg.checked = DriveSync.autoOn();
+	btns.innerHTML = connected
+		? `<button class="btn btn-p btn-full" onclick="App.driveBackupNow()">Back up now</button>
+		   <button class="btn btn-s btn-full" onclick="App.driveRestore()">Restore from Drive</button>
+		   <button class="btn btn-d btn-full" onclick="App.driveDisconnect()">Disconnect</button>`
+		: `<button class="btn btn-p btn-full" onclick="App.driveConnect()">${lost ? 'Reconnect Google Drive' : 'Connect Google Drive'}</button>`;
+}
 
 export function openSettings() {
 	const o = el('settingsOverlay'); if (!o) return;
@@ -17,7 +38,7 @@ export function openSettings() {
 	}
 	const uid_el = el('spUserId');
 	if (uid_el) uid_el.textContent = S.user ? S.user.uid : 'Sign in to get your Chat ID';
-	syncAuthSection('spAuthArea'); o.classList.add('open');
+	syncAuthSection('spAuthArea'); refreshDriveUI(); o.classList.add('open');
 }
 
 export function syncAuthSection(cid) {

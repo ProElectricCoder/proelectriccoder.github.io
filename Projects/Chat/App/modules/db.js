@@ -1,5 +1,6 @@
 export const DB = {
 	_db: null,
+	onChange: null,   // (sessionId) => void — set by drive-sync to queue a Google Drive backup
 
 	async _open() {
 		if (this._db) return this._db;
@@ -29,6 +30,7 @@ export const DB = {
 
 	async saveSession(s) {
 		const db = await this._open();
+		this.onChange?.(s.id);
 		return this._p(db.transaction('sessions', 'readwrite').objectStore('sessions').put({
 			id: s.id, name: s.name, type: s.type, isGroup: s.isGroup, theme: s.theme,
 			createdAt: s.createdAt, lastActivity: s.lastActivity, lastMessage: s.lastMessage,
@@ -49,6 +51,7 @@ export const DB = {
 			if (toSave.file.dataUrl && (toSave.file.size > 512 * 1024 || !toSave.file.mime?.startsWith('image/')))
 				delete toSave.file.dataUrl;
 		}
+		this.onChange?.(m.sessionId);
 		return this._p(db.transaction('messages', 'readwrite').objectStore('messages').put(toSave));
 	},
 
@@ -69,7 +72,7 @@ export const DB = {
 		const db = await this._open();
 		const st = db.transaction('sessions', 'readwrite').objectStore('sessions');
 		const ex = await this._p(st.get(id));
-		if (ex) return this._p(st.put({ ...ex, ...partial }));
+		if (ex) { this.onChange?.(id); return this._p(st.put({ ...ex, ...partial })); }
 	},
 
 	async deleteSession(id) {

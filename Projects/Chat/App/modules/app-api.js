@@ -13,7 +13,7 @@ import { bindEngine } from './protocol.js';
 import { subscribeGroupMeta, writeGroupMeta } from './group-meta.js';
 import {
 	openNewChat, ncSwitchTab, ncDirectSub, NC,
-	openSettings, syncAuthSection, openThemePicker, openChatInfo,
+	openSettings, syncAuthSection, openThemePicker, openChatInfo, refreshDriveUI,
 } from './panels-ui.js';
 import {
 	initiateCall, acceptCall, rejectCall, endCallInternal,
@@ -22,6 +22,7 @@ import {
 } from './call-1to1.js';
 import { acceptGroupCall, declineGroupCall, _gcCleanup } from './call-group.js';
 import { Inbox } from './inbox.js';
+import { DriveSync } from './drive-sync.js';
 import { ChatEngine, DirectEngine, CloudflareWSEngine, CF_WS_URL } from '../../engine.js';
 
 export const App = {
@@ -400,6 +401,25 @@ export const App = {
 		await firebase.auth().signOut();
 		const sess = getActiveSess(); if (sess) { sess.engine?.disconnect(); sess.connected = false; }
 		syncAuthSection('spAuthArea'); toast('Signed out');
+	},
+	// ── Google Drive backup ──
+	async driveConnect() {
+		try {
+			await DriveSync.connect(); refreshDriveUI(); toast('Google Drive connected — backing up your chats…');
+			const n = await DriveSync.backupAll(); refreshDriveUI(); toast(`Saved ${n} chat${n !== 1 ? 's' : ''} to Google Drive`);
+		} catch (e) { toast(e.message); refreshDriveUI(); }
+	},
+	driveDisconnect() { DriveSync.disconnect(); refreshDriveUI(); toast('Disconnected — existing backups stay in your Drive'); },
+	driveToggle() { DriveSync.setAuto(el('spDriveToggle')?.checked); if (DriveSync.autoOn()) DriveSync.syncStale(); refreshDriveUI(); },
+	async driveBackupNow() {
+		toast('Backing up…'); const n = await DriveSync.backupAll(); refreshDriveUI();
+		toast(DriveSync.state === 'idle' ? `Saved ${n} chat${n !== 1 ? 's' : ''} to Google Drive` : 'Backup did not finish — see status in Settings');
+	},
+	async driveRestore() {
+		toast('Restoring from Google Drive…');
+		try { const r = await DriveSync.restore(); toast(r.chats || r.messages ? `Restored ${r.chats} chat${r.chats !== 1 ? 's' : ''}, ${r.messages} message${r.messages !== 1 ? 's' : ''}` : 'Nothing new to restore'); }
+		catch (e) { toast('Restore failed: ' + e.message); }
+		refreshDriveUI();
 	},
 	openThemePicker() { openThemePicker(); },
 	openChatInfo() { openChatInfo(); },
