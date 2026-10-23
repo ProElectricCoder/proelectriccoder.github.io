@@ -1,5 +1,27 @@
 {
+	"files": [
+		"manifest.json",
+		"NewTab.html",
+		"NewTabJS.js",
+		"CubicGradient.js",
+		"Changelog.json",
+		"ProElectricCoder-logo-website-1.svg",
+		"ProElectricCoder-logo-website-2.svg",
+		"Icon16.png",
+		"Icon48.png",
+		"Icon128.png"
+	],
 	"releases": [
+		{
+			"version": "1.5.1",
+			"date": "2026-10-22",
+			"summary": "Tab icon follows the logo colours; update notes stack per version.",
+			"details": [
+				"The browser tab icon now takes the logo's outline and fill colours.",
+				"When several updates land together, Details lists each one with its own step (e.g. v1.4.3 → v1.5.0, then v1.5.0 → v1.5.1).",
+				"Updates now read their file list from Changelog.json, so future releases can add new files safely."
+			]
+		},
 		{
 			"version": "1.5.0",
 			"date": "2026-10-21",
@@ -15,12 +37,33 @@
 				"The \"+\" in the Add shortcut button is now exactly centred."
 			]
 		},
-		{ "version": "1.4.3", "summary": "Background auto-update via chrome.runtime.reload() and improved link-folder UI." },
-		{ "version": "1.4.0", "summary": "File-based auto-update system using Updates.json and a stored folder handle." },
-		{ "version": "1.3.4", "summary": "Fixed the shortcuts grid not rendering; added safe JSON parsing." },
-		{ "version": "1.3.3", "summary": "Fixed shortcut menu button orientation and click propagation." },
-		{ "version": "1.3.2", "summary": "Fixed shortcut icon URL auto-populating incorrectly; added autocomplete=off." },
-		{ "version": "1.3.1", "summary": "Fixed search bar underline focus bug; separated script into NewTabJS.js." },
-		{ "version": "1.3.0", "summary": "Added gradient direction, power curve and smoothness controls." }
+		{
+			"version": "1.4.3",
+			"summary": "Background auto-update via chrome.runtime.reload() and improved link-folder UI."
+		},
+		{
+			"version": "1.4.0",
+			"summary": "File-based auto-update system using Updates.json and a stored folder handle."
+		},
+		{
+			"version": "1.3.4",
+			"summary": "Fixed the shortcuts grid not rendering; added safe JSON parsing."
+		},
+		{
+			"version": "1.3.3",
+			"summary": "Fixed shortcut menu button orientation and click propagation."
+		},
+		{
+			"version": "1.3.2",
+			"summary": "Fixed shortcut icon URL auto-populating incorrectly; added autocomplete=off."
+		},
+		{
+			"version": "1.3.1",
+			"summary": "Fixed search bar underline focus bug; separated script into NewTabJS.js."
+		},
+		{
+			"version": "1.3.0",
+			"summary": "Added gradient direction, power curve and smoothness controls."
+		}
 	]
 }
