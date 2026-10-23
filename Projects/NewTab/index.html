@@ -137,7 +137,7 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 	<div class="nav-left">
 		<img src="ProElectricCoder-logo-website-1.svg" alt="Logo" class="nav-logo" onerror="this.style.display='none'">
 		<span class="nav-title">ProElectricCoder New Tab</span>
-		<span class="nav-version" id="navVersion">v1.5.1</span>
+		<span class="nav-version" id="navVersion">v1.6.0</span>
 	</div>
 	<div class="nav-right">
 		<a class="nav-link" href="#features">Features</a>
@@ -243,6 +243,10 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 				<span class="vinfo-val unknown" id="installedVer">unlinked</span>
 			</div>
 			<div class="vinfo">
+				<span class="vinfo-label">Running</span>
+				<span class="vinfo-val unknown" id="runningVer">not detected</span>
+			</div>
+			<div class="vinfo">
 				<span class="vinfo-label">Latest</span>
 				<span class="vinfo-val unknown" id="latestVer">checking…</span>
 			</div>
@@ -277,7 +281,7 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 </section>
 
 <footer>
-	ProElectricCoder New Tab · <span id="footerVersion">v1.5.1</span> · Built with ElectronCSS
+	ProElectricCoder New Tab · <span id="footerVersion">v1.6.0</span> · Built with ElectronCSS
 </footer>
 
 <div id="updateBanner">
@@ -299,7 +303,7 @@ document.body.style.background = cubicGradient({ direction: 'to bottom right', s
 const EXTENSION_FILES = [
 	'manifest.json', 'NewTab.html', 'NewTabJS.js', 'CubicGradient.js', 'Changelog.json',
 	'ProElectricCoder-logo-website-1.svg', 'ProElectricCoder-logo-website-2.svg',
-	'Icon16.png', 'Icon48.png', 'Icon128.png'
+	'Icon16.png', 'Icon48.png', 'Icon128.png', 'Version.js', 'Bridge.js'
 ];
 // Included in ZIP only (not overwritten during updates)
 const ZIP_ONLY_FILES = ['Updates.json'];
@@ -401,6 +405,7 @@ let globalDirHandle = null;
 let localManifestVersion = null;
 let latestVersion = null;
 let autoUpdateOn = false;
+let runningVersion = null;   // reported by the extension itself (Bridge.js content script)
 
 // ─── Folder link button visibility ────────────────────────────────────────
 // Only shown when folder is not linked or permission has expired.
@@ -568,6 +573,7 @@ window.downloadZip = async function () {
 
 // ─── Check for updates ─────────────────────────────────────────────────────
 window.checkForUpdates = async function () {
+	askExtension();
 	document.getElementById('latestVer').textContent = 'checking…';
 	document.getElementById('latestVer').className = 'vinfo-val unknown';
 
@@ -613,6 +619,7 @@ window.checkForUpdates = async function () {
 
 function refreshUpdateUI() {
 	const installedEl = document.getElementById('installedVer');
+	const runningEl   = document.getElementById('runningVer');
 	const statusEl    = document.getElementById('updateStatus');
 	const updateBtn   = document.getElementById('btnUpdate');
 
@@ -624,21 +631,34 @@ function refreshUpdateUI() {
 		installedEl.className = 'vinfo-val unknown';
 	}
 
-	if (latestVersion && localManifestVersion) {
-		const cmp = compareVersions(latestVersion, localManifestVersion);
-		if (cmp > 0) {
+	if (runningVersion) {
+		runningEl.textContent = `v${runningVersion}`;
+		runningEl.className = 'vinfo-val';
+	} else {
+		runningEl.textContent = 'not detected';
+		runningEl.className = 'vinfo-val unknown';
+	}
+
+	// Without a linked folder, fall back to the version the extension reports
+	const current = localManifestVersion || runningVersion;
+	updateBtn.style.display = 'none';
+
+	if (localManifestVersion && runningVersion && compareVersions(localManifestVersion, runningVersion) > 0) {
+		// New files are on disk but the browser is still running the old ones
+		statusEl.textContent = 'Reload extension';
+		statusEl.className = 'vinfo-val outdated';
+	} else if (latestVersion && current) {
+		if (compareVersions(latestVersion, current) > 0) {
 			statusEl.textContent = 'Update available';
 			statusEl.className = 'vinfo-val outdated';
-			updateBtn.style.display = '';
+			if (localManifestVersion) updateBtn.style.display = '';   // applying it needs the linked folder
 		} else {
 			statusEl.textContent = 'Up to date';
 			statusEl.className = 'vinfo-val up-to-date';
-			updateBtn.style.display = 'none';
 		}
 	} else {
-		statusEl.textContent = localManifestVersion ? '—' : 'Link folder to compare';
+		statusEl.textContent = current ? '—' : 'Link folder to compare';
 		statusEl.className = 'vinfo-val unknown';
-		updateBtn.style.display = 'none';
 	}
 }
 
@@ -724,6 +744,24 @@ window.dismissBanner = function () {
 	document.getElementById('updateBanner').classList.remove('show');
 };
 
+// ─── Extension bridge ──────────────────────────────────────────────────────
+// With the extension installed, its content script (Bridge.js) reports the running version to this page.
+function acceptRunningVersion(v) {
+	if (typeof v === 'string' && /^\d+(\.\d+){0,3}$/.test(v) && v !== runningVersion) {
+		runningVersion = v;
+		refreshUpdateUI();
+	}
+}
+window.addEventListener('message', (e) => {
+	if (e.source !== window || e.origin !== window.location.origin) return;
+	const d = e.data;
+	if (d && d.source === 'proelectriccoder-newtab' && d.type === 'extension-version') acceptRunningVersion(d.version);
+});
+function askExtension() {
+	acceptRunningVersion(document.documentElement.dataset.newtabExtensionVersion);
+	window.postMessage({ source: 'proelectriccoder-home', type: 'get-extension-version' }, window.location.origin);
+}
+
 // ─── Scroll reveal ─────────────────────────────────────────────────────────
 const observer = new IntersectionObserver((entries) => {
 	entries.forEach((e, i) => {
@@ -747,6 +785,7 @@ window.scrollToDownload = function () {
 };
 
 // ─── Init ──────────────────────────────────────────────────────────────────
+askExtension();
 initFolderLink();
 checkForUpdates();
 </script>

@@ -9,9 +9,21 @@
 		"ProElectricCoder-logo-website-2.svg",
 		"Icon16.png",
 		"Icon48.png",
-		"Icon128.png"
+		"Icon128.png",
+		"Version.js",
+		"Bridge.js"
 	],
 	"releases": [
+		{
+			"version": "1.6.0",
+			"date": "2026-10-23",
+			"summary": "The extension now reports its version to its home page.",
+			"details": [
+				"The version lives in one JS constant (Version.js), shown in Settings.",
+				"On proelectriccoder.pages.dev/Projects/NewTab/ a small content script (Bridge.js) tells the home page which version is running; the page shows it as Running and warns when a reload is needed.",
+				"Chrome will list proelectriccoder.pages.dev as a site this extension can read."
+			]
+		},
 		{
 			"version": "1.5.1",
 			"date": "2026-10-22",

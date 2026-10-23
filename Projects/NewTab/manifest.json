@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ProElectricCoder New Tab",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "Custom NewTab Page by ProElectricCoder",
   "permissions": [
     "favicon"
@@ -19,5 +19,17 @@
       "16": "Icon16.png",
       "48": "Icon48.png"
     }
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://proelectriccoder.pages.dev/Projects/NewTab/*"
+      ],
+      "js": [
+        "Version.js",
+        "Bridge.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
 }

@@ -36,6 +36,10 @@
 		{
 			"version": "1.5.1",
 			"note": "Tab icon follows logo colours, stacked update notes, file list read from Changelog.json."
+		},
+		{
+			"version": "1.6.0",
+			"note": "Version constant and home-page bridge (Version.js, Bridge.js)."
 		}
 	],
 	"notify": null
