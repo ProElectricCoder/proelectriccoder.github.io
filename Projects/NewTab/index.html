@@ -137,7 +137,7 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 	<div class="nav-left">
 		<img src="ProElectricCoder-logo-website-1.svg" alt="Logo" class="nav-logo" onerror="this.style.display='none'">
 		<span class="nav-title">ProElectricCoder New Tab</span>
-		<span class="nav-version" id="navVersion">v1.5.1</span>
+		<span class="nav-version" id="navVersion">v1.7.2</span>
 	</div>
 	<div class="nav-right">
 		<a class="nav-link" href="#features">Features</a>
@@ -220,13 +220,13 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 <section id="update">
 	<p class="section-label reveal">Stay current</p>
 	<h2 class="section-title reveal">Auto-Update</h2>
-	<p class="section-sub reveal">Link your installed extension folder once. This page reads your local manifest.json for the installed version and writes all update logs and preferences to Updates.json.</p>
+	<p class="section-sub reveal">Link your installed extension folder once. This page reads your local manifest.json for the installed version and keeps your update log and preferences in Changelog.json.</p>
 
 	<div class="update-panel reveal">
 		<div class="update-row">
 			<div class="update-label-group">
 				<span class="update-label">Auto-Update</span>
-				<span class="update-sublabel">Stored in Updates.json. When enabled, the new tab also self-updates silently on open.</span>
+				<span class="update-sublabel">Stored in Changelog.json. When enabled, the extension updates itself in the background.</span>
 			</div>
 			<label class="toggle">
 				<input type="checkbox" id="autoUpdateToggle" onchange="saveAutoUpdatePref()" disabled>
@@ -241,6 +241,10 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 			<div class="vinfo">
 				<span class="vinfo-label">Installed</span>
 				<span class="vinfo-val unknown" id="installedVer">unlinked</span>
+			</div>
+			<div class="vinfo">
+				<span class="vinfo-label">Running</span>
+				<span class="vinfo-val unknown" id="runningVer">not detected</span>
 			</div>
 			<div class="vinfo">
 				<span class="vinfo-label">Latest</span>
@@ -277,7 +281,7 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 </section>
 
 <footer>
-	ProElectricCoder New Tab · <span id="footerVersion">v1.5.1</span> · Built with ElectronCSS
+	ProElectricCoder New Tab · <span id="footerVersion">v1.7.2</span> · Built with ElectronCSS
 </footer>
 
 <div id="updateBanner">
@@ -291,18 +295,9 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 
 <script type="module">
 import { cubicGradient } from 'https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js';
+import { compareVersions, localVersion, readState, updateState, migrateLegacy, installUpdate, fetchReleaseFiles } from './Updater.js';
 
 document.body.style.background = cubicGradient({ direction: 'to bottom right', start: '#000000', end: '#000066', steps: 20, power: 3 });
-
-// ─── Extension files ───────────────────────────────────────────────────────
-// Updates.json is NOT in this list — it is created/updated separately to preserve local logs.
-const EXTENSION_FILES = [
-	'manifest.json', 'NewTab.html', 'NewTabJS.js', 'CubicGradient.js', 'Changelog.json',
-	'ProElectricCoder-logo-website-1.svg', 'ProElectricCoder-logo-website-2.svg',
-	'Icon16.png', 'Icon48.png', 'Icon128.png'
-];
-// Included in ZIP only (not overwritten during updates)
-const ZIP_ONLY_FILES = ['Updates.json'];
 
 const BASE_URL = './';
 
@@ -333,23 +328,6 @@ async function getHandle() {
 	});
 }
 
-// ─── Updates.json helpers ──────────────────────────────────────────────────
-async function readUpdatesJson(dirHandle) {
-	try {
-		const fh = await dirHandle.getFileHandle('Updates.json');
-		return JSON.parse(await (await fh.getFile()).text());
-	} catch {
-		return null;
-	}
-}
-
-async function writeUpdatesJson(dirHandle, data) {
-	const fh = await dirHandle.getFileHandle('Updates.json', { create: true });
-	const wr = await fh.createWritable();
-	await wr.write(JSON.stringify(data, null, '\t'));
-	await wr.close();
-}
-
 // ─── Helpers ──────────────────────────────────────────────────────────────
 function setStatus(id, msg, type = '') {
 	const el = document.getElementById(id);
@@ -357,50 +335,15 @@ function setStatus(id, msg, type = '') {
 	el.className = 'dl-status' + (type ? ' ' + type : '');
 }
 
-function compareVersions(a, b) {
-	const pa = a.split('.').map(Number);
-	const pb = b.split('.').map(Number);
-	for (let i = 0; i < 3; i++) {
-		if ((pa[i]||0) > (pb[i]||0)) return 1;
-		if ((pa[i]||0) < (pb[i]||0)) return -1;
-	}
-	return 0;
-}
-
-const isSafeFileName = (n) => typeof n === 'string' && /^(?!\.+$)[\w.-]+$/.test(n) && n !== 'Updates.json';
-
-// The server's Changelog.json lists the files in the current release ("files"); the built-in list is the fallback.
-async function resolveFileList() {
-	try {
-		const res = await fetch(BASE_URL + 'Changelog.json?_=' + Date.now());
-		if (res.ok) {
-			const json = await res.json();
-			const list = Array.isArray(json.files) ? json.files.filter(isSafeFileName) : [];
-			if (list.length) return [...new Set([...list, 'manifest.json', 'Changelog.json'])];
-		}
-	} catch { /* use the built-in list */ }
-	return EXTENSION_FILES;
-}
-
-// manifest.json goes last so it never points at files that haven't been written yet
-const manifestLast = (files) => Object.entries(files).sort(([a], [b]) => (a === 'manifest.json') - (b === 'manifest.json'));
-
-async function fetchExtensionFiles() {
-	const results = {};
-	const fileList = await resolveFileList();
-	await Promise.all(fileList.map(async (name) => {
-		const res = await fetch(BASE_URL + name);
-		if (!res.ok) throw new Error(`Could not fetch ${name} from server (${res.status})`);
-		results[name] = await res.blob();
-	}));
-	return results;
-}
+// Every file of the current release (the list comes from the server's Changelog.json)
+const fetchExtensionFiles = () => fetchReleaseFiles(BASE_URL);
 
 // ─── State ────────────────────────────────────────────────────────────────
 let globalDirHandle = null;
 let localManifestVersion = null;
 let latestVersion = null;
 let autoUpdateOn = false;
+let runningVersion = null;   // reported by the extension itself (Bridge.js content script)
 
 // ─── Folder link button visibility ────────────────────────────────────────
 // Only shown when folder is not linked or permission has expired.
@@ -453,18 +396,13 @@ window.linkFolder = async function () {
 
 async function readFolderData() {
 	try {
-		const mfh = await globalDirHandle.getFileHandle('manifest.json');
-		const mf = JSON.parse(await (await mfh.getFile()).text());
-		localManifestVersion = mf.version;
+		localManifestVersion = await localVersion(globalDirHandle);
+		if (!localManifestVersion) throw new Error('manifest.json not found in the linked folder');
 
-		// Read Updates.json for auto-update preference
-		// If it doesn't exist yet, create it with defaults (fresh folder install scenario)
-		let data = await readUpdatesJson(globalDirHandle);
-		if (!data) {
-			data = { autoUpdate: false, log: [], notify: null };
-			await writeUpdatesJson(globalDirHandle, data);
-		}
-		autoUpdateOn = data.autoUpdate;
+		// Update settings live in Changelog.json (an old Updates.json is merged in and removed)
+		await migrateLegacy(globalDirHandle);
+		const state = await readState(globalDirHandle);
+		autoUpdateOn = state.autoUpdate;
 		document.getElementById('autoUpdateToggle').checked = autoUpdateOn;
 		document.getElementById('autoUpdateToggle').disabled = false;
 
@@ -479,9 +417,7 @@ window.saveAutoUpdatePref = async function () {
 	if (!globalDirHandle) return;
 	autoUpdateOn = document.getElementById('autoUpdateToggle').checked;
 	try {
-		const data = (await readUpdatesJson(globalDirHandle)) || { autoUpdate: false, log: [], notify: null };
-		data.autoUpdate = autoUpdateOn;
-		await writeUpdatesJson(globalDirHandle, data);
+		await updateState(globalDirHandle, (d) => { d.autoUpdate = autoUpdateOn; });
 	} catch (e) {
 		console.error('Failed to save auto-update pref:', e);
 	}
@@ -498,37 +434,17 @@ window.downloadToFolder = async function () {
 	setStatus('folderStatus', 'Waiting for folder selection…', 'loading');
 	try {
 		const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-		setStatus('folderStatus', 'Fetching files from server…', 'loading');
-		const files = await fetchExtensionFiles();
-
-		setStatus('folderStatus', 'Writing files…', 'loading');
-		for (const [name, blob] of manifestLast(files)) {
-			const fh = await dirHandle.getFileHandle(name, { create: true });
-			const wr = await fh.createWritable();
-			await wr.write(blob);
-			await wr.close();
-		}
-
-		const manifest = JSON.parse(await files['manifest.json'].text());
-
-		// Create/merge Updates.json — preserve existing autoUpdate setting if re-downloading
-		const existingData = await readUpdatesJson(dirHandle);
-		const initData = {
-			autoUpdate: existingData ? existingData.autoUpdate : false,
-			log: existingData ? existingData.log : [],
-			notify: null
-		};
-		if (!existingData) {
-			initData.log.push({ timestamp: new Date().toLocaleString(), version: manifest.version, note: 'Initial install' });
-		}
-		await writeUpdatesJson(dirHandle, initData);
+		setStatus('folderStatus', 'Downloading and writing files…', 'loading');
+		// A reinstall keeps the existing update settings and doesn't announce a "what's new"
+		const existing = await localVersion(dirHandle);
+		const installed = await installUpdate(dirHandle, { base: BASE_URL, from: null, note: existing ? 'Reinstalled via homepage' : 'Initial install' });
 
 		await saveHandle(dirHandle);
 		globalDirHandle = dirHandle;
 		await readFolderData();
 		setLinkBtnState('hidden');
 		refreshUpdateUI();
-		setStatus('folderStatus', `✓ All files written — v${manifest.version} installed.`, 'ok');
+		setStatus('folderStatus', `✓ All files written — v${installed.to} installed.`, 'ok');
 	} catch (err) {
 		setStatus('folderStatus', err.name === 'AbortError' ? 'Cancelled.' : `✗ ${err.message}`, 'err');
 	}
@@ -542,10 +458,6 @@ window.downloadZip = async function () {
 	setStatus('zipStatus', 'Fetching files…', 'loading');
 	try {
 		const files = await fetchExtensionFiles();
-		// Also fetch Updates.json for the ZIP
-		const updatesRes = await fetch(BASE_URL + 'Updates.json');
-		if (updatesRes.ok) files['Updates.json'] = await updatesRes.blob();
-
 		const manifest = JSON.parse(await files['manifest.json'].text());
 		const zip = new JSZip();
 		const folder = zip.folder('NewTab-extension');
@@ -568,6 +480,7 @@ window.downloadZip = async function () {
 
 // ─── Check for updates ─────────────────────────────────────────────────────
 window.checkForUpdates = async function () {
+	askExtension();
 	document.getElementById('latestVer').textContent = 'checking…';
 	document.getElementById('latestVer').className = 'vinfo-val unknown';
 
@@ -613,6 +526,7 @@ window.checkForUpdates = async function () {
 
 function refreshUpdateUI() {
 	const installedEl = document.getElementById('installedVer');
+	const runningEl   = document.getElementById('runningVer');
 	const statusEl    = document.getElementById('updateStatus');
 	const updateBtn   = document.getElementById('btnUpdate');
 
@@ -624,21 +538,34 @@ function refreshUpdateUI() {
 		installedEl.className = 'vinfo-val unknown';
 	}
 
-	if (latestVersion && localManifestVersion) {
-		const cmp = compareVersions(latestVersion, localManifestVersion);
-		if (cmp > 0) {
+	if (runningVersion) {
+		runningEl.textContent = `v${runningVersion}`;
+		runningEl.className = 'vinfo-val';
+	} else {
+		runningEl.textContent = 'not detected';
+		runningEl.className = 'vinfo-val unknown';
+	}
+
+	// Without a linked folder, fall back to the version the extension reports
+	const current = localManifestVersion || runningVersion;
+	updateBtn.style.display = 'none';
+
+	if (localManifestVersion && runningVersion && compareVersions(localManifestVersion, runningVersion) > 0) {
+		// New files are on disk but the browser is still running the old ones
+		statusEl.textContent = 'Reload extension';
+		statusEl.className = 'vinfo-val outdated';
+	} else if (latestVersion && current) {
+		if (compareVersions(latestVersion, current) > 0) {
 			statusEl.textContent = 'Update available';
 			statusEl.className = 'vinfo-val outdated';
-			updateBtn.style.display = '';
+			if (localManifestVersion) updateBtn.style.display = '';   // applying it needs the linked folder
 		} else {
 			statusEl.textContent = 'Up to date';
 			statusEl.className = 'vinfo-val up-to-date';
-			updateBtn.style.display = 'none';
 		}
 	} else {
-		statusEl.textContent = localManifestVersion ? '—' : 'Link folder to compare';
+		statusEl.textContent = current ? '—' : 'Link folder to compare';
 		statusEl.className = 'vinfo-val unknown';
-		updateBtn.style.display = 'none';
 	}
 }
 
@@ -669,44 +596,16 @@ window.triggerUpdate = async function (autoTriggered = false) {
 		}
 	}
 
-	const fromVersion = localManifestVersion || '?';
-	setStatus('updateActionStatus', 'Fetching files from server…', 'loading');
+	const fromVersion = localManifestVersion;
+	setStatus('updateActionStatus', 'Downloading and writing files…', 'loading');
 
 	try {
-		const files = await fetchExtensionFiles();
-
-		setStatus('updateActionStatus', 'Writing files…', 'loading');
-		for (const [name, blob] of manifestLast(files)) {
-			try {
-				const fh = await globalDirHandle.getFileHandle(name, { create: true });
-				const wr = await fh.createWritable();
-				await wr.write(blob);
-				await wr.close();
-			} catch (writeErr) {
-				throw new Error(`Failed to write ${name}: ${writeErr.message}`);
-			}
-		}
-
-		// Update Updates.json in place — append log, set notify, preserve autoUpdate.
-		// notify carries only the version range; the new tab's toast looks up what
-		// changed in Changelog.json (written to the folder above).
-		const manifest = JSON.parse(await files['manifest.json'].text());
-		const data = (await readUpdatesJson(globalDirHandle)) || { autoUpdate: autoUpdateOn, log: [], notify: null };
-		data.log.push({
-			timestamp: new Date().toLocaleString(),
-			from: fromVersion,
-			to: manifest.version,
-			note: 'Updated via homepage'
-		});
-		// If an earlier update is still waiting to be announced, keep its starting version so the notes stack
-		const pendingFrom = data.notify && typeof data.notify === 'object' ? data.notify.from : '';
-		data.notify = { from: pendingFrom || fromVersion, to: manifest.version };
-		data.autoUpdate = autoUpdateOn;
-		await writeUpdatesJson(globalDirHandle, data);
+		// Downloads everything first, writes manifest.json last, and merges the notes into Changelog.json
+		const { to } = await installUpdate(globalDirHandle, { base: BASE_URL, from: fromVersion, note: 'Updated via homepage' });
 
 		await readFolderData();
 		refreshUpdateUI();
-		setStatus('updateActionStatus', `✓ Updated to v${manifest.version} — reload the extension in chrome://extensions.`, 'ok');
+		setStatus('updateActionStatus', `✓ Updated to v${to} — reload the extension in chrome://extensions.`, 'ok');
 	} catch (e) {
 		setStatus('updateActionStatus', `✗ Update failed: ${e.message}`, 'err');
 	}
@@ -723,6 +622,24 @@ function showBanner(msg, isUpdating = false) {
 window.dismissBanner = function () {
 	document.getElementById('updateBanner').classList.remove('show');
 };
+
+// ─── Extension bridge ──────────────────────────────────────────────────────
+// With the extension installed, its content script (Bridge.js) reports the running version to this page.
+function acceptRunningVersion(v) {
+	if (typeof v === 'string' && /^\d+(\.\d+){0,3}$/.test(v) && v !== runningVersion) {
+		runningVersion = v;
+		refreshUpdateUI();
+	}
+}
+window.addEventListener('message', (e) => {
+	if (e.source !== window || e.origin !== window.location.origin) return;
+	const d = e.data;
+	if (d && d.source === 'proelectriccoder-newtab' && d.type === 'extension-version') acceptRunningVersion(d.version);
+});
+function askExtension() {
+	acceptRunningVersion(document.documentElement.dataset.newtabExtensionVersion);
+	window.postMessage({ source: 'proelectriccoder-home', type: 'get-extension-version' }, window.location.origin);
+}
 
 // ─── Scroll reveal ─────────────────────────────────────────────────────────
 const observer = new IntersectionObserver((entries) => {
@@ -747,6 +664,7 @@ window.scrollToDownload = function () {
 };
 
 // ─── Init ──────────────────────────────────────────────────────────────────
+askExtension();
 initFolderLink();
 checkForUpdates();
 </script>

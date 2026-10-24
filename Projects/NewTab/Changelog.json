@@ -9,9 +9,33 @@
 		"ProElectricCoder-logo-website-2.svg",
 		"Icon16.png",
 		"Icon48.png",
-		"Icon128.png"
+		"Icon128.png",
+		"Version.js",
+		"Bridge.js",
+		"Updater.js",
+		"background.js"
 	],
 	"releases": [
+		{
+			"version": "1.7.2",
+			"date": "2026-10-24",
+			"summary": "Updates install in the background and always bring every file.",
+			"details": [
+				"Updates now run in a background service worker, so closing the tab can't interrupt one. An interrupted update is finished automatically the next time the extension starts.",
+				"Every file of a release is downloaded before anything is written, manifest.json is written last, and missing files are repaired, so files added in future releases always install.",
+				"Updates.json is merged into Changelog.json: your auto-update setting and update log carry over."
+			]
+		},
+		{
+			"version": "1.6.0",
+			"date": "2026-10-23",
+			"summary": "The extension now reports its version to its home page.",
+			"details": [
+				"The version lives in one JS constant (Version.js), shown in Settings.",
+				"On proelectriccoder.pages.dev/Projects/NewTab/ a small content script (Bridge.js) tells the home page which version is running; the page shows it as Running and warns when a reload is needed.",
+				"Chrome will list proelectriccoder.pages.dev as a site this extension can read."
+			]
+		},
 		{
 			"version": "1.5.1",
 			"date": "2026-10-22",
@@ -65,5 +89,8 @@
 			"version": "1.3.0",
 			"summary": "Added gradient direction, power curve and smoothness controls."
 		}
-	]
+	],
+	"autoUpdate": false,
+	"log": [],
+	"notify": null
 }

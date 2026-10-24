@@ -107,6 +107,7 @@ body {
 }
 
 .sidebar-header h2 { margin: 0; font-size: 1.5rem; font-weight: 300; }
+.ext-version { margin-left: 6px; font-size: 0.7rem; font-family: monospace; color: rgba(255,255,255,0.4); }
 
 .close-sidebar-btn {
 	background: none; border: none; color: white;
@@ -400,7 +401,7 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); }
 
 	<div id="settingsSidebar" class="sidebar">
 		<div class="sidebar-header">
-			<h2>Settings</h2>
+			<h2>Settings <span id="extVersionLabel" class="ext-version"></span></h2>
 			<button id="closeSidebarBtn" class="close-sidebar-btn">&times;</button>
 		</div>
 
@@ -548,6 +549,7 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); }
 		</div>
 	</dialog>
 
+	<script src="Version.js"></script>
 	<script type="module" src="NewTabJS.js"></script>
 </body>
 </html>

@@ -1,4 +1,16 @@
 import { cubicGradient } from './CubicGradient.js';
+import {
+	REMOTE_BASE, compareVersions, isVersionString, getHandle, saveHandle, hasAccess,
+	readState, updateState, migrateLegacy, localVersion, fetchRemoteDoc
+} from './Updater.js';
+
+// Set by Version.js (loaded just before this module). Shown in Settings and reported to the home page by Bridge.js.
+const EXTENSION_VERSION = globalThis.EXTENSION_VERSION || '';
+try {
+	if (EXTENSION_VERSION && chrome.runtime.getManifest().version !== EXTENSION_VERSION) {
+		console.warn(`[NewTab] Version.js (${EXTENSION_VERSION}) and manifest.json (${chrome.runtime.getManifest().version}) disagree`);
+	}
+} catch { /* not running as an extension */ }
 
 // ─── Single source of truth for engine SVGs ───────────────────────────────
 const engineSvgs = {
@@ -393,43 +405,6 @@ function renderShortcuts() {
 	grid.appendChild(add);
 }
 
-// ─── Version comparison ────────────────────────────────────────────────────
-function compareVersions(a, b) {
-	const pa = a.split('.').map(Number);
-	const pb = b.split('.').map(Number);
-	for (let i = 0; i < 3; i++) {
-		if ((pa[i]||0) > (pb[i]||0)) return 1;
-		if ((pa[i]||0) < (pb[i]||0)) return -1;
-	}
-	return 0;
-}
-
-// ─── Remote update config ─────────────────────────────────────────────────
-const REMOTE_BASE = 'https://proelectriccoder.github.io/Projects/NewTab/';
-
-// Updates.json is NOT in this list — it's managed separately to preserve local logs
-const UPDATABLE_FILES = [
-	'manifest.json', 'NewTab.html', 'NewTabJS.js', 'CubicGradient.js', 'Changelog.json',
-	'ProElectricCoder-logo-website-1.svg', 'ProElectricCoder-logo-website-2.svg',
-	'Icon16.png', 'Icon48.png', 'Icon128.png'
-];
-
-const isSafeFileName = (n) => typeof n === 'string' && /^(?!\.+$)[\w.-]+$/.test(n) && n !== 'Updates.json';
-
-// The server's Changelog.json lists the files that make up the current release ("files"), so a release
-// can add new files without older copies of this script needing to know about them.
-async function resolveUpdateFiles() {
-	try {
-		const res = await fetch(REMOTE_BASE + 'Changelog.json?_=' + Date.now());
-		if (res.ok) {
-			const json = await res.json();
-			const list = Array.isArray(json.files) ? json.files.filter(isSafeFileName) : [];
-			if (list.length) return [...new Set([...list, 'manifest.json', 'Changelog.json'])];
-		}
-	} catch { /* fall back to the built-in list */ }
-	return UPDATABLE_FILES;
-}
-
 // ─── Update toast + changelog ──────────────────────────────────────────────
 // Toast = one line + "Details" button. Details opens a dialog listing every
 // release between the old and new version, taken from Changelog.json.
@@ -525,8 +500,6 @@ function openChangelog(releases, headline, from) {
 	modal.showModal();
 }
 
-const isVersionString = (v) => /^\d+(\.\d+)*$/.test(v || '');
-
 function selectReleases(list, from, to) {
 	const fromOk = isVersionString(from);
 	return list
@@ -536,22 +509,8 @@ function selectReleases(list, from, to) {
 		.sort((a, b) => compareVersions(a.version, b.version));   // oldest first
 }
 
-async function readChangelog(local) {
-	try {
-		let json;
-		if (local) {
-			if (!extDirHandle) return [];
-			const fh = await extDirHandle.getFileHandle('Changelog.json');
-			json = JSON.parse(await (await fh.getFile()).text());
-		} else {
-			const res = await fetch(REMOTE_BASE + 'Changelog.json?_=' + Date.now());
-			if (!res.ok) return [];
-			json = await res.json();
-		}
-		return Array.isArray(json) ? json : (json.releases || []);
-	} catch {
-		return [];
-	}
+async function fetchRemoteReleases() {
+	try { return (await fetchRemoteDoc(REMOTE_BASE)).releases || []; } catch { return []; }
 }
 
 // notify is { from, to } (new) or a legacy string like "Updated from v1.4.3 to v1.4.4"
@@ -563,17 +522,17 @@ function parseNotify(notify) {
 	return m ? { from: m[1], to: m[2] } : { text };
 }
 
-async function showUpdateNotification(notify) {
+async function showUpdateNotification(notify, localReleases) {
 	const n = parseNotify(notify);
 	if (!n) return;
 	if (!n.to) { showUpdateToast(n.text); return; }
 
 	const headline = isVersionString(n.from) ? `Updated v${n.from} → v${n.to}` : `Updated to v${n.to}`;
 
-	// Prefer the Changelog.json that was just written to the folder; fall back to the server
-	let releases = selectReleases(await readChangelog(true), n.from, n.to);
+	// Prefer the release notes that were just written to the folder; fall back to the server
+	let releases = selectReleases(localReleases, n.from, n.to);
 	if (!releases.some(r => r.version === n.to)) {
-		const remote = selectReleases(await readChangelog(false), n.from, n.to);
+		const remote = selectReleases(await fetchRemoteReleases(), n.from, n.to);
 		if (remote.length) releases = remote;
 	}
 	if (!releases.length) { showUpdateToast(headline); return; }
@@ -585,132 +544,28 @@ async function showUpdateNotification(notify) {
 	showUpdateToast(line, () => openChangelog(releases, headline, n.from));
 }
 
-// ─── IndexedDB for folder handle ──────────────────────────────────────────
-const DB_NAME = 'NewTabExtDB';
-const STORE_NAME = 'handles';
+// ─── Linked folder + background updates ───────────────────────────────────
+// The update itself runs in the background service worker (background.js), so closing this tab
+// can't interrupt it. This page only announces finished updates and asks the worker to check.
 let extDirHandle = null;
 
-function initDB() {
-	return new Promise((resolve, reject) => {
-		const req = indexedDB.open(DB_NAME, 1);
-		req.onupgradeneeded = (e) => e.target.result.createObjectStore(STORE_NAME);
-		req.onsuccess = () => resolve(req.result);
-		req.onerror = () => reject(req.error);
-	});
+function requestBackgroundCheck() {
+	try { chrome.runtime.sendMessage({ type: 'check-update' }, () => void chrome.runtime.lastError); } catch { /* not an extension page */ }
 }
 
-async function saveHandle(handle) {
-	const db = await initDB();
-	return new Promise((resolve) => {
-		const tx = db.transaction(STORE_NAME, 'readwrite');
-		tx.objectStore(STORE_NAME).put(handle, 'extFolder');
-		tx.oncomplete = resolve;
-	});
-}
+async function startupUpdateFlow() {
+	const handle = await getHandle();
+	if (!handle || !(await hasAccess(handle))) return;
+	extDirHandle = handle;
+	await migrateLegacy(handle);
 
-async function getHandle() {
-	const db = await initDB();
-	return new Promise((resolve) => {
-		const tx = db.transaction(STORE_NAME, 'readonly');
-		const req = tx.objectStore(STORE_NAME).get('extFolder');
-		req.onsuccess = () => resolve(req.result || null);
-		req.onerror = () => resolve(null);
-	});
-}
-
-// ─── Updates.json helpers ─────────────────────────────────────────────────
-async function readUpdatesJson() {
-	try {
-		const fh = await extDirHandle.getFileHandle('Updates.json');
-		return JSON.parse(await (await fh.getFile()).text());
-	} catch {
-		// File missing — return a clean default (will be created on first write)
-		return { autoUpdate: false, log: [], notify: null };
+	// Read and clear a pending "what's new" in one step, so it is only ever shown once
+	let pending = null;
+	const state = await updateState(handle, (d) => { pending = d.notify; d.notify = null; });
+	if (pending) {
+		showUpdateNotification(pending, state.releases).catch((e) => console.warn('[NewTab] Update toast failed:', e.message));
 	}
-}
-
-async function writeUpdatesJson(data) {
-	const fh = await extDirHandle.getFileHandle('Updates.json', { create: true });
-	const wr = await fh.createWritable();
-	await wr.write(JSON.stringify(data, null, '\t'));
-	await wr.close();
-}
-
-// ─── Silent auto-update on load ───────────────────────────────────────────
-// Called once on page load if folder is already linked with permission.
-// 1. Checks for a pending notify (written by a previous update) → shows toast + clears it.
-// 2. If autoUpdate is on, fetches remote manifest, compares, downloads files, and reloads.
-async function silentUpdateCheck() {
-	if (!extDirHandle) return;
-
-	try {
-		const data = await readUpdatesJson();
-
-		// Step 1: Show any pending notification from a previous update cycle.
-		// Cleared first so it can only ever be shown once.
-		if (data.notify) {
-			const pending = data.notify;
-			data.notify = null;
-			await writeUpdatesJson(data);
-			showUpdateNotification(pending).catch((e) => console.warn('[NewTab] Update toast failed:', e.message));
-		}
-
-		// Step 2: Auto-update check
-		if (!data.autoUpdate) return;
-
-		const remoteRes = await fetch(REMOTE_BASE + 'manifest.json?_=' + Date.now());
-		if (!remoteRes.ok) return;
-		const remoteMf = await remoteRes.json();
-
-		// Read local version from the installed manifest.json
-		const localMfh = await extDirHandle.getFileHandle('manifest.json');
-		const localMf = JSON.parse(await (await localMfh.getFile()).text());
-
-		if (compareVersions(remoteMf.version, localMf.version) <= 0) return; // Already up to date
-
-		// Newer version found — download and install silently
-		await performSilentUpdate(localMf.version, remoteMf.version, data);
-
-	} catch (e) {
-		// Silent — don't bother the user if the check fails (offline, server down, etc.)
-		console.warn('[NewTab] Auto-update check failed:', e.message);
-	}
-}
-
-async function performSilentUpdate(fromVersion, toVersion, updatesData) {
-	// Fetch all updatable files from remote
-	const files = {};
-	const fileList = await resolveUpdateFiles();
-	await Promise.all(fileList.map(async (name) => {
-		const res = await fetch(REMOTE_BASE + name);
-		if (!res.ok) throw new Error(`Fetch failed: ${name} (${res.status})`);
-		files[name] = await res.blob();
-	}));
-
-	// Write each file to the linked folder — manifest.json last, so it never points at files that aren't there yet
-	for (const [name, blob] of Object.entries(files).sort(([a], [b]) => (a === 'manifest.json') - (b === 'manifest.json'))) {
-		const fh = await extDirHandle.getFileHandle(name, { create: true });
-		const wr = await fh.createWritable();
-		await wr.write(blob);
-		await wr.close();
-	}
-
-	// Update Updates.json: append log entry, set notify for next load, preserve autoUpdate.
-	// notify carries only the version range — the toast looks up what changed in Changelog.json.
-	updatesData.log.push({
-		timestamp: new Date().toLocaleString(),
-		from: fromVersion,
-		to: toVersion,
-		note: 'Auto-updated by NewTab'
-	});
-	updatesData.notify = { from: fromVersion, to: toVersion };
-	// autoUpdate stays as-is
-	await writeUpdatesJson(updatesData);
-
-	// Reload the extension — new files are now on disk, chrome.runtime.reload applies them
-	if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.reload) {
-		chrome.runtime.reload();
-	}
+	requestBackgroundCheck();
 }
 
 // ─── Settings sidebar: folder UI ─────────────────────────────────────────
@@ -720,8 +575,7 @@ async function checkFolderAccess() {
 		setFolderBtnState('link');
 		return;
 	}
-	const perm = await extDirHandle.queryPermission({ mode: 'readwrite' });
-	if (perm === 'granted') {
+	if (await hasAccess(extDirHandle)) {
 		setFolderBtnState('hidden');
 		await readFolderDataForSettings();
 	} else {
@@ -754,14 +608,10 @@ function setFolderBtnState(state) {
 async function readFolderDataForSettings() {
 	const infoEl = document.getElementById('autoUpdateFolderInfo');
 	try {
-		// Show installed version
-		const mfh = await extDirHandle.getFileHandle('manifest.json');
-		const mf = JSON.parse(await (await mfh.getFile()).text());
-		infoEl.textContent = `v${mf.version} · linked`;
-
-		// Read Updates.json for toggle state
-		const data = await readUpdatesJson();
-		document.getElementById('extUpdateToggle').checked = data.autoUpdate;
+		const state = await readState(extDirHandle);
+		const version = await localVersion(extDirHandle);
+		infoEl.textContent = state.updating ? 'update in progress…' : `${version ? 'v' + version + ' · ' : ''}linked`;
+		document.getElementById('extUpdateToggle').checked = state.autoUpdate;
 	} catch (e) {
 		infoEl.textContent = 'linked · could not read version';
 		document.getElementById('extUpdateToggle').checked = false;
@@ -777,6 +627,7 @@ async function linkExtensionFolder() {
 			if (perm === 'granted') {
 				setFolderBtnState('hidden');
 				await readFolderDataForSettings();
+				requestBackgroundCheck();
 				return;
 			}
 		}
@@ -784,7 +635,9 @@ async function linkExtensionFolder() {
 		extDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
 		await saveHandle(extDirHandle);
 		setFolderBtnState('hidden');
+		await migrateLegacy(extDirHandle);
 		await readFolderDataForSettings();
+		requestBackgroundCheck();
 	} catch (e) {
 		if (e.name !== 'AbortError') console.error('Folder link failed:', e);
 	}
@@ -794,15 +647,15 @@ async function toggleAutoUpdate() {
 	if (!extDirHandle) return;
 	const isOn = document.getElementById('extUpdateToggle').checked;
 	try {
-		const data = await readUpdatesJson();
-		data.autoUpdate = isOn;
-		await writeUpdatesJson(data);
+		await updateState(extDirHandle, (d) => { d.autoUpdate = isOn; });
+		if (isOn) requestBackgroundCheck();
 	} catch (e) {
-		console.error('Failed to write Updates.json:', e);
+		console.error('Failed to save the auto-update setting:', e);
 	}
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────
+document.getElementById('extVersionLabel').textContent = EXTENSION_VERSION ? 'v' + EXTENSION_VERSION : '';
 updateClock();
 setInterval(updateClock, 1000);
 loadBackground();
@@ -810,15 +663,8 @@ loadLogo();
 setEngine(localStorage.getItem('preferredEngine') || 'google');
 renderShortcuts();
 
-// On load: silently connect to stored folder, check for notifications and auto-updates.
-// Uses only queryPermission — no user gesture needed for extension pages in Chrome.
-getHandle().then(async (handle) => {
-	if (!handle) return;
-	const perm = await handle.queryPermission({ mode: 'readwrite' });
-	if (perm !== 'granted') return;
-	extDirHandle = handle;
-	await silentUpdateCheck();
-}).catch(() => {});
+// On load: announce a finished update, then ask the background worker to check for the next one
+startupUpdateFlow().catch((e) => console.warn('[NewTab] Update startup failed:', e.message));
 
 // ─── Event bindings ───────────────────────────────────────────────────────
 document.getElementById('settingsBtn').onclick = () => {
