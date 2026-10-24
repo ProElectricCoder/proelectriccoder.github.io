@@ -100,6 +100,8 @@ function resetBackground() {
 // fill, the second as the outline. LOGO_SWAP_ROLES flips that for this logo,
 // where the file lists fill (#0ff) before stroke (#03A).
 const LOGO_SRC = 'ProElectricCoder-logo-website-2.svg';
+// Same artwork, used for the browser tab icon so it always matches the logo colours
+const FAVICON_SRC = 'ProElectricCoder-logo-website-1.svg';
 // Flip if the outline and fill controls come out the wrong way round.
 const LOGO_SWAP_ROLES = true;
 
@@ -107,6 +109,7 @@ const logoSlot         = document.getElementById('logoSlot');
 const logoMatchToggle  = document.getElementById('logoMatchToggle');
 const logoOutlineInput = document.getElementById('logoOutlineInput');
 const logoFillInput    = document.getElementById('logoFillInput');
+const tabIcon          = document.getElementById('tabIcon');
 
 // Matches fill / stroke / stop-color in attributes, inline styles and <style> blocks
 const LOGO_PAINT_RE = /\b(fill|stroke|stop-color)(\s*[:=]\s*["']?)(rgba?\([^)]*\)|[^"';}\s]+)/gi;
@@ -115,6 +118,10 @@ const LOGO_NON_COLOURS = new Set(['none', 'transparent', 'currentcolor', 'inheri
 let logoSvgText = null;
 let logoKeys = [];                                  // [outlineKey, fillKey] (normalised paint values)
 let logoOriginal = { outline: '#ffffff', fill: '#ffffff' };
+let faviconSvgText = null;
+let faviconKeys = [];
+
+const pickRoleKeys = (keys) => LOGO_SWAP_ROLES ? keys.slice(0, 2).reverse() : keys.slice(0, 2);
 
 function isLogoColour(v) {
 	v = v.trim().toLowerCase();
@@ -151,9 +158,8 @@ function detectLogoPaints(text) {
 	return { keys, firstRaw };
 }
 
-function recolorLogo(outline, fill) {
-	const [outlineKey, fillKey] = logoKeys;
-	return logoSvgText.replace(LOGO_PAINT_RE, (m, prop, sep, val) => {
+function recolorSvg(text, [outlineKey, fillKey], outline, fill) {
+	return text.replace(LOGO_PAINT_RE, (m, prop, sep, val) => {
 		if (!isLogoColour(val)) return m;
 		const key = normalisePaint(val);
 		if (key === outlineKey) return prop + sep + outline;
@@ -173,25 +179,42 @@ function currentLogoColours() {
 	return { outline: logoOutlineInput.value, fill: logoFillInput.value };
 }
 
-function refreshLogo() {
-	if (!logoSvgText) return;
-	const { outline, fill } = currentLogoColours();
-	const doc = new DOMParser().parseFromString(recolorLogo(outline, fill), 'image/svg+xml');
-	const svg = doc.documentElement;
-	if (svg.nodeName === 'parsererror' || svg.querySelector('parsererror')) return;
-
-	// Make sure it scales like the old <img class="logo"> did
+// Parses SVG text into a root <svg> that has a viewBox (so it can scale), or null if it isn't valid SVG
+function parseSvg(text) {
+	const svg = new DOMParser().parseFromString(text, 'image/svg+xml').documentElement;
+	if (svg.nodeName === 'parsererror' || svg.querySelector('parsererror')) return null;
 	if (!svg.hasAttribute('viewBox')) {
 		const w = parseFloat(svg.getAttribute('width'));
 		const h = parseFloat(svg.getAttribute('height'));
 		if (w && h) svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
 	}
-	svg.removeAttribute('width');
-	svg.removeAttribute('height');
-	svg.setAttribute('class', 'logo');
-	svg.setAttribute('role', 'img');
-	svg.setAttribute('aria-label', 'Logo');
-	logoSlot.replaceChildren(document.importNode(svg, true));
+	return svg;
+}
+
+function refreshLogo() {
+	if (!logoSvgText) return;
+	const { outline, fill } = currentLogoColours();
+	const svg = parseSvg(recolorSvg(logoSvgText, logoKeys, outline, fill));
+	if (svg) {
+		// Scale like the old <img class="logo"> did
+		svg.removeAttribute('width');
+		svg.removeAttribute('height');
+		svg.setAttribute('class', 'logo');
+		svg.setAttribute('role', 'img');
+		svg.setAttribute('aria-label', 'Logo');
+		logoSlot.replaceChildren(document.importNode(svg, true));
+	}
+	refreshFavicon();
+}
+
+// The tab icon is the same artwork, so it follows the same colours
+function refreshFavicon() {
+	if (!faviconSvgText || !tabIcon) return;
+	const { outline, fill } = currentLogoColours();
+	const svg = parseSvg(recolorSvg(faviconSvgText, faviconKeys, outline, fill));
+	if (!svg) return;
+	tabIcon.type = 'image/svg+xml';
+	tabIcon.href = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(svg));
 }
 
 function syncLogoControls() {
@@ -210,13 +233,17 @@ function setLogoControlsEnabled(enabled) {
 async function loadLogo() {
 	setLogoControlsEnabled(false);
 	try {
-		const res = await fetch(LOGO_SRC);
+		const [res, favRes] = await Promise.all([fetch(LOGO_SRC), fetch(FAVICON_SRC).catch(() => null)]);
 		if (!res.ok) throw new Error(`HTTP ${res.status}`);
 		logoSvgText = await res.text();
+		if (favRes && favRes.ok) {
+			faviconSvgText = await favRes.text();
+			faviconKeys = pickRoleKeys(detectLogoPaints(faviconSvgText).keys);
+		}
 
 		const { keys, firstRaw } = detectLogoPaints(logoSvgText);
 		if (!keys.length) throw new Error('no fill/stroke colours found in SVG');
-		logoKeys = LOGO_SWAP_ROLES ? keys.slice(0, 2).reverse() : keys.slice(0, 2);
+		logoKeys = pickRoleKeys(keys);
 
 		const [outlineKey, fillKey] = logoKeys;
 		logoOriginal = {
@@ -387,6 +414,22 @@ const UPDATABLE_FILES = [
 	'Icon16.png', 'Icon48.png', 'Icon128.png'
 ];
 
+const isSafeFileName = (n) => typeof n === 'string' && /^(?!\.+$)[\w.-]+$/.test(n) && n !== 'Updates.json';
+
+// The server's Changelog.json lists the files that make up the current release ("files"), so a release
+// can add new files without older copies of this script needing to know about them.
+async function resolveUpdateFiles() {
+	try {
+		const res = await fetch(REMOTE_BASE + 'Changelog.json?_=' + Date.now());
+		if (res.ok) {
+			const json = await res.json();
+			const list = Array.isArray(json.files) ? json.files.filter(isSafeFileName) : [];
+			if (list.length) return [...new Set([...list, 'manifest.json', 'Changelog.json'])];
+		}
+	} catch { /* fall back to the built-in list */ }
+	return UPDATABLE_FILES;
+}
+
 // ─── Update toast + changelog ──────────────────────────────────────────────
 // Toast = one line + "Details" button. Details opens a dialog listing every
 // release between the old and new version, taken from Changelog.json.
@@ -435,19 +478,22 @@ function showUpdateToast(message, onDetails) {
 	timer = setTimeout(dismiss, 10000);
 }
 
-function openChangelog(releases, headline) {
+function openChangelog(releases, headline, from) {
 	const modal = document.getElementById('changelogModal');
 	document.getElementById('changelogTitle').textContent = headline;
 	const body = document.getElementById('changelogBody');
 	body.replaceChildren();
 
+	// Oldest first, each release showing its own step: v1.4.3 → v1.5.0, then v1.5.0 → v1.5.1
+	let prev = isVersionString(from) ? from : null;
 	releases.forEach((r) => {
 		const block = document.createElement('div');
 		block.className = 'cl-release';
 
 		const head = document.createElement('div');
 		head.className = 'cl-version';
-		head.textContent = `v${r.version}`;
+		head.textContent = prev ? `v${prev} → v${r.version}` : `v${r.version}`;
+		prev = r.version;
 		if (r.date) {
 			const date = document.createElement('span');
 			date.className = 'cl-date';
@@ -487,7 +533,7 @@ function selectReleases(list, from, to) {
 		.filter(r => r && isVersionString(r.version) && (
 			fromOk ? compareVersions(r.version, from) > 0 && compareVersions(r.version, to) <= 0
 			       : r.version === to))
-		.sort((a, b) => compareVersions(b.version, a.version));
+		.sort((a, b) => compareVersions(a.version, b.version));   // oldest first
 }
 
 async function readChangelog(local) {
@@ -532,11 +578,11 @@ async function showUpdateNotification(notify) {
 	}
 	if (!releases.length) { showUpdateToast(headline); return; }
 
-	const latest = releases[0];
+	const latest = releases[releases.length - 1];
 	const summary = latest.summary || (Array.isArray(latest.details) && latest.details[0]) || '';
 	let line = summary ? `${headline} · ${summary}` : headline;
 	if (releases.length > 1) line += ` (+${releases.length - 1} more)`;
-	showUpdateToast(line, () => openChangelog(releases, headline));
+	showUpdateToast(line, () => openChangelog(releases, headline, n.from));
 }
 
 // ─── IndexedDB for folder handle ──────────────────────────────────────────
@@ -634,14 +680,15 @@ async function silentUpdateCheck() {
 async function performSilentUpdate(fromVersion, toVersion, updatesData) {
 	// Fetch all updatable files from remote
 	const files = {};
-	await Promise.all(UPDATABLE_FILES.map(async (name) => {
+	const fileList = await resolveUpdateFiles();
+	await Promise.all(fileList.map(async (name) => {
 		const res = await fetch(REMOTE_BASE + name);
 		if (!res.ok) throw new Error(`Fetch failed: ${name} (${res.status})`);
 		files[name] = await res.blob();
 	}));
 
-	// Write each file to the linked folder
-	for (const [name, blob] of Object.entries(files)) {
+	// Write each file to the linked folder — manifest.json last, so it never points at files that aren't there yet
+	for (const [name, blob] of Object.entries(files).sort(([a], [b]) => (a === 'manifest.json') - (b === 'manifest.json'))) {
 		const fh = await extDirHandle.getFileHandle(name, { create: true });
 		const wr = await fh.createWritable();
 		await wr.write(blob);

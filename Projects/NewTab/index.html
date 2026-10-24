@@ -137,7 +137,7 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 	<div class="nav-left">
 		<img src="ProElectricCoder-logo-website-1.svg" alt="Logo" class="nav-logo" onerror="this.style.display='none'">
 		<span class="nav-title">ProElectricCoder New Tab</span>
-		<span class="nav-version" id="navVersion">v1.5.0</span>
+		<span class="nav-version" id="navVersion">v1.5.1</span>
 	</div>
 	<div class="nav-right">
 		<a class="nav-link" href="#features">Features</a>
@@ -277,7 +277,7 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 </section>
 
 <footer>
-	ProElectricCoder New Tab · <span id="footerVersion">v1.5.0</span> · Built with ElectronCSS
+	ProElectricCoder New Tab · <span id="footerVersion">v1.5.1</span> · Built with ElectronCSS
 </footer>
 
 <div id="updateBanner">
@@ -367,9 +367,28 @@ function compareVersions(a, b) {
 	return 0;
 }
 
+const isSafeFileName = (n) => typeof n === 'string' && /^(?!\.+$)[\w.-]+$/.test(n) && n !== 'Updates.json';
+
+// The server's Changelog.json lists the files in the current release ("files"); the built-in list is the fallback.
+async function resolveFileList() {
+	try {
+		const res = await fetch(BASE_URL + 'Changelog.json?_=' + Date.now());
+		if (res.ok) {
+			const json = await res.json();
+			const list = Array.isArray(json.files) ? json.files.filter(isSafeFileName) : [];
+			if (list.length) return [...new Set([...list, 'manifest.json', 'Changelog.json'])];
+		}
+	} catch { /* use the built-in list */ }
+	return EXTENSION_FILES;
+}
+
+// manifest.json goes last so it never points at files that haven't been written yet
+const manifestLast = (files) => Object.entries(files).sort(([a], [b]) => (a === 'manifest.json') - (b === 'manifest.json'));
+
 async function fetchExtensionFiles() {
 	const results = {};
-	await Promise.all(EXTENSION_FILES.map(async (name) => {
+	const fileList = await resolveFileList();
+	await Promise.all(fileList.map(async (name) => {
 		const res = await fetch(BASE_URL + name);
 		if (!res.ok) throw new Error(`Could not fetch ${name} from server (${res.status})`);
 		results[name] = await res.blob();
@@ -483,7 +502,7 @@ window.downloadToFolder = async function () {
 		const files = await fetchExtensionFiles();
 
 		setStatus('folderStatus', 'Writing files…', 'loading');
-		for (const [name, blob] of Object.entries(files)) {
+		for (const [name, blob] of manifestLast(files)) {
 			const fh = await dirHandle.getFileHandle(name, { create: true });
 			const wr = await fh.createWritable();
 			await wr.write(blob);
@@ -657,7 +676,7 @@ window.triggerUpdate = async function (autoTriggered = false) {
 		const files = await fetchExtensionFiles();
 
 		setStatus('updateActionStatus', 'Writing files…', 'loading');
-		for (const [name, blob] of Object.entries(files)) {
+		for (const [name, blob] of manifestLast(files)) {
 			try {
 				const fh = await globalDirHandle.getFileHandle(name, { create: true });
 				const wr = await fh.createWritable();
@@ -679,7 +698,9 @@ window.triggerUpdate = async function (autoTriggered = false) {
 			to: manifest.version,
 			note: 'Updated via homepage'
 		});
-		data.notify = { from: fromVersion, to: manifest.version };
+		// If an earlier update is still waiting to be announced, keep its starting version so the notes stack
+		const pendingFrom = data.notify && typeof data.notify === 'object' ? data.notify.from : '';
+		data.notify = { from: pendingFrom || fromVersion, to: manifest.version };
 		data.autoUpdate = autoUpdateOn;
 		await writeUpdatesJson(globalDirHandle, data);
 
