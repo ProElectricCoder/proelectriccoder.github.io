@@ -1,10 +1,11 @@
 {
   "manifest_version": 3,
   "name": "ProElectricCoder New Tab",
-  "version": "1.6.0",
+  "version": "1.7.2",
   "description": "Custom NewTab Page by ProElectricCoder",
   "permissions": [
-    "favicon"
+    "favicon",
+    "alarms"
   ],
   "chrome_url_overrides": {
     "newtab": "NewTab.html"
@@ -31,5 +32,9 @@
       ],
       "run_at": "document_idle"
     }
-  ]
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  }
 }
