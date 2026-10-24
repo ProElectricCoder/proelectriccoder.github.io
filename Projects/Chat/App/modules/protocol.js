@@ -3,12 +3,12 @@ import { S } from './state.js';
 import { DB } from './db.js';
 import { el, escH, toast } from './utils.js';
 import { MY_PEER_ID } from './constants.js';
-import { addBubble, addSysMsg, renderChatList, renderTopbar, setStatus, enableCallBtns } from './chat-render.js';
+import { isAlias } from './chat-id.js';
+import { addBubble, addSysMsg, renderChatList, renderTopbar, setStatus, enableCallBtns, connText } from './chat-render.js';
 import { updateTicksDOM } from './text-format.js';
 import { receiveFile } from './file-transfer.js';
 import { peerName, safeSend } from './sessions.js';
-import { showIncomingDialog, setCallStatusTxt, closeIncomingDialog, endCallInternal } from './call-1to1.js';
-import { createCallCard, updateCallCard } from './call-card.js';
+import { endCallInternal, handleCallLog, showIncomingDialog, closeIncomingDialog } from './call-1to1.js';
 import { _gcCreatePeer, gcRemoveTile, _gcCleanup } from './call-group.js';
 
 // ── Engine binding ───────────────────────────────────────────────────────
@@ -16,7 +16,7 @@ export function bindEngine(sess, engine) {
 	sess.engine = engine;
 	engine.onPeerConnected(peerId => {
 		sess.connected = true; sess.peers.set(peerId, { name: 'Peer', avatar: '', myPeerId: '' });
-		if (S.activeId === sess.id) { setStatus('connected', 'Connected'); enableCallBtns(true); }
+		if (S.activeId === sess.id) { setStatus('connected', connText(sess)); enableCallBtns(true); }
 		addSysMsg(sess, 'Connected ✓');
 		safeSend(sess, { type: 'handshake', displayName: S.displayName, avatarUrl: S.avatarUrl, myPeerId: MY_PEER_ID, isGroup: sess.isGroup, groupName: sess.groupName || '' });
 		if (sess.isGroup && sess.isHost) {
@@ -25,9 +25,18 @@ export function bindEngine(sess, engine) {
 		}
 		renderChatList();
 	});
+	// Route notice: relayed === true means direct P2P was not possible and a TURN server carries the traffic
+	engine.onRoute?.(({ peerId, relayed }) => {
+		sess.routes.set(peerId, relayed ? 'relay' : 'direct');
+		if (relayed) {
+			addSysMsg(sess, 'Direct P2P was not possible, so this chat is using a TURN relay server');
+			toast('Direct P2P was not possible, so a TURN relay server is being used');
+		}
+		if (S.activeId === sess.id && sess.connected) setStatus('connected', connText(sess));
+	});
 	engine.onPeerDisconnected(peerId => {
 		const pname = sess.peers.get(peerId)?.name || 'Peer';
-		sess.peers.delete(peerId);
+		sess.peers.delete(peerId); sess.routes.delete(peerId);
 		if (sess.peers.size === 0) {
 			sess.connected = false;
 			if (S.activeId === sess.id) { setStatus('disconnected', 'Disconnected'); enableCallBtns(false); }
@@ -45,7 +54,7 @@ export function updateTypingIndicator(sess) {
 	if (typers.length > 0) {
 		txtEl.innerHTML = `<span class="typing-status">${escH(typers.join(', '))} typing<span class="typing-dots"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></span></span>`;
 	} else {
-		txtEl.textContent = sess.connected ? `${sess.peers.size} peer${sess.peers.size !== 1 ? 's' : ''} connected` : 'Disconnected';
+		txtEl.textContent = sess.connected ? connText(sess) : 'Disconnected';
 	}
 }
 
@@ -59,7 +68,7 @@ export async function handleMsg(sess, data, peerId) {
 			sess.peerName = data.displayName || 'Peer';
 			sess.peerAvatar = data.avatarUrl || '';
 			// rename non-group rooms to peer's display name if still using roomId as name
-			if (!sess.isGroup && sess.name === sess.roomId && data.displayName) {
+			if (!sess.isGroup && (sess.name === sess.roomId || isAlias(sess.name)) && data.displayName) {
 				sess.name = data.displayName;
 			}
 			DB.saveSession(sess);
@@ -111,46 +120,7 @@ export async function handleMsg(sess, data, peerId) {
 		case 'file-meta': sess.inFiles.set(data.id, { meta: data, chunks: [] }); break;
 		case 'file-chunk': { const f = sess.inFiles.get(data.id); if (f) f.chunks.push(data.data); break; }
 		case 'file-done': await receiveFile(sess, data.id, peerId); break;
-		case 'call-offer':
-			if (sess.call.state !== 'idle') { safeSend(sess, { type: 'call-reject', reason: 'busy' }); return; }
-			if (S.callSessId !== null && S.callSessId !== sess.id) { safeSend(sess, { type: 'call-reject', reason: 'busy' }); return; }
-			sess.call.incoming = data; sess.call.state = 'ringing'; S.callSessId = sess.id;
-			showIncomingDialog(sess, data, false); break;
-		case 'call-answer':
-			if (sess.call.mediaPc && sess.call.state === 'calling') {
-				await sess.call.mediaPc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: data.sdp })).catch(e => console.error('[WebRTC] Answer SDP error:', e));
-				if (sess.call.iceQueue?.length) { for (const cand of sess.call.iceQueue) await sess.call.mediaPc.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {}); sess.call.iceQueue = []; }
-				setCallStatusTxt('In call · ' + (sess.call.type || ''));
-			} break;
-		case 'call-ice':
-			if (data.candidate) {
-				if (sess.call.mediaPc && sess.call.mediaPc.remoteDescription) { sess.call.mediaPc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(() => {}); }
-				else { if (!sess.call.iceQueue) sess.call.iceQueue = []; sess.call.iceQueue.push(data.candidate); }
-			} break;
-		case 'call-renego':
-			if (sess.call.mediaPc && (sess.call.state === 'active' || sess.call.state === 'calling')) {
-				try {
-					await sess.call.mediaPc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: data.sdp }));
-					const ans = await sess.call.mediaPc.createAnswer();
-					await sess.call.mediaPc.setLocalDescription(ans);
-					safeSend(sess, { type: 'call-renego-ok', sdp: ans.sdp });
-				} catch (e) { console.error('[WebRTC] Renego error', e); }
-			} break;
-		case 'call-renego-ok':
-			if (sess.call.mediaPc && (sess.call.state === 'active' || sess.call.state === 'calling')) {
-				try { await sess.call.mediaPc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: data.sdp })); } catch (e) { console.error('[WebRTC] Renego-ok error', e); }
-			} break;
-		case 'call-end': {
-			const wasActive = sess.call.state === 'active';
-			const dur = wasActive && S.callStarted ? Math.floor((Date.now() - S.callStarted) / 1000) : 0;
-			if (sess.call.state === 'ringing' && !sess.call.cardMsgId) { createCallCard(sess, false, sess.call.incoming?.callType || 'audio', 'missed', 0); }
-			else if (sess.call.cardMsgId) { updateCallCard(sess, sess.call.cardMsgId, wasActive ? 'completed' : 'cancelled', dur); }
-			endCallInternal(sess, false, null, true); break;
-		}
-		case 'call-reject': {
-			if (sess.call.cardMsgId) updateCallCard(sess, sess.call.cardMsgId, 'declined', 0);
-			endCallInternal(sess, false, null, true); break;
-		}
+		case 'call-log': await handleCallLog(sess, data); break;
 		case 'display-name': {
 			const old = sess.peers.get(peerId)?.name || 'Peer';
 			if (sess.peers.has(peerId)) sess.peers.get(peerId).name = data.displayName;

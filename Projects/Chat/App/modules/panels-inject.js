@@ -136,7 +136,7 @@ export function injectPanels() {
 		<div class="panel-section">
 			<div class="panel-section-lbl">Your Chat ID (share this so others can DM you)</div>
 			<div id="spUserId" class="uid-box" style="margin-bottom:8px">Sign in to see your ID</div>
-			<button class="btn btn-s btn-full" onclick="App.copyUserId()">📋 Copy ID</button>
+			<button class="btn btn-s btn-full" onclick="App.copyUserId()">Copy ID</button>
 		</div>
 		<div class="panel-section">
 			<div class="panel-section-lbl">Preferences</div>
@@ -155,6 +155,15 @@ export function injectPanels() {
 				<button class="btn btn-p btn-full" onclick="App.applyEncKey()">Apply Key</button>
 			</div>
 			<div id="spEncStatus" style="font-family:'JetBrains Mono',monospace;font-size:.68rem;margin-top:8px;color:var(--faint)">Encryption off</div>
+		</div>
+		<div class="panel-section">
+			<div class="panel-section-lbl">Google Drive Backup</div>
+			<div id="spDriveStatus" style="font-family:'JetBrains Mono',monospace;font-size:.68rem;margin-bottom:10px;color:var(--faint)">Not connected</div>
+			<div class="sp-row" id="spDriveAutoRow" style="margin-bottom:10px;display:none">
+				<div class="col" style="gap:2px"><span class="sp-label">Auto-save chats</span><span style="font-size:.65rem;color:var(--faint)">One JSON file per chat in “P2P Chat Backups”</span></div>
+				<label class="toggle"><input type="checkbox" id="spDriveToggle" onchange="App.driveToggle()"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+			</div>
+			<div class="col" id="spDriveBtns"></div>
 		</div>
 		<div class="panel-section"><div class="panel-section-lbl">Sign In (for Firebase rooms)</div><div id="spAuthArea"></div></div>
 		<div class="panel-section"><div class="panel-section-lbl">About</div>
@@ -202,8 +211,7 @@ export function injectPanels() {
 			<div class="row"><button class="btn btn-p" style="flex:1" onclick="App.fbCreateGroup()">Create Group</button><button class="btn btn-s" style="flex:1" onclick="App.fbJoinGroup()">Join Group</button></div>
 		</div>
 		<div id="ncWs" class="col hidden"><div id="ncWsAuth"></div>
-			<div class="note-box" style="margin-bottom:10px">☁️ <span>Signals over a Cloudflare Worker / Durable Object relay instead of Firebase — same P2P data channel once connected. Still needs sign-in for the auth token.</span></div>
-			<div class="f-grp"><div class="f-lbl">Relay WebSocket URL</div><input class="f-in" id="ncWsUrl" placeholder="wss://your-app.pages.dev/api/ChatRooms"></div>
+			<div class="note-box" style="margin-bottom:10px"><span>Signals over the ProElectricCoder Cloudflare Durable Object relay instead of Firebase — same P2P data channel once connected. Still needs sign-in for the auth token.</span></div>
 			<div class="f-grp"><div class="f-lbl">Room ID</div><input class="f-in" id="ncWsRoomId" placeholder="room-id"></div>
 			<div class="row"><button class="btn btn-p" style="flex:1" onclick="App.cfCreateRoom()">Create Room</button><button class="btn btn-s" style="flex:1" onclick="App.cfJoinRoom()">Join Room</button></div>
 		</div>

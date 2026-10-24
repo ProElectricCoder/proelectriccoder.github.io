@@ -13,7 +13,7 @@ import { bindEngine } from './protocol.js';
 import { subscribeGroupMeta, writeGroupMeta } from './group-meta.js';
 import {
 	openNewChat, ncSwitchTab, ncDirectSub, NC,
-	openSettings, syncAuthSection, openThemePicker, openChatInfo,
+	openSettings, syncAuthSection, openThemePicker, openChatInfo, refreshDriveUI,
 } from './panels-ui.js';
 import {
 	initiateCall, acceptCall, rejectCall, endCallInternal,
@@ -22,7 +22,25 @@ import {
 } from './call-1to1.js';
 import { acceptGroupCall, declineGroupCall, _gcCleanup } from './call-group.js';
 import { Inbox } from './inbox.js';
-import { ChatEngine, DirectEngine, CloudflareWSEngine } from '../../engine.js';
+import { DriveSync } from './drive-sync.js';
+import { isAlias, lookupChatId, rememberProvider, rememberGithubLogin, githubLoginFromToken } from './chat-id.js';
+import { handleUser } from './firebase-auth.js';
+import { ChatEngine, DirectEngine, CloudflareWSEngine, CF_WS_URL } from '../../engine.js';
+
+function authErr(e) {
+	const m = {
+		'auth/email-already-in-use': 'That email already has an account — sign in instead',
+		'auth/invalid-email': 'That email address is not valid',
+		'auth/weak-password': 'Password is too weak — use at least 8 characters',
+		'auth/wrong-password': 'Wrong email or password', 'auth/invalid-credential': 'Wrong email or password', 'auth/user-not-found': 'Wrong email or password',
+		'auth/too-many-requests': 'Too many attempts — wait a few minutes and try again',
+		'auth/popup-closed-by-user': 'Sign-in window was closed', 'auth/cancelled-popup-request': 'Sign-in window was closed',
+		'auth/account-exists-with-different-credential': 'This email already has an account with another sign-in method — use that one',
+		'auth/operation-not-allowed': 'This sign-in method is not enabled in Firebase',
+		'auth/network-request-failed': 'Network error — check your connection',
+	};
+	return m[e?.code] || e?.message || 'Sign-in failed';
+}
 
 export const App = {
 	openSidebar() { openSidebarUI(); },
@@ -91,7 +109,12 @@ export const App = {
 	},
 	async fbJoinRoom() {
 		if (!S.user) { toast('Sign in first'); return; }
-		const rid = el('ncRoomId')?.value.trim(); if (!rid) { toast('Enter a room ID'); return; }
+		let rid = el('ncRoomId')?.value.trim(); if (!rid) { toast('Enter a room ID or Chat ID'); return; }
+		const label = rid;
+		if (isAlias(rid)) { // readable Chat ID (google-… / github-… / email-…) → that user's inbox room
+			try { const u = await lookupChatId(firebase.firestore(), rid); if (!u) { toast('No user found with that Chat ID'); return; } rid = u; }
+			catch (e) { toast('Could not look up that Chat ID: ' + e.message); return; }
+		}
 		const existing = findSessByRoomId(rid, false);
 		if (existing) {
 			if (!existing.connected) {
@@ -100,7 +123,7 @@ export const App = {
 			}
 			await selectSess(existing.id); this.closeNewChat(); return;
 		}
-		const sess = makeSess({ name: rid, type: 'firebase', roomId: rid });
+		const sess = makeSess({ name: label, type: 'firebase', roomId: rid });
 		const eng = new ChatEngine(); eng.init(firebase.firestore());
 		S.sessions.set(sess.id, sess); bindEngine(sess, eng); setStatus('connecting', 'Joining room…');
 		try {
@@ -147,54 +170,50 @@ export const App = {
 
 	async cfCreateRoom() {
 		if (!S.user) { toast('Sign in first'); return; }
-		const wsUrl = el('ncWsUrl')?.value.trim(); if (!wsUrl) { toast('Enter the relay WebSocket URL'); return; }
-		localStorage.setItem('pec_cfws_url', wsUrl);
 		const rid = el('ncWsRoomId')?.value.trim() || 'room-' + Math.random().toString(36).slice(2, 8);
 		const existing = findSessByRoomId(rid, false, 'cfws');
 		if (existing) {
 			if (!existing.connected) {
 				try {
-					const token = await S.user.getIdToken();
-					const eng = new CloudflareWSEngine({ wsUrl: existing.wsUrl || wsUrl });
+					const token = () => S.user.getIdToken();
+					const eng = new CloudflareWSEngine();
 					bindEngine(existing, eng); setStatus('connecting', 'Reconnecting…');
 					await (existing.isHost ? eng.createRoom(rid, token) : eng.joinRoom(rid, token));
 				} catch (e) { toast('Error: ' + e.message); }
 			}
 			await selectSess(existing.id); this.closeNewChat(); return;
 		}
-		const sess = makeSess({ name: rid, type: 'cfws', roomId: rid, wsUrl });
+		const sess = makeSess({ name: rid, type: 'cfws', roomId: rid, wsUrl: CF_WS_URL });
 		sess.isHost = true;
-		const eng = new CloudflareWSEngine({ wsUrl });
+		const eng = new CloudflareWSEngine();
 		S.sessions.set(sess.id, sess); bindEngine(sess, eng); setStatus('connecting', 'Waiting for peers…');
 		try {
-			const token = await S.user.getIdToken();
+			const token = () => S.user.getIdToken();
 			await eng.createRoom(rid, token);
 			await DB.saveSession(sess); await selectSess(sess.id); this.closeNewChat();
-			addSysMsg(sess, `Relay room "${rid}" created — share the room ID + relay URL`); toast('Room created');
+			addSysMsg(sess, `Relay room "${rid}" created — share the room ID`); toast('Room created');
 		} catch (e) { toast('Error: ' + e.message); S.sessions.delete(sess.id); }
 	},
 	async cfJoinRoom() {
 		if (!S.user) { toast('Sign in first'); return; }
-		const wsUrl = el('ncWsUrl')?.value.trim(); if (!wsUrl) { toast('Enter the relay WebSocket URL'); return; }
-		localStorage.setItem('pec_cfws_url', wsUrl);
 		const rid = el('ncWsRoomId')?.value.trim(); if (!rid) { toast('Enter a room ID'); return; }
 		const existing = findSessByRoomId(rid, false, 'cfws');
 		if (existing) {
 			if (!existing.connected) {
 				try {
-					const token = await S.user.getIdToken();
-					const eng = new CloudflareWSEngine({ wsUrl: existing.wsUrl || wsUrl });
+					const token = () => S.user.getIdToken();
+					const eng = new CloudflareWSEngine();
 					bindEngine(existing, eng); setStatus('connecting', 'Reconnecting…');
 					await eng.joinRoom(rid, token);
 				} catch (e) { toast('Error: ' + e.message); }
 			}
 			await selectSess(existing.id); this.closeNewChat(); return;
 		}
-		const sess = makeSess({ name: rid, type: 'cfws', roomId: rid, wsUrl });
-		const eng = new CloudflareWSEngine({ wsUrl });
+		const sess = makeSess({ name: rid, type: 'cfws', roomId: rid, wsUrl: CF_WS_URL });
+		const eng = new CloudflareWSEngine();
 		S.sessions.set(sess.id, sess); bindEngine(sess, eng); setStatus('connecting', 'Joining room…');
 		try {
-			const token = await S.user.getIdToken();
+			const token = () => S.user.getIdToken();
 			await eng.joinRoom(rid, token);
 			await DB.saveSession(sess); await selectSess(sess.id); this.closeNewChat();
 		} catch (e) { toast('Error: ' + e.message); S.sessions.delete(sess.id); }
@@ -321,8 +340,8 @@ export const App = {
 	copyInviteLink() {
 		const sess = getActiveSess(); if (!sess?.roomId) { toast('No room to link'); return; }
 		if (sess.type === 'cfws') {
-			const text = `Room ID: ${sess.roomId}\nRelay URL: ${sess.wsUrl || '(unknown)'}`;
-			navigator.clipboard.writeText(text).then(() => toast('Room ID + relay URL copied!')).catch(() => prompt('Share this with your peer:', text));
+			const text = `Room ID: ${sess.roomId}`;
+			navigator.clipboard.writeText(text).then(() => toast('Room ID copied!')).catch(() => prompt('Share this with your peer:', text));
 			return;
 		}
 		const b64 = btoa(sess.roomId);
@@ -331,7 +350,7 @@ export const App = {
 	},
 	// Copy user ID
 	copyUserId() {
-		const uid_val = S.user?.uid;
+		const uid_val = S.chatId || S.user?.uid;
 		if (!uid_val) { toast('Sign in to get your Chat ID'); return; }
 		navigator.clipboard.writeText(uid_val).then(() => toast('Chat ID copied!')).catch(() => prompt('Your Chat ID:', uid_val));
 	},
@@ -397,13 +416,82 @@ export const App = {
 		try { await Crypt.derive(pw); S.encEnabled = true; el('spEncStatus').textContent = '🔒 Key active'; el('spEncStatus').style.color = 'var(--ta)'; toast('Encryption key applied'); }
 		catch (e) { toast('Key error: ' + e.message); }
 	},
-	async signInGoogle() { try { await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider()); } catch (e) { toast(e.message); } },
-	async signInGitHub() { try { await firebase.auth().signInWithPopup(new firebase.auth.GithubAuthProvider()); } catch (e) { toast(e.message); } },
+	async signInGoogle() { try { rememberProvider('google.com'); await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider()); } catch (e) { toast(authErr(e)); } },
+	async signInGitHub() {
+		try {
+			rememberProvider('github.com');
+			const res = await firebase.auth().signInWithPopup(new firebase.auth.GithubAuthProvider());
+			const gh = res.user.providerData.find(p => p.providerId === 'github.com');
+			// 1) ask GitHub with the OAuth token  2) fall back to the username Firebase reports at sign-in
+			const login = await githubLoginFromToken(res.credential?.accessToken, gh?.uid) || res.additionalUserInfo?.username;
+			// A new or renamed GitHub login changes the Chat ID: register it right away
+			if (rememberGithubLogin(gh?.uid, login)) await handleUser(res.user);
+		} catch (e) { toast(authErr(e)); }
+	},
+	// ── Email + password (the account must verify its address before it can be used) ──
+	toggleEmailForm(btn) { const box = btn.parentElement.querySelector('.email-box'); if (box) box.style.display = box.style.display === 'none' ? 'flex' : 'none'; },
+	_emailFields(btn) {
+		const box = btn.closest('.email-box'), f = k => box?.querySelector(`[data-f="${k}"]`)?.value || '';
+		return { name: f('name').trim(), email: f('email').trim(), pw: f('pw') };
+	},
+	async emailSignIn(btn) {
+		const { email, pw } = this._emailFields(btn); if (!email || !pw) { toast('Enter your email and password'); return; }
+		try { rememberProvider('password'); await firebase.auth().signInWithEmailAndPassword(email, pw); } catch (e) { toast(authErr(e)); }
+	},
+	async emailSignUp(btn) {
+		const { name, email, pw } = this._emailFields(btn);
+		if (!email || !pw) { toast('Enter an email and a password'); return; }
+		if (pw.length < 8) { toast('Use a password with at least 8 characters'); return; }
+		try {
+			rememberProvider('password');
+			const cred = await firebase.auth().createUserWithEmailAndPassword(email, pw);
+			if (name) await cred.user.updateProfile({ displayName: name });
+			await cred.user.sendEmailVerification();
+			await handleUser(firebase.auth().currentUser);
+			toast('Verification email sent to ' + email);
+		} catch (e) { toast(authErr(e)); }
+	},
+	async emailResend() {
+		const u = firebase.auth().currentUser; if (!u) return;
+		try { await u.sendEmailVerification(); toast('Verification email sent again'); } catch (e) { toast(authErr(e)); }
+	},
+	async emailCheckVerified() {
+		const u = firebase.auth().currentUser; if (!u) return;
+		try {
+			await u.reload();
+			if (!u.emailVerified) { toast('Not verified yet — open the link in the email first'); return; }
+			await u.getIdToken(true); // refresh so the token carries email_verified
+			await handleUser(u); toast('Email verified — you are signed in');
+		} catch (e) { toast(authErr(e)); }
+	},
+	async emailReset(btn) {
+		const { email } = this._emailFields(btn); if (!email) { toast('Enter your email first'); return; }
+		try { await firebase.auth().sendPasswordResetEmail(email); toast('If that address has an account, a reset link is on its way'); } catch (e) { toast(authErr(e)); }
+	},
 	async signOut() {
 		Inbox.stop();
 		await firebase.auth().signOut();
 		const sess = getActiveSess(); if (sess) { sess.engine?.disconnect(); sess.connected = false; }
 		syncAuthSection('spAuthArea'); toast('Signed out');
+	},
+	// ── Google Drive backup ──
+	async driveConnect() {
+		try {
+			await DriveSync.connect(); refreshDriveUI(); toast('Google Drive connected — backing up your chats…');
+			const n = await DriveSync.backupAll(); refreshDriveUI(); toast(`Saved ${n} chat${n !== 1 ? 's' : ''} to Google Drive`);
+		} catch (e) { toast(e.message); refreshDriveUI(); }
+	},
+	driveDisconnect() { DriveSync.disconnect(); refreshDriveUI(); toast('Disconnected — existing backups stay in your Drive'); },
+	driveToggle() { DriveSync.setAuto(el('spDriveToggle')?.checked); if (DriveSync.autoOn()) DriveSync.syncStale(); refreshDriveUI(); },
+	async driveBackupNow() {
+		toast('Backing up…'); const n = await DriveSync.backupAll(); refreshDriveUI();
+		toast(DriveSync.state === 'idle' ? `Saved ${n} chat${n !== 1 ? 's' : ''} to Google Drive` : 'Backup did not finish — see status in Settings');
+	},
+	async driveRestore() {
+		toast('Restoring from Google Drive…');
+		try { const r = await DriveSync.restore(); toast(r.chats || r.messages ? `Restored ${r.chats} chat${r.chats !== 1 ? 's' : ''}, ${r.messages} message${r.messages !== 1 ? 's' : ''}` : 'Nothing new to restore'); }
+		catch (e) { toast('Restore failed: ' + e.message); }
+		refreshDriveUI();
 	},
 	openThemePicker() { openThemePicker(); },
 	openChatInfo() { openChatInfo(); },
@@ -418,11 +506,10 @@ export const App = {
 			if (sess.type === 'direct') { toast('Create a new offer to reconnect direct chats'); return; }
 			if (!S.user) { toast('Sign in to reconnect to rooms'); return; }
 			if (sess.type === 'cfws') {
-				if (!sess.wsUrl) { toast('Missing relay URL for this chat'); return; }
 				setStatus('connecting', 'Reconnecting...');
 				try {
-					const token = await S.user.getIdToken();
-					const eng = new CloudflareWSEngine({ wsUrl: sess.wsUrl });
+					const token = () => S.user.getIdToken();
+					const eng = new CloudflareWSEngine();
 					bindEngine(sess, eng);
 					await (sess.isHost ? eng.createRoom(sess.roomId, token) : eng.joinRoom(sess.roomId, token));
 				} catch (e) { toast('Error: ' + e.message); }

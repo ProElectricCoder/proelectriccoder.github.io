@@ -3,6 +3,8 @@ export const S = {
 	sessions:      new Map(),
 	activeId:      null,
 	user:          null,
+	chatId:        null,   // readable Chat ID (google-… / github-… / email-…), null until resolved
+	pendingVerify: null,   // email/password user who has not verified their address yet
 	displayName:   localStorage.getItem('pec_name')    || 'Anonymous',
 	avatarUrl:     localStorage.getItem('pec_avatar')  || '',
 	encEnabled:    false,
@@ -45,6 +47,7 @@ export function makeSess(opts) {
 		engine:    null,
 		connected: false,
 		peers:     new Map(),
+		routes:    new Map(),   // peerId -> 'direct' | 'relay' (TURN)
 		messages:  [],
 		unread:    0,
 		inFiles:   new Map(),
@@ -61,6 +64,7 @@ export function makeSess(opts) {
 			muted: false, camOff: false, incoming: null, iceQueue: [],
 			audioCtx: null, audioAnalyser: null, audioSource: null, audioDrawTimer: null,
 			cardMsgId: null, callStartedAt: null,
+			callId: null, sigOpen: false, outIce: [],
 		},
 	};
 }

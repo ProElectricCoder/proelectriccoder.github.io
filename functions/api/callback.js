@@ -4,6 +4,13 @@ export async function onRequestGet(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   
+  // Popup mode (P2P Chat Drive backup): state = "pec-chat|<encoded opener origin>|<nonce>".
+  // Instead of redirecting the whole page (which would drop live chat connections) the tokens are
+  // handed to the opener window with postMessage and the popup closes. The existing redirect flow
+  // below (used by the IDE) is unchanged.
+  const state = url.searchParams.get('state') || '';
+  if (state.startsWith('pec-chat|')) return handleChatPopup(context, url, state);
+
   // 1. Extract the authorization code Google attached to the URL
   const code = url.searchParams.get('code');
   
@@ -77,5 +84,45 @@ export async function onRequestGet(context) {
 
   } catch (error) {
     return new Response(`Server error during OAuth exchange: ${error.message}`, { status: 500 });
+  }
+}
+
+const CHAT_ORIGINS = new Set(['https://proelectriccoder.pages.dev', 'https://proelectriccoder.github.io']);
+
+// JSON for embedding inside an inline <script>: "<" is escaped so no value can close the tag
+function safeJson(v) { return JSON.stringify(v).replace(/</g, '\\u003c').replace(/\u2028|\u2029/g, ''); }
+
+function popupPage(origin, payload) {
+  return new Response(`<!DOCTYPE html><html><head><title>Google Drive</title></head><body>
+<p>You can close this window.</p>
+<script>
+  try { window.opener && window.opener.postMessage(${safeJson(payload)}, ${safeJson(origin)}); } catch (e) {}
+  window.close();
+</script></body></html>`, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+}
+
+async function handleChatPopup({ env }, url, state) {
+  const [, encOrigin = '', nonce = ''] = state.split('|');
+  let origin = '';
+  try { origin = decodeURIComponent(encOrigin); } catch {}
+  if (!CHAT_ORIGINS.has(origin) || !/^[A-Za-z0-9_-]{8,64}$/.test(nonce)) {
+    return new Response('Invalid state', { status: 400 });
+  }
+  const code = url.searchParams.get('code');
+  if (!code) return popupPage(origin, { type: 'pec-drive-tokens', nonce, error: url.searchParams.get('error') || 'Authorization was cancelled' });
+  try {
+    const r = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code, client_id: env.GOOGLE_CLIENT_ID, client_secret: env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: `${url.origin}/api/callback`, grant_type: 'authorization_code',
+      }),
+    });
+    if (!r.ok) return popupPage(origin, { type: 'pec-drive-tokens', nonce, error: 'Google token exchange failed' });
+    const t = await r.json();
+    return popupPage(origin, { type: 'pec-drive-tokens', nonce, tokens: { accessToken: t.access_token, expiresIn: t.expires_in, refreshToken: t.refresh_token || null } });
+  } catch (e) {
+    return popupPage(origin, { type: 'pec-drive-tokens', nonce, error: 'Server error during sign-in' });
   }
 }

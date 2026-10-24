@@ -1,10 +1,34 @@
-import { S } from './state.js';
+import { S, uid } from './state.js';
 import { getActiveSess, safeSend } from './sessions.js';
 import { toast, el, escH } from './utils.js';
 import { Ringtone } from './ringtone.js';
-import { createCallCard, updateCallCard } from './call-card.js';
+import { createCallCard, updateCallCard, patchCallMeta } from './call-card.js';
+import { getIceConfig, monitorPC } from '../../engine.js';
+import { iconSvg } from './icons.js';
 import { initiateGroupCall } from './call-group.js';
 import { renderChatList } from './chat-render.js';
+
+// ── Call signaling over the chat's existing P2P data channel ─────────────────
+// Every 1:1 call signal travels inside the *call log message*:
+//   { type: 'call-log', op, callId, callType?, displayName?, meta: { sdp? | candidate? | reason? } }
+// op: offer | answer | ice | renego | renego-ok | end | reject.
+// The receiving side applies `meta` automatically (handleCallLog) — no manual copy/paste of WebRTC codes.
+function sendCallLog(sess, op, meta = {}, extra = {}) {
+	if (op === 'offer') patchCallMeta(sess, sess.call.cardMsgId, { callId: sess.call.callId, offer: meta.sdp });
+	else if (op === 'answer') patchCallMeta(sess, sess.call.cardMsgId, { answer: meta.sdp });
+	safeSend(sess, { type: 'call-log', op, callId: sess.call.callId, msgId: sess.call.cardMsgId, meta, ...extra });
+}
+
+// Local ICE candidates wait until the offer/answer has been sent so the peer never sees them out of order
+function sendIce(sess, candidate) {
+	if (!sess.call.sigOpen) { sess.call.outIce.push(candidate); return; }
+	sendCallLog(sess, 'ice', { candidate });
+}
+function openSignaling(sess) {
+	sess.call.sigOpen = true;
+	const q = sess.call.outIce; sess.call.outIce = [];
+	q.forEach(c => sendCallLog(sess, 'ice', { candidate: c }));
+}
 
 export async function initiateCall(type) {
 	const sess = getActiveSess();
@@ -13,6 +37,7 @@ export async function initiateCall(type) {
 	if (sess.call.state !== 'idle') { toast('Already in a call'); return; }
 	if (S.callSessId !== null) { toast('End current call first'); return; }
 	sess.call.type = type; sess.call.state = 'calling'; S.callSessId = sess.id; sess.call.iceQueue = [];
+	sess.call.callId = uid(); sess.call.sigOpen = false; sess.call.outIce = [];
 	try {
 		const stream = await getStream(type);
 		sess.call.localStream = stream;
@@ -21,8 +46,9 @@ export async function initiateCall(type) {
 		stream.getTracks().forEach(t => sess.call.mediaPc.addTrack(t, stream));
 		const offer = await sess.call.mediaPc.createOffer();
 		await sess.call.mediaPc.setLocalDescription(offer);
-		safeSend(sess, { type: 'call-offer', sdp: offer.sdp, callType: type, displayName: S.displayName });
-		sess.call.cardMsgId = createCallCard(sess, true, type, 'calling');
+		sess.call.cardMsgId = createCallCard(sess, true, type, 'calling', 0, { id: 'call_' + sess.call.callId, meta: { callId: sess.call.callId } });
+		sendCallLog(sess, 'offer', { sdp: offer.sdp }, { callType: type, displayName: S.displayName });
+		openSignaling(sess);
 		Ringtone.start('outgoing');
 		setCallStatusTxt('Ringing…');
 	} catch (e) {
@@ -32,10 +58,20 @@ export async function initiateCall(type) {
 	}
 }
 
+// Tell the user how the call is routed — a TURN relay means a direct P2P path was not possible
+function noteCallRoute(sess, info) {
+	const route = info.relayed ? 'relay' : 'direct';
+	patchCallMeta(sess, sess.call.cardMsgId, { route });
+	if (info.relayed) {
+		setCallStatusTxt('In call · via TURN relay');
+		toast('Direct P2P was not possible, so this call is using a TURN relay server');
+	} else if (sess.call.state === 'active') setCallStatusTxt('In call · direct P2P');
+}
+
 function buildMediaPC(sess) {
-	const pc = new RTCPeerConnection({ iceServers: [{ urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }] });
-	pc.onicecandidate = evt => { if (evt.candidate) safeSend(sess, { type: 'call-ice', candidate: evt.candidate.toJSON() }); };
-	pc.onicecandidateerror = evt => console.error('[ICE error]', evt.errorCode, evt.errorText);
+	const pc = new RTCPeerConnection(getIceConfig());
+	pc.onicecandidate = evt => { if (evt.candidate) sendIce(sess, evt.candidate.toJSON()); };
+	pc.onicecandidateerror = evt => { if (evt.errorCode !== 701) console.error('[ICE error]', evt.errorCode, evt.errorText); };
 	pc.ontrack = evt => {
 		const rv = el('callRemoteVid'); if (!rv) return;
 		if (!sess.call.remoteStream) sess.call.remoteStream = new MediaStream();
@@ -50,19 +86,22 @@ function buildMediaPC(sess) {
 		if (sess.call.state !== 'active' || pc.signalingState !== 'stable') return;
 		try {
 			const offer = await pc.createOffer(); await pc.setLocalDescription(offer);
-			safeSend(sess, { type: 'call-renego', sdp: offer.sdp });
+			sendCallLog(sess, 'renego', { sdp: offer.sdp });
 		} catch (e) { console.error('[WebRTC] renegotiation error', e); }
 	};
-	pc.onconnectionstatechange = () => {
-		const s = pc.connectionState;
-		if (s === 'connected') {
+	pc.addEventListener('connectionstatechange', () => {
+		if (pc.connectionState === 'connected') {
 			Ringtone.stop(); sess.call.state = 'active'; sess.call.callStartedAt = Date.now();
 			setCallStatusTxt('In call · ' + (sess.call.type || '')); startCallTimer();
 			if (sess.call.cardMsgId) updateCallCard(sess, sess.call.cardMsgId, 'active', 0);
 			if (sess.call.remoteStream) startAudioVisualizer(sess.call.remoteStream);
 		}
-		if (s === 'failed' || s === 'closed') { endCallInternal(sess, true, 'cancelled', false); toast('Call connection failed'); }
-	};
+	});
+	// Route notice + drop the call only if the link stays down (not on a brief "disconnected" blip)
+	monitorPC(pc, {
+		onRoute: info => { if (sess.call.mediaPc === pc) noteCallRoute(sess, info); },
+		onDead: () => { if (sess.call.mediaPc === pc) { endCallInternal(sess, true, 'cancelled', false); toast('Call connection failed'); } },
+	});
 	return pc;
 }
 
@@ -70,7 +109,7 @@ export async function acceptCall() {
 	closeIncomingDialog();
 	const sess = S.sessions.get(S.callSessId); if (!sess?.call.incoming) return;
 	const data = sess.call.incoming;
-	sess.call.type = data.callType; sess.call.state = 'connecting';
+	sess.call.type = data.callType; sess.call.state = 'connecting'; sess.call.sigOpen = false; sess.call.outIce = [];
 	try {
 		const stream = await getStream(data.callType === 'screen' ? 'audio' : data.callType);
 		sess.call.localStream = stream; showCallOverlay(sess, stream);
@@ -83,12 +122,14 @@ export async function acceptCall() {
 		}
 		const answer = await sess.call.mediaPc.createAnswer();
 		await sess.call.mediaPc.setLocalDescription(answer);
-		safeSend(sess, { type: 'call-answer', sdp: answer.sdp });
-		sess.call.cardMsgId = createCallCard(sess, false, data.callType, 'active');
+		sendCallLog(sess, 'answer', { sdp: answer.sdp });
+		openSignaling(sess);
+		if (sess.call.cardMsgId) updateCallCard(sess, sess.call.cardMsgId, 'active', 0);
 		sess.call.callStartedAt = Date.now(); setCallStatusTxt('Connecting…');
 	} catch (e) {
 		console.error('[WebRTC] acceptCall error:', e); toast('Could not accept call: ' + e.message);
-		safeSend(sess, { type: 'call-reject' }); endCallInternal(sess, false, 'declined', true);
+		sendCallLog(sess, 'reject'); if (sess.call.cardMsgId) updateCallCard(sess, sess.call.cardMsgId, 'declined', 0);
+		endCallInternal(sess, false, 'declined', true);
 	}
 }
 
@@ -96,9 +137,8 @@ export function rejectCall() {
 	closeIncomingDialog();
 	const sess = S.sessions.get(S.callSessId);
 	if (sess) {
-		const cid = createCallCard(sess, false, sess.call.incoming?.callType || 'audio', 'declined', 0);
-		sess.call.cardMsgId = cid;
-		safeSend(sess, { type: 'call-reject' });
+		if (sess.call.cardMsgId) updateCallCard(sess, sess.call.cardMsgId, 'declined', 0);
+		sendCallLog(sess, 'reject');
 		endCallInternal(sess, false, null, true);
 	}
 }
@@ -106,6 +146,7 @@ export function rejectCall() {
 export function endCallInternal(sess, notify = true, reason = null, _skipCardUpdate = false) {
 	if (!sess) sess = S.sessions.get(S.callSessId); if (!sess) return;
 	const prevState = sess.call.state, prevCardMsgId = sess.call.cardMsgId, prevType = sess.call.type || 'audio', prevIncoming = sess.call.incoming;
+	const prevPc = sess.call.mediaPc; // closed below; the new monitorPC guard compares against sess.call.mediaPc
 	const duration = (prevState === 'active' && S.callStarted) ? Math.floor((Date.now() - S.callStarted) / 1000) : 0;
 	if (!reason) {
 		if (prevState === 'active') reason = 'completed';
@@ -113,16 +154,17 @@ export function endCallInternal(sess, notify = true, reason = null, _skipCardUpd
 		else if (prevState === 'ringing') reason = notify ? 'declined' : 'missed';
 		else reason = 'cancelled';
 	}
-	if (notify && sess.connected && prevState !== 'idle') safeSend(sess, { type: 'call-end' });
+	if (notify && sess.connected && prevState !== 'idle') sendCallLog(sess, 'end');
 	Ringtone.stop(); stopAudioVisualizer(); closeIncomingDialog(); hideCallOverlay(); stopCallTimer();
 	sess.call.localStream?.getTracks().forEach(t => t.stop());
 	sess.call.remoteStream?.getTracks().forEach(t => t.stop());
-	try { sess.call.mediaPc?.close(); } catch {}
+	sess.call.mediaPc = null;
+	try { prevPc?.close(); } catch {}
 	if (!_skipCardUpdate) {
 		if (prevCardMsgId) { updateCallCard(sess, prevCardMsgId, reason, duration); }
 		else if (prevState === 'ringing') { createCallCard(sess, false, prevIncoming?.callType || prevType, reason, 0); }
 	}
-	sess.call = { mediaPc: null, localStream: null, remoteStream: null, type: null, sourceType: null, state: 'idle', muted: false, camOff: false, incoming: null, iceQueue: [], audioCtx: null, audioAnalyser: null, audioSource: null, audioDrawTimer: null, cardMsgId: null, callStartedAt: null };
+	sess.call = { mediaPc: null, localStream: null, remoteStream: null, type: null, sourceType: null, state: 'idle', muted: false, camOff: false, incoming: null, iceQueue: [], audioCtx: null, audioAnalyser: null, audioSource: null, audioDrawTimer: null, cardMsgId: null, callStartedAt: null, callId: null, sigOpen: false, outIce: [] };
 	if (S.callSessId === sess.id) S.callSessId = null;
 	renderChatList();
 }
@@ -192,7 +234,7 @@ export function showCallOverlay(sess, localStream) {
 		const pn = el('callAudioName'); if (pn) pn.textContent = names;
 	}
 	if (lv) { if (localStream && (type === 'video' || type === 'screen')) { lv.srcObject = localStream; lv.classList.add('visible'); } else lv.classList.remove('visible'); }
-	const badge = el('callBadge'); if (badge) badge.textContent = type === 'audio' ? '🎤 Voice Call' : type === 'video' ? '📹 Video Call' : '🖥 Screen Share';
+	const badge = el('callBadge'); if (badge) badge.innerHTML = type === 'audio' ? iconSvg('mic') + ' Voice Call' : type === 'video' ? iconSvg('video') + ' Video Call' : iconSvg('screen') + ' Screen Share';
 	const camBtn = el('callCamBtn'); if (camBtn) camBtn.classList.toggle('hidden', type === 'audio');
 	const srcBtn = el('callSrcBtn');
 	if (srcBtn) {
@@ -210,10 +252,10 @@ export function hideCallOverlay() {
 
 export function showIncomingDialog(sess, data, isGroupCall = false, gcCallId = '', gcFrom = '') {
 	const d = el('incomingDialog'); if (!d) return;
-	const icons = { audio: '📞', video: '📹', screen: '🖥️' };
-	el('incomingIcon').textContent = icons[data.callType] || '📞';
+	const icons = { audio: 'phone', video: 'video', screen: 'screen' };
+	el('incomingIcon').innerHTML = iconSvg(icons[data.callType] || 'phone', 1.6);
 	el('incomingCallerName').textContent = data.displayName || 'Peer';
-	el('incomingCallType').textContent = (isGroupCall ? '👥 Group ' : '') + (data.callType || 'voice') + ' call';
+	el('incomingCallType').innerHTML = (isGroupCall ? iconSvg('group', 1) + ' Group ' : '') + escH(data.callType || 'voice') + ' call';
 	d.dataset.isGroup = isGroupCall ? '1' : '0';
 	d.dataset.gcCallId = gcCallId; d.dataset.gcFrom = gcFrom;
 	d.dataset.gcType = data.callType || 'audio';
@@ -273,4 +315,58 @@ export function stopAudioVisualizer() {
 		callSess.call.audioCtx = null; callSess.call.audioAnalyser = null; callSess.call.audioSource = null; callSess.call.audioDrawTimer = null;
 	}
 	document.querySelectorAll('.call-ring').forEach(r => { r.classList.remove('vol-active'); r.style.transform = ''; });
+}
+
+// ── Receive: apply a call log message's meta automatically ────────────────────
+export async function handleCallLog(sess, data) {
+	const meta = data.meta || {}, c = sess.call;
+	if (data.op === 'offer') {
+		if (c.state !== 'idle' || (S.callSessId !== null && S.callSessId !== sess.id)) {
+			safeSend(sess, { type: 'call-log', op: 'reject', callId: data.callId, meta: { reason: 'busy' } }); return;
+		}
+		c.callId = data.callId; c.incoming = { sdp: meta.sdp, callType: data.callType, displayName: data.displayName };
+		c.state = 'ringing'; S.callSessId = sess.id; c.sigOpen = false; c.outIce = [];
+		// The log message exists on both sides from the first signal; its status follows the call
+		c.cardMsgId = createCallCard(sess, false, data.callType, 'ringing', 0, { id: 'call_' + data.callId, meta: { callId: data.callId, offer: meta.sdp } });
+		showIncomingDialog(sess, c.incoming, false);
+		return;
+	}
+	if (!c.callId || data.callId !== c.callId) return; // stale signal from an earlier call
+	switch (data.op) {
+		case 'answer':
+			if (c.mediaPc && c.state === 'calling') {
+				patchCallMeta(sess, c.cardMsgId, { answer: meta.sdp });
+				await c.mediaPc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: meta.sdp })).catch(e => console.error('[WebRTC] Answer SDP error:', e));
+				if (c.iceQueue?.length) { for (const cand of c.iceQueue) await c.mediaPc.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {}); c.iceQueue = []; }
+				setCallStatusTxt('Connecting…');
+			} break;
+		case 'ice':
+			if (meta.candidate) {
+				if (c.mediaPc?.remoteDescription) c.mediaPc.addIceCandidate(new RTCIceCandidate(meta.candidate)).catch(() => {});
+				else { if (!c.iceQueue) c.iceQueue = []; c.iceQueue.push(meta.candidate); }
+			} break;
+		case 'renego':
+			if (c.mediaPc && (c.state === 'active' || c.state === 'calling')) {
+				try {
+					await c.mediaPc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: meta.sdp }));
+					const ans = await c.mediaPc.createAnswer();
+					await c.mediaPc.setLocalDescription(ans);
+					sendCallLog(sess, 'renego-ok', { sdp: ans.sdp });
+				} catch (e) { console.error('[WebRTC] Renego error', e); }
+			} break;
+		case 'renego-ok':
+			if (c.mediaPc && (c.state === 'active' || c.state === 'calling')) {
+				try { await c.mediaPc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: meta.sdp })); } catch (e) { console.error('[WebRTC] Renego-ok error', e); }
+			} break;
+		case 'end': {
+			const wasActive = c.state === 'active', wasRinging = c.state === 'ringing';
+			const dur = wasActive && S.callStarted ? Math.floor((Date.now() - S.callStarted) / 1000) : 0;
+			if (c.cardMsgId) updateCallCard(sess, c.cardMsgId, wasActive ? 'completed' : wasRinging ? 'missed' : 'cancelled', dur);
+			endCallInternal(sess, false, null, true); break;
+		}
+		case 'reject':
+			if (meta.reason === 'busy') toast('User is busy');
+			if (c.cardMsgId) updateCallCard(sess, c.cardMsgId, 'declined', 0);
+			endCallInternal(sess, false, null, true); break;
+	}
 }

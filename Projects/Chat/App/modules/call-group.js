@@ -4,6 +4,8 @@ import { getActiveSess, safeSend } from './sessions.js';
 import { toast, el, escH } from './utils.js';
 import { getStream, closeIncomingDialog } from './call-1to1.js';
 import { renderChatList } from './chat-render.js';
+import { getIceConfig } from '../../engine.js';
+import { iconSvg } from './icons.js';
 
 export async function initiateGroupCall(type) {
 	const sess = getActiveSess(); if (!sess?.connected || !sess.isGroup) return;
@@ -16,7 +18,7 @@ export async function initiateGroupCall(type) {
 		const stream = await getStream(type);
 		sess.gc.localStream = stream;
 		el('gcOverlay').classList.add('active');
-		el('gcTitle').textContent = type === 'video' ? '📹 Group Video Call' : '🎤 Group Voice Call';
+		el('gcTitle').innerHTML = (type === 'video' ? iconSvg('video') + ' Group Video Call' : iconSvg('mic') + ' Group Voice Call');
 		gcAddMyTile(S.displayName, type, stream);
 		safeSend(sess, { type: 'gc-invite', callId, callType: type, from: MY_PEER_ID, displayName: S.displayName });
 		toast('Group call started — waiting for peers…');
@@ -39,7 +41,7 @@ export async function acceptGroupCall() {
 		const stream = await getStream(callType);
 		sess.gc.localStream = stream;
 		el('gcOverlay').classList.add('active');
-		el('gcTitle').textContent = callType === 'video' ? '📹 Group Video Call' : '🎤 Group Voice Call';
+		el('gcTitle').innerHTML = (callType === 'video' ? iconSvg('video') + ' Group Video Call' : iconSvg('mic') + ' Group Voice Call');
 		gcAddMyTile(S.displayName, callType, stream);
 		safeSend(sess, { type: 'gc-accept', callId, from: MY_PEER_ID, to: fromPeerId, displayName: S.displayName, callType });
 	} catch (e) {
@@ -60,7 +62,7 @@ export function declineGroupCall() {
 
 export async function _gcCreatePeer(sess, remotePeerId, asOfferer) {
 	if (sess.gc.pcs.has(remotePeerId)) return sess.gc.pcs.get(remotePeerId);
-	const pc = new RTCPeerConnection({ iceServers: [{ urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }] });
+	const pc = new RTCPeerConnection(getIceConfig());
 	sess.gc.pcs.set(remotePeerId, pc);
 	sess.gc.localStream?.getTracks().forEach(t => pc.addTrack(t, sess.gc.localStream));
 	pc.onicecandidate = evt => { if (evt.candidate) safeSend(sess, { type: 'gc-ice', callId: sess.gc.callId, candidate: evt.candidate.toJSON(), from: MY_PEER_ID, to: remotePeerId }); };
