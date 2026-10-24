@@ -23,7 +23,7 @@ import {
 import { acceptGroupCall, declineGroupCall, _gcCleanup } from './call-group.js';
 import { Inbox } from './inbox.js';
 import { DriveSync } from './drive-sync.js';
-import { isAlias, lookupChatId, rememberProvider, rememberGithubLogin } from './chat-id.js';
+import { isAlias, lookupChatId, rememberProvider, rememberGithubLogin, githubLoginFromToken } from './chat-id.js';
 import { handleUser } from './firebase-auth.js';
 import { ChatEngine, DirectEngine, CloudflareWSEngine, CF_WS_URL } from '../../engine.js';
 
@@ -421,7 +421,11 @@ export const App = {
 		try {
 			rememberProvider('github.com');
 			const res = await firebase.auth().signInWithPopup(new firebase.auth.GithubAuthProvider());
-			rememberGithubLogin(res.user.providerData.find(p => p.providerId === 'github.com')?.uid, res.additionalUserInfo?.username);
+			const gh = res.user.providerData.find(p => p.providerId === 'github.com');
+			// 1) ask GitHub with the OAuth token  2) fall back to the username Firebase reports at sign-in
+			const login = await githubLoginFromToken(res.credential?.accessToken, gh?.uid) || res.additionalUserInfo?.username;
+			// A new or renamed GitHub login changes the Chat ID: register it right away
+			if (rememberGithubLogin(gh?.uid, login)) await handleUser(res.user);
 		} catch (e) { toast(authErr(e)); }
 	},
 	// ── Email + password (the account must verify its address before it can be used) ──

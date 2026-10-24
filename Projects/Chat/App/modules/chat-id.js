@@ -12,7 +12,24 @@ export const isAlias = s => PREFIX.test(String(s || '').trim());
 export const aliasKey = s => String(s).trim().toLowerCase().replace(/\//g, '%2F');
 
 export function rememberProvider(p) { try { localStorage.setItem(LS_PROVIDER, p); } catch {} }
-export function rememberGithubLogin(uid, login) { try { if (uid && login) localStorage.setItem(LS_GH + uid, login); } catch {} }
+// Stores the GitHub login for an account; returns true when it is new or changed (e.g. the user renamed their account)
+export function rememberGithubLogin(uid, login) {
+	if (!uid || !login) return false;
+	try { const prev = localStorage.getItem(LS_GH + uid); localStorage.setItem(LS_GH + uid, login); return prev !== login; } catch { return false; }
+}
+
+// Preferred source of the username: ask GitHub who owns the OAuth token returned at sign-in
+// (result.credential.accessToken). Firebase's ID token has no username claim. The numeric id GitHub
+// returns must match the Firebase provider uid, so a token for a different account is never accepted.
+export async function githubLoginFromToken(accessToken, providerUid) {
+	if (!accessToken) return null;
+	try {
+		const r = await fetch('https://api.github.com/user', { headers: { Authorization: 'Bearer ' + accessToken, Accept: 'application/vnd.github+json' } });
+		if (!r.ok) return null;
+		const u = await r.json();
+		return u.login && (!providerUid || String(u.id) === String(providerUid)) ? u.login : null;
+	} catch { return null; }
+}
 
 // The provider used for this session; falls back to the first linked provider
 export function signInProvider(user) {
