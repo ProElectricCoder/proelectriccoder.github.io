@@ -1,0 +1,62 @@
+{
+	"updated": "2026-10-24",
+	"posts": [
+		{
+			"id": "chat-github-username",
+			"date": "2026-10-24",
+			"project": "DeepBlue Chat",
+			"title": "GitHub sign-in picks up your GitHub username",
+			"summary": "After signing in with GitHub, the chat now reads your username from the GitHub API.",
+			"url": "https://proelectriccoder.pages.dev/Projects/Chat/"
+		},
+		{
+			"id": "chat-email-signin",
+			"date": "2026-10-24",
+			"project": "DeepBlue Chat",
+			"title": "Email sign-in and readable Chat IDs",
+			"summary": "You can now sign in with an email and password (with verification), and Chat IDs are easier to read.",
+			"url": "https://proelectriccoder.pages.dev/Projects/Chat/"
+		},
+		{
+			"id": "chat-drive-backup",
+			"date": "2026-10-23",
+			"project": "DeepBlue Chat",
+			"title": "Back up your chats to Google Drive",
+			"summary": "Chats can now be backed up to your Google Drive.",
+			"url": "https://proelectriccoder.pages.dev/Projects/Chat/"
+		},
+		{
+			"id": "chat-turn-fallback",
+			"date": "2026-10-22",
+			"project": "DeepBlue Chat",
+			"title": "TURN fallback for calls",
+			"summary": "Calls now have a TURN relay fallback, plus clearer routing notices and call signaling through the call log.",
+			"url": "https://proelectriccoder.pages.dev/Projects/Chat/"
+		}
+	],
+	"cards": [
+		{
+			"id": "deepblue-ide",
+			"project": "DeepBlue IDE",
+			"title": "Try DeepBlue IDE",
+			"text": "A web-based IDE with GitHub integration, AI assistance, in-browser Python, real-time collaboration and zero-knowledge encryption.",
+			"cta": "Open DeepBlue IDE",
+			"url": "https://proelectriccoder.pages.dev/Projects/IDE/",
+			"hosts": [
+				"github.com",
+				"gitlab.com",
+				"bitbucket.org",
+				"codeberg.org",
+				"github.dev",
+				"vscode.dev",
+				"gitpod.io",
+				"codepen.io",
+				"jsfiddle.net",
+				"replit.com",
+				"stackblitz.com",
+				"codesandbox.io",
+				"glitch.com"
+			]
+		}
+	]
+}

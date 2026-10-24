@@ -391,6 +391,7 @@ function renderShortcuts() {
 	add.innerHTML = '<div class="shortcut-icon-wrapper"><svg class="add-plus" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><span class="shortcut-label">Add</span>';
 	add.onclick = () => openShortcutModal();
 	grid.appendChild(add);
+	refreshNewsCard();   // adding or removing a shortcut can make a suggestion appear or go away
 }
 
 // ─── Version comparison ────────────────────────────────────────────────────
@@ -802,6 +803,142 @@ async function toggleAutoUpdate() {
 	}
 }
 
+// ─── News: latest updates from my other projects + suggestion cards ───────
+// Everything shown comes from News.json on the site, so it can change without an extension update.
+// It is fetched while the page runs and never written to disk (it is not in the updater's file list).
+const NEWS_URL = REMOTE_BASE + 'News.json';
+const NEWS_MAX_AGE_MS = 60 * 60 * 1000;   // look for fresh news at most once an hour
+let newsData = { posts: [], cards: [] };
+
+const newsEls = {
+	btn:    document.getElementById('newsBtn'),
+	dot:    document.getElementById('newsDot'),
+	panel:  document.getElementById('newsPanel'),
+	list:   document.getElementById('newsList'),
+	card:   document.getElementById('newsCard'),
+	toggle: document.getElementById('newsToggle')
+};
+
+const newsEnabled = () => localStorage.getItem('newsEnabled') !== '0';
+function lsGet(key, fallback) {
+	try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
+}
+function lsSet(key, value) {
+	try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage full or blocked */ }
+}
+
+// Only https links, only plain text: nothing from the news file is ever inserted as HTML
+function safeHttpsUrl(u) {
+	try { const x = new URL(String(u)); return x.protocol === 'https:' ? x.href : null; } catch { return null; }
+}
+const clip = (v, n) => String(v ?? '').slice(0, n);
+
+function cleanNews(raw) {
+	const posts = (Array.isArray(raw?.posts) ? raw.posts : []).slice(0, 30).map((p) => ({
+		id: clip(p?.id, 80), date: clip(p?.date, 10), project: clip(p?.project, 40),
+		title: clip(p?.title, 120), summary: clip(p?.summary, 300), url: safeHttpsUrl(p?.url)
+	})).filter((p) => p.id && p.title)
+		.sort((a, b) => b.date.localeCompare(a.date));   // newest first
+	const cards = (Array.isArray(raw?.cards) ? raw.cards : []).slice(0, 10).map((c) => ({
+		id: clip(c?.id, 80), project: clip(c?.project, 40), title: clip(c?.title, 80), text: clip(c?.text, 240),
+		cta: clip(c?.cta, 40) || 'Open', url: safeHttpsUrl(c?.url),
+		hosts: (Array.isArray(c?.hosts) ? c.hosts : []).slice(0, 60).map((h) => clip(h, 100).toLowerCase()).filter(Boolean)
+	})).filter((c) => c.id && c.title && c.url && c.hosts.length);
+	return { posts, cards };
+}
+
+// A card is suggested when one of the user's shortcuts is on a site it lists (compared on this device only)
+const hostMatches = (host, rule) => host === rule || host.endsWith('.' + rule);
+function pickCards(cards) {
+	const urls = safeParseShortcuts().map((s) => normalizeUrl(s.url));
+	const hosts = urls.map((u) => { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch { return ''; } }).filter(Boolean);
+	const dismissed = lsGet('newsDismissed', []);
+	return cards.filter((c) =>
+		!dismissed.includes(c.id) &&
+		!urls.some((u) => u.startsWith(c.url.replace(/\/$/, ''))) &&   // already has a shortcut to it
+		c.hosts.some((rule) => hosts.some((h) => hostMatches(h, rule))));
+}
+
+function el(tag, className, text) {
+	const e = document.createElement(tag);
+	if (className) e.className = className;
+	if (text != null) e.textContent = text;
+	return e;
+}
+
+function renderNewsPanel() {
+	newsEls.list.replaceChildren();
+	if (!newsData.posts.length) { newsEls.list.appendChild(el('p', 'news-empty', 'Nothing new right now.')); return; }
+	for (const p of newsData.posts) {
+		const item = el('article', 'news-item');
+		const meta = el('div', 'news-meta');
+		if (p.project) meta.appendChild(el('span', 'news-tag', p.project));
+		if (p.date) meta.appendChild(el('span', '', p.date));
+		item.append(meta, el('h3', 'news-title', p.title));
+		if (p.summary) item.appendChild(el('p', 'news-summary', p.summary));
+		if (p.url) {
+			const a = el('a', 'news-link', 'Read more →');
+			a.href = p.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+			item.appendChild(a);
+		}
+		newsEls.list.appendChild(item);
+	}
+}
+
+function updateNewsDot() {
+	const seen = lsGet('newsSeen', []);
+	newsEls.dot.hidden = !newsData.posts.some((p) => !seen.includes(p.id));
+}
+
+function openNews() {
+	renderNewsPanel();
+	newsEls.panel.classList.add('open');
+	lsSet('newsSeen', newsData.posts.map((p) => p.id).slice(0, 200));   // opening the panel marks everything as read
+	updateNewsDot();
+}
+function closeNews() { newsEls.panel.classList.remove('open'); }
+
+function refreshNewsCard() {
+	const card = newsEnabled() ? pickCards(newsData.cards)[0] : null;
+	newsEls.card.hidden = !card;
+	if (!card) return;
+	const close = el('button', 'news-card-close', '×');
+	close.setAttribute('aria-label', 'Dismiss');
+	close.onclick = () => { lsSet('newsDismissed', [...lsGet('newsDismissed', []), card.id]); refreshNewsCard(); };
+	const cta = el('a', 'news-card-cta', card.cta);
+	cta.href = card.url; cta.target = '_blank'; cta.rel = 'noopener noreferrer';
+	newsEls.card.replaceChildren(close, el('div', 'news-card-label', card.project ? `Suggested · ${card.project}` : 'Suggested'),
+		el('h3', null, card.title), el('p', null, card.text), cta);
+}
+
+function applyNews(clean) {
+	newsData = clean;
+	newsEls.btn.hidden = !newsEnabled() || !clean.posts.length;
+	updateNewsDot();
+	refreshNewsCard();
+	if (newsEls.panel.classList.contains('open')) renderNewsPanel();
+}
+
+function hideNewsUi() {
+	newsEls.btn.hidden = true;
+	newsEls.card.hidden = true;
+	closeNews();
+}
+
+async function loadNews() {
+	if (!newsEnabled()) { hideNewsUi(); return; }
+	const cache = lsGet('newsCache', null);
+	if (cache?.data) applyNews(cleanNews(cache.data));                    // show what we have right away
+	if (cache && Date.now() - cache.fetchedAt < NEWS_MAX_AGE_MS) return;  // still fresh
+	try {
+		const res = await fetch(NEWS_URL, { cache: 'no-cache' });
+		if (!res.ok) return;
+		const data = await res.json();
+		lsSet('newsCache', { fetchedAt: Date.now(), data });
+		if (newsEnabled()) applyNews(cleanNews(data));
+	} catch { /* offline: keep showing the cached news */ }
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────
 updateClock();
 setInterval(updateClock, 1000);
@@ -809,6 +946,7 @@ loadBackground();
 loadLogo();
 setEngine(localStorage.getItem('preferredEngine') || 'google');
 renderShortcuts();
+loadNews();
 
 // On load: silently connect to stored folder, check for notifications and auto-updates.
 // Uses only queryPermission — no user gesture needed for extension pages in Chrome.
@@ -913,6 +1051,16 @@ document.getElementById('changelogModal').addEventListener('click', (e) => {
 	const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
 	if (!inside) modal.close();   // click on the backdrop
 });
+
+// News panel, settings toggle and keyboard
+newsEls.btn.onclick = () => (newsEls.panel.classList.contains('open') ? closeNews() : openNews());
+document.getElementById('closeNewsBtn').onclick = closeNews;
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeNews(); });
+newsEls.toggle.checked = newsEnabled();
+newsEls.toggle.onchange = () => {
+	localStorage.setItem('newsEnabled', newsEls.toggle.checked ? '1' : '0');
+	if (newsEls.toggle.checked) loadNews(); else hideNewsUi();
+};
 
 window.onclick = () => {
 	document.getElementById('engineDropdown').classList.remove('show');
