@@ -3,6 +3,7 @@ import { S } from './state.js';
 import { DB } from './db.js';
 import { el, escH, toast } from './utils.js';
 import { MY_PEER_ID } from './constants.js';
+import { isAlias } from './chat-id.js';
 import { addBubble, addSysMsg, renderChatList, renderTopbar, setStatus, enableCallBtns, connText } from './chat-render.js';
 import { updateTicksDOM } from './text-format.js';
 import { receiveFile } from './file-transfer.js';
@@ -67,7 +68,7 @@ export async function handleMsg(sess, data, peerId) {
 			sess.peerName = data.displayName || 'Peer';
 			sess.peerAvatar = data.avatarUrl || '';
 			// rename non-group rooms to peer's display name if still using roomId as name
-			if (!sess.isGroup && sess.name === sess.roomId && data.displayName) {
+			if (!sess.isGroup && (sess.name === sess.roomId || isAlias(sess.name)) && data.displayName) {
 				sess.name = data.displayName;
 			}
 			DB.saveSession(sess);

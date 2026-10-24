@@ -15,10 +15,14 @@ export async function onRequest({ request, env, params }) {
 			new URL('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com')
 		);
 		
-		await jose.jwtVerify(token, JWKS, {
+		const { payload } = await jose.jwtVerify(token, JWKS, {
 			issuer: `https://securetoken.google.com/${projectId}`,
 			audience: projectId,
 		});
+		// Email/password accounts must have verified their address (Google/GitHub sign-ins are verified by the provider)
+		if (payload.firebase?.sign_in_provider === 'password' && payload.email_verified !== true) {
+			return new Response("Forbidden: Email not verified", { status: 403 });
+		}
 	} catch (error) {
 		return new Response("Forbidden: Invalid token", { status: 403 });
 	}

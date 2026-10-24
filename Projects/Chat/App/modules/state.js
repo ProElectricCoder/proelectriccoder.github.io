@@ -3,6 +3,8 @@ export const S = {
 	sessions:      new Map(),
 	activeId:      null,
 	user:          null,
+	chatId:        null,   // readable Chat ID (google-… / github-… / email-…), null until resolved
+	pendingVerify: null,   // email/password user who has not verified their address yet
 	displayName:   localStorage.getItem('pec_name')    || 'Anonymous',
 	avatarUrl:     localStorage.getItem('pec_avatar')  || '',
 	encEnabled:    false,

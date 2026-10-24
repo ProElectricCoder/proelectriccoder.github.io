@@ -136,7 +136,7 @@ export function injectPanels() {
 		<div class="panel-section">
 			<div class="panel-section-lbl">Your Chat ID (share this so others can DM you)</div>
 			<div id="spUserId" class="uid-box" style="margin-bottom:8px">Sign in to see your ID</div>
-			<button class="btn btn-s btn-full" onclick="App.copyUserId()">📋 Copy ID</button>
+			<button class="btn btn-s btn-full" onclick="App.copyUserId()">Copy ID</button>
 		</div>
 		<div class="panel-section">
 			<div class="panel-section-lbl">Preferences</div>

@@ -1,4 +1,5 @@
 import { S } from './state.js';
+import { iconSvg } from './icons.js';
 import { DriveSync } from './drive-sync.js';
 import { THEMES } from './constants.js';
 import { el, escH } from './utils.js';
@@ -37,7 +38,7 @@ export function openSettings() {
 			: `<div style="width:44px;height:44px;border-radius:50%;background:rgba(0,255,255,.08);border:1px solid var(--tbh);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;color:var(--tp)">${letter}</div>`;
 	}
 	const uid_el = el('spUserId');
-	if (uid_el) uid_el.textContent = S.user ? S.user.uid : 'Sign in to get your Chat ID';
+	if (uid_el) uid_el.textContent = S.user ? (S.chatId || S.user.uid) : 'Sign in to get your Chat ID';
 	syncAuthSection('spAuthArea'); refreshDriveUI(); o.classList.add('open');
 }
 
@@ -45,15 +46,31 @@ export function syncAuthSection(cid) {
 	const a = el(cid); if (!a) return;
 	if (S.user) {
 		a.innerHTML = `<div class="auth-card" style="margin-bottom:8px"><img class="auth-av" src="${S.user.photoURL || ''}" onerror="this.style.display='none'"><span class="auth-name">${escH(S.user.displayName || S.displayName)}</span></div>
+		<div style="font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--faint);margin:0 0 8px;word-break:break-all">Chat ID: <span style="color:var(--tp)">${escH(S.chatId || S.user.uid)}</span></div>
 		<button class="btn btn-d btn-full" onclick="App.signOut()">Sign Out</button>`;
+	} else if (S.pendingVerify) {
+		a.innerHTML = `<div class="auth-card" style="margin-bottom:8px">${iconSvg('mail', 1.2)}<span class="auth-name">${escH(S.pendingVerify.email || '')}</span></div>
+		<div class="note-box" style="margin-bottom:8px"><span>Verify your email to finish signing up: open the link we sent to this address (check spam), then press the button below.</span></div>
+		<div class="col" style="gap:7px">
+			<button class="btn btn-p btn-full" onclick="App.emailCheckVerified()">I've verified my email</button>
+			<button class="btn btn-s btn-full" onclick="App.emailResend()">Resend verification email</button>
+			<button class="btn btn-d btn-full" onclick="App.signOut()">Cancel</button>
+		</div>`;
 	} else {
 		a.innerHTML = `<div class="col">
 			<button class="sign-in-btn" onclick="App.signInGoogle()"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23F44336' d='M15.5 8.15c0-.5-.04-1.01-.13-1.5H8v2.84h4.21a3.6 3.6 0 0 1-1.56 2.37v1.97h2.53C14.7 12.35 15.5 10.4 15.5 8.15z'/%3E%3Cpath fill='%234CAF50' d='M8 16c2.14 0 3.94-.71 5.25-1.92l-2.53-1.96c-.71.48-1.62.76-2.72.76-2.09 0-3.86-1.41-4.49-3.3H.9v2.03A7.99 7.99 0 0 0 8 16z'/%3E%3Cpath fill='%23FFC107' d='M3.51 9.58A4.8 4.8 0 0 1 3.26 8c0-.55.09-1.08.25-1.58V4.39H.9A8 8 0 0 0 0 8c0 1.29.31 2.51.9 3.61l2.61-2.03z'/%3E%3Cpath fill='%231565C0' d='M8 3.18c1.17 0 2.23.4 3.06 1.2L13.6 1.8C12.09.4 10.19-.4 8 0a8 8 0 0 0-7.1 4.39l2.62 2.03C4.14 4.6 5.91 3.18 8 3.18z'/%3E%3C/svg%3E" alt="">Sign in with Google</button>
 			<button class="sign-in-btn" onclick="App.signInGitHub()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>Sign in with GitHub</button>
+			<button class="sign-in-btn" onclick="App.toggleEmailForm(this)">${iconSvg('mail', 1.1)}Sign in with Email</button>
+			<div class="email-box col" style="display:none;gap:8px">
+				<input class="f-in" data-f="name" autocomplete="nickname" placeholder="Display name (new accounts)">
+				<input class="f-in" data-f="email" type="email" autocomplete="email" placeholder="Email">
+				<input class="f-in" data-f="pw" type="password" autocomplete="current-password" placeholder="Password (8+ characters)">
+				<div class="row"><button class="btn btn-p" style="flex:1" onclick="App.emailSignIn(this)">Sign In</button><button class="btn btn-s" style="flex:1" onclick="App.emailSignUp(this)">Create Account</button></div>
+				<button class="btn btn-s btn-full" style="font-size:.7rem" onclick="App.emailReset(this)">Forgot password?</button>
+			</div>
 		</div>`;
 	}
 }
-
 export const NC = { tab: 'direct', directSub: 'caller', pendingEngine: null, pendingSessId: null };
 
 export function openNewChat(tab = 'direct') {
@@ -114,7 +131,7 @@ export function openChatInfo() {
 		</div>
 		${sess.roomId ? `<div class="row" style="margin-top:10px;gap:7px">
 			<button class="btn btn-s" style="flex:1" onclick="App.copyInviteLink()">🔗 Copy Invite Link</button>
-			${S.user && !sess.isGroup ? `<button class="btn btn-s" style="flex:1" onclick="App.copyUserId()">🪪 My ID</button>` : ''}
+			${S.user && !sess.isGroup ? `<button class="btn btn-s" style="flex:1" onclick="App.copyUserId()">${iconSvg('idcard', 1)} My ID</button>` : ''}
 		</div>` : ''}`;
 	}
 	const bgEnd = sess.bg?.endColor || THEMES[sess.theme]?.gradEnd || '#002233';

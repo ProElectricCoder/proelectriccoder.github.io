@@ -23,7 +23,24 @@ import {
 import { acceptGroupCall, declineGroupCall, _gcCleanup } from './call-group.js';
 import { Inbox } from './inbox.js';
 import { DriveSync } from './drive-sync.js';
+import { isAlias, lookupChatId, rememberProvider, rememberGithubLogin } from './chat-id.js';
+import { handleUser } from './firebase-auth.js';
 import { ChatEngine, DirectEngine, CloudflareWSEngine, CF_WS_URL } from '../../engine.js';
+
+function authErr(e) {
+	const m = {
+		'auth/email-already-in-use': 'That email already has an account — sign in instead',
+		'auth/invalid-email': 'That email address is not valid',
+		'auth/weak-password': 'Password is too weak — use at least 8 characters',
+		'auth/wrong-password': 'Wrong email or password', 'auth/invalid-credential': 'Wrong email or password', 'auth/user-not-found': 'Wrong email or password',
+		'auth/too-many-requests': 'Too many attempts — wait a few minutes and try again',
+		'auth/popup-closed-by-user': 'Sign-in window was closed', 'auth/cancelled-popup-request': 'Sign-in window was closed',
+		'auth/account-exists-with-different-credential': 'This email already has an account with another sign-in method — use that one',
+		'auth/operation-not-allowed': 'This sign-in method is not enabled in Firebase',
+		'auth/network-request-failed': 'Network error — check your connection',
+	};
+	return m[e?.code] || e?.message || 'Sign-in failed';
+}
 
 export const App = {
 	openSidebar() { openSidebarUI(); },
@@ -92,7 +109,12 @@ export const App = {
 	},
 	async fbJoinRoom() {
 		if (!S.user) { toast('Sign in first'); return; }
-		const rid = el('ncRoomId')?.value.trim(); if (!rid) { toast('Enter a room ID'); return; }
+		let rid = el('ncRoomId')?.value.trim(); if (!rid) { toast('Enter a room ID or Chat ID'); return; }
+		const label = rid;
+		if (isAlias(rid)) { // readable Chat ID (google-… / github-… / email-…) → that user's inbox room
+			try { const u = await lookupChatId(firebase.firestore(), rid); if (!u) { toast('No user found with that Chat ID'); return; } rid = u; }
+			catch (e) { toast('Could not look up that Chat ID: ' + e.message); return; }
+		}
 		const existing = findSessByRoomId(rid, false);
 		if (existing) {
 			if (!existing.connected) {
@@ -101,7 +123,7 @@ export const App = {
 			}
 			await selectSess(existing.id); this.closeNewChat(); return;
 		}
-		const sess = makeSess({ name: rid, type: 'firebase', roomId: rid });
+		const sess = makeSess({ name: label, type: 'firebase', roomId: rid });
 		const eng = new ChatEngine(); eng.init(firebase.firestore());
 		S.sessions.set(sess.id, sess); bindEngine(sess, eng); setStatus('connecting', 'Joining room…');
 		try {
@@ -328,7 +350,7 @@ export const App = {
 	},
 	// Copy user ID
 	copyUserId() {
-		const uid_val = S.user?.uid;
+		const uid_val = S.chatId || S.user?.uid;
 		if (!uid_val) { toast('Sign in to get your Chat ID'); return; }
 		navigator.clipboard.writeText(uid_val).then(() => toast('Chat ID copied!')).catch(() => prompt('Your Chat ID:', uid_val));
 	},
@@ -394,8 +416,54 @@ export const App = {
 		try { await Crypt.derive(pw); S.encEnabled = true; el('spEncStatus').textContent = '🔒 Key active'; el('spEncStatus').style.color = 'var(--ta)'; toast('Encryption key applied'); }
 		catch (e) { toast('Key error: ' + e.message); }
 	},
-	async signInGoogle() { try { await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider()); } catch (e) { toast(e.message); } },
-	async signInGitHub() { try { await firebase.auth().signInWithPopup(new firebase.auth.GithubAuthProvider()); } catch (e) { toast(e.message); } },
+	async signInGoogle() { try { rememberProvider('google.com'); await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider()); } catch (e) { toast(authErr(e)); } },
+	async signInGitHub() {
+		try {
+			rememberProvider('github.com');
+			const res = await firebase.auth().signInWithPopup(new firebase.auth.GithubAuthProvider());
+			rememberGithubLogin(res.user.providerData.find(p => p.providerId === 'github.com')?.uid, res.additionalUserInfo?.username);
+		} catch (e) { toast(authErr(e)); }
+	},
+	// ── Email + password (the account must verify its address before it can be used) ──
+	toggleEmailForm(btn) { const box = btn.parentElement.querySelector('.email-box'); if (box) box.style.display = box.style.display === 'none' ? 'flex' : 'none'; },
+	_emailFields(btn) {
+		const box = btn.closest('.email-box'), f = k => box?.querySelector(`[data-f="${k}"]`)?.value || '';
+		return { name: f('name').trim(), email: f('email').trim(), pw: f('pw') };
+	},
+	async emailSignIn(btn) {
+		const { email, pw } = this._emailFields(btn); if (!email || !pw) { toast('Enter your email and password'); return; }
+		try { rememberProvider('password'); await firebase.auth().signInWithEmailAndPassword(email, pw); } catch (e) { toast(authErr(e)); }
+	},
+	async emailSignUp(btn) {
+		const { name, email, pw } = this._emailFields(btn);
+		if (!email || !pw) { toast('Enter an email and a password'); return; }
+		if (pw.length < 8) { toast('Use a password with at least 8 characters'); return; }
+		try {
+			rememberProvider('password');
+			const cred = await firebase.auth().createUserWithEmailAndPassword(email, pw);
+			if (name) await cred.user.updateProfile({ displayName: name });
+			await cred.user.sendEmailVerification();
+			await handleUser(firebase.auth().currentUser);
+			toast('Verification email sent to ' + email);
+		} catch (e) { toast(authErr(e)); }
+	},
+	async emailResend() {
+		const u = firebase.auth().currentUser; if (!u) return;
+		try { await u.sendEmailVerification(); toast('Verification email sent again'); } catch (e) { toast(authErr(e)); }
+	},
+	async emailCheckVerified() {
+		const u = firebase.auth().currentUser; if (!u) return;
+		try {
+			await u.reload();
+			if (!u.emailVerified) { toast('Not verified yet — open the link in the email first'); return; }
+			await u.getIdToken(true); // refresh so the token carries email_verified
+			await handleUser(u); toast('Email verified — you are signed in');
+		} catch (e) { toast(authErr(e)); }
+	},
+	async emailReset(btn) {
+		const { email } = this._emailFields(btn); if (!email) { toast('Enter your email first'); return; }
+		try { await firebase.auth().sendPasswordResetEmail(email); toast('If that address has an account, a reset link is on its way'); } catch (e) { toast(authErr(e)); }
+	},
 	async signOut() {
 		Inbox.stop();
 		await firebase.auth().signOut();
