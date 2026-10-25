@@ -462,6 +462,10 @@ html[data-theme="light"] .preset-swatch.selected { border-color: #000; box-shado
 .news-tag { display: inline-flex; align-items: center; }
 .news-tag .src-logo { margin-right: 5px; vertical-align: 0; }
 .src-name { display: inline-flex; align-items: center; }
+.news-topics { margin-top: -6px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.news-chip.topic { font-size: 0.7rem; border-style: dashed; }
+.news-chip.topic.active { border-style: solid; }
+html[data-theme="light"] .news-topics { border-bottom-color: rgba(0,0,0,0.1); }
 
 /* ─── Light theme ─────────────────────────────────────────────────────── */
 html[data-theme="light"] { color-scheme: light; }
@@ -555,6 +559,7 @@ html[data-theme="light"] .news-card-close { background: rgba(255,255,255,0.8); c
 		<div id="devPane"><div id="newsList" class="news-list"></div></div>
 		<div id="worldPane" hidden>
 			<div id="worldChips" class="news-chips"></div>
+			<div id="worldTopics" class="news-chips news-topics"></div>
 			<div id="worldList" class="news-list"></div>
 		</div>
 	</div>

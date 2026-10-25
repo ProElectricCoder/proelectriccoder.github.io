@@ -13,6 +13,15 @@
 	],
 	"releases": [
 		{
+			"version": "1.6.2",
+			"date": "2026-10-25",
+			"summary": "World News topic filter, using the topics the news sites provide.",
+			"details": [
+				"World News shows topic buttons built from the categories each news site attaches to its headlines (only when the site provides them).",
+				"The News button now appears even when the dev news file can't be loaded."
+			]
+		},
+		{
 			"version": "1.6.1",
 			"date": "2026-10-25",
 			"summary": "Preset backgrounds, news source logos, and a CNN feed fix.",

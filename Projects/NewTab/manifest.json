@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ProElectricCoder New Tab",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "description": "Custom NewTab Page by ProElectricCoder",
   "permissions": [
     "favicon"

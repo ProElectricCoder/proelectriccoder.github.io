@@ -56,6 +56,10 @@
 		{
 			"version": "1.6.1",
 			"note": "Preset backgrounds, news source logos, CNN feed fallback."
+		},
+		{
+			"version": "1.6.2",
+			"note": "World News topic filter."
 		}
 	],
 	"notify": null

@@ -1055,6 +1055,7 @@ function updateNewsBtn() {
 }
 
 async function loadNews() {
+	updateNewsBtn();   // button state must not depend on the news file loading (offline, blocked, or only world news on)
 	if (!newsEnabled()) { hideNewsUi(); return; }
 	const cache = lsGet('newsCache', null);
 	if (cache?.data) applyNews(cleanNews(cache.data));                    // show what we have right away
@@ -1098,6 +1099,7 @@ const WORLD_MAX_AGE_MS = 15 * 60 * 1000;
 const WORLD_PER_SOURCE = 8;
 let worldItems = {};          // source id -> [{title, link, date, image}]
 let worldFilter = 'all';
+let worldTopic = 'all';        // topic filter, built from the categories the feeds themselves provide
 let worldActiveTab = 'dev';
 
 const worldEnabled = () => localStorage.getItem('worldEnabled') === '1';
@@ -1117,10 +1119,18 @@ function parseFeed(xmlText) {
 		const text = (tag) => item.querySelector(tag)?.textContent?.trim() || '';
 		const thumb = ns(item, 'thumbnail') || ns(item, 'content');
 		const enc = item.querySelector('enclosure[type^="image"]');
+		// Topics exactly as the publisher labels them (RSS <category> or dc:subject); nothing is guessed
+		const cats = [];
+		for (const c of [...item.querySelectorAll('category')].concat(Array.from(item.getElementsByTagName('*')).filter((n) => n.localName === 'subject'))) {
+			const t = clip(c.textContent.replace(/\s+/g, ' ').trim(), 30);
+			if (t.length >= 2 && !/^https?:/i.test(t) && !cats.some((x) => x.toLowerCase() === t.toLowerCase())) cats.push(t);
+			if (cats.length >= 5) break;
+		}
 		const date = new Date(text('pubDate') || (ns(item, 'date')?.textContent ?? ''));   // RSS pubDate, or dc:date in RDF feeds
 		return {
 			title: clip(text('title'), 200),
 			link: upgradeHttps(text('link')),
+			categories: cats,
 			date: isNaN(date) ? 0 : date.getTime(),
 			image: upgradeHttps(thumb?.getAttribute('url') || enc?.getAttribute('url') || item.querySelector('image')?.textContent)
 		};
@@ -1156,7 +1166,7 @@ const timeAgo = (ms) => {
 
 function renderWorld() {
 	const chips = document.getElementById('worldChips'), list = document.getElementById('worldList');
-	chips.replaceChildren(); list.replaceChildren();
+	chips.replaceChildren(); list.replaceChildren(); document.getElementById('worldTopics').replaceChildren();
 	if (!worldEnabled()) {
 		list.appendChild(el('p', 'news-empty', 'World news shows headlines from the news sites you pick in Settings → News (BBC News, CNN and Al Jazeera to start). Headlines are relayed by proelectriccoder.pages.dev.'));
 		const on = el('button', 'news-enable', 'Turn on world news');
@@ -1170,11 +1180,30 @@ function renderWorld() {
 		const c = el('button', 'news-chip' + (worldFilter === id ? ' active' : ''));
 		if (id !== 'all') c.appendChild(srcLogo(id));
 		c.appendChild(document.createTextNode(name));
-		c.onclick = () => { worldFilter = id; renderWorld(); };
+		c.onclick = () => { worldFilter = id; worldTopic = 'all'; renderWorld(); };
 		chips.appendChild(c);
 	}
-	const rows = active.filter((s) => worldFilter === 'all' || s.id === worldFilter)
+	let rows = active.filter((s) => worldFilter === 'all' || s.id === worldFilter)
 		.flatMap((s) => (worldItems[s.id] || []).map((i) => ({ ...i, source: s.name, sourceId: s.id })));
+
+	// Topic chips: only categories that the loaded headlines really carry, most common first
+	const counts = new Map();
+	for (const r of rows) for (const c of r.categories || []) {
+		const k = c.toLowerCase();
+		counts.set(k, { label: counts.get(k)?.label || c, n: (counts.get(k)?.n || 0) + 1 });
+	}
+	const topics = [...counts.entries()].filter(([, v]) => v.n >= 2).sort((a, b) => b[1].n - a[1].n).slice(0, 10);
+	if (worldTopic !== 'all' && !counts.has(worldTopic)) worldTopic = 'all';
+	const topicBox = document.getElementById('worldTopics');
+	topicBox.replaceChildren();
+	if (topics.length) {
+		for (const [key, v] of [['all', { label: 'All topics' }], ...topics]) {
+			const c = el('button', 'news-chip topic' + (worldTopic === key ? ' active' : ''), v.label);
+			c.onclick = () => { worldTopic = key; renderWorld(); };
+			topicBox.appendChild(c);
+		}
+	}
+	if (worldTopic !== 'all') rows = rows.filter((r) => (r.categories || []).some((c) => c.toLowerCase() === worldTopic));
 	if (worldFilter === 'all') rows.sort((a, b) => b.date - a.date);
 	if (!rows.length) { list.appendChild(el('p', 'news-empty', 'Loading headlines… If nothing appears, the feeds may be unreachable.')); return; }
 	for (const r of rows) {
