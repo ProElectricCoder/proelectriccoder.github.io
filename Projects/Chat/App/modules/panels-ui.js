@@ -30,6 +30,7 @@ export function openSettings() {
 	const o = el('settingsOverlay'); if (!o) return;
 	const ni = el('spName'); if (ni) ni.value = S.displayName;
 	const wt = el('spWakeToggle'); if (wt) wt.checked = S.wakeLockEnabled;
+	const lt = el('spLinkToggle'); if (lt) lt.checked = S.linkPreviews;
 	const aw = el('spAvatarWrap');
 	if (aw) {
 		const letter = (S.displayName[0] || '?').toUpperCase();

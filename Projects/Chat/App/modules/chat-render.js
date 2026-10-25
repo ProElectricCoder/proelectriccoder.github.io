@@ -6,6 +6,7 @@ import { ticksHtml, formatText } from './text-format.js';
 import { renderFileBubbleFromMsg } from './file-transfer.js';
 import { renderCallCardFromMsg } from './call-card.js';
 import { iconSvg } from './icons.js';
+import { attachLinkPreview } from './link-preview.js';
 
 export function renderChatList() {
 	const container = el('chatList'); if (!container) return;
@@ -101,6 +102,7 @@ export function renderMsgItem(container, m) {
 	d.innerHTML = `<div class="msg-meta">${escH(m.sender)} · ${fmtTime(m.timestamp)}${enc}${ticks}</div>
 		<div class="msg-bubble">${formatText(m.content)}</div>`;
 	container.appendChild(d);
+	attachLinkPreview(d, m, container);
 }
 
 // addBubble returns msgId for delivered receipt

@@ -3,6 +3,7 @@ export const S = {
 	sessions:      new Map(),
 	activeId:      null,
 	user:          null,
+	linkPreviews:  localStorage.getItem('pec_link_previews') !== 'false',   // Open Graph link previews (Settings)
 	chatId:        null,   // readable Chat ID (google-… / github-… / email-…), null until resolved
 	pendingVerify: null,   // email/password user who has not verified their address yet
 	displayName:   localStorage.getItem('pec_name')    || 'Anonymous',

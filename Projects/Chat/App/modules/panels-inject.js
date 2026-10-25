@@ -68,6 +68,15 @@ export function injectPanels() {
 .call-card-meta{font-family:'JetBrains Mono',monospace;font-size:.64rem;margin-top:3px;color:var(--dim)}
 .call-card.missed .call-card-meta,.call-card.declined .call-card-meta,.call-card.cancelled .call-card-meta{color:#ef4444}
 .call-card.completed .call-card-meta{color:var(--ta)}
+.fmt-link{color:var(--tp);text-decoration:underline;text-underline-offset:2px;word-break:break-all}
+.link-preview-wrap{max-width:100%;margin-top:3px}
+.link-preview{display:flex;flex-direction:column;width:min(300px,100%);border-radius:11px;overflow:hidden;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);text-decoration:none;color:var(--text);transition:border-color .2s}
+.link-preview:hover{border-color:var(--tp)}
+.lp-img{width:100%;max-height:160px;object-fit:cover;display:block;background:rgba(255,255,255,.04)}
+.lp-body{padding:8px 11px 10px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.lp-site{font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lp-title{font-size:.8rem;font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.lp-desc{font-size:.72rem;color:var(--dim);line-height:1.4;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .call-card.calling .call-card-meta,.call-card.active .call-card-meta{color:var(--tp);animation:blink 1.4s ease-in-out infinite}
 /* Background sliders */
 .bg-slider{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;outline:none;background:rgba(255,255,255,.12);cursor:pointer}
@@ -143,6 +152,10 @@ export function injectPanels() {
 			<div class="sp-row">
 				<div class="col" style="gap:2px"><span class="sp-label">Keep screen awake</span><span style="font-size:.65rem;color:var(--faint)">Prevents mobile disconnects</span></div>
 				<label class="toggle"><input type="checkbox" id="spWakeToggle" onchange="App.handleWakeToggle()"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+			</div>
+			<div class="sp-row" style="margin-top:12px">
+				<div class="col" style="gap:2px"><span class="sp-label">Link previews</span><span style="font-size:.65rem;color:var(--faint)">Title and image for links, fetched via our server (never for encrypted messages)</span></div>
+				<label class="toggle"><input type="checkbox" id="spLinkToggle" onchange="App.handleLinkToggle()"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
 			</div>
 		</div>
 		<div class="panel-section">

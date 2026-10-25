@@ -406,6 +406,7 @@ export const App = {
 		S.wakeLockEnabled = el('spWakeToggle')?.checked; localStorage.setItem('pec_wakelock', S.wakeLockEnabled);
 		if (S.wakeLockEnabled) requestWakeLock(); else releaseWakeLock();
 	},
+	handleLinkToggle() { S.linkPreviews = !!el('spLinkToggle')?.checked; localStorage.setItem('pec_link_previews', S.linkPreviews); toast(S.linkPreviews ? 'Link previews on (new messages)' : 'Link previews off'); },
 	handleEncToggle() {
 		const on = el('spEncToggle')?.checked;
 		el('spEncPwRow').style.display = on ? 'block' : 'none';

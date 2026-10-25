@@ -2,6 +2,14 @@
 	"updated": "2026-10-25",
 	"posts": [
 		{
+			"id": "chat-link-previews",
+			"date": "2026-10-25",
+			"project": "ChatRooms",
+			"title": "Link previews in chat",
+			"summary": "Links in chat are now clickable and show a preview card with title, description and image. Previews are fetched by a Cloudflare function (Open Graph), can be turned off in Settings, and are skipped for encrypted messages.",
+			"url": "https://proelectriccoder.pages.dev/Projects/Chat/"
+		},
+		{
 			"id": "chat-github-username",
 			"date": "2026-10-24",
 			"project": "ChatRooms",
