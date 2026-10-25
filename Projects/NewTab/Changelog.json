@@ -13,6 +13,16 @@
 	],
 	"releases": [
 		{
+			"version": "1.5.2",
+			"date": "2026-10-25",
+			"summary": "New News panel with updates from my other projects, plus project suggestions.",
+			"details": [
+				"A News button (top-left) lists the latest updates from DeepBlue Chat and other projects.",
+				"Suggestion cards can appear based on your shortcuts, e.g. DeepBlue IDE for coding sites, DeepBlue Chat for messaging apps and SEP Encryptor for encryption sites. Matching happens only in your browser and cards can be dismissed.",
+				"News and suggestions can be turned off under Settings → News."
+			]
+		},
+		{
 			"version": "1.5.1",
 			"date": "2026-10-22",
 			"summary": "Tab icon follows the logo colours; update notes stack per version.",

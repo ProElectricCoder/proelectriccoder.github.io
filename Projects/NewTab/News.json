@@ -1,5 +1,5 @@
 {
-	"updated": "2026-10-24",
+	"updated": "2026-10-25",
 	"posts": [
 		{
 			"id": "chat-github-username",
@@ -56,6 +56,79 @@
 				"stackblitz.com",
 				"codesandbox.io",
 				"glitch.com"
+			]
+		},
+		{
+			"id": "deepblue-chat",
+			"project": "DeepBlue Chat",
+			"title": "Try DeepBlue Chat",
+			"text": "Peer-to-peer chat rooms on WebRTC, with direct mode that needs no sign-in, calls, and optional Google Drive backup.",
+			"cta": "Open DeepBlue Chat",
+			"url": "https://proelectriccoder.pages.dev/Projects/Chat/",
+			"hosts": [
+				"whatsapp.com",
+				"web.whatsapp.com",
+				"discord.com",
+				"discord.gg",
+				"telegram.org",
+				"web.telegram.org",
+				"t.me",
+				"messenger.com",
+				"signal.org",
+				"slack.com",
+				"element.io",
+				"matrix.org",
+				"skype.com",
+				"teams.microsoft.com",
+				"viber.com",
+				"line.me",
+				"wechat.com",
+				"snapchat.com",
+				"revolt.chat",
+				"guilded.gg"
+			],
+			"keywords": [
+				"whatsapp",
+				"discord",
+				"telegram",
+				"messenger"
+			]
+		},
+		{
+			"id": "sep-encryptor",
+			"project": "SEP Encryptor",
+			"title": "Try SEP Encryptor",
+			"text": "Encrypt files with a 1024-byte base-256 stream key, optionally layered with AES-GCM and PBKDF2 key derivation.",
+			"cta": "Open SEP Encryptor",
+			"url": "https://proelectriccoder.pages.dev/Projects/SEP/",
+			"hosts": [
+				"proton.me",
+				"protonmail.com",
+				"tuta.com",
+				"tutanota.com",
+				"veracrypt.fr",
+				"gnupg.org",
+				"gpg4win.org",
+				"keybase.io",
+				"cryptpad.fr",
+				"bitwarden.com",
+				"cryptomator.org",
+				"age-encryption.org",
+				"openssl.org",
+				"7-zip.org",
+				"boxcryptor.com",
+				"mega.nz",
+				"tresorit.com",
+				"nordlocker.com",
+				"keepassxc.org",
+				"kleopatra.org"
+			],
+			"keywords": [
+				"encrypt",
+				"decrypt",
+				"cipher",
+				"pgp",
+				"gpg"
 			]
 		}
 	]

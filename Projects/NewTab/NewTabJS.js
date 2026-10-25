@@ -842,21 +842,25 @@ function cleanNews(raw) {
 	const cards = (Array.isArray(raw?.cards) ? raw.cards : []).slice(0, 10).map((c) => ({
 		id: clip(c?.id, 80), project: clip(c?.project, 40), title: clip(c?.title, 80), text: clip(c?.text, 240),
 		cta: clip(c?.cta, 40) || 'Open', url: safeHttpsUrl(c?.url),
-		hosts: (Array.isArray(c?.hosts) ? c.hosts : []).slice(0, 60).map((h) => clip(h, 100).toLowerCase()).filter(Boolean)
-	})).filter((c) => c.id && c.title && c.url && c.hosts.length);
+		hosts: (Array.isArray(c?.hosts) ? c.hosts : []).slice(0, 60).map((h) => clip(h, 100).toLowerCase()).filter(Boolean),
+		keywords: (Array.isArray(c?.keywords) ? c.keywords : []).slice(0, 60).map((k) => clip(k, 40).toLowerCase()).filter(Boolean)
+	})).filter((c) => c.id && c.title && c.url && (c.hosts.length || c.keywords.length));
 	return { posts, cards };
 }
 
 // A card is suggested when one of the user's shortcuts is on a site it lists (compared on this device only)
 const hostMatches = (host, rule) => host === rule || host.endsWith('.' + rule);
 function pickCards(cards) {
-	const urls = safeParseShortcuts().map((s) => normalizeUrl(s.url));
+	const shortcuts = safeParseShortcuts();
+	const urls = shortcuts.map((s) => normalizeUrl(s.url));
+	const labels = shortcuts.map((s) => `${s.name || ''} ${s.url || ''}`.toLowerCase());   // names and URLs, for keyword matches
 	const hosts = urls.map((u) => { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch { return ''; } }).filter(Boolean);
 	const dismissed = lsGet('newsDismissed', []);
 	return cards.filter((c) =>
 		!dismissed.includes(c.id) &&
 		!urls.some((u) => u.startsWith(c.url.replace(/\/$/, ''))) &&   // already has a shortcut to it
-		c.hosts.some((rule) => hosts.some((h) => hostMatches(h, rule))));
+		(c.hosts.some((rule) => hosts.some((h) => hostMatches(h, rule))) ||
+		 c.keywords.some((k) => labels.some((l) => l.includes(k)))));
 }
 
 function el(tag, className, text) {
