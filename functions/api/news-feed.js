@@ -1,12 +1,20 @@
 // functions/api/news-feed.js
 // Relays a few public news RSS feeds to the NewTab extension, adding CORS headers.
 // Only the feeds listed below can be requested: this is not an open proxy.
-//   GET /api/news-feed?source=bbc|cnn|aljazeera
+//   GET /api/news-feed?source=<id>   (ids are the keys of FEEDS below)
 
 const FEEDS = {
   bbc:       'https://feeds.bbci.co.uk/news/world/rss.xml',
   cnn:       'https://rss.cnn.com/rss/edition_world.rss',
-  aljazeera: 'https://www.aljazeera.com/xml/rss/all.xml'
+  aljazeera: 'https://www.aljazeera.com/xml/rss/all.xml',
+  arabnews:  'https://www.arabnews.com/rss.xml',
+  guardian:  'https://www.theguardian.com/world/rss',
+  nyt:       'https://rss.nytimes.com/services/xml/rss/nyt/World.xml',
+  npr:       'https://feeds.npr.org/1004/rss.xml',
+  sky:       'https://feeds.skynews.com/feeds/rss/world.xml',
+  cbs:       'https://www.cbsnews.com/latest/rss/world',
+  dw:        'https://rss.dw.com/rdf/rss-en-world',
+  france24:  'https://www.france24.com/en/rss'
 };
 
 const MAX_BYTES = 2 * 1024 * 1024;   // refuse oversized responses

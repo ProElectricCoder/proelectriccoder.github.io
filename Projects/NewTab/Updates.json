@@ -48,6 +48,10 @@
 		{
 			"version": "1.5.4",
 			"note": "World News via Cloudflare relay (CORS fix)."
+		},
+		{
+			"version": "1.6.0",
+			"note": "Changelog in settings, more news sources, picture backgrounds, light theme."
 		}
 	],
 	"notify": null

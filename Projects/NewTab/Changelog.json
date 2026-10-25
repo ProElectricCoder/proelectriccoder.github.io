@@ -13,6 +13,17 @@
 	],
 	"releases": [
 		{
+			"version": "1.6.0",
+			"date": "2026-10-25",
+			"summary": "Changelog in Settings, 11 world news sources with a switch each, picture backgrounds and a light theme.",
+			"details": [
+				"Settings → About → Changelog lists every version at any time.",
+				"World News now offers BBC, CNN, Al Jazeera, Arab News, The Guardian, The New York Times, NPR, Sky News, CBS News, DW and France 24, each with its own switch (BBC, CNN and Al Jazeera start on).",
+				"Backgrounds can now be a picture: choose a file or paste an https:// address, with a dim slider to keep text readable.",
+				"New Theme setting (Dark, Light or Match system) restyles the clock, search bar, shortcuts, settings and news panels. An untouched default gradient switches to a light one in the light theme."
+			]
+		},
+		{
 			"version": "1.5.4",
 			"date": "2026-10-25",
 			"summary": "World News now loads through our own relay, fixing the CORS errors.",

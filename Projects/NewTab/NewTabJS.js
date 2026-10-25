@@ -50,25 +50,109 @@ function setEngine(engineKey) {
 }
 
 // ─── Background / cubicGradient ───────────────────────────────────────────
-function applyGradient() {
+let currentGradient = '#000000';
+let bgImageSrc = null;        // object URL (picked file) or https URL
+let bgObjectUrl = null;
+
+const currentTheme = () => {
+	const t = localStorage.getItem('theme') || 'dark';
+	return t === 'system' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : t;
+};
+// Default gradient follows the theme until the person picks their own colours
+const bgDefaults = () => currentTheme() === 'light' ? { top: '#ffffff', bottom: '#bcd2ff' } : { top: '#000000', bottom: '#000066' };
+const bgIsCustom = () => localStorage.getItem('bgCustom') === '1' ||
+	((localStorage.getItem('bgTop') ?? '#000000') !== '#000000' || (localStorage.getItem('bgBottom') ?? '#000066') !== '#000066');
+const bgMode = () => localStorage.getItem('bgMode') === 'picture' ? 'picture' : 'gradient';
+
+// Paints either the gradient or the picture (with a dimming layer so text stays readable)
+function paintBackground() {
+	if (bgMode() === 'picture' && bgImageSrc) {
+		const dim = (parseInt(localStorage.getItem('bgDim') ?? '35', 10) || 0) / 100;
+		const tint = currentTheme() === 'light' ? '255,255,255' : '0,0,0';
+		const src = bgImageSrc.replace(/["\\\n]/g, encodeURIComponent);
+		document.body.style.background = `linear-gradient(rgba(${tint},${dim}), rgba(${tint},${dim})), url("${src}") center / cover no-repeat fixed`;
+	} else {
+		document.body.style.background = currentGradient;
+	}
+}
+
+// Picture storage: a chosen file lives in IndexedDB (too big for localStorage); a web address is kept as text
+function bgDb() {
+	return new Promise((resolve, reject) => {
+		const req = indexedDB.open('NewTabBgDB', 1);
+		req.onupgradeneeded = () => req.result.createObjectStore('bg');
+		req.onsuccess = () => resolve(req.result);
+		req.onerror = () => reject(req.error);
+	});
+}
+async function bgDbGet() {
+	try {
+		const db = await bgDb();
+		return await new Promise((res) => { const r = db.transaction('bg').objectStore('bg').get('image'); r.onsuccess = () => res(r.result || null); r.onerror = () => res(null); });
+	} catch { return null; }
+}
+async function bgDbSet(blob) {
+	const db = await bgDb();
+	await new Promise((res, rej) => {
+		const tx = db.transaction('bg', 'readwrite');
+		blob ? tx.objectStore('bg').put(blob, 'image') : tx.objectStore('bg').delete('image');
+		tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+	});
+}
+
+async function loadPictureSource() {
+	if (bgObjectUrl) { URL.revokeObjectURL(bgObjectUrl); bgObjectUrl = null; }
+	const url = safeHttpsUrl(localStorage.getItem('bgImageUrl'));
+	if (url) bgImageSrc = url;
+	else {
+		const blob = await bgDbGet();
+		bgImageSrc = blob ? (bgObjectUrl = URL.createObjectURL(blob)) : null;
+	}
+	document.getElementById('bgPictureStatus').textContent = bgImageSrc ? (url ? 'Using a web address' : 'Using your chosen picture') : 'No picture chosen';
+	document.getElementById('bgImageUrlInput').value = url || '';
+	paintBackground();
+}
+
+function syncBackgroundMode() {
+	const mode = bgMode();
+	document.getElementById('bgModeInput').value = mode;
+	document.getElementById('bgGradientBox').hidden = mode !== 'gradient';
+	document.getElementById('bgPictureBox').hidden = mode !== 'picture';
+	const dim = localStorage.getItem('bgDim') ?? '35';
+	document.getElementById('bgDimInput').value = dim;
+	document.getElementById('bgDimValue').textContent = dim + '%';
+}
+
+function applyTheme() {
+	document.documentElement.dataset.theme = currentTheme();
+	document.getElementById('themeInput').value = localStorage.getItem('theme') || 'dark';
+	loadBackground();   // an untouched default gradient switches with the theme; custom colours are kept
+}
+
+function applyGradient(fromUser = true) {
 	const start     = document.getElementById('bgTopInput').value;
 	const end       = document.getElementById('bgBottomInput').value;
 	const direction = document.getElementById('bgDirectionInput').value;
 	const power     = parseFloat(document.getElementById('bgPowerInput').value);
 	const steps     = parseInt(document.getElementById('bgStepsInput').value, 10);
-	document.body.style.background = cubicGradient({ direction, start, end, steps, power });
-	localStorage.setItem('bgTop',       start);
-	localStorage.setItem('bgBottom',    end);
-	localStorage.setItem('bgDirection', direction);
-	localStorage.setItem('bgPower',     power);
-	localStorage.setItem('bgSteps',     steps);
+	currentGradient = cubicGradient({ direction, start, end, steps, power });
+	paintBackground();
+	if (fromUser === true) {   // only a real edit counts as "custom"; loading must not overwrite theme defaults
+		localStorage.setItem('bgCustom',    '1');
+		localStorage.setItem('bgTop',       start);
+		localStorage.setItem('bgBottom',    end);
+		localStorage.setItem('bgDirection', direction);
+		localStorage.setItem('bgPower',     power);
+		localStorage.setItem('bgSteps',     steps);
+	}
 	// Logo follows the background palette when "match background" is on
 	if (logoMatchToggle.checked) refreshLogo();
 }
 
 function loadBackground() {
-	const start     = localStorage.getItem('bgTop')       || '#000000';
-	const end       = localStorage.getItem('bgBottom')    || '#000066';
+	const custom    = bgIsCustom();
+	const start     = (custom && localStorage.getItem('bgTop'))    || bgDefaults().top;
+	const end       = (custom && localStorage.getItem('bgBottom')) || bgDefaults().bottom;
 	const direction = localStorage.getItem('bgDirection') || 'to bottom right';
 	const power     = localStorage.getItem('bgPower')     || '3';
 	const steps     = localStorage.getItem('bgSteps')     || '20';
@@ -79,18 +163,19 @@ function loadBackground() {
 	document.getElementById('bgStepsInput').value        = steps;
 	document.getElementById('bgPowerValue').textContent  = power;
 	document.getElementById('bgStepsValue').textContent  = steps;
-	applyGradient();
+	applyGradient(false);
 }
 
 function resetBackground() {
-	document.getElementById('bgTopInput').value          = '#000000';
-	document.getElementById('bgBottomInput').value       = '#000066';
+	['bgCustom', 'bgTop', 'bgBottom', 'bgDirection', 'bgPower', 'bgSteps'].forEach((k) => localStorage.removeItem(k));
+	document.getElementById('bgTopInput').value          = bgDefaults().top;
+	document.getElementById('bgBottomInput').value       = bgDefaults().bottom;
 	document.getElementById('bgDirectionInput').value    = 'to bottom right';
 	document.getElementById('bgPowerInput').value        = '3';
 	document.getElementById('bgStepsInput').value        = '20';
 	document.getElementById('bgPowerValue').textContent  = '3';
 	document.getElementById('bgStepsValue').textContent  = '20';
-	applyGradient();
+	applyGradient(false);
 }
 
 // ─── Logo colours ─────────────────────────────────────────────────────────
@@ -479,14 +564,14 @@ function showUpdateToast(message, onDetails) {
 	timer = setTimeout(dismiss, 10000);
 }
 
-function openChangelog(releases, headline, from) {
+function openChangelog(releases, headline, from, showSteps = true) {
 	const modal = document.getElementById('changelogModal');
 	document.getElementById('changelogTitle').textContent = headline;
 	const body = document.getElementById('changelogBody');
 	body.replaceChildren();
 
 	// Oldest first, each release showing its own step: v1.4.3 → v1.5.0, then v1.5.0 → v1.5.1
-	let prev = isVersionString(from) ? from : null;
+	let prev = showSteps && isVersionString(from) ? from : null;
 	releases.forEach((r) => {
 		const block = document.createElement('div');
 		block.className = 'cl-release';
@@ -494,7 +579,7 @@ function openChangelog(releases, headline, from) {
 		const head = document.createElement('div');
 		head.className = 'cl-version';
 		head.textContent = prev ? `v${prev} → v${r.version}` : `v${r.version}`;
-		prev = r.version;
+		prev = showSteps ? r.version : null;
 		if (r.date) {
 			const date = document.createElement('span');
 			date.className = 'cl-date';
@@ -971,8 +1056,17 @@ const WORLD_PROXY = 'https://proelectriccoder.pages.dev/api/news-feed?source='; 
 const WORLD_SOURCES = [
 	{ id: 'bbc',       name: 'BBC News' },
 	{ id: 'cnn',       name: 'CNN' },
-	{ id: 'aljazeera', name: 'Al Jazeera' }
+	{ id: 'aljazeera', name: 'Al Jazeera' },
+	{ id: 'arabnews',  name: 'Arab News' },
+	{ id: 'guardian',  name: 'The Guardian' },
+	{ id: 'nyt',       name: 'The New York Times' },
+	{ id: 'npr',       name: 'NPR' },
+	{ id: 'sky',       name: 'Sky News' },
+	{ id: 'cbs',       name: 'CBS News' },
+	{ id: 'dw',        name: 'DW' },
+	{ id: 'france24',  name: 'France 24' }
 ];
+const WORLD_DEFAULT = ['bbc', 'cnn', 'aljazeera'];   // sources that start switched on
 const WORLD_MAX_AGE_MS = 15 * 60 * 1000;
 const WORLD_PER_SOURCE = 8;
 let worldItems = {};          // source id -> [{title, link, date, image}]
@@ -981,7 +1075,7 @@ let worldActiveTab = 'dev';
 
 const worldEnabled = () => localStorage.getItem('worldEnabled') === '1';
 const worldSources = () => {
-	const ids = lsGet('worldSources', WORLD_SOURCES.map((s) => s.id));
+	const ids = lsGet('worldSources', WORLD_DEFAULT);
 	return WORLD_SOURCES.filter((s) => ids.includes(s.id));
 };
 
@@ -996,12 +1090,12 @@ function parseFeed(xmlText) {
 		const text = (tag) => item.querySelector(tag)?.textContent?.trim() || '';
 		const thumb = ns(item, 'thumbnail') || ns(item, 'content');
 		const enc = item.querySelector('enclosure[type^="image"]');
-		const date = new Date(text('pubDate'));
+		const date = new Date(text('pubDate') || (ns(item, 'date')?.textContent ?? ''));   // RSS pubDate, or dc:date in RDF feeds
 		return {
 			title: clip(text('title'), 200),
 			link: upgradeHttps(text('link')),
 			date: isNaN(date) ? 0 : date.getTime(),
-			image: upgradeHttps(thumb?.getAttribute('url') || enc?.getAttribute('url'))
+			image: upgradeHttps(thumb?.getAttribute('url') || enc?.getAttribute('url') || item.querySelector('image')?.textContent)
 		};
 	}).filter((i) => i.title && i.link);
 }
@@ -1037,7 +1131,7 @@ function renderWorld() {
 	const chips = document.getElementById('worldChips'), list = document.getElementById('worldList');
 	chips.replaceChildren(); list.replaceChildren();
 	if (!worldEnabled()) {
-		list.appendChild(el('p', 'news-empty', 'World news shows headlines from BBC News, CNN and Al Jazeera. Headlines are relayed by proelectriccoder.pages.dev.'));
+		list.appendChild(el('p', 'news-empty', 'World news shows headlines from the news sites you pick in Settings → News (BBC News, CNN and Al Jazeera to start). Headlines are relayed by proelectriccoder.pages.dev.'));
 		const on = el('button', 'news-enable', 'Turn on world news');
 		on.onclick = () => { localStorage.setItem('worldEnabled', '1'); document.getElementById('worldToggle').checked = true; syncWorldSettings(); updateNewsBtn(); loadWorld(); };
 		list.appendChild(on);
@@ -1079,14 +1173,16 @@ function syncWorldSettings() {
 	const on = worldEnabled();
 	document.getElementById('worldToggle').checked = on;
 	document.getElementById('worldSourceBox').hidden = !on;
-	const ids = lsGet('worldSources', WORLD_SOURCES.map((s) => s.id));
+	const ids = lsGet('worldSources', WORLD_DEFAULT);
 	document.querySelectorAll('#worldSourceBox input').forEach((cb) => { cb.checked = ids.includes(cb.value); });
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────
 updateClock();
 setInterval(updateClock, 1000);
-loadBackground();
+applyTheme();   // sets the theme, then loads the matching background
+syncBackgroundMode();
+loadPictureSource();
 loadLogo();
 setEngine(localStorage.getItem('preferredEngine') || 'google');
 renderShortcuts();
@@ -1111,20 +1207,64 @@ document.getElementById('settingsBtn').onclick = () => {
 document.getElementById('closeSidebarBtn').onclick = () => document.getElementById('settingsSidebar').classList.remove('open');
 
 // "input" fires while dragging in the colour picker, so the preview is live
-document.getElementById('bgTopInput').addEventListener('input', applyGradient);
-document.getElementById('bgBottomInput').addEventListener('input', applyGradient);
-document.getElementById('bgDirectionInput').addEventListener('change', applyGradient);
+document.getElementById('bgTopInput').addEventListener('input', () => applyGradient(true));
+document.getElementById('bgBottomInput').addEventListener('input', () => applyGradient(true));
+document.getElementById('bgDirectionInput').addEventListener('change', () => applyGradient(true));
 
 document.getElementById('bgPowerInput').oninput = (e) => {
 	document.getElementById('bgPowerValue').textContent = e.target.value;
-	applyGradient();
+	applyGradient(true);
 };
 document.getElementById('bgStepsInput').oninput = (e) => {
 	document.getElementById('bgStepsValue').textContent = e.target.value;
-	applyGradient();
+	applyGradient(true);
 };
 
 document.getElementById('bgResetBtn').onclick = resetBackground;
+
+// Picture background and theme
+document.getElementById('bgModeInput').onchange = (e) => {
+	localStorage.setItem('bgMode', e.target.value);
+	syncBackgroundMode(); paintBackground();
+};
+document.getElementById('bgFileInput').onchange = async (e) => {
+	const file = e.target.files[0];
+	e.target.value = '';
+	const status = document.getElementById('bgPictureStatus');
+	if (!file) return;
+	if (!file.type.startsWith('image/')) { status.textContent = 'That file is not a picture'; return; }
+	if (file.size > 25 * 1024 * 1024) { status.textContent = 'Picture is over 25 MB'; return; }
+	try {
+		await bgDbSet(file);
+		localStorage.removeItem('bgImageUrl');
+		localStorage.setItem('bgMode', 'picture');
+		syncBackgroundMode(); await loadPictureSource();
+	} catch { status.textContent = 'Could not save the picture'; }
+};
+document.getElementById('bgImageUrlApply').onclick = async () => {
+	const url = safeHttpsUrl(document.getElementById('bgImageUrlInput').value.trim());
+	const status = document.getElementById('bgPictureStatus');
+	if (!url) { status.textContent = 'Enter a full https:// address'; return; }
+	localStorage.setItem('bgImageUrl', url);
+	localStorage.setItem('bgMode', 'picture');
+	try { await bgDbSet(null); } catch { /* nothing stored */ }
+	syncBackgroundMode(); await loadPictureSource();
+};
+document.getElementById('bgPictureRemove').onclick = async () => {
+	localStorage.removeItem('bgImageUrl');
+	try { await bgDbSet(null); } catch { /* nothing stored */ }
+	await loadPictureSource();
+};
+document.getElementById('bgDimInput').oninput = (e) => {
+	localStorage.setItem('bgDim', e.target.value);
+	document.getElementById('bgDimValue').textContent = e.target.value + '%';
+	paintBackground();
+};
+document.getElementById('themeInput').onchange = (e) => {
+	localStorage.setItem('theme', e.target.value);
+	applyTheme();
+};
+matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if (localStorage.getItem('theme') === 'system') applyTheme(); });
 
 // Logo colour controls
 logoOutlineInput.addEventListener('input', () => {
@@ -1188,7 +1328,17 @@ document.querySelector('.btn-save').onclick = () => {
 	document.getElementById('addShortcutModal').close();
 };
 
-// Changelog dialog
+// Changelog dialog (also reachable any time from Settings → About)
+document.getElementById('viewChangelogBtn').onclick = async () => {
+	let releases = [];
+	try {   // this page's own copy first (works offline), then the server's
+		const res = await fetch('Changelog.json');
+		if (res.ok) releases = (await res.json()).releases || [];
+	} catch { /* fall through */ }
+	if (!releases.length) releases = await readChangelog(false);
+	const sorted = releases.filter((r) => r && isVersionString(r.version)).sort((a, b) => compareVersions(b.version, a.version));   // newest first
+	openChangelog(sorted, 'Changelog', null, false);
+};
 document.getElementById('changelogCloseBtn').onclick = () => document.getElementById('changelogModal').close();
 document.getElementById('changelogModal').addEventListener('click', (e) => {
 	const modal = e.currentTarget;
@@ -1205,13 +1355,15 @@ document.getElementById('tabDev').onclick = () => setNewsTab('dev');
 document.getElementById('tabWorld').onclick = () => { setNewsTab('world'); renderWorld(); };
 const srcBox = document.getElementById('worldSourceBox');
 srcBox.replaceChildren(...WORLD_SOURCES.map((s) => {
-	const label = el('label', 'world-source');
+	const label = el('div', 'setting-row');
 	const cb = el('input'); cb.type = 'checkbox'; cb.value = s.id;
 	cb.onchange = () => {
 		const ids = Array.from(srcBox.querySelectorAll('input:checked')).map((i) => i.value);
 		lsSet('worldSources', ids); loadWorld();
 	};
-	label.append(cb, document.createTextNode(' ' + s.name));
+	const sw = el('label', 'toggle');   // same switch look as the other settings
+	sw.append(cb, el('div', 'toggle-track'), el('div', 'toggle-thumb'));
+	label.append(el('span', 'setting-label', s.name), sw);
 	return label;
 }));
 document.getElementById('worldToggle').onchange = (e) => {
