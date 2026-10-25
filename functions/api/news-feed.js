@@ -5,7 +5,7 @@
 
 const FEEDS = {
   bbc:       'https://feeds.bbci.co.uk/news/world/rss.xml',
-  cnn:       'https://rss.cnn.com/rss/edition_world.rss',
+  cnn:       ['http://rss.cnn.com/rss/edition_world.rss', 'https://rss.cnn.com/rss/edition_world.rss', 'http://rss.cnn.com/rss/cnn_world.rss'],
   aljazeera: 'https://www.aljazeera.com/xml/rss/all.xml',
   arabnews:  'https://www.arabnews.com/rss.xml',
   guardian:  'https://www.theguardian.com/world/rss',
@@ -36,8 +36,9 @@ export async function onRequest({ request }) {
   if (request.method !== 'GET') return reply('Method not allowed', 405);
 
   const source = new URL(request.url).searchParams.get('source');
-  const feedUrl = Object.hasOwn(FEEDS, source || '') ? FEEDS[source] : null;
-  if (!feedUrl) return reply('Unknown source', 400);
+  const entry = Object.hasOwn(FEEDS, source || '') ? FEEDS[source] : null;
+  if (!entry) return reply('Unknown source', 400);
+  const candidates = Array.isArray(entry) ? entry : [entry];
 
   const cache = typeof caches !== 'undefined' ? caches.default : null;
   const cacheKey = new Request(`https://news-feed.cache/${source}`);
@@ -46,20 +47,25 @@ export async function onRequest({ request }) {
     if (hit) return reply(await hit.text(), 200, { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': `public, max-age=${CACHE_SECONDS}`, 'X-Cache': 'HIT' });
   }
 
-  try {
-    const upstream = await fetch(feedUrl, {
-      headers: { 'User-Agent': 'ProElectricCoder-NewTab/1.0 (+https://proelectriccoder.pages.dev/Projects/NewTab/)', 'Accept': 'application/rss+xml, application/xml, text/xml' },
-      signal: AbortSignal.timeout(8000)
-    });
-    if (!upstream.ok) return reply('Upstream error', 502);
-    const text = await upstream.text();
-    if (text.length > MAX_BYTES) return reply('Feed too large', 502);
-
-    if (cache) {
-      await cache.put(cacheKey, new Response(text, { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': `public, max-age=${CACHE_SECONDS}` } }));
-    }
-    return reply(text, 200, { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': `public, max-age=${CACHE_SECONDS}`, 'X-Cache': 'MISS' });
-  } catch {
-    return reply('Upstream unreachable', 502);
+  let text = null;
+  for (const feedUrl of candidates) {   // first address that answers with a feed wins
+    try {
+      const upstream = await fetch(feedUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ProElectricCoder-NewTab/1.0; +https://proelectriccoder.pages.dev/Projects/NewTab/)', 'Accept': 'application/rss+xml, application/xml, text/xml' },
+        signal: AbortSignal.timeout(6000)
+      });
+      if (!upstream.ok) continue;
+      const body = await upstream.text();
+      if (body.length > MAX_BYTES) continue;
+      if (!/<(rss|rdf:RDF|feed)\b/i.test(body)) continue;   // an error page is not a feed
+      text = body;
+      break;
+    } catch { /* try the next address */ }
   }
+  if (text === null) return reply('Upstream unreachable', 502);
+
+  if (cache) {
+    await cache.put(cacheKey, new Response(text, { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': `public, max-age=${CACHE_SECONDS}` } }));
+  }
+  return reply(text, 200, { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': `public, max-age=${CACHE_SECONDS}`, 'X-Cache': 'MISS' });
 }

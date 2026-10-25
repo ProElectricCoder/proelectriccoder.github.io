@@ -1,0 +1,1 @@
+ console.log('logos in chips',await p.locator('.news-chip .src-logo').count(),'in tags',await p.locator('.news-tag .src-logo').count(),'in settings',await p.locator(',errs.join());await b.close();srv.close();});

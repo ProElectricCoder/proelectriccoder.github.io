@@ -13,6 +13,16 @@
 	],
 	"releases": [
 		{
+			"version": "1.6.1",
+			"date": "2026-10-25",
+			"summary": "Preset backgrounds, news source logos, and a CNN feed fix.",
+			"details": [
+				"Six built-in backgrounds drawn with CSS (Aurora, Neon night, Sunset, Ocean, Forest, Graphite) under Settings → Background → Picture.",
+				"Each news source now shows its logo next to its name in Settings and in the World News panel.",
+				"The news relay now tries several CNN feed addresses, since CNN's server sometimes closes the connection."
+			]
+		},
+		{
 			"version": "1.6.0",
 			"date": "2026-10-25",
 			"summary": "Changelog in Settings, 11 world news sources with a switch each, picture backgrounds and a light theme.",

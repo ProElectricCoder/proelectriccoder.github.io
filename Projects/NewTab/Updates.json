@@ -52,6 +52,10 @@
 		{
 			"version": "1.6.0",
 			"note": "Changelog in settings, more news sources, picture backgrounds, light theme."
+		},
+		{
+			"version": "1.6.1",
+			"note": "Preset backgrounds, news source logos, CNN feed fallback."
 		}
 	],
 	"notify": null

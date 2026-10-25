@@ -1086,6 +1086,14 @@ const WORLD_SOURCES = [
 	{ id: 'france24',  name: 'France 24' }
 ];
 const WORLD_DEFAULT = ['bbc', 'cnn', 'aljazeera'];   // sources that start switched on
+const WORLD_LOGO = 'https://proelectriccoder.pages.dev/api/news-logo?source=';   // the relay fetches each site's icon, so the browser only talks to us
+function srcLogo(id) {
+	const img = el('img', 'src-logo');
+	img.alt = ''; img.width = 16; img.height = 16; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
+	img.onerror = () => img.remove();   // no icon available: just show the name
+	img.src = WORLD_LOGO + id;
+	return img;
+}
 const WORLD_MAX_AGE_MS = 15 * 60 * 1000;
 const WORLD_PER_SOURCE = 8;
 let worldItems = {};          // source id -> [{title, link, date, image}]
@@ -1159,12 +1167,14 @@ function renderWorld() {
 	const active = worldSources();
 	if (worldFilter !== 'all' && !active.some((s) => s.id === worldFilter)) worldFilter = 'all';
 	for (const [id, name] of [['all', 'All'], ...active.map((s) => [s.id, s.name])]) {
-		const c = el('button', 'news-chip' + (worldFilter === id ? ' active' : ''), name);
+		const c = el('button', 'news-chip' + (worldFilter === id ? ' active' : ''));
+		if (id !== 'all') c.appendChild(srcLogo(id));
+		c.appendChild(document.createTextNode(name));
 		c.onclick = () => { worldFilter = id; renderWorld(); };
 		chips.appendChild(c);
 	}
 	const rows = active.filter((s) => worldFilter === 'all' || s.id === worldFilter)
-		.flatMap((s) => (worldItems[s.id] || []).map((i) => ({ ...i, source: s.name })));
+		.flatMap((s) => (worldItems[s.id] || []).map((i) => ({ ...i, source: s.name, sourceId: s.id })));
 	if (worldFilter === 'all') rows.sort((a, b) => b.date - a.date);
 	if (!rows.length) { list.appendChild(el('p', 'news-empty', 'Loading headlines… If nothing appears, the feeds may be unreachable.')); return; }
 	for (const r of rows) {
@@ -1172,7 +1182,9 @@ function renderWorld() {
 		const pic = newsImage(r.image, 'news-img');
 		if (pic) item.appendChild(pic);
 		const meta = el('div', 'news-meta');
-		meta.append(el('span', 'news-tag', r.source), el('span', '', timeAgo(r.date)));
+		const tag = el('span', 'news-tag');
+		tag.append(srcLogo(r.sourceId), document.createTextNode(r.source));
+		meta.append(tag, el('span', '', timeAgo(r.date)));
 		const a = el('a', 'news-headline', r.title);
 		a.href = r.link; a.target = '_blank'; a.rel = 'noopener noreferrer';
 		item.append(meta, a);
@@ -1399,7 +1411,9 @@ srcBox.replaceChildren(...WORLD_SOURCES.map((s) => {
 	};
 	const sw = el('label', 'toggle');   // same switch look as the other settings
 	sw.append(cb, el('div', 'toggle-track'), el('div', 'toggle-thumb'));
-	label.append(el('span', 'setting-label', s.name), sw);
+	const name = el('span', 'setting-label src-name');
+	name.append(srcLogo(s.id), document.createTextNode(s.name));
+	label.append(name, sw);
 	return label;
 }));
 document.getElementById('worldToggle').onchange = (e) => {
