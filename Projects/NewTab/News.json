@@ -32,7 +32,8 @@
 			"project": "ChatRooms",
 			"title": "Back up your chats to Google Drive",
 			"summary": "Chats can now be backed up to your Google Drive.",
-			"url": "https://proelectriccoder.pages.dev/Projects/Chat/"
+			"url": "https://proelectriccoder.pages.dev/Projects/Chat/",
+			"image": "https://www.freelogovectors.net/wp-content/uploads/2026/05/google-drive-logo-freelogovectors.net_.png"
 		},
 		{
 			"id": "chat-turn-fallback",
