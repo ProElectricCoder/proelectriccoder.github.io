@@ -4,7 +4,7 @@
 		{
 			"id": "chat-github-username",
 			"date": "2026-10-24",
-			"project": "DeepBlue Chat",
+			"project": "ChatRooms",
 			"title": "GitHub sign-in picks up your GitHub username",
 			"summary": "After signing in with GitHub, the chat now reads your username from the GitHub API.",
 			"url": "https://proelectriccoder.pages.dev/Projects/Chat/"
@@ -12,7 +12,7 @@
 		{
 			"id": "chat-email-signin",
 			"date": "2026-10-24",
-			"project": "DeepBlue Chat",
+			"project": "ChatRooms",
 			"title": "Email sign-in and readable Chat IDs",
 			"summary": "You can now sign in with an email and password (with verification), and Chat IDs are easier to read.",
 			"url": "https://proelectriccoder.pages.dev/Projects/Chat/"
@@ -20,7 +20,7 @@
 		{
 			"id": "chat-drive-backup",
 			"date": "2026-10-23",
-			"project": "DeepBlue Chat",
+			"project": "ChatRooms",
 			"title": "Back up your chats to Google Drive",
 			"summary": "Chats can now be backed up to your Google Drive.",
 			"url": "https://proelectriccoder.pages.dev/Projects/Chat/"
@@ -28,7 +28,7 @@
 		{
 			"id": "chat-turn-fallback",
 			"date": "2026-10-22",
-			"project": "DeepBlue Chat",
+			"project": "ChatRooms",
 			"title": "TURN fallback for calls",
 			"summary": "Calls now have a TURN relay fallback, plus clearer routing notices and call signaling through the call log.",
 			"url": "https://proelectriccoder.pages.dev/Projects/Chat/"
@@ -56,14 +56,15 @@
 				"stackblitz.com",
 				"codesandbox.io",
 				"glitch.com"
-			]
+			],
+			"image": "https://proelectriccoder.github.io/Preview.png"
 		},
 		{
 			"id": "deepblue-chat",
-			"project": "DeepBlue Chat",
-			"title": "Try DeepBlue Chat",
+			"project": "ChatRooms",
+			"title": "Try ChatRooms",
 			"text": "Peer-to-peer chat rooms on WebRTC, with direct mode that needs no sign-in, calls, and optional Google Drive backup.",
-			"cta": "Open DeepBlue Chat",
+			"cta": "Open ChatRooms",
 			"url": "https://proelectriccoder.pages.dev/Projects/Chat/",
 			"hosts": [
 				"whatsapp.com",

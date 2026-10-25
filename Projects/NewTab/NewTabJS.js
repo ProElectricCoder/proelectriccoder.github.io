@@ -836,12 +836,12 @@ const clip = (v, n) => String(v ?? '').slice(0, n);
 function cleanNews(raw) {
 	const posts = (Array.isArray(raw?.posts) ? raw.posts : []).slice(0, 30).map((p) => ({
 		id: clip(p?.id, 80), date: clip(p?.date, 10), project: clip(p?.project, 40),
-		title: clip(p?.title, 120), summary: clip(p?.summary, 300), url: safeHttpsUrl(p?.url)
+		title: clip(p?.title, 120), summary: clip(p?.summary, 300), url: safeHttpsUrl(p?.url), image: safeHttpsUrl(p?.image)
 	})).filter((p) => p.id && p.title)
 		.sort((a, b) => b.date.localeCompare(a.date));   // newest first
 	const cards = (Array.isArray(raw?.cards) ? raw.cards : []).slice(0, 10).map((c) => ({
 		id: clip(c?.id, 80), project: clip(c?.project, 40), title: clip(c?.title, 80), text: clip(c?.text, 240),
-		cta: clip(c?.cta, 40) || 'Open', url: safeHttpsUrl(c?.url),
+		cta: clip(c?.cta, 40) || 'Open', url: safeHttpsUrl(c?.url), image: safeHttpsUrl(c?.image),
 		hosts: (Array.isArray(c?.hosts) ? c.hosts : []).slice(0, 60).map((h) => clip(h, 100).toLowerCase()).filter(Boolean),
 		keywords: (Array.isArray(c?.keywords) ? c.keywords : []).slice(0, 60).map((k) => clip(k, 40).toLowerCase()).filter(Boolean)
 	})).filter((c) => c.id && c.title && c.url && (c.hosts.length || c.keywords.length));
@@ -870,11 +870,23 @@ function el(tag, className, text) {
 	return e;
 }
 
+// Optional picture: skipped when missing, and removed again if it fails to load
+function newsImage(url, className) {
+	if (!url) return null;
+	const img = el('img', className);
+	img.alt = ''; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
+	img.onerror = () => img.remove();
+	img.src = url;
+	return img;
+}
+
 function renderNewsPanel() {
 	newsEls.list.replaceChildren();
 	if (!newsData.posts.length) { newsEls.list.appendChild(el('p', 'news-empty', 'Nothing new right now.')); return; }
 	for (const p of newsData.posts) {
 		const item = el('article', 'news-item');
+		const pic = newsImage(p.image, 'news-img');
+		if (pic) item.appendChild(pic);
 		const meta = el('div', 'news-meta');
 		if (p.project) meta.appendChild(el('span', 'news-tag', p.project));
 		if (p.date) meta.appendChild(el('span', '', p.date));
@@ -911,7 +923,7 @@ function refreshNewsCard() {
 	close.onclick = () => { lsSet('newsDismissed', [...lsGet('newsDismissed', []), card.id]); refreshNewsCard(); };
 	const cta = el('a', 'news-card-cta', card.cta);
 	cta.href = card.url; cta.target = '_blank'; cta.rel = 'noopener noreferrer';
-	newsEls.card.replaceChildren(close, el('div', 'news-card-label', card.project ? `Suggested · ${card.project}` : 'Suggested'),
+	newsEls.card.replaceChildren(...[newsImage(card.image, 'news-card-img')].filter(Boolean), close, el('div', 'news-card-label', card.project ? `Suggested · ${card.project}` : 'Suggested'),
 		el('h3', null, card.title), el('p', null, card.text), cta);
 }
 

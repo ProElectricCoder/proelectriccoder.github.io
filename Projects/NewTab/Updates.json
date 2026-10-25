@@ -40,6 +40,10 @@
 		{
 			"version": "1.5.2",
 			"note": "News panel and contextual project suggestions."
+		},
+		{
+			"version": "1.5.3",
+			"note": "Optional images in news and suggestion cards; ChatRooms naming."
 		}
 	],
 	"notify": null

@@ -13,12 +13,21 @@
 	],
 	"releases": [
 		{
+			"version": "1.5.3",
+			"date": "2026-10-25",
+			"summary": "News and suggestion cards can now show a picture; ChatRooms renamed in news.",
+			"details": [
+				"News posts and suggestion cards can include an optional image (DeepBlue IDE's card now shows its preview picture).",
+				"The chat project is now called ChatRooms in news and suggestions."
+			]
+		},
+		{
 			"version": "1.5.2",
 			"date": "2026-10-25",
 			"summary": "New News panel with updates from my other projects, plus project suggestions.",
 			"details": [
-				"A News button (top-left) lists the latest updates from DeepBlue Chat and other projects.",
-				"Suggestion cards can appear based on your shortcuts, e.g. DeepBlue IDE for coding sites, DeepBlue Chat for messaging apps and SEP Encryptor for encryption sites. Matching happens only in your browser and cards can be dismissed.",
+				"A News button (top-left) lists the latest updates from ChatRooms and other projects.",
+				"Suggestion cards can appear based on your shortcuts, e.g. DeepBlue IDE for coding sites, ChatRooms for messaging apps and SEP Encryptor for encryption sites. Matching happens only in your browser and cards can be dismissed.",
 				"News and suggestions can be turned off under Settings → News."
 			]
 		},
