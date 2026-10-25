@@ -7,7 +7,8 @@
 			"project": "ChatRooms",
 			"title": "Link previews in chat",
 			"summary": "Links in chat are now clickable and show a preview card with title, description and image. Previews are fetched by a Cloudflare function (Open Graph), can be turned off in Settings, and are skipped for encrypted messages.",
-			"url": "https://proelectriccoder.pages.dev/Projects/Chat/"
+			"url": "https://proelectriccoder.pages.dev/Projects/Chat/",
+			"image": "https://www.sohosystems.co.za/gfx/covers/opengraph.png"
 		},
 		{
 			"id": "chat-github-username",
