@@ -69,8 +69,9 @@ export function injectPanels() {
 .call-card.missed .call-card-meta,.call-card.declined .call-card-meta,.call-card.cancelled .call-card-meta{color:#ef4444}
 .call-card.completed .call-card-meta{color:var(--ta)}
 .fmt-link{color:var(--tp);text-decoration:underline;text-underline-offset:2px;word-break:break-all}
-.link-preview-wrap{max-width:100%;margin-top:3px}
-.link-preview{display:flex;flex-direction:column;width:min(300px,100%);border-radius:11px;overflow:hidden;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);text-decoration:none;color:var(--text);transition:border-color .2s}
+.link-preview-wrap{width:280px;max-width:100%;margin-top:3px}
+.msg.mine .link-preview-wrap{align-self:flex-end}.msg.theirs .link-preview-wrap{align-self:flex-start}
+.link-preview{box-sizing:border-box;display:flex;flex-direction:column;width:100%;border-radius:11px;overflow:hidden;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);text-decoration:none;color:var(--text);transition:border-color .2s}
 .link-preview:hover{border-color:var(--tp)}
 .lp-img{width:100%;max-height:160px;object-fit:cover;display:block;background:rgba(255,255,255,.04)}
 .lp-body{padding:8px 11px 10px;display:flex;flex-direction:column;gap:2px;min-width:0}
