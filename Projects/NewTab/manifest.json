@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "ProElectricCoder New Tab",
+  "version": "1.6.1",
+  "description": "Custom NewTab Page by ProElectricCoder",
+  "permissions": [
+    "favicon"
+  ],
+  "chrome_url_overrides": {
+    "newtab": "NewTab.html"
+  },
+  "icons": {
+    "16": "Icon16.png",
+    "48": "Icon48.png",
+    "128": "Icon128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "Icon16.png",
+      "48": "Icon48.png"
+    }
+  }
+}
