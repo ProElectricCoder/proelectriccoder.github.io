@@ -50,6 +50,17 @@ function setEngine(engineKey) {
 }
 
 // ─── Background / cubicGradient ───────────────────────────────────────────
+// Built-in picture backgrounds drawn with CSS only (no image files). Each is a stack of gradient layers.
+const BG_PRESETS = [
+	{ id: 'aurora', name: 'Aurora', css: 'radial-gradient(circle at 0% 100%, #4ff0d8 0, transparent 55%), radial-gradient(circle at 100% 0%, #ff5ee0 0, transparent 50%), radial-gradient(circle at 55% 45%, #b25be8 0, transparent 60%), linear-gradient(135deg, #4f5bd5, #8e54d8)' },
+	{ id: 'neon', name: 'Neon night', css: 'radial-gradient(circle at 12% 18%, rgba(0,255,255,0.65) 0, transparent 38%), radial-gradient(circle at 88% 22%, rgba(150,60,255,0.7) 0, transparent 44%), radial-gradient(circle at 55% 95%, rgba(10,70,255,0.75) 0, transparent 52%), radial-gradient(circle at 30% 70%, rgba(0,120,255,0.35) 0, transparent 40%), #000' },
+	{ id: 'sunset', name: 'Sunset', css: 'radial-gradient(circle at 20% 100%, #ffb347 0, transparent 55%), radial-gradient(circle at 85% 80%, #ff5f7e 0, transparent 50%), radial-gradient(circle at 70% 0%, #7b4dff 0, transparent 55%), linear-gradient(180deg, #3b1d78, #c2437a)' },
+	{ id: 'ocean', name: 'Ocean', css: 'radial-gradient(circle at 85% 10%, #3be6d3 0, transparent 45%), radial-gradient(circle at 10% 90%, #1a6dff 0, transparent 55%), radial-gradient(circle at 60% 70%, #0a3d91 0, transparent 60%), linear-gradient(160deg, #031a3a, #06306b)' },
+	{ id: 'forest', name: 'Forest', css: 'radial-gradient(circle at 15% 15%, #7be08a 0, transparent 40%), radial-gradient(circle at 90% 85%, #12a37f 0, transparent 50%), radial-gradient(circle at 50% 55%, #0b5c4a 0, transparent 60%), linear-gradient(150deg, #04261f, #0a4a3a)' },
+	{ id: 'graphite', name: 'Graphite', css: 'radial-gradient(circle at 20% 15%, rgba(255,255,255,0.18) 0, transparent 40%), radial-gradient(circle at 85% 90%, rgba(120,140,170,0.35) 0, transparent 50%), linear-gradient(145deg, #1b1f27, #3a4150)' }
+];
+const bgPreset = () => BG_PRESETS.find((p) => p.id === localStorage.getItem('bgPreset')) || null;
+
 let currentGradient = '#000000';
 let bgImageSrc = null;        // object URL (picked file) or https URL
 let bgObjectUrl = null;
@@ -66,11 +77,16 @@ const bgMode = () => localStorage.getItem('bgMode') === 'picture' ? 'picture' : 
 
 // Paints either the gradient or the picture (with a dimming layer so text stays readable)
 function paintBackground() {
-	if (bgMode() === 'picture' && bgImageSrc) {
+	if (bgMode() === 'picture' && (bgImageSrc || bgPreset())) {
 		const dim = (parseInt(localStorage.getItem('bgDim') ?? '35', 10) || 0) / 100;
 		const tint = currentTheme() === 'light' ? '255,255,255' : '0,0,0';
-		const src = bgImageSrc.replace(/["\\\n]/g, encodeURIComponent);
-		document.body.style.background = `linear-gradient(rgba(${tint},${dim}), rgba(${tint},${dim})), url("${src}") center / cover no-repeat fixed`;
+		const veil = `linear-gradient(rgba(${tint},${dim}), rgba(${tint},${dim}))`;
+		if (bgImageSrc) {
+			const src = bgImageSrc.replace(/["\\\n]/g, encodeURIComponent);
+			document.body.style.background = `${veil}, url("${src}") center / cover no-repeat fixed`;
+		} else {
+			document.body.style.background = `${veil}, ${bgPreset().css}`;
+		}
 	} else {
 		document.body.style.background = currentGradient;
 	}
@@ -102,13 +118,16 @@ async function bgDbSet(blob) {
 
 async function loadPictureSource() {
 	if (bgObjectUrl) { URL.revokeObjectURL(bgObjectUrl); bgObjectUrl = null; }
-	const url = safeHttpsUrl(localStorage.getItem('bgImageUrl'));
-	if (url) bgImageSrc = url;
+	const preset = bgPreset();
+	const url = preset ? null : safeHttpsUrl(localStorage.getItem('bgImageUrl'));
+	if (preset) bgImageSrc = null;
+	else if (url) bgImageSrc = url;
 	else {
 		const blob = await bgDbGet();
 		bgImageSrc = blob ? (bgObjectUrl = URL.createObjectURL(blob)) : null;
 	}
-	document.getElementById('bgPictureStatus').textContent = bgImageSrc ? (url ? 'Using a web address' : 'Using your chosen picture') : 'No picture chosen';
+	document.getElementById('bgPictureStatus').textContent = preset ? `Using the ${preset.name} preset` : bgImageSrc ? (url ? 'Using a web address' : 'Using your chosen picture') : 'No picture chosen';
+	document.querySelectorAll('#bgPresetGrid button').forEach((b) => b.classList.toggle('selected', b.dataset.id === preset?.id));
 	document.getElementById('bgImageUrlInput').value = url || '';
 	paintBackground();
 }
@@ -1237,6 +1256,7 @@ document.getElementById('bgFileInput').onchange = async (e) => {
 	try {
 		await bgDbSet(file);
 		localStorage.removeItem('bgImageUrl');
+		localStorage.removeItem('bgPreset');
 		localStorage.setItem('bgMode', 'picture');
 		syncBackgroundMode(); await loadPictureSource();
 	} catch { status.textContent = 'Could not save the picture'; }
@@ -1246,15 +1266,31 @@ document.getElementById('bgImageUrlApply').onclick = async () => {
 	const status = document.getElementById('bgPictureStatus');
 	if (!url) { status.textContent = 'Enter a full https:// address'; return; }
 	localStorage.setItem('bgImageUrl', url);
+	localStorage.removeItem('bgPreset');
 	localStorage.setItem('bgMode', 'picture');
 	try { await bgDbSet(null); } catch { /* nothing stored */ }
 	syncBackgroundMode(); await loadPictureSource();
 };
 document.getElementById('bgPictureRemove').onclick = async () => {
 	localStorage.removeItem('bgImageUrl');
+	localStorage.removeItem('bgPreset');
 	try { await bgDbSet(null); } catch { /* nothing stored */ }
 	await loadPictureSource();
 };
+document.getElementById('bgPresetGrid').replaceChildren(...BG_PRESETS.map((p) => {
+	const b = el('button', 'preset-swatch');
+	b.dataset.id = p.id; b.title = p.name; b.setAttribute('aria-label', p.name + ' background');
+	b.style.background = p.css;
+	b.append(el('span', null, p.name));
+	b.onclick = async () => {
+		localStorage.setItem('bgPreset', p.id);
+		localStorage.removeItem('bgImageUrl');
+		localStorage.setItem('bgMode', 'picture');
+		try { await bgDbSet(null); } catch { /* nothing stored */ }
+		syncBackgroundMode(); await loadPictureSource();
+	};
+	return b;
+}));
 document.getElementById('bgDimInput').oninput = (e) => {
 	localStorage.setItem('bgDim', e.target.value);
 	document.getElementById('bgDimValue').textContent = e.target.value + '%';

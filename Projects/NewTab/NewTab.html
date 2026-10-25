@@ -444,6 +444,20 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); }
 .news-card-close { position: absolute; top: 8px; right: 10px; background: rgba(0,0,0,0.55); border-radius: 50%; width: 22px; height: 22px; padding: 0; border: none; color: rgba(255,255,255,0.5); font-size: 1.2rem; line-height: 1; cursor: pointer; }
 .news-card-close:hover { color: white; }
 
+.preset-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.preset-swatch {
+	position: relative; aspect-ratio: 16 / 10; border-radius: 8px; padding: 0; cursor: pointer; overflow: hidden;
+	border: 2px solid rgba(255,255,255,0.2); transition: transform 0.15s, border-color 0.15s;
+}
+.preset-swatch:hover { transform: scale(1.04); }
+.preset-swatch.selected { border-color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,0.35); }
+.preset-swatch span {
+	position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 4px; font: 0.62rem/1.3 sans-serif;
+	color: #fff; background: rgba(0,0,0,0.45); text-align: center;
+}
+html[data-theme="light"] .preset-swatch { border-color: rgba(0,0,0,0.25); }
+html[data-theme="light"] .preset-swatch.selected { border-color: #000; box-shadow: 0 0 0 2px rgba(0,0,0,0.3); }
+
 /* ─── Light theme ─────────────────────────────────────────────────────── */
 html[data-theme="light"] { color-scheme: light; }
 html[data-theme="light"] body { color: #111; }
@@ -570,7 +584,9 @@ html[data-theme="light"] .news-card-close { background: rgba(255,255,255,0.8); c
 		</div>
 
 		<div id="bgPictureBox" class="setting-item" hidden>
-			<span class="setting-label">Picture</span>
+			<span class="setting-label">Presets</span>
+			<div id="bgPresetGrid" class="preset-grid"></div>
+			<span class="setting-label" style="margin-top:6px">Your own picture</span>
 			<label class="btn-link" style="text-align:center">Choose a picture…<input type="file" id="bgFileInput" accept="image/*" hidden></label>
 			<input type="text" id="bgImageUrlInput" class="modal-input" placeholder="…or paste an https:// image address" autocomplete="off" style="margin:0;padding:8px 10px">
 			<button class="btn-link" id="bgImageUrlApply">Use this address</button>
