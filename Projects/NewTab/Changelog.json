@@ -13,6 +13,15 @@
 	],
 	"releases": [
 		{
+			"version": "1.5.4",
+			"date": "2026-10-25",
+			"summary": "World News now loads through our own relay, fixing the CORS errors.",
+			"details": [
+				"World News headlines are fetched through proelectriccoder.pages.dev, which adds the permissions browsers require.",
+				"The extension no longer asks for permission to read the news sites directly."
+			]
+		},
+		{
 			"version": "1.5.3",
 			"date": "2026-10-25",
 			"summary": "World news from BBC, CNN and Al Jazeera; pictures in news and suggestion cards; ChatRooms renamed.",

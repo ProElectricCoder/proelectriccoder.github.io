@@ -965,12 +965,13 @@ async function loadNews() {
 }
 
 // ─── World news: headlines straight from the publishers' own RSS feeds ──────
-// Off until the person turns it on (it contacts the news sites directly from their browser).
+// Off until the person turns it on. Feeds come through our own relay, which fetches them from the publishers.
 // Titles, links and pictures are read from the feed as plain text and https-only; nothing is stored beyond a short cache.
+const WORLD_PROXY = 'https://proelectriccoder.pages.dev/api/news-feed?source=';   // Cloudflare function that adds the CORS headers the news sites lack
 const WORLD_SOURCES = [
-	{ id: 'bbc',       name: 'BBC News',   url: 'https://feeds.bbci.co.uk/news/world/rss.xml' },
-	{ id: 'cnn',       name: 'CNN',        url: 'https://rss.cnn.com/rss/edition_world.rss' },
-	{ id: 'aljazeera', name: 'Al Jazeera', url: 'https://www.aljazeera.com/xml/rss/all.xml' }
+	{ id: 'bbc',       name: 'BBC News' },
+	{ id: 'cnn',       name: 'CNN' },
+	{ id: 'aljazeera', name: 'Al Jazeera' }
 ];
 const WORLD_MAX_AGE_MS = 15 * 60 * 1000;
 const WORLD_PER_SOURCE = 8;
@@ -1011,7 +1012,7 @@ async function loadWorldSource(src) {
 	if (cache?.items) worldItems[src.id] = cache.items;
 	if (cache && Date.now() - cache.fetchedAt < WORLD_MAX_AGE_MS) return;
 	try {
-		const res = await fetch(src.url, { cache: 'no-cache', credentials: 'omit', referrerPolicy: 'no-referrer' });
+		const res = await fetch(WORLD_PROXY + src.id, { cache: 'no-cache', credentials: 'omit', referrerPolicy: 'no-referrer' });
 		if (!res.ok) return;
 		const items = parseFeed(await res.text());
 		if (items.length) { worldItems[src.id] = items; lsSet(key, { fetchedAt: Date.now(), items }); }
@@ -1036,7 +1037,7 @@ function renderWorld() {
 	const chips = document.getElementById('worldChips'), list = document.getElementById('worldList');
 	chips.replaceChildren(); list.replaceChildren();
 	if (!worldEnabled()) {
-		list.appendChild(el('p', 'news-empty', 'World news shows headlines from BBC News, CNN and Al Jazeera. Your browser contacts those sites directly to load them.'));
+		list.appendChild(el('p', 'news-empty', 'World news shows headlines from BBC News, CNN and Al Jazeera. Headlines are relayed by proelectriccoder.pages.dev.'));
 		const on = el('button', 'news-enable', 'Turn on world news');
 		on.onclick = () => { localStorage.setItem('worldEnabled', '1'); document.getElementById('worldToggle').checked = true; syncWorldSettings(); updateNewsBtn(); loadWorld(); };
 		list.appendChild(on);

@@ -44,6 +44,10 @@
 		{
 			"version": "1.5.3",
 			"note": "Optional images in news and suggestion cards; ChatRooms naming."
+		},
+		{
+			"version": "1.5.4",
+			"note": "World News via Cloudflare relay (CORS fix)."
 		}
 	],
 	"notify": null
