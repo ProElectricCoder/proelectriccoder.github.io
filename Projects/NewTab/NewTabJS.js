@@ -6,14 +6,39 @@ const engineSvgs = {
 	bing: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 256 388"><defs><radialGradient id="logosBing0" cx="93.717%" cy="77.818%" r="143.121%" fx="93.717%" fy="77.818%"><stop offset="0%" stop-color="#00CACC"/><stop offset="100%" stop-color="#048FCE"/></radialGradient><radialGradient id="logosBing1" cx="13.893%" cy="71.448%" r="150.086%" fx="13.893%" fy="71.448%"><stop offset="0%" stop-color="#00BBEC"/><stop offset="100%" stop-color="#2756A9"/></radialGradient><linearGradient id="logosBing2" x1="50%" x2="50%" y1="0%" y2="100%"><stop offset="0%" stop-color="#00BBEC"/><stop offset="100%" stop-color="#2756A9"/></linearGradient></defs><path fill="url(#logosBing0)" d="M129.424 122.047c-7.133.829-12.573 6.622-13.079 13.928c-.218 3.147-.15 3.36 6.986 21.722c16.233 41.774 20.166 51.828 20.827 53.243c1.603 3.427 3.856 6.65 6.672 9.544c2.16 2.22 3.585 3.414 5.994 5.024c4.236 2.829 6.337 3.61 22.818 8.49c16.053 4.754 24.824 7.913 32.381 11.664c9.791 4.86 16.623 10.387 20.944 16.946c3.1 4.706 5.846 13.145 7.04 21.64c.468 3.321.47 10.661.006 13.663c-1.008 6.516-3.021 11.976-6.101 16.545c-1.638 2.43-1.068 2.023 1.313-.939c6.74-8.379 13.605-22.7 17.108-35.687c4.24-15.718 4.817-32.596 1.66-48.57c-6.147-31.108-25.786-57.955-53.444-73.06c-1.738-.95-8.357-4.42-17.331-9.085a1633.23 1633.23 0 0 1-4.127-2.154c-.907-.477-2.764-1.447-4.126-2.154c-1.362-.708-5.282-2.75-8.711-4.539l-8.528-4.446a6021.14 6021.14 0 0 1-8.344-4.357c-8.893-4.655-12.657-6.537-13.73-6.863c-1.125-.343-3.984-.782-4.701-.723c-.152.012-.838.088-1.527.168Z"/><path fill="url(#logosBing1)" d="M148.81 277.994c-.493.292-1.184.714-1.537.938c-.354.225-1.137.712-1.743 1.083a8315.383 8315.383 0 0 0-13.204 8.137a2847.83 2847.83 0 0 0-8.07 4.997a388.04 388.04 0 0 1-3.576 2.198c-.454.271-2.393 1.465-4.31 2.654a2651.466 2651.466 0 0 1-7.427 4.586a3958.037 3958.037 0 0 0-8.62 5.316a3011.146 3011.146 0 0 1-7.518 4.637c-1.564.959-3.008 1.885-3.21 2.058c-.3.257-14.205 8.87-21.182 13.121c-5.3 3.228-11.43 5.387-17.705 6.235c-2.921.395-8.45.396-11.363.003c-7.9-1.067-15.176-4.013-21.409-8.666c-2.444-1.826-7.047-6.425-8.806-8.8c-4.147-5.598-6.829-11.602-8.218-18.396c-.32-1.564-.622-2.884-.672-2.935c-.13-.13.105 2.231.528 5.319c.44 3.211 1.377 7.856 2.387 11.829c7.814 30.743 30.05 55.749 60.15 67.646c8.668 3.424 17.415 5.582 26.932 6.64c3.576.4 13.699.56 17.43.276c17.117-1.296 32.02-6.334 47.308-15.996c1.362-.86 3.92-2.474 5.685-3.585a877.227 877.227 0 0 0 4.952-3.14c.958-.615 2.114-1.341 2.567-1.614a91.312 91.312 0 0 0 2.018-1.268c.656-.424 3.461-2.2 6.235-3.944l11.092-7.006l3.809-2.406l.137-.086l.42-.265l.199-.126l2.804-1.771l9.69-6.121c12.348-7.759 16.03-10.483 21.766-16.102c2.392-2.342 5.997-6.34 6.176-6.848c.037-.104.678-1.092 1.424-2.197c3.036-4.492 5.06-9.995 6.064-16.484c.465-3.002.462-10.342-.005-13.663c-.903-6.42-2.955-13.702-5.167-18.339c-3.627-7.603-11.353-14.512-22.453-20.076c-3.065-1.537-6.23-2.943-6.583-2.924c-.168.009-10.497 6.322-22.954 14.03c-12.457 7.71-23.268 14.4-24.025 14.87a289.98 289.98 0 0 1-2.888 1.764l-7.128 4.42Z"/><path fill="url(#logosBing2)" d="m.053 241.013l.054 53.689l.695 3.118c2.172 9.747 5.937 16.775 12.482 23.302c3.078 3.07 5.432 4.922 8.768 6.896c7.06 4.177 14.657 6.238 22.978 6.235c8.716-.005 16.256-2.179 24.025-6.928c1.311-.801 6.449-3.964 11.416-7.029l9.032-5.572v-127.4l-.002-58.273c-.002-37.177-.07-59.256-.188-60.988c-.74-10.885-5.293-20.892-12.948-28.461c-2.349-2.323-4.356-3.875-10.336-7.99a25160.08 25160.08 0 0 1-12.104-8.336A186532.885 186532.885 0 0 0 28.617 5.835C22.838 1.85 22.386 1.574 20.639.949C18.367.136 15.959-.163 13.67.084C6.998.804 1.657 5.622.269 12.171C.053 13.191.013 26.751.01 100.35l-.003 86.975H0l.053 53.688Z"/></svg>`
 };
 
-document.getElementById('engineGoogleIcon').innerHTML = engineSvgs.google;
-document.getElementById('engineBingIcon').innerHTML = engineSvgs.bing;
-
 // ─── Engine config ────────────────────────────────────────────────────────
-const engines = {
-	google: { action: 'https://www.google.com/search', placeholder: 'Search Google...', svg: engineSvgs.google },
-	bing:   { action: 'https://www.bing.com/search',   placeholder: 'Search Bing...',   svg: engineSvgs.bing  }
-};
+// Built-in engines. "%s" marks where the search words go; "prefix" lets you type e.g. "yt cats" to use YouTube once.
+// Engines without a logo get a small coloured badge, the same look as engines you add yourself.
+const BUILTIN_ENGINES = [
+	{ id: 'google',        name: 'Google',         url: 'https://www.google.com/search?q=%s',              prefix: 'g',   svg: engineSvgs.google },
+	{ id: 'bing',          name: 'Bing',           url: 'https://www.bing.com/search?q=%s',                prefix: 'b',   svg: engineSvgs.bing },
+	{ id: 'duckduckgo',    name: 'DuckDuckGo',     url: 'https://duckduckgo.com/?q=%s',                    prefix: 'ddg', badge: ['DDG', '#de5833'] },
+	{ id: 'youtube',       name: 'YouTube',        url: 'https://www.youtube.com/results?search_query=%s', prefix: 'yt',  badge: ['YT',  '#e52d27'] },
+	{ id: 'github',        name: 'GitHub',         url: 'https://github.com/search?q=%s',                  prefix: 'gh',  badge: ['GH',  '#2b3137'] },
+	{ id: 'wikipedia',     name: 'Wikipedia',      url: 'https://en.wikipedia.org/w/index.php?search=%s',  prefix: 'w',   badge: ['W',   '#636466'] },
+	{ id: 'brave',         name: 'Brave Search',   url: 'https://search.brave.com/search?q=%s',            prefix: 'br',  badge: ['BR',  '#fb542b'] },
+	{ id: 'reddit',        name: 'Reddit',         url: 'https://www.reddit.com/search/?q=%s',             prefix: 'r',   badge: ['R',   '#ff4500'] },
+	{ id: 'stackoverflow', name: 'Stack Overflow', url: 'https://stackoverflow.com/search?q=%s',           prefix: 'so',  badge: ['SO',  '#f48024'] },
+	{ id: 'maps',          name: 'Google Maps',    url: 'https://www.google.com/maps/search/%s',           prefix: 'm',   badge: ['MAP', '#34a853'] },
+	{ id: 'amazon',        name: 'Amazon',         url: 'https://www.amazon.com/s?k=%s',                   prefix: 'a',   badge: ['A',   '#ff9900'] }
+];
+const escSvg = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function badgeSvg(text, color) {
+	const t = escSvg(text);
+	return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="${color}"/><text x="12" y="${t.length > 2 ? 15 : 16}" font-family="Arial, sans-serif" font-size="${t.length > 2 ? 8 : 11}" font-weight="700" text-anchor="middle" fill="#fff">${t}</text></svg>`;
+}
+function customEngines() {
+	const list = lsGet('customEngines', []);
+	return (Array.isArray(list) ? list : []).filter((e) => e && typeof e.id === 'string' && typeof e.name === 'string' && typeof e.url === 'string' && safeHttpsUrl(e.url) && e.url.includes('%s'))
+		.map((e) => {
+			const initials = e.name.replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || '?';
+			let hue = 0; for (const ch of e.name) hue = (hue * 31 + ch.charCodeAt(0)) % 360;
+			return { id: e.id, name: e.name.slice(0, 30), url: e.url, prefix: String(e.prefix || '').toLowerCase(), custom: true, svg: badgeSvg(initials, `hsl(${hue} 55% 40%)`) };
+		});
+}
+const allEngines = () => [...BUILTIN_ENGINES.map((e) => ({ ...e, svg: e.svg || badgeSvg(e.badge[0], e.badge[1]) })), ...customEngines()];
+const engineById = (id) => allEngines().find((e) => e.id === id) || allEngines()[0];
+
 
 let activeShortcutIndex = -1;
 let draggedIndex = null;
@@ -42,11 +67,79 @@ function updateClock() {
 
 // ─── Engine ───────────────────────────────────────────────────────────────
 function setEngine(engineKey) {
-	const engine = engines[engineKey];
-	document.getElementById('searchForm').action = engine.action;
-	document.getElementById('userQuery').placeholder = engine.placeholder;
+	const engine = engineById(engineKey);
+	document.getElementById('userQuery').placeholder = `Search ${engine.name}...`;
 	document.getElementById('currentEngineIconWrapper').innerHTML = engine.svg;
-	localStorage.setItem('preferredEngine', engineKey);
+	localStorage.setItem('preferredEngine', engine.id);
+	buildEngineMenu();
+}
+
+// Dropdown on the search bar, rebuilt whenever the engine list changes
+function buildEngineMenu() {
+	const menu = document.getElementById('engineDropdown');
+	const current = engineById(localStorage.getItem('preferredEngine') || 'google').id;
+	menu.replaceChildren(...allEngines().map((e) => {
+		const item = el('div', 'dropdown-item');
+		const icon = el('span'); icon.innerHTML = e.svg;   // svg comes from fixed strings or escaped text
+		item.append(icon, document.createTextNode(e.name));
+		if (e.id === current) item.style.fontWeight = '700';
+		item.onclick = () => { setEngine(e.id); menu.classList.remove('show'); document.getElementById('userQuery').focus(); };
+		return item;
+	}));
+}
+
+// "yt cats" searches YouTube for "cats" without changing the saved engine
+function resolveSearch(raw) {
+	const m = /^(\S+)\s+(.+)$/.exec(raw.trim());
+	if (m) {
+		const hit = allEngines().find((e) => e.prefix && e.prefix === m[1].toLowerCase());
+		if (hit) return { engine: hit, query: m[2], viaPrefix: true };
+	}
+	return { engine: engineById(localStorage.getItem('preferredEngine') || 'google'), query: raw.trim(), viaPrefix: false };
+}
+function previewEngineIcon() {
+	const r = resolveSearch(document.getElementById('userQuery').value);
+	document.getElementById('currentEngineIconWrapper').innerHTML = r.engine.svg;
+}
+
+// ─── Settings → Search engines ───
+function renderEngineSettings() {
+	const box = document.getElementById('engineList');
+	box.replaceChildren(...allEngines().map((e) => {
+		const row = el('div', 'engine-row');
+		const icon = el('span', 'engine-row-icon'); icon.innerHTML = e.svg;
+		const name = el('span', 'engine-row-name', e.name);
+		const pre = el('span', 'engine-row-prefix', e.prefix ? e.prefix + ' ␣' : '');
+		row.append(icon, name, pre);
+		if (e.custom) {
+			const del = el('button', 'engine-row-del', '×');
+			del.title = 'Remove ' + e.name;
+			del.onclick = () => {
+				lsSet('customEngines', customEngines().filter((x) => x.id !== e.id).map(({ id, name, url, prefix }) => ({ id, name, url, prefix })));
+				if (localStorage.getItem('preferredEngine') === e.id) setEngine('google');
+				renderEngineSettings(); buildEngineMenu();
+			};
+			row.appendChild(del);
+		}
+		return row;
+	}));
+}
+function addCustomEngine() {
+	const status = document.getElementById('engineAddStatus');
+	const name = document.getElementById('engineNameInput').value.trim().slice(0, 30);
+	const url = document.getElementById('engineUrlInput').value.trim();
+	const prefix = document.getElementById('enginePrefixInput').value.trim().toLowerCase();
+	if (!name) { status.textContent = 'Give the engine a name'; return; }
+	if (!safeHttpsUrl(url) || url.split('%s').length !== 2) { status.textContent = 'Use an https:// address with %s exactly once, where the search words go'; return; }
+	if (prefix && !/^[a-z0-9]{1,8}$/.test(prefix)) { status.textContent = 'Shortcut: 1–8 letters or numbers'; return; }
+	if (prefix && allEngines().some((e) => e.prefix === prefix)) { status.textContent = `The shortcut "${prefix}" is already used`; return; }
+	const list = customEngines();
+	if (list.length >= 20) { status.textContent = 'Up to 20 custom engines'; return; }
+	const id = 'c' + Date.now().toString(36);
+	lsSet('customEngines', [...list, { id, name, url, prefix }].map(({ id, name, url, prefix }) => ({ id, name, url, prefix })));
+	['engineNameInput', 'engineUrlInput', 'enginePrefixInput'].forEach((i) => { document.getElementById(i).value = ''; });
+	status.textContent = `Added ${name}`;
+	renderEngineSettings(); buildEngineMenu();
 }
 
 // ─── Background / cubicGradient ───────────────────────────────────────────
@@ -1237,6 +1330,222 @@ function syncWorldSettings() {
 	document.querySelectorAll('#worldSourceBox input').forEach((cb) => { cb.checked = ids.includes(cb.value); });
 }
 
+// ─── Show on page (visibility switches) ───────────────────────────────────
+const VIS_ITEMS = [['logo', 'Logo'], ['clock', 'Clock'], ['date', 'Date'], ['weather', 'Weather'], ['search', 'Search bar'], ['shortcuts', 'Shortcuts'], ['newsBtn', 'News button']];
+const visState = () => { const v = lsGet('visibility', {}); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; };
+
+function applyVisibility() {
+	const v = visState();
+	for (const [key] of VIS_ITEMS) if (key !== 'weather') document.documentElement.classList.toggle('hide-' + key, v[key] === false);
+}
+
+function buildVisibilityBox() {
+	const box = document.getElementById('visibilityBox');
+	box.replaceChildren(...VIS_ITEMS.map(([key, label]) => {
+		const row = el('div', 'setting-row');
+		const sw = el('label', 'toggle');
+		const cb = el('input'); cb.type = 'checkbox'; cb.id = 'vis_' + key;
+		cb.checked = key === 'weather' ? weatherEnabled() : visState()[key] !== false;
+		cb.onchange = () => {
+			if (key === 'weather') { setWeatherEnabled(cb.checked); return; }
+			lsSet('visibility', { ...visState(), [key]: cb.checked });
+			applyVisibility();
+		};
+		sw.append(cb, el('div', 'toggle-track'), el('div', 'toggle-thumb'));
+		row.append(el('span', 'setting-label', label), sw);
+		return row;
+	}));
+}
+
+// ─── Weather (Open-Meteo: free, no account) ───────────────────────────────
+const WEATHER_TTL_MS = 30 * 60 * 1000;
+const weatherEnabled = () => localStorage.getItem('weatherEnabled') === '1';
+const weatherUnit = () => localStorage.getItem('weatherUnit') === 'f' ? 'f' : 'c';
+const weatherCity = () => {
+	const c = lsGet('weatherCity', null);
+	return c && Number.isFinite(c.lat) && Number.isFinite(c.lon) && typeof c.name === 'string' ? c : null;
+};
+
+// WMO weather codes -> [emoji by day, emoji by night, words]
+function weatherLook(code, isDay) {
+	const day = isDay !== 0;
+	if (code === 0) return [day ? '☀️' : '🌙', 'Clear sky'];
+	if (code === 1) return [day ? '🌤️' : '🌙', 'Mostly clear'];
+	if (code === 2) return ['⛅', 'Partly cloudy'];
+	if (code === 3) return ['☁️', 'Overcast'];
+	if (code === 45 || code === 48) return ['🌫️', 'Fog'];
+	if (code >= 51 && code <= 57) return ['🌦️', 'Drizzle'];
+	if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return ['🌧️', 'Rain'];
+	if ((code >= 71 && code <= 77) || code === 85 || code === 86) return ['❄️', 'Snow'];
+	if (code >= 95) return ['⛈️', 'Thunderstorm'];
+	return ['🌡️', 'Weather'];
+}
+
+function setWeatherEnabled(on) {
+	localStorage.setItem('weatherEnabled', on ? '1' : '0');
+	document.getElementById('weatherToggle').checked = on;
+	const vis = document.getElementById('vis_weather');
+	if (vis) vis.checked = on;
+	loadWeather(false);
+}
+
+function renderWeather(data, city) {
+	const box = document.getElementById('weather');
+	box.replaceChildren();
+	const deg = (n) => Math.round(n) + '°';
+	const [icon, words] = weatherLook(data.current.weather_code, data.current.is_day);
+	const now = el('div', 'weather-now');
+	const meta = el('div', 'weather-meta');
+	meta.append(el('div', null, city.name), el('div', null, `${words} · H ${deg(data.daily.temperature_2m_max[0])} L ${deg(data.daily.temperature_2m_min[0])}`));
+	now.append(el('span', 'weather-icon', icon), el('span', 'weather-temp', deg(data.current.temperature_2m)), meta);
+	const days = el('div', 'weather-days');
+	for (let i = 1; i < Math.min(4, data.daily.time.length); i++) {
+		const [ic] = weatherLook(data.daily.weather_code[i], 1);
+		const name = new Date(data.daily.time[i] + 'T12:00:00').toLocaleDateString('default', { weekday: 'short' });
+		const d = el('div', 'weather-day');
+		d.append(el('span', null, name), el('span', 'weather-icon', ic), el('span', null, `${deg(data.daily.temperature_2m_max[i])} / ${deg(data.daily.temperature_2m_min[i])}`));
+		days.appendChild(d);
+	}
+	box.append(now, days);
+}
+
+function validWeather(d) {
+	const nums = (a) => Array.isArray(a) && a.length >= 2 && a.every((x) => Number.isFinite(x));
+	return d && d.current && Number.isFinite(d.current.temperature_2m) && Number.isFinite(d.current.weather_code) &&
+		d.daily && Array.isArray(d.daily.time) && nums(d.daily.temperature_2m_max) && nums(d.daily.temperature_2m_min) && nums(d.daily.weather_code);
+}
+
+async function loadWeather(force) {
+	const box = document.getElementById('weather');
+	if (!weatherEnabled()) { box.hidden = true; return; }
+	box.hidden = false;
+	const city = weatherCity();
+	if (!city) {
+		box.replaceChildren();
+		const b = el('button', 'weather-set', 'Set your city for weather');
+		b.onclick = (e) => { e.stopPropagation(); document.getElementById('settingsSidebar').classList.add('open'); };
+		box.appendChild(b);
+		return;
+	}
+	const unit = weatherUnit();
+	const key = `${city.lat},${city.lon},${unit}`;
+	const cache = lsGet('weatherCache', null);
+	if (cache?.key === key && validWeather(cache.data)) renderWeather(cache.data, city);
+	if (!force && cache?.key === key && Date.now() - cache.fetchedAt < WEATHER_TTL_MS) return;
+	try {
+		const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + city.lat + '&longitude=' + city.lon +
+			'&current=temperature_2m,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=4' +
+			(unit === 'f' ? '&temperature_unit=fahrenheit' : '');
+		const res = await fetch(url, { credentials: 'omit', referrerPolicy: 'no-referrer' });
+		if (!res.ok) throw new Error('weather ' + res.status);
+		const data = await res.json();
+		if (!validWeather(data)) throw new Error('bad weather data');
+		lsSet('weatherCache', { key, fetchedAt: Date.now(), data });
+		renderWeather(data, city);
+	} catch {
+		if (!(cache?.key === key && validWeather(cache.data))) { box.replaceChildren(el('div', 'weather-meta', 'Weather unavailable')); }
+	}
+}
+
+async function findWeatherCity() {
+	const status = document.getElementById('weatherStatus');
+	const q = document.getElementById('weatherCityInput').value.trim();
+	if (q.length < 2) { status.textContent = 'Type a city name'; return; }
+	status.textContent = 'Searching…';
+	try {
+		const res = await fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&language=en&format=json&name=' + encodeURIComponent(q), { credentials: 'omit', referrerPolicy: 'no-referrer' });
+		const hit = (await res.json())?.results?.[0];
+		if (!hit || !Number.isFinite(hit.latitude) || !Number.isFinite(hit.longitude)) { status.textContent = 'City not found'; return; }
+		const name = [hit.name, hit.admin1 && hit.admin1 !== hit.name ? hit.admin1 : '', hit.country_code].filter(Boolean).join(', ').slice(0, 60);
+		lsSet('weatherCity', { name: hit.name.slice(0, 40), label: name, lat: hit.latitude, lon: hit.longitude });
+		status.textContent = 'Using ' + name;
+		if (!weatherEnabled()) setWeatherEnabled(true); else loadWeather(true);
+	} catch { status.textContent = 'Could not reach the weather service'; }
+}
+
+function syncWeatherSettings() {
+	document.getElementById('weatherToggle').checked = weatherEnabled();
+	document.getElementById('weatherUnitInput').value = weatherUnit();
+	const c = weatherCity();
+	document.getElementById('weatherStatus').textContent = c ? 'Using ' + (c.label || c.name) : 'No city set';
+	if (c) document.getElementById('weatherCityInput').value = c.name;
+}
+
+// ─── Backup: export / import ──────────────────────────────────────────────
+const BACKUP_KEYS = ['shortcuts', 'preferredEngine', 'customEngines', 'theme', 'visibility',
+	'bgTop', 'bgBottom', 'bgDirection', 'bgPower', 'bgSteps', 'bgCustom', 'bgMode', 'bgDim', 'bgPreset', 'bgImageUrl',
+	'logoOutline', 'logoFill', 'logoMatchBg', 'newsEnabled', 'worldEnabled', 'worldSources', 'newsDismissed',
+	'weatherEnabled', 'weatherCity', 'weatherUnit'];
+const BACKUP_APP = 'ProElectricCoder NewTab';
+const BACKUP_MAX_VALUE = 500000;
+
+function blobToDataUrl(blob) {
+	return new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = () => reject(r.error); r.readAsDataURL(blob); });
+}
+
+async function exportSettings() {
+	const status = document.getElementById('backupStatus');
+	const settings = {};
+	for (const k of BACKUP_KEYS) { const v = localStorage.getItem(k); if (v !== null) settings[k] = v; }
+	let backgroundImage = null;
+	try { const blob = await bgDbGet(); if (blob) backgroundImage = await blobToDataUrl(blob); } catch { /* no picture */ }
+	const version = typeof chrome !== 'undefined' && chrome.runtime?.getManifest ? chrome.runtime.getManifest().version : null;
+	const file = { app: BACKUP_APP, format: 1, exported: new Date().toISOString(), version, settings, backgroundImage };
+	const url = URL.createObjectURL(new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' }));
+	const a = el('a'); a.href = url; a.download = `newtab-backup-${new Date().toISOString().slice(0, 10)}.json`;
+	document.body.appendChild(a); a.click(); a.remove();
+	setTimeout(() => URL.revokeObjectURL(url), 5000);
+	status.textContent = `Exported ${Object.keys(settings).length} settings${backgroundImage ? ' and your picture' : ''}`;
+}
+
+// Returns an error message, or null when the value is acceptable
+function checkBackupValue(key, value) {
+	if (typeof value !== 'string' || value.length > BACKUP_MAX_VALUE) return `${key} is not valid`;
+	const asJson = () => { try { return JSON.parse(value); } catch { return undefined; } };
+	if (key === 'shortcuts') {
+		const list = asJson();
+		if (!Array.isArray(list) || list.length > 500 || !list.every((s) => s && typeof s.name === 'string' && typeof s.url === 'string' && (s.icon === undefined || typeof s.icon === 'string'))) return 'shortcuts are not valid';
+	}
+	if (key === 'customEngines') {
+		const list = asJson();
+		if (!Array.isArray(list) || list.length > 20 || !list.every((e) => e && typeof e.id === 'string' && typeof e.name === 'string' && safeHttpsUrl(e.url) && String(e.url).includes('%s'))) return 'search engines are not valid';
+	}
+	if (key === 'theme' && !['dark', 'light', 'system'].includes(value)) return 'theme is not valid';
+	if (key === 'bgImageUrl' && value && !safeHttpsUrl(value)) return 'picture address is not valid';
+	if (['visibility', 'weatherCity', 'worldSources', 'newsDismissed'].includes(key) && asJson() === undefined) return `${key} is not valid`;
+	return null;
+}
+
+async function importSettings(file) {
+	const status = document.getElementById('backupStatus');
+	try {
+		if (file.size > 40 * 1024 * 1024) throw new Error('That file is too large');
+		let data;
+		try { data = JSON.parse(await file.text()); } catch { throw new Error('That is not a backup file'); }
+		if (!data || data.app !== BACKUP_APP || data.format !== 1 || typeof data.settings !== 'object' || data.settings === null) throw new Error('That is not a NewTab backup');
+		const incoming = {};
+		for (const k of BACKUP_KEYS) {
+			if (!Object.hasOwn(data.settings, k)) continue;
+			const problem = checkBackupValue(k, data.settings[k]);
+			if (problem) throw new Error('Backup rejected: ' + problem);
+			incoming[k] = data.settings[k];
+		}
+		let image = null;
+		if (data.backgroundImage) {
+			if (typeof data.backgroundImage !== 'string' || !/^data:image\/[a-z0-9.+-]+;base64,/i.test(data.backgroundImage) || data.backgroundImage.length > 34 * 1024 * 1024) throw new Error('Backup rejected: picture is not valid');
+			image = await (await fetch(data.backgroundImage)).blob();
+		}
+		if (!confirm(`Replace your current shortcuts and settings with this backup (${Object.keys(incoming).length} settings${image ? ', with picture' : ''})?`)) { status.textContent = 'Import cancelled'; return; }
+		for (const k of BACKUP_KEYS) localStorage.removeItem(k);
+		for (const [k, v] of Object.entries(incoming)) localStorage.setItem(k, v);
+		await bgDbSet(image);
+		status.textContent = 'Imported. Reloading…';
+		setTimeout(() => location.reload(), 400);
+	} catch (err) {
+		status.textContent = err.message || 'Import failed';
+	}
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────
 updateClock();
 setInterval(updateClock, 1000);
@@ -1245,6 +1554,12 @@ syncBackgroundMode();
 loadPictureSource();
 loadLogo();
 setEngine(localStorage.getItem('preferredEngine') || 'google');
+renderEngineSettings();
+applyVisibility();
+buildVisibilityBox();
+syncWeatherSettings();
+loadWeather(false);
+setInterval(() => loadWeather(false), WEATHER_TTL_MS);
 renderShortcuts();
 loadNews();
 loadWorld();
@@ -1369,8 +1684,24 @@ document.querySelector('.engine-switcher').onclick = (e) => {
 	document.getElementById('shortcutContextMenu').style.display = 'none';
 	document.getElementById('engineDropdown').classList.toggle('show');
 };
-document.getElementById('engineGoogle').onclick = () => { setEngine('google'); document.getElementById('engineDropdown').classList.remove('show'); };
-document.getElementById('engineBing').onclick   = () => { setEngine('bing');   document.getElementById('engineDropdown').classList.remove('show'); };
+document.getElementById('userQuery').addEventListener('input', previewEngineIcon);
+document.getElementById('engineAddBtn').onclick = addCustomEngine;
+
+// Weather and backup controls
+document.getElementById('weatherToggle').onchange = (e) => setWeatherEnabled(e.target.checked);
+document.getElementById('weatherCityBtn').onclick = findWeatherCity;
+document.getElementById('weatherCityInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') findWeatherCity(); });
+document.getElementById('weatherUnitInput').onchange = (e) => { localStorage.setItem('weatherUnit', e.target.value); loadWeather(true); };
+document.getElementById('exportBtn').onclick = exportSettings;
+document.getElementById('importFile').onchange = (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) importSettings(f); };
+
+// While dragging a shortcut near the top or bottom edge of a scrolling grid, scroll it
+document.getElementById('shortcutsGrid').addEventListener('dragover', (e) => {
+	const grid = e.currentTarget, r = grid.getBoundingClientRect();
+	if (grid.scrollHeight <= grid.clientHeight) return;
+	if (e.clientY < r.top + 36) grid.scrollTop -= 14;
+	else if (e.clientY > r.bottom - 36) grid.scrollTop += 14;
+});
 
 // Shortcut dialog
 document.getElementById('advancedToggle').onclick = () => {
@@ -1475,9 +1806,13 @@ document.getElementById('menuDeleteBtn').onclick = () => {
 };
 
 document.getElementById('searchForm').onsubmit = (e) => {
-	const q = document.getElementById('userQuery').value;
-	if (q.includes('.') && !q.includes(' ')) {
-		e.preventDefault();
-		window.location.href = q.startsWith('http') ? q : 'https://' + q;
+	e.preventDefault();
+	const raw = document.getElementById('userQuery').value.trim();
+	if (!raw) return;
+	if (raw.includes('.') && !raw.includes(' ')) {   // looks like a web address: go straight there
+		window.location.href = raw.startsWith('http') ? raw : 'https://' + raw;
+		return;
 	}
+	const { engine, query } = resolveSearch(raw);
+	window.location.href = engine.url.split('%s').join(encodeURIComponent(query));
 };

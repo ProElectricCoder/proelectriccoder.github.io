@@ -13,6 +13,19 @@
 	],
 	"releases": [
 		{
+			"version": "1.7.0",
+			"date": "2026-10-25",
+			"summary": "Weather, more search engines, show/hide switches, settings backup and a steadier shortcuts grid.",
+			"details": [
+				"Weather widget (off by default): current conditions and a 3-day outlook from Open-Meteo, with °C/°F. Set your city in Settings → Weather.",
+				"Search engines: DuckDuckGo, YouTube, GitHub, Wikipedia, Brave, Reddit, Stack Overflow, Google Maps and Amazon join Google and Bing. Type a shortcut and a space (like “yt cats”) to use one for a single search, or add your own engines in Settings.",
+				"New Show on page switches for the logo, clock, date, weather, search bar, shortcuts and News button.",
+				"Export and import all shortcuts, settings, search engines and your chosen picture as one file (Settings → Backup).",
+				"Shortcuts grid: dragging no longer makes a scrollbar flash up, and the grid scrolls when you drag near its edge.",
+				"Slimmer custom scrollbars in Settings, News and the shortcuts grid."
+			]
+		},
+		{
 			"version": "1.6.2",
 			"date": "2026-10-25",
 			"summary": "World News topic filter, using the topics the news sites provide.",
