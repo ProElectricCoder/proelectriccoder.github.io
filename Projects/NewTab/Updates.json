@@ -60,6 +60,10 @@
 		{
 			"version": "1.6.2",
 			"note": "World News topic filter."
+		},
+		{
+			"version": "1.7.0",
+			"note": "Weather, search engines, visibility switches, backup, grid fix, scrollbars."
 		}
 	],
 	"notify": null
