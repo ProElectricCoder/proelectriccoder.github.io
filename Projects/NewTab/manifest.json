@@ -6,6 +6,11 @@
   "permissions": [
     "favicon"
   ],
+  "host_permissions": [
+    "https://feeds.bbci.co.uk/*",
+    "https://rss.cnn.com/*",
+    "https://www.aljazeera.com/xml/*"
+  ],
   "chrome_url_overrides": {
     "newtab": "NewTab.html"
   },

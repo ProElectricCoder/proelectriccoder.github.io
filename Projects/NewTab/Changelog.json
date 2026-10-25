@@ -15,10 +15,13 @@
 		{
 			"version": "1.5.3",
 			"date": "2026-10-25",
-			"summary": "News and suggestion cards can now show a picture; ChatRooms renamed in news.",
+			"summary": "World news from BBC, CNN and Al Jazeera; pictures in news and suggestion cards; ChatRooms renamed.",
 			"details": [
 				"News posts and suggestion cards can include an optional image (DeepBlue IDE's card now shows its preview picture).",
-				"The chat project is now called ChatRooms in news and suggestions."
+				"The chat project is now called ChatRooms in news and suggestions.",
+				"New World News tab (off by default, turn on in Settings → News): headlines loaded directly from BBC News, CNN and Al Jazeera, with a filter per source.",
+				"The News panel is now split into Dev News and World News.",
+				"Adds permission to read those three news feeds (no new files)."
 			]
 		},
 		{

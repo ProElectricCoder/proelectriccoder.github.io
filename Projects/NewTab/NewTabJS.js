@@ -882,6 +882,7 @@ function newsImage(url, className) {
 
 function renderNewsPanel() {
 	newsEls.list.replaceChildren();
+	if (!newsEnabled()) { newsEls.list.appendChild(el('p', 'news-empty', 'Dev news is turned off in Settings → News.')); return; }
 	if (!newsData.posts.length) { newsEls.list.appendChild(el('p', 'news-empty', 'Nothing new right now.')); return; }
 	for (const p of newsData.posts) {
 		const item = el('article', 'news-item');
@@ -908,6 +909,7 @@ function updateNewsDot() {
 
 function openNews() {
 	renderNewsPanel();
+	renderWorld();
 	newsEls.panel.classList.add('open');
 	lsSet('newsSeen', newsData.posts.map((p) => p.id).slice(0, 200));   // opening the panel marks everything as read
 	updateNewsDot();
@@ -929,16 +931,23 @@ function refreshNewsCard() {
 
 function applyNews(clean) {
 	newsData = clean;
-	newsEls.btn.hidden = !newsEnabled() || !clean.posts.length;
+	updateNewsBtn();
 	updateNewsDot();
 	refreshNewsCard();
 	if (newsEls.panel.classList.contains('open')) renderNewsPanel();
 }
 
 function hideNewsUi() {
-	newsEls.btn.hidden = true;
+	newsData = { posts: [], cards: [] };
 	newsEls.card.hidden = true;
-	closeNews();
+	updateNewsBtn();
+	if (newsEls.panel.classList.contains('open')) renderNewsPanel();
+}
+
+// The button stays available while either dev news or world news is switched on
+function updateNewsBtn() {
+	newsEls.btn.hidden = !newsEnabled() && !worldEnabled();
+	if (newsEls.btn.hidden) closeNews();
 }
 
 async function loadNews() {
@@ -955,6 +964,124 @@ async function loadNews() {
 	} catch { /* offline: keep showing the cached news */ }
 }
 
+// ─── World news: headlines straight from the publishers' own RSS feeds ──────
+// Off until the person turns it on (it contacts the news sites directly from their browser).
+// Titles, links and pictures are read from the feed as plain text and https-only; nothing is stored beyond a short cache.
+const WORLD_SOURCES = [
+	{ id: 'bbc',       name: 'BBC News',   url: 'https://feeds.bbci.co.uk/news/world/rss.xml' },
+	{ id: 'cnn',       name: 'CNN',        url: 'https://rss.cnn.com/rss/edition_world.rss' },
+	{ id: 'aljazeera', name: 'Al Jazeera', url: 'https://www.aljazeera.com/xml/rss/all.xml' }
+];
+const WORLD_MAX_AGE_MS = 15 * 60 * 1000;
+const WORLD_PER_SOURCE = 8;
+let worldItems = {};          // source id -> [{title, link, date, image}]
+let worldFilter = 'all';
+let worldActiveTab = 'dev';
+
+const worldEnabled = () => localStorage.getItem('worldEnabled') === '1';
+const worldSources = () => {
+	const ids = lsGet('worldSources', WORLD_SOURCES.map((s) => s.id));
+	return WORLD_SOURCES.filter((s) => ids.includes(s.id));
+};
+
+// Feeds sometimes list http links for sites that also serve https: upgrade, then keep https only
+const upgradeHttps = (u) => safeHttpsUrl(String(u || '').trim().replace(/^http:\/\//i, 'https://'));
+
+function parseFeed(xmlText) {
+	const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
+	if (doc.querySelector('parsererror')) return [];
+	const ns = (item, local) => Array.from(item.getElementsByTagName('*')).find((n) => n.localName === local);
+	return Array.from(doc.querySelectorAll('item')).slice(0, WORLD_PER_SOURCE).map((item) => {
+		const text = (tag) => item.querySelector(tag)?.textContent?.trim() || '';
+		const thumb = ns(item, 'thumbnail') || ns(item, 'content');
+		const enc = item.querySelector('enclosure[type^="image"]');
+		const date = new Date(text('pubDate'));
+		return {
+			title: clip(text('title'), 200),
+			link: upgradeHttps(text('link')),
+			date: isNaN(date) ? 0 : date.getTime(),
+			image: upgradeHttps(thumb?.getAttribute('url') || enc?.getAttribute('url'))
+		};
+	}).filter((i) => i.title && i.link);
+}
+
+async function loadWorldSource(src) {
+	const key = 'worldCache_' + src.id;
+	const cache = lsGet(key, null);
+	if (cache?.items) worldItems[src.id] = cache.items;
+	if (cache && Date.now() - cache.fetchedAt < WORLD_MAX_AGE_MS) return;
+	try {
+		const res = await fetch(src.url, { cache: 'no-cache', credentials: 'omit', referrerPolicy: 'no-referrer' });
+		if (!res.ok) return;
+		const items = parseFeed(await res.text());
+		if (items.length) { worldItems[src.id] = items; lsSet(key, { fetchedAt: Date.now(), items }); }
+	} catch { /* blocked or offline: keep what we have */ }
+}
+
+async function loadWorld() {
+	if (!worldEnabled()) { worldItems = {}; renderWorld(); return; }
+	await Promise.all(worldSources().map(loadWorldSource));
+	renderWorld();
+}
+
+const timeAgo = (ms) => {
+	if (!ms) return '';
+	const m = Math.max(0, Math.round((Date.now() - ms) / 60000));
+	if (m < 60) return m + 'm ago';
+	const h = Math.round(m / 60);
+	return h < 48 ? h + 'h ago' : Math.round(h / 24) + 'd ago';
+};
+
+function renderWorld() {
+	const chips = document.getElementById('worldChips'), list = document.getElementById('worldList');
+	chips.replaceChildren(); list.replaceChildren();
+	if (!worldEnabled()) {
+		list.appendChild(el('p', 'news-empty', 'World news shows headlines from BBC News, CNN and Al Jazeera. Your browser contacts those sites directly to load them.'));
+		const on = el('button', 'news-enable', 'Turn on world news');
+		on.onclick = () => { localStorage.setItem('worldEnabled', '1'); document.getElementById('worldToggle').checked = true; syncWorldSettings(); updateNewsBtn(); loadWorld(); };
+		list.appendChild(on);
+		return;
+	}
+	const active = worldSources();
+	if (worldFilter !== 'all' && !active.some((s) => s.id === worldFilter)) worldFilter = 'all';
+	for (const [id, name] of [['all', 'All'], ...active.map((s) => [s.id, s.name])]) {
+		const c = el('button', 'news-chip' + (worldFilter === id ? ' active' : ''), name);
+		c.onclick = () => { worldFilter = id; renderWorld(); };
+		chips.appendChild(c);
+	}
+	const rows = active.filter((s) => worldFilter === 'all' || s.id === worldFilter)
+		.flatMap((s) => (worldItems[s.id] || []).map((i) => ({ ...i, source: s.name })));
+	if (worldFilter === 'all') rows.sort((a, b) => b.date - a.date);
+	if (!rows.length) { list.appendChild(el('p', 'news-empty', 'Loading headlines… If nothing appears, the feeds may be unreachable.')); return; }
+	for (const r of rows) {
+		const item = el('article', 'news-item');
+		const pic = newsImage(r.image, 'news-img');
+		if (pic) item.appendChild(pic);
+		const meta = el('div', 'news-meta');
+		meta.append(el('span', 'news-tag', r.source), el('span', '', timeAgo(r.date)));
+		const a = el('a', 'news-headline', r.title);
+		a.href = r.link; a.target = '_blank'; a.rel = 'noopener noreferrer';
+		item.append(meta, a);
+		list.appendChild(item);
+	}
+}
+
+function setNewsTab(tab) {
+	worldActiveTab = tab;
+	document.getElementById('tabDev').classList.toggle('active', tab === 'dev');
+	document.getElementById('tabWorld').classList.toggle('active', tab === 'world');
+	document.getElementById('devPane').hidden = tab !== 'dev';
+	document.getElementById('worldPane').hidden = tab !== 'world';
+}
+
+function syncWorldSettings() {
+	const on = worldEnabled();
+	document.getElementById('worldToggle').checked = on;
+	document.getElementById('worldSourceBox').hidden = !on;
+	const ids = lsGet('worldSources', WORLD_SOURCES.map((s) => s.id));
+	document.querySelectorAll('#worldSourceBox input').forEach((cb) => { cb.checked = ids.includes(cb.value); });
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────
 updateClock();
 setInterval(updateClock, 1000);
@@ -963,6 +1090,7 @@ loadLogo();
 setEngine(localStorage.getItem('preferredEngine') || 'google');
 renderShortcuts();
 loadNews();
+loadWorld();
 
 // On load: silently connect to stored folder, check for notifications and auto-updates.
 // Uses only queryPermission — no user gesture needed for extension pages in Chrome.
@@ -1072,10 +1200,29 @@ document.getElementById('changelogModal').addEventListener('click', (e) => {
 newsEls.btn.onclick = () => (newsEls.panel.classList.contains('open') ? closeNews() : openNews());
 document.getElementById('closeNewsBtn').onclick = closeNews;
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeNews(); });
+document.getElementById('tabDev').onclick = () => setNewsTab('dev');
+document.getElementById('tabWorld').onclick = () => { setNewsTab('world'); renderWorld(); };
+const srcBox = document.getElementById('worldSourceBox');
+srcBox.replaceChildren(...WORLD_SOURCES.map((s) => {
+	const label = el('label', 'world-source');
+	const cb = el('input'); cb.type = 'checkbox'; cb.value = s.id;
+	cb.onchange = () => {
+		const ids = Array.from(srcBox.querySelectorAll('input:checked')).map((i) => i.value);
+		lsSet('worldSources', ids); loadWorld();
+	};
+	label.append(cb, document.createTextNode(' ' + s.name));
+	return label;
+}));
+document.getElementById('worldToggle').onchange = (e) => {
+	localStorage.setItem('worldEnabled', e.target.checked ? '1' : '0');
+	syncWorldSettings(); updateNewsBtn(); loadWorld();
+};
+syncWorldSettings();
 newsEls.toggle.checked = newsEnabled();
 newsEls.toggle.onchange = () => {
 	localStorage.setItem('newsEnabled', newsEls.toggle.checked ? '1' : '0');
 	if (newsEls.toggle.checked) loadNews(); else hideNewsUi();
+	updateNewsBtn();
 };
 
 window.onclick = () => {

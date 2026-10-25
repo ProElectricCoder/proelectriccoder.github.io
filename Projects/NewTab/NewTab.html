@@ -415,6 +415,16 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); }
 .news-img { margin-bottom: 10px; }
 .news-card-img { margin-bottom: 12px; }
 .news-card { padding-top: 14px; }
+.news-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+.news-tab, .news-chip { font: inherit; cursor: pointer; border-radius: 20px; border: 1px solid rgba(255,255,255,0.15); background: none; color: rgba(255,255,255,0.6); }
+.news-tab { flex: 1; padding: 7px 10px; font-size: 0.82rem; }
+.news-tab.active, .news-chip.active { background: white; color: black; border-color: white; }
+.news-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.news-chip { padding: 3px 11px; font-size: 0.74rem; }
+.news-headline { display: block; color: white; text-decoration: none; font-size: 0.92rem; font-weight: 600; line-height: 1.4; }
+.news-headline:hover { text-decoration: underline; }
+.news-enable { margin-top: 12px; padding: 8px 16px; border: none; border-radius: 6px; background: white; color: black; font: inherit; font-weight: bold; font-size: 0.82rem; cursor: pointer; }
+.world-source { display: block; margin: 6px 0 0 4px; font-size: 0.82rem; color: rgba(255,255,255,0.7); }
 .news-title { margin: 0 0 4px; font-size: 0.95rem; font-weight: 600; }
 .news-summary { margin: 0; font-size: 0.82rem; line-height: 1.5; color: rgba(255,255,255,0.65); }
 .news-link { display: inline-block; margin-top: 8px; font-size: 0.78rem; color: #8cc8ff; text-decoration: none; }
@@ -456,7 +466,15 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); }
 			<h2>News</h2>
 			<button id="closeNewsBtn" class="close-sidebar-btn" aria-label="Close news">&times;</button>
 		</div>
-		<div id="newsList" class="news-list"></div>
+		<div class="news-tabs">
+			<button id="tabDev" class="news-tab active">Dev News</button>
+			<button id="tabWorld" class="news-tab">World News</button>
+		</div>
+		<div id="devPane"><div id="newsList" class="news-list"></div></div>
+		<div id="worldPane" hidden>
+			<div id="worldChips" class="news-chips"></div>
+			<div id="worldList" class="news-list"></div>
+		</div>
 	</div>
 
 	<div id="newsCard" class="news-card" hidden></div>
@@ -542,6 +560,19 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); }
 				</label>
 			</div>
 			<span class="setting-hint">Loads one small file from proelectriccoder.github.io. Your shortcuts never leave the browser.</span>
+		</div>
+
+		<div class="setting-item">
+			<div class="setting-row">
+				<span class="setting-label">World news (BBC, CNN, Al Jazeera)</span>
+				<label class="toggle">
+					<input type="checkbox" id="worldToggle">
+					<div class="toggle-track"></div>
+					<div class="toggle-thumb"></div>
+				</label>
+			</div>
+			<span class="setting-hint">Off by default. When on, your browser loads headlines directly from the selected news sites.</span>
+			<div id="worldSourceBox" hidden></div>
 		</div>
 
 		<span class="settings-section-title" style="margin-top:15px">Auto-Updates</span>
