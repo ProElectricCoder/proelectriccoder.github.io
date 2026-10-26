@@ -19,9 +19,11 @@ const BUILTIN_ENGINES = [
 	{ id: 'brave',         name: 'Brave Search',   url: 'https://search.brave.com/search?q=%s',            prefix: 'br',  badge: ['BR',  '#fb542b'] },
 	{ id: 'reddit',        name: 'Reddit',         url: 'https://www.reddit.com/search/?q=%s',             prefix: 'r',   badge: ['R',   '#ff4500'] },
 	{ id: 'stackoverflow', name: 'Stack Overflow', url: 'https://stackoverflow.com/search?q=%s',           prefix: 'so',  badge: ['SO',  '#f48024'] },
-	{ id: 'maps',          name: 'Google Maps',    url: 'https://www.google.com/maps/search/%s',           prefix: 'm',   badge: ['MAP', '#34a853'] },
+	{ id: 'maps',          name: 'Google Maps',    url: 'https://www.google.com/maps/search/%s',           prefix: 'm',   domain: 'maps.google.com', badge: ['MAP', '#34a853'] },
 	{ id: 'amazon',        name: 'Amazon',         url: 'https://www.amazon.com/s?k=%s',                   prefix: 'a',   badge: ['A',   '#ff9900'] }
 ];
+const SITE_ICON = 'https://proelectriccoder.pages.dev/api/site-icon?domain=';   // relay: your browser only talks to us
+const hostOf = (u) => { try { return new URL(u).hostname; } catch { return ''; } };
 const escSvg = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function badgeSvg(text, color) {
 	const t = escSvg(text);
@@ -33,10 +35,22 @@ function customEngines() {
 		.map((e) => {
 			const initials = e.name.replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || '?';
 			let hue = 0; for (const ch of e.name) hue = (hue * 31 + ch.charCodeAt(0)) % 360;
-			return { id: e.id, name: e.name.slice(0, 30), url: e.url, prefix: String(e.prefix || '').toLowerCase(), custom: true, svg: badgeSvg(initials, `hsl(${hue} 55% 40%)`) };
+			return { id: e.id, name: e.name.slice(0, 30), url: e.url, prefix: String(e.prefix || '').toLowerCase(), custom: true, domain: hostOf(e.url), svg: badgeSvg(initials, `hsl(${hue} 55% 40%)`) };
 		});
 }
-const allEngines = () => [...BUILTIN_ENGINES.map((e) => ({ ...e, svg: e.svg || badgeSvg(e.badge[0], e.badge[1]) })), ...customEngines()];
+const allEngines = () => [...BUILTIN_ENGINES.map((e) => ({ ...e, svg: e.svg || badgeSvg(e.badge[0], e.badge[1]), domain: e.svg ? null : (e.domain || hostOf(e.url)) })), ...customEngines()];
+
+// Puts an engine's icon into a container: its own logo, or the site's icon with the letter badge as backup
+function setEngineIcon(container, engine) {
+	const badge = () => { const t = document.createElement('template'); t.innerHTML = engine.svg; return t.content.cloneNode(true); };
+	container.replaceChildren();
+	if (!engine.domain) { container.appendChild(badge()); return; }
+	const img = el('img', 'engine-icon-img');
+	img.alt = ''; img.width = 24; img.height = 24; img.referrerPolicy = 'no-referrer'; img.decoding = 'async';
+	img.onerror = () => { if (img.isConnected) img.replaceWith(badge()); };
+	img.src = SITE_ICON + encodeURIComponent(engine.domain);
+	container.appendChild(img);
+}
 const engineById = (id) => allEngines().find((e) => e.id === id) || allEngines()[0];
 
 
@@ -69,7 +83,8 @@ function updateClock() {
 function setEngine(engineKey) {
 	const engine = engineById(engineKey);
 	document.getElementById('userQuery').placeholder = `Search ${engine.name}...`;
-	document.getElementById('currentEngineIconWrapper').innerHTML = engine.svg;
+	previewedEngine = engine.id;
+	setEngineIcon(document.getElementById('currentEngineIconWrapper'), engine);
 	localStorage.setItem('preferredEngine', engine.id);
 	buildEngineMenu();
 }
@@ -80,7 +95,7 @@ function buildEngineMenu() {
 	const current = engineById(localStorage.getItem('preferredEngine') || 'google').id;
 	menu.replaceChildren(...allEngines().map((e) => {
 		const item = el('div', 'dropdown-item');
-		const icon = el('span'); icon.innerHTML = e.svg;   // svg comes from fixed strings or escaped text
+		const icon = el('span', 'engine-menu-icon'); setEngineIcon(icon, e);
 		item.append(icon, document.createTextNode(e.name));
 		if (e.id === current) item.style.fontWeight = '700';
 		item.onclick = () => { setEngine(e.id); menu.classList.remove('show'); document.getElementById('userQuery').focus(); };
@@ -97,9 +112,12 @@ function resolveSearch(raw) {
 	}
 	return { engine: engineById(localStorage.getItem('preferredEngine') || 'google'), query: raw.trim(), viaPrefix: false };
 }
+let previewedEngine = null;
 function previewEngineIcon() {
 	const r = resolveSearch(document.getElementById('userQuery').value);
-	document.getElementById('currentEngineIconWrapper').innerHTML = r.engine.svg;
+	if (previewedEngine === r.engine.id) return;
+	previewedEngine = r.engine.id;
+	setEngineIcon(document.getElementById('currentEngineIconWrapper'), r.engine);
 }
 
 // ─── Settings → Search engines ───
@@ -107,7 +125,7 @@ function renderEngineSettings() {
 	const box = document.getElementById('engineList');
 	box.replaceChildren(...allEngines().map((e) => {
 		const row = el('div', 'engine-row');
-		const icon = el('span', 'engine-row-icon'); icon.innerHTML = e.svg;
+		const icon = el('span', 'engine-row-icon'); setEngineIcon(icon, e);
 		const name = el('span', 'engine-row-name', e.name);
 		const pre = el('span', 'engine-row-prefix', e.prefix ? e.prefix + ' ␣' : '');
 		row.append(icon, name, pre);
@@ -1331,12 +1349,12 @@ function syncWorldSettings() {
 }
 
 // ─── Show on page (visibility switches) ───────────────────────────────────
-const VIS_ITEMS = [['logo', 'Logo'], ['clock', 'Clock'], ['date', 'Date'], ['weather', 'Weather'], ['search', 'Search bar'], ['shortcuts', 'Shortcuts'], ['newsBtn', 'News button']];
+const VIS_ITEMS = [['logo', 'Logo'], ['clock', 'Clock'], ['date', 'Date'], ['weatherInline', 'Weather on the page'], ['weatherBtn', 'Weather button'], ['search', 'Search bar'], ['shortcuts', 'Shortcuts'], ['newsBtn', 'News button']];
 const visState = () => { const v = lsGet('visibility', {}); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; };
 
 function applyVisibility() {
 	const v = visState();
-	for (const [key] of VIS_ITEMS) if (key !== 'weather') document.documentElement.classList.toggle('hide-' + key, v[key] === false);
+	for (const [key] of VIS_ITEMS) document.documentElement.classList.toggle('hide-' + key, v[key] === false);
 }
 
 function buildVisibilityBox() {
@@ -1345,9 +1363,8 @@ function buildVisibilityBox() {
 		const row = el('div', 'setting-row');
 		const sw = el('label', 'toggle');
 		const cb = el('input'); cb.type = 'checkbox'; cb.id = 'vis_' + key;
-		cb.checked = key === 'weather' ? weatherEnabled() : visState()[key] !== false;
+		cb.checked = visState()[key] !== false;
 		cb.onchange = () => {
-			if (key === 'weather') { setWeatherEnabled(cb.checked); return; }
 			lsSet('visibility', { ...visState(), [key]: cb.checked });
 			applyVisibility();
 		};
@@ -1384,12 +1401,76 @@ function weatherLook(code, isDay) {
 function setWeatherEnabled(on) {
 	localStorage.setItem('weatherEnabled', on ? '1' : '0');
 	document.getElementById('weatherToggle').checked = on;
-	const vis = document.getElementById('vis_weather');
-	if (vis) vis.checked = on;
+	if (!on) closeWeatherCard();
 	loadWeather(false);
 }
 
+let weatherLast = null;   // { data, city } for the card
+
+const hour12 = (iso) => { const h = parseInt(iso.slice(11, 13), 10); return (h % 12 || 12) + (h < 12 ? ' AM' : ' PM'); };
+
+function openWeatherCard() {
+	renderWeatherCard();
+	document.getElementById('weatherCard').hidden = false;
+	loadWeather(false);   // refresh in the background if the cached data is old
+}
+function closeWeatherCard() { document.getElementById('weatherCard').hidden = true; }
+
+function renderWeatherCard() {
+	const card = document.getElementById('weatherCard');
+	card.replaceChildren();
+	const close = el('button', 'news-card-close', '×'); close.setAttribute('aria-label', 'Close weather'); close.onclick = closeWeatherCard;
+	card.appendChild(close);
+	if (!weatherLast) {
+		card.appendChild(el('div', 'wc-title', 'Weather'));
+		card.appendChild(el('p', 'news-empty', weatherCity() ? 'Loading the forecast…' : 'Set your city in Settings → Weather to see the forecast.'));
+		return;
+	}
+	const { data, city } = weatherLast, c = data.current, d = data.daily, u = weatherUnit() === 'f' ? '°F' : '°C';
+	const deg = (n) => Math.round(n) + '°';
+	const [icon, words] = weatherLook(c.weather_code, c.is_day);
+	const head = el('div', 'wc-head');
+	const big = el('div', 'wc-big'); big.append(el('span', 'weather-icon', icon), el('span', 'wc-temp', deg(c.temperature_2m) + u.slice(1)));
+	const sub = el('div', 'wc-sub');
+	sub.append(el('div', 'wc-title', city.label || city.name), el('div', null, words + (Number.isFinite(c.apparent_temperature) ? ` · feels like ${deg(c.apparent_temperature)}` : '')));
+	head.append(big, sub);
+	card.appendChild(head);
+
+	const stats = el('div', 'wc-stats');
+	const stat = (label, value) => { const s = el('div', 'wc-stat'); s.append(el('span', 'wc-stat-v', value), el('span', 'wc-stat-l', label)); return s; };
+	if (Number.isFinite(c.relative_humidity_2m)) stats.appendChild(stat('Humidity', Math.round(c.relative_humidity_2m) + '%'));
+	if (Number.isFinite(c.wind_speed_10m)) stats.appendChild(stat('Wind', Math.round(c.wind_speed_10m) + (weatherUnit() === 'f' ? ' mph' : ' km/h')));
+	if (Array.isArray(d.sunrise) && typeof d.sunrise[0] === 'string') stats.appendChild(stat('Sunrise', d.sunrise[0].slice(11, 16)));
+	if (Array.isArray(d.sunset) && typeof d.sunset[0] === 'string') stats.appendChild(stat('Sunset', d.sunset[0].slice(11, 16)));
+	if (stats.childElementCount) card.appendChild(stats);
+
+	const hr = data.hourly;
+	if (hr && Array.isArray(hr.time) && Array.isArray(hr.temperature_2m) && Array.isArray(hr.weather_code) && typeof c.time === 'string') {
+		const from = hr.time.findIndex((t) => t >= c.time.slice(0, 13) + ':00');
+		if (from >= 0) {
+			const strip = el('div', 'wc-hours');
+			for (let i = from; i < Math.min(from + 8, hr.time.length); i++) {
+				const h = el('div', 'wc-hour');
+				h.append(el('span', 'wc-hour-t', i === from ? 'Now' : hour12(hr.time[i])), el('span', 'weather-icon', weatherLook(hr.weather_code[i], 1)[0]), el('span', null, deg(hr.temperature_2m[i])));
+				strip.appendChild(h);
+			}
+			card.appendChild(strip);
+		}
+	}
+
+	const days = el('div', 'wc-days');
+	for (let i = 0; i < d.time.length; i++) {
+		const row = el('div', 'wc-day');
+		const name = i === 0 ? 'Today' : new Date(d.time[i] + 'T12:00:00').toLocaleDateString('default', { weekday: 'long' });
+		row.append(el('span', 'wc-day-n', name), el('span', 'weather-icon', weatherLook(d.weather_code[i], 1)[0]), el('span', 'wc-day-t', `${deg(d.temperature_2m_max[i])} / ${deg(d.temperature_2m_min[i])}`));
+		days.appendChild(row);
+	}
+	card.appendChild(days);
+}
+
 function renderWeather(data, city) {
+	weatherLast = { data, city };
+	if (!document.getElementById('weatherCard').hidden) renderWeatherCard();
 	const box = document.getElementById('weather');
 	box.replaceChildren();
 	const deg = (n) => Math.round(n) + '°';
@@ -1417,25 +1498,27 @@ function validWeather(d) {
 
 async function loadWeather(force) {
 	const box = document.getElementById('weather');
-	if (!weatherEnabled()) { box.hidden = true; return; }
+	document.getElementById('weatherBtn').hidden = !weatherEnabled();
+	if (!weatherEnabled()) { box.hidden = true; weatherLast = null; return; }
 	box.hidden = false;
 	const city = weatherCity();
 	if (!city) {
-		box.replaceChildren();
+		box.replaceChildren(); weatherLast = null;
 		const b = el('button', 'weather-set', 'Set your city for weather');
 		b.onclick = (e) => { e.stopPropagation(); document.getElementById('settingsSidebar').classList.add('open'); };
 		box.appendChild(b);
 		return;
 	}
 	const unit = weatherUnit();
-	const key = `${city.lat},${city.lon},${unit}`;
+	const key = `v2,${city.lat},${city.lon},${unit}`;
 	const cache = lsGet('weatherCache', null);
 	if (cache?.key === key && validWeather(cache.data)) renderWeather(cache.data, city);
 	if (!force && cache?.key === key && Date.now() - cache.fetchedAt < WEATHER_TTL_MS) return;
 	try {
 		const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + city.lat + '&longitude=' + city.lon +
-			'&current=temperature_2m,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=4' +
-			(unit === 'f' ? '&temperature_unit=fahrenheit' : '');
+			'&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,is_day' +
+			'&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset&timezone=auto&forecast_days=7' +
+			(unit === 'f' ? '&temperature_unit=fahrenheit&wind_speed_unit=mph' : '');
 		const res = await fetch(url, { credentials: 'omit', referrerPolicy: 'no-referrer' });
 		if (!res.ok) throw new Error('weather ' + res.status);
 		const data = await res.json();
@@ -1682,13 +1765,24 @@ document.getElementById('extUpdateToggle').onchange = toggleAutoUpdate;
 document.querySelector('.engine-switcher').onclick = (e) => {
 	e.stopPropagation();
 	document.getElementById('shortcutContextMenu').style.display = 'none';
-	document.getElementById('engineDropdown').classList.toggle('show');
+	const menu = document.getElementById('engineDropdown');
+	menu.classList.toggle('show');
+	if (menu.classList.contains('show')) {   // never taller than the room left on screen; the rest scrolls
+		menu.style.maxHeight = Math.max(140, window.innerHeight - menu.getBoundingClientRect().top - 16) + 'px';
+		menu.scrollTop = 0;
+	}
 };
 document.getElementById('userQuery').addEventListener('input', previewEngineIcon);
 document.getElementById('engineAddBtn').onclick = addCustomEngine;
 
 // Weather and backup controls
 document.getElementById('weatherToggle').onchange = (e) => setWeatherEnabled(e.target.checked);
+document.getElementById('weatherBtn').onclick = (e) => {
+	e.stopPropagation();
+	if (document.getElementById('weatherCard').hidden) openWeatherCard(); else closeWeatherCard();
+};
+document.getElementById('weatherCard').onclick = (e) => e.stopPropagation();   // clicks inside the card must not close it
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeWeatherCard(); });
 document.getElementById('weatherCityBtn').onclick = findWeatherCity;
 document.getElementById('weatherCityInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') findWeatherCity(); });
 document.getElementById('weatherUnitInput').onchange = (e) => { localStorage.setItem('weatherUnit', e.target.value); loadWeather(true); };
@@ -1789,6 +1883,7 @@ newsEls.toggle.onchange = () => {
 };
 
 window.onclick = () => {
+	closeWeatherCard();
 	document.getElementById('engineDropdown').classList.remove('show');
 	document.getElementById('shortcutContextMenu').style.display = 'none';
 };

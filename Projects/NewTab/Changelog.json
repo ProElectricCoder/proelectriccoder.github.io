@@ -13,6 +13,18 @@
 	],
 	"releases": [
 		{
+			"version": "1.7.1",
+			"date": "2026-10-26",
+			"summary": "Weather card, search engine icons, and a scrollable engine menu.",
+			"details": [
+				"New weather button next to the News button opens a weather card: current conditions, feels-like, humidity, wind, sunrise and sunset, the next 8 hours and a 7-day forecast.",
+				"Search engines now show their site icons (a coloured letter badge appears if an icon can't load).",
+				"The search engine menu now fits the screen and scrolls instead of running off the bottom.",
+				"The engine list in Settings has the custom scrollbar too.",
+				"Show on page now has separate switches for the weather summary and the weather button."
+			]
+		},
+		{
 			"version": "1.7.0",
 			"date": "2026-10-25",
 			"summary": "Weather, more search engines, show/hide switches, settings backup and a steadier shortcuts grid.",

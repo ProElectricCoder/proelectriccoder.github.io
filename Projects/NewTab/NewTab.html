@@ -392,10 +392,11 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); }
 /* ─── News ────────────────────────────────────────────────────────────── */
 [hidden] { display: none !important; }
 .news-btn {
-	position: absolute; top: 20px; left: 20px; width: 40px; height: 40px;
+	position: relative; width: 40px; height: 40px;
 	display: flex; align-items: center; justify-content: center;
-	color: rgba(255,255,255,0.6); transition: color 0.2s; cursor: pointer; z-index: 200;
+	color: rgba(255,255,255,0.6); transition: color 0.2s; cursor: pointer;
 }
+.top-left-btns { position: absolute; top: 20px; left: 20px; display: flex; gap: 6px; z-index: 200; }
 .news-btn:hover { color: white; }
 .news-btn svg { width: 24px; height: 24px; }
 .news-dot {
@@ -468,6 +469,51 @@ html[data-theme="light"] .preset-swatch.selected { border-color: #000; box-shado
 .news-chip.topic.active { border-style: solid; }
 html[data-theme="light"] .news-topics { border-bottom-color: rgba(0,0,0,0.1); }
 
+/* ─── Weather card ────────────────────────────────────────────────────── */
+.weather-card {
+	position: fixed; top: 70px; left: 20px; width: 330px; max-height: calc(100vh - 100px); overflow-y: auto; box-sizing: border-box;
+	padding: 18px; border-radius: 14px; z-index: 250; text-align: left;
+	background: rgba(8,12,24,0.94); border: 1px solid rgba(255,255,255,0.14);
+	backdrop-filter: blur(14px); box-shadow: 0 10px 34px rgba(0,0,0,0.55);
+}
+.weather-card .news-card-close { top: 10px; right: 12px; background: none; }
+.wc-head { display: flex; align-items: center; gap: 14px; padding-right: 18px; }
+.wc-big { display: flex; align-items: center; gap: 8px; }
+.wc-big .weather-icon { font-size: 2.6rem; }
+.wc-temp { font-size: 2.2rem; font-weight: 300; }
+.wc-title { font-weight: 600; }
+.wc-sub { font-size: 0.8rem; color: rgba(255,255,255,0.65); line-height: 1.5; }
+.wc-sub .wc-title { color: #fff; font-size: 0.95rem; }
+.wc-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 14px 0; }
+.wc-stat { display: flex; flex-direction: column; align-items: center; padding: 7px 2px; border-radius: 8px; background: rgba(255,255,255,0.06); font-size: 0.78rem; }
+.wc-stat-v { font-weight: 600; }
+.wc-stat-l { font-size: 0.62rem; color: rgba(255,255,255,0.5); }
+.wc-hours { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.wc-hour { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 40px; font-size: 0.74rem; }
+.wc-hour-t { font-size: 0.62rem; color: rgba(255,255,255,0.5); white-space: nowrap; }
+.wc-hour .weather-icon, .wc-day .weather-icon { font-size: 1.15rem; }
+.wc-day { display: flex; align-items: center; gap: 10px; padding: 4px 0; font-size: 0.82rem; }
+.wc-day-n { flex: 1; }
+.wc-day-t { min-width: 70px; text-align: right; font-family: monospace; color: rgba(255,255,255,0.8); }
+.weather-card::-webkit-scrollbar, .wc-hours::-webkit-scrollbar, .engine-list::-webkit-scrollbar { width: 10px; height: 8px; }
+.weather-card::-webkit-scrollbar-track, .wc-hours::-webkit-scrollbar-track, .engine-list::-webkit-scrollbar-track { background: transparent; }
+.weather-card::-webkit-scrollbar-thumb, .wc-hours::-webkit-scrollbar-thumb, .engine-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.22); border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; }
+.weather-card::-webkit-scrollbar-thumb:hover, .wc-hours::-webkit-scrollbar-thumb:hover, .engine-list::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.45); background-clip: padding-box; }
+.dropdown-item { flex-shrink: 0; }
+.engine-icon-img { width: 24px; height: 24px; border-radius: 6px; object-fit: contain; background: rgba(255,255,255,0.92); padding: 2px; box-sizing: border-box; display: block; }
+.engine-row-icon .engine-icon-img { width: 20px; height: 20px; }
+.engine-menu-icon { display: inline-flex; width: 24px; height: 24px; }
+.engine-list { padding-right: 4px; }
+html[data-theme="light"] .weather-card { background: rgba(255,255,255,0.96); border-color: rgba(0,0,0,0.15); box-shadow: 0 10px 34px rgba(0,0,0,0.2); color: #111; }
+html[data-theme="light"] .wc-title { color: #111; }
+html[data-theme="light"] .wc-sub, html[data-theme="light"] .wc-stat-l, html[data-theme="light"] .wc-hour-t { color: rgba(0,0,0,0.55); }
+html[data-theme="light"] .wc-sub .wc-title { color: #111; }
+html[data-theme="light"] .wc-stat { background: rgba(0,0,0,0.05); }
+html[data-theme="light"] .wc-hours { border-bottom-color: rgba(0,0,0,0.1); }
+html[data-theme="light"] .wc-day-t { color: rgba(0,0,0,0.75); }
+html[data-theme="light"] .weather-card::-webkit-scrollbar-thumb, html[data-theme="light"] .wc-hours::-webkit-scrollbar-thumb, html[data-theme="light"] .engine-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.25); background-clip: padding-box; }
+html[data-theme="light"] .weather-card .news-card-close { color: rgba(0,0,0,0.6); }
+
 /* ─── Custom scrollbars ───────────────────────────────────────────────── */
 .sidebar, .changelog-body, .shortcuts-grid, .dropdown-menu { scrollbar-gutter: auto; }
 .sidebar::-webkit-scrollbar, .changelog-body::-webkit-scrollbar, .shortcuts-grid::-webkit-scrollbar, .dropdown-menu::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -480,7 +526,7 @@ html[data-theme="light"] .news-topics { border-bottom-color: rgba(0,0,0,0.1); }
 
 /* ─── Show on page ────────────────────────────────────────────────────── */
 html.hide-logo #logoSlot, html.hide-clock #clock, html.hide-date #date, html.hide-search #searchForm,
-html.hide-shortcuts #shortcutsGrid, html.hide-newsBtn #newsBtn { display: none !important; }
+html.hide-shortcuts #shortcutsGrid, html.hide-newsBtn #newsBtn, html.hide-weatherInline #weather, html.hide-weatherBtn #weatherBtn { display: none !important; }
 .vis-box { display: flex; flex-direction: column; gap: 10px; }
 
 /* ─── Weather ─────────────────────────────────────────────────────────── */
@@ -588,12 +634,21 @@ html[data-theme="light"] .news-card-close { background: rgba(255,255,255,0.8); c
 		</svg>
 	</div>
 
+	<div class="top-left-btns">
 	<div id="newsBtn" class="news-btn" title="News" role="button" aria-label="News" hidden>
 		<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
 			<path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 0 0 2.25 2.25h13.5M6 7.5h3v3H6v-3Z"></path>
 		</svg>
 		<span id="newsDot" class="news-dot" hidden></span>
 	</div>
+	<div id="weatherBtn" class="news-btn" title="Weather" role="button" aria-label="Weather" hidden>
+		<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z"></path>
+		</svg>
+	</div>
+	</div>
+
+	<div id="weatherCard" class="weather-card" hidden></div>
 
 	<div id="newsPanel" class="sidebar news-panel" aria-label="News">
 		<div class="sidebar-header">

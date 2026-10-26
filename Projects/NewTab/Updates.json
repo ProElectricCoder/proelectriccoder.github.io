@@ -64,6 +64,10 @@
 		{
 			"version": "1.7.0",
 			"note": "Weather, search engines, visibility switches, backup, grid fix, scrollbars."
+		},
+		{
+			"version": "1.7.1",
+			"note": "Weather card, engine icons, scrollable engine menu."
 		}
 	],
 	"notify": null
