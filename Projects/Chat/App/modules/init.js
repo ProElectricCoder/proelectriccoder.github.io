@@ -8,6 +8,8 @@ import { renderChatList } from './chat-render.js';
 import { DriveSync } from './drive-sync.js';
 import { refreshDriveUI } from './panels-ui.js';
 import { initMsgUI } from './msg-ui.js';
+import { initSearch } from './msg-search.js';
+import { initNotify } from './notify.js';
 
 export async function init() {
 	// Check URL invite param before anything else
@@ -20,7 +22,7 @@ export async function init() {
 	}
 
 	injectPanels();
-	initMsgUI();
+	initMsgUI(); initSearch(); initNotify();
 	try {
 		const mod = await import('https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js');
 		S.cubicGradFn = mod.cubicGradient;

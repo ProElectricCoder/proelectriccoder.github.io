@@ -31,6 +31,8 @@ export function openSettings() {
 	const ni = el('spName'); if (ni) ni.value = S.displayName;
 	const wt = el('spWakeToggle'); if (wt) wt.checked = S.wakeLockEnabled;
 	const lt = el('spLinkToggle'); if (lt) lt.checked = S.linkPreviews;
+	const nt = el('spNotifyToggle'); if (nt) nt.checked = S.notify && typeof Notification !== 'undefined' && Notification.permission === 'granted';
+	const rt = el('spReceiptToggle'); if (rt) rt.checked = S.readReceipts;
 	const aw = el('spAvatarWrap');
 	if (aw) {
 		const letter = (S.displayName[0] || '?').toUpperCase();

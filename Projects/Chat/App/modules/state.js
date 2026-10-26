@@ -5,6 +5,8 @@ export const S = {
 	sessions:      new Map(),
 	activeId:      null,
 	user:          null,
+	notify:        localStorage.getItem('pec_notify') === 'true',                  // browser notifications (Settings)
+	readReceipts:  localStorage.getItem('pec_read_receipts') !== 'false',   // tell senders when I read their messages (Settings)
 	linkPreviews:  localStorage.getItem('pec_link_previews') !== 'false',   // Open Graph link previews (Settings)
 	chatId:        null,   // readable Chat ID (google-… / github-… / email-…), null until resolved
 	pendingVerify: null,   // email/password user who has not verified their address yet
@@ -42,6 +44,7 @@ export function makeSess(opts) {
 		peerAvatar:    opts.peerAvatar    || null,
 		bg:            opts.bg            || null,
 		myRole:        opts.myRole        || 'member',
+			muted:         !!opts.muted,   // no notifications for this chat
 		groupIcon:     opts.groupIcon     || null,
 		groupOwner:    opts.groupOwner    || null,
 		groupManagers: opts.groupManagers || [],

@@ -7,6 +7,7 @@ import { renderFileBubbleFromMsg } from './file-transfer.js';
 import { renderCallCardFromMsg } from './call-card.js';
 import { iconSvg } from './icons.js';
 import { attachLinkPreview } from './link-preview.js';
+import { notifyMessage, updateTitle, updateMuteBtn } from './notify.js';
 import { renderFeatureItem, bubbleHtml, decorate, decorateLast } from './msg-features.js';
 
 export function renderChatList() {
@@ -23,7 +24,7 @@ export function renderChatList() {
 		const isActive = s.id === S.activeId;
 		const inCall = (S.callSessId === s.id || S.gcSessId === s.id);
 		const dotClass = s.connected ? (inCall ? 'ci-dot call' : 'ci-dot on') : 'ci-dot';
-		const unreadBadge = s.unread > 0 ? `<div class="ci-badge">${s.unread > 99 ? '99+' : s.unread}</div>` : '';
+		const unreadBadge = s.unread > 0 ? `<div class="ci-badge${s.muted ? ' muted' : ''}">${s.unread > 99 ? '99+' : s.unread}</div>` : '';
 		const time = s.lastActivity ? relTime(s.lastActivity) : '';
 		const type = iconSvg(s.isGroup ? 'group' : (s.type === 'direct' ? 'bolt' : s.type === 'cfws' ? 'cloud' : 'link'), 1);
 		let avHtml = `${initials}<div class="${dotClass}"></div>`;
@@ -38,12 +39,13 @@ export function renderChatList() {
 				${avHtml}
 			</div>
 			<div class="ci-info">
-				<div class="ci-name">${escH(displayName)} <span style="opacity:.4;font-size:.7em">${type}</span></div>
+				<div class="ci-name">${escH(displayName)} <span style="opacity:.4;font-size:.7em">${type}</span>${s.muted ? ` <span class="ci-muted" title="Muted">${iconSvg('bellOff', .85)}</span>` : ''}</div>
 				<div class="ci-prev">${escH(s.lastMessage || (s.connected ? 'Connected' : 'Not connected'))}</div>
 			</div>
 			<div class="ci-meta"><div class="ci-time">${time}</div>${unreadBadge}</div>
 		</div>`;
 	}).join('');
+	updateTitle();
 }
 
 export function renderTopbar(sess) {
@@ -62,6 +64,7 @@ export function renderTopbar(sess) {
 	dotEl.className = 'status-dot ' + (sess.connected ? 'connected' : '');
 	txtEl.textContent = sess.connected ? connText(sess) : 'Disconnected';
 	enableCallBtns(sess.connected);
+	updateMuteBtn(sess);
 }
 
 // "2 peers connected · TURN relay" — the suffix tells the user when direct P2P was not possible
@@ -117,6 +120,7 @@ export function addBubble(sess, text, sender, mine, enc = false, extra = {}) {
 	sess.messages.push(m); sess.lastMessage = text.slice(0, 60); sess.lastActivity = m.timestamp;
 	DB.saveMessage(m); DB.updateSession(sess.id, { lastMessage: sess.lastMessage, lastActivity: sess.lastActivity });
 	if (!mine && S.activeId !== sess.id) { sess.unread++; renderChatList(); }
+	if (!mine) notifyMessage(sess, m);
 	if (S.activeId === sess.id) {
 		const c = el('messages');
 		if (c) { renderMsgItem(c, m); c.scrollTop = c.scrollHeight; }

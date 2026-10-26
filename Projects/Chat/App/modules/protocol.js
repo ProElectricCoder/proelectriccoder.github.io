@@ -5,7 +5,7 @@ import { el, escH, toast } from './utils.js';
 import { MY_PEER_ID } from './constants.js';
 import { isAlias } from './chat-id.js';
 import { addBubble, addSysMsg, renderChatList, renderTopbar, setStatus, enableCallBtns, connText } from './chat-render.js';
-import { updateTicksDOM } from './text-format.js';
+import { sendDelivered, markActiveRead, onReceipt } from './receipts.js';
 import { receiveFile } from './file-transfer.js';
 import { peerName, safeSend } from './sessions.js';
 import { endCallInternal, handleCallLog, showIncomingDialog, closeIncomingDialog } from './call-1to1.js';
@@ -87,19 +87,15 @@ export async function handleMsg(sess, data, peerId) {
 			}
 			const msgId = addBubble(sess, txt, data.displayName || peerName(sess, peerId), false, enc, extra);
 			// Send delivered receipt
-			if (msgId && sess.connected) safeSend(sess, { type: 'msg-delivered', msgId });
+			if (msgId && sess.connected) { sendDelivered(sess, msgId); markActiveRead(sess); }
 			break;
 		}
 		case 'msg-delivered': {
-			const dm = sess.messages.find(m => m.id === data.msgId && m.mine && m.ticks === 1);
-			if (dm) { dm.ticks = 2; DB.saveMessage(dm); updateTicksDOM(dm.id, 2); }
+			onReceipt(sess, data, peerId, 'delivered');
 			break;
 		}
 		case 'msg-read': {
-			for (const msgId of (data.msgIds || [])) {
-				const rm = sess.messages.find(m => m.id === msgId && m.mine);
-				if (rm && (rm.ticks || 0) < 3) { rm.ticks = 3; DB.saveMessage(rm); updateTicksDOM(rm.id, 3); }
-			}
+			onReceipt(sess, data, peerId, 'read');
 			break;
 		}
 		case 'msg-react': case 'msg-edit': case 'msg-delete': case 'poll': case 'poll-vote': case 'poll-close':

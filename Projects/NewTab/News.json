@@ -2,6 +2,14 @@
 	"updated": "2026-10-26",
 	"posts": [
 		{
+			"id": "chat-search-receipts-notifications",
+			"date": "2026-10-26",
+			"project": "ChatRooms",
+			"title": "Chat search, group read receipts and notifications",
+			"summary": "Search inside a chat with highlighted matches. In groups you can see who has read your message (Seen by), and read receipts can be turned off. Optional browser notifications, per-chat mute and an unread count in the tab title.",
+			"url": "https://proelectriccoder.pages.dev/Projects/Chat/"
+		},
+		{
 			"id": "chat-polls-reactions-replies",
 			"date": "2026-10-26",
 			"project": "ChatRooms",

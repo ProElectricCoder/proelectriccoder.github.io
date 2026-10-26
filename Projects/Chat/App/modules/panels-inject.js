@@ -78,6 +78,14 @@ export function injectPanels() {
 .lp-site{font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lp-title{font-size:.8rem;font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .lp-desc{font-size:.72rem;color:var(--dim);line-height:1.4;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.ci-badge.muted{background:rgba(255,255,255,.22);color:var(--text)}
+.ci-muted{opacity:.5;display:inline-flex;vertical-align:middle}
+.search-bar{display:flex;align-items:center;gap:6px;padding:8px 12px;background:rgba(0,0,0,.42);border-bottom:1px solid var(--tb);flex-shrink:0}
+.search-bar .f-in{flex:1;min-width:0}
+.search-count{font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--faint);white-space:nowrap;min-width:48px;text-align:right}
+mark.srch{background:rgba(255,210,0,.35);color:inherit;border-radius:3px;padding:0 1px}
+mark.srch.cur{background:rgba(255,160,0,.75);color:#000}
+@media(max-width:520px){.topbar-r{gap:2px}.topbar-r .icon-btn{width:30px;height:30px}.tb-status span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tb-status{min-width:0}}
 .msg-bubble{cursor:pointer}
 .msg-quote{border-left:3px solid var(--tp);background:rgba(0,0,0,.22);border-radius:6px;padding:4px 8px;margin-bottom:5px;cursor:pointer;max-width:100%}
 .mq-name{font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--tp);font-weight:600}
@@ -193,6 +201,14 @@ export function injectPanels() {
 			<div class="sp-row">
 				<div class="col" style="gap:2px"><span class="sp-label">Keep screen awake</span><span style="font-size:.65rem;color:var(--faint)">Prevents mobile disconnects</span></div>
 				<label class="toggle"><input type="checkbox" id="spWakeToggle" onchange="App.handleWakeToggle()"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+			</div>
+			<div class="sp-row" style="margin-top:12px">
+				<div class="col" style="gap:2px"><span class="sp-label">Notifications</span><span style="font-size:.65rem;color:var(--faint)">Alert me about new messages while this tab is in the background (not for muted chats)</span></div>
+				<label class="toggle"><input type="checkbox" id="spNotifyToggle" onchange="App.handleNotifyToggle()"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+			</div>
+			<div class="sp-row" style="margin-top:12px">
+				<div class="col" style="gap:2px"><span class="sp-label">Read receipts</span><span style="font-size:.65rem;color:var(--faint)">Let people see when I have read their messages</span></div>
+				<label class="toggle"><input type="checkbox" id="spReceiptToggle" onchange="App.handleReceiptToggle()"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
 			</div>
 			<div class="sp-row" style="margin-top:12px">
 				<div class="col" style="gap:2px"><span class="sp-label">Link previews</span><span style="font-size:.65rem;color:var(--faint)">Title and image for links, fetched via our server (never for encrypted messages)</span></div>

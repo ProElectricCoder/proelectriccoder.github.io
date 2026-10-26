@@ -4,6 +4,7 @@ import { S } from './state.js';
 import { el, escH, toast } from './utils.js';
 import { iconSvg } from './icons.js';
 import { getActiveSess } from './sessions.js';
+import { seenBy } from './receipts.js';
 import {
 	REACTIONS, hooks, findMsg, setCompose, clearCompose, toggleReaction, deleteForEveryone, deleteForMe,
 	votePoll, closePoll, createPoll,
@@ -25,6 +26,7 @@ function openMenu(msgEl, m, sess) {
 	if (!m.deleted && (m.type === 'text' || m.type === 'file' || m.type === 'poll')) h += item('reply', 'reply', 'Reply');
 	if (!m.deleted && m.type === 'text') h += item('copy', 'copy', 'Copy text');
 	if (m.mine && !m.deleted && m.type === 'text') h += item('edit', 'pencil', 'Edit');
+	if (m.mine && !m.deleted && m.type === 'text' && sess.isGroup) h += item('seen', 'eye', 'Seen by');
 	if (m.mine && !m.deleted && m.type === 'poll' && !m.poll?.closed) h += item('closepoll', 'check', 'Close poll');
 	h += item('deleteme', 'trash', 'Delete for me', true);
 	if (m.mine && !m.deleted) h += item('deleteall', 'trash', 'Delete for everyone', true);
@@ -42,6 +44,7 @@ function openMenu(msgEl, m, sess) {
 		else if (act === 'deleteme') deleteForMe(sess, m);
 		else if (act === 'deleteall') { if (confirm('Delete this message for everyone in the chat?')) deleteForEveryone(sess, m); }
 		else if (act === 'closepoll') closePoll(sess, m);
+		else if (act === 'seen') openSeenDialog(m);
 	});
 
 	// Place it next to the bubble, on the same side, inside the viewport
@@ -88,6 +91,19 @@ export function renderCompose() {
 	el('ctxTitle').textContent = c.mode === 'edit' ? 'Editing message' : 'Replying to ' + c.sender;
 	el('ctxText').textContent = c.text;
 	bar.style.display = 'flex';
+}
+
+// ── "Seen by" list for my group messages ────────────────────────────────────────────────────────
+function openSeenDialog(m) {
+	const { read, delivered } = seenBy(m);
+	const list = (names, empty) => names.length ? names.map(n => `<div class="sp-row" style="padding:6px 0">${escH(n)}</div>`).join('') : `<div style="font-size:.72rem;color:var(--faint)">${empty}</div>`;
+	const o = document.createElement('div'); o.className = 'modal-overlay open';
+	o.innerHTML = `<div class="modal-box"><div class="modal-head"><span class="modal-title">Seen by</span><button class="panel-close" type="button" data-sd title="Close">${iconSvg('x', 1)}</button></div>
+		<div class="modal-body"><div class="f-lbl">Read (${read.length})</div>${list(read, 'Nobody has read it yet')}
+		<div class="f-lbl" style="margin-top:14px">Delivered, not read yet (${delivered.length})</div>${list(delivered, 'None')}
+		<div style="font-size:.62rem;color:var(--faint);margin-top:14px">People who turned off read receipts only show as delivered.</div></div></div>`;
+	o.addEventListener('click', e => { if (e.target === o || e.target.closest('[data-sd]')) o.remove(); });
+	document.body.appendChild(o);
 }
 
 // ── Poll dialog ─────────────────────────────────────────────────────────────────────────────────

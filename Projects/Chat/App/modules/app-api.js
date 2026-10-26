@@ -12,6 +12,8 @@ import { updateCallCard } from './call-card.js';
 import { bindEngine } from './protocol.js';
 import { sendComposed, clearCompose } from './msg-features.js';
 import { openPollDialog } from './msg-ui.js';
+import { toggleSearch, searchStep } from './msg-search.js';
+import { setNotify, toggleMute } from './notify.js';
 import { subscribeGroupMeta, writeGroupMeta } from './group-meta.js';
 import {
 	openNewChat, ncSwitchTab, ncDirectSub, NC,
@@ -240,6 +242,11 @@ export const App = {
 		}
 	},
 	openPoll() { openPollDialog(); },
+	toggleSearch() { toggleSearch(); },
+	searchStep(d) { searchStep(d); },
+	toggleMute() { toggleMute(); },
+	async handleNotifyToggle() { const cb = el('spNotifyToggle'); const on = await setNotify(!!cb?.checked); if (cb) cb.checked = on; if (on) toast('Notifications on'); },
+	handleReceiptToggle() { S.readReceipts = !!el('spReceiptToggle')?.checked; localStorage.setItem('pec_read_receipts', String(S.readReceipts)); toast(S.readReceipts ? 'Read receipts on' : 'Read receipts off'); },
 	cancelCompose() { clearCompose(); },
 	// Typing indicator
 	_typingTimer: null,

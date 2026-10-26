@@ -16,6 +16,7 @@ import { iconSvg } from './icons.js';
 import { formatText } from './text-format.js';
 import { safeSend } from './sessions.js';
 import { renderMsgItem, renderChatList, addBubble } from './chat-render.js';
+import { notifyMessage } from './notify.js';
 
 export const REACTIONS = [['like', 'Like'], ['heart', 'Love'], ['smile', 'Haha'], ['bolt', 'Wow'], ['frown', 'Sad'], ['check', 'Agree']];
 const REACT_KEYS = new Set(REACTIONS.map(r => r[0]));
@@ -119,6 +120,7 @@ function pushMsg(sess, m, preview) {
 	sess.messages.push(m); sess.lastMessage = str(preview, 60); sess.lastActivity = m.timestamp;
 	persist(m); DB.updateSession(sess.id, { lastMessage: sess.lastMessage, lastActivity: sess.lastActivity });
 	if (!m.mine && S.activeId !== sess.id) sess.unread++;
+	if (!m.mine) notifyMessage(sess, m);
 	if (S.activeId === sess.id) { const c = el('messages'); if (c) { renderMsgItem(c, m); c.scrollTop = c.scrollHeight; } }
 	renderChatList();
 }

@@ -21,7 +21,7 @@ const ls = {
 };
 
 const SESSION_FIELDS = ['id', 'name', 'type', 'isGroup', 'theme', 'createdAt', 'lastActivity', 'lastMessage', 'roomId', 'wsUrl',
-	'groupName', 'peerName', 'peerAvatar', 'bg', 'myRole', 'groupIcon', 'groupOwner', 'groupManagers', 'membersData'];
+	'groupName', 'peerName', 'peerAvatar', 'bg', 'myRole', 'groupIcon', 'groupOwner', 'groupManagers', 'membersData', 'muted'];
 
 let refreshing = null;
 

@@ -38,7 +38,7 @@ export const DB = {
 			peerName: s.peerName || null, peerAvatar: s.peerAvatar || null, bg: s.bg || null,
 			myRole: s.myRole || 'member', groupIcon: s.groupIcon || null,
 			groupOwner: s.groupOwner || null, groupManagers: s.groupManagers || [],
-			membersData: s.membersData || {},
+			membersData: s.membersData || {}, muted: !!s.muted,
 		}));
 	},
 

@@ -4,6 +4,8 @@ import { applyTheme } from './theme.js';
 import { el, isMobile, closeSidebarUI } from './utils.js';
 import { renderTopbar, renderMessages, renderChatList } from './chat-render.js';
 import { hooks } from './msg-features.js';
+import { markActiveRead } from './receipts.js';
+import { closeSearch } from './msg-search.js';
 
 export function getActiveSess() { return S.sessions.get(S.activeId) || null; }
 
@@ -18,10 +20,8 @@ export async function selectSess(id, closeSidebar = true) {
 	el('welcomePanel').style.display = 'none';
 	const cv = el('chatView'); cv.classList.remove('hidden'); cv.style.display = 'flex';
 	// Send read receipts for pending messages
-	if (sess.connected) {
-		const unreadIds = sess.messages.filter(m => !m.mine && m.type === 'text' && m.ticks === 0).map(m => m.id);
-		if (unreadIds.length) safeSend(sess, { type: 'msg-read', msgIds: unreadIds });
-	}
+	markActiveRead(sess);
+	closeSearch();
 	renderChatList();
 	if (closeSidebar && isMobile()) closeSidebarUI();
 }

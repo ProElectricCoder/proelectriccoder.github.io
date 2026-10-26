@@ -7,6 +7,7 @@ import { Crypt } from './crypto.js';
 import { buildFileCard, loadLazy, getBatchSiblings } from './file-preview.js';
 import { getActiveSess, peerName, safeSend } from './sessions.js';
 import { renderChatList, addSysMsg } from './chat-render.js';
+import { notifyMessage } from './notify.js';
 
 export async function sendFile(file, sess, batchId) {
 	if (!sess) sess = getActiveSess();
@@ -89,6 +90,7 @@ function addFileBubble(sess, meta, url, mine, enc, batchId, peerId, extra = {}) 
 	sess.messages.push(m); sess.lastMessage = '📎 ' + meta.name; sess.lastActivity = m.timestamp;
 	DB.saveMessage(m); DB.updateSession(sess.id, { lastMessage: sess.lastMessage, lastActivity: sess.lastActivity });
 	if (!mine && S.activeId !== sess.id) sess.unread++;
+	if (!mine) notifyMessage(sess, m);
 	if (S.activeId === sess.id) {
 		const c = el('messages'); if (!c) { renderChatList(); return; }
 		const batchSiblings = getBatchSiblings(sess, batchId, m.id);
