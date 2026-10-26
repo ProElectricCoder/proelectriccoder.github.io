@@ -10,6 +10,8 @@ import { renderChatList, renderTopbar, setStatus, enableCallBtns, addBubble, add
 import { getActiveSess, selectSess, setThemeForSess, findSessByRoomId, deleteSess, safeSend } from './sessions.js';
 import { updateCallCard } from './call-card.js';
 import { bindEngine } from './protocol.js';
+import { sendComposed, clearCompose } from './msg-features.js';
+import { openPollDialog } from './msg-ui.js';
 import { subscribeGroupMeta, writeGroupMeta } from './group-meta.js';
 import {
 	openNewChat, ncSwitchTab, ncDirectSub, NC,
@@ -226,10 +228,9 @@ export const App = {
 		if (sess?.connected) { safeSend(sess, { type: 'typing-stop', displayName: S.displayName }); }
 		clearTimeout(this._typingTimer);
 		if (text) {
-			let payload = text, enc = false;
-			if (S.encEnabled && Crypt.key) { try { payload = await Crypt.encText(text); enc = true; } catch (e) { toast('Encrypt error: ' + e.message); return; } }
-			safeSend(sess, { type: 'chat', text: payload, encrypted: enc, displayName: S.displayName });
-			addBubble(sess, text, S.displayName, true, enc);
+			let sent = false;
+			try { sent = await sendComposed(sess, text); } catch (e) { toast('Send error: ' + e.message); return; }
+			if (!sent) return;
 			if (inp) { inp.value = ''; inp.style.height = 'auto'; }
 		}
 		if (FQ.items.length > 0) {
@@ -238,6 +239,8 @@ export const App = {
 			for (const { file } of toSend) await sendFile(file, sess, batchId);
 		}
 	},
+	openPoll() { openPollDialog(); },
+	cancelCompose() { clearCompose(); },
 	// Typing indicator
 	_typingTimer: null,
 	onTyping() {

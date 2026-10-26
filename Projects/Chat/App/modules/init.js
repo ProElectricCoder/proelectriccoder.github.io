@@ -7,6 +7,7 @@ import { initFirebase } from './firebase-auth.js';
 import { renderChatList } from './chat-render.js';
 import { DriveSync } from './drive-sync.js';
 import { refreshDriveUI } from './panels-ui.js';
+import { initMsgUI } from './msg-ui.js';
 
 export async function init() {
 	// Check URL invite param before anything else
@@ -19,6 +20,7 @@ export async function init() {
 	}
 
 	injectPanels();
+	initMsgUI();
 	try {
 		const mod = await import('https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js');
 		S.cubicGradFn = mod.cubicGradient;

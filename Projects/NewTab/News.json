@@ -1,6 +1,14 @@
 {
-	"updated": "2026-10-25",
+	"updated": "2026-10-26",
 	"posts": [
+		{
+			"id": "chat-polls-reactions-replies",
+			"date": "2026-10-26",
+			"project": "ChatRooms",
+			"title": "Polls, reactions, replies and edit/delete in chat",
+			"summary": "Tap a message for reactions, reply, copy, edit and delete (for me or for everyone). Create polls with visible, changeable votes from the chart button. Delivered ticks now reach the sender too.",
+			"url": "https://proelectriccoder.pages.dev/Projects/Chat/"
+		},
 		{
 			"id": "chat-link-previews",
 			"date": "2026-10-25",

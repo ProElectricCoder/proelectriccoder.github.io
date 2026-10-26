@@ -55,6 +55,12 @@ export const DB = {
 		return this._p(db.transaction('messages', 'readwrite').objectStore('messages').put(toSave));
 	},
 
+	async deleteMessage(m) {
+		const db = await this._open();
+		this.onChange?.(m.sessionId);
+		return this._p(db.transaction('messages', 'readwrite').objectStore('messages').delete(m.id));
+	},
+
 	async getSessions() {
 		const db  = await this._open();
 		const all = await this._p(db.transaction('sessions', 'readonly').objectStore('sessions').getAll());

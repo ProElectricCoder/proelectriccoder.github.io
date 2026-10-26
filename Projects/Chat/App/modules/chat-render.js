@@ -7,6 +7,7 @@ import { renderFileBubbleFromMsg } from './file-transfer.js';
 import { renderCallCardFromMsg } from './call-card.js';
 import { iconSvg } from './icons.js';
 import { attachLinkPreview } from './link-preview.js';
+import { renderFeatureItem, bubbleHtml, decorate, decorateLast } from './msg-features.js';
 
 export function renderChatList() {
 	const container = el('chatList'); if (!container) return;
@@ -93,21 +94,26 @@ export function renderMsgItem(container, m) {
 		const d = document.createElement('div'); d.className = 'sys-msg'; d.textContent = m.content;
 		container.appendChild(d); return;
 	}
-	if (m.type === 'file') { renderFileBubbleFromMsg(container, m); return; }
+	if (renderFeatureItem(container, m)) return;    // polls and deleted messages
+	if (m.type === 'file') { renderFileBubbleFromMsg(container, m); decorateLast(container, m); return; }
 	if (m.type === 'call') { renderCallCardFromMsg(container, m); return; }
 	const side = m.mine ? 'mine' : 'theirs';
 	const enc = m.enc ? `<span class="enc-badge">${iconSvg('lock', .9)} enc</span>` : '';
 	const ticks = m.mine ? ticksHtml(m.ticks || 1) : '';
 	const d = document.createElement('div'); d.className = `msg ${side}`; d.dataset.msgId = m.id;
 	d.innerHTML = `<div class="msg-meta">${escH(m.sender)} · ${fmtTime(m.timestamp)}${enc}${ticks}</div>
-		<div class="msg-bubble">${formatText(m.content)}</div>`;
+		<div class="msg-bubble">${bubbleHtml(m)}</div>`;
 	container.appendChild(d);
+	decorate(d, m);
 	attachLinkPreview(d, m, container);
 }
 
 // addBubble returns msgId for delivered receipt
-export function addBubble(sess, text, sender, mine, enc = false) {
-	const m = { id: 'msg_' + Date.now() + '_' + uid(), sessionId: sess.id, type: 'text', content: text, sender, mine, timestamp: Date.now(), enc, ticks: mine ? 1 : 0 };
+// extra: { id, aid, reply } — the shared message id, author id and quoted message
+export function addBubble(sess, text, sender, mine, enc = false, extra = {}) {
+	const m = { id: extra.id || 'msg_' + Date.now() + '_' + uid(), sessionId: sess.id, type: 'text', content: text, sender, mine, timestamp: Date.now(), enc, ticks: mine ? 1 : 0 };
+	if (extra.aid) m.aid = extra.aid;
+	if (extra.reply) m.reply = extra.reply;
 	sess.messages.push(m); sess.lastMessage = text.slice(0, 60); sess.lastActivity = m.timestamp;
 	DB.saveMessage(m); DB.updateSession(sess.id, { lastMessage: sess.lastMessage, lastActivity: sess.lastActivity });
 	if (!mine && S.activeId !== sess.id) { sess.unread++; renderChatList(); }

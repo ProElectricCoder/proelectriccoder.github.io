@@ -3,6 +3,7 @@ import { DB } from './db.js';
 import { applyTheme } from './theme.js';
 import { el, isMobile, closeSidebarUI } from './utils.js';
 import { renderTopbar, renderMessages, renderChatList } from './chat-render.js';
+import { hooks } from './msg-features.js';
 
 export function getActiveSess() { return S.sessions.get(S.activeId) || null; }
 
@@ -13,6 +14,7 @@ export async function selectSess(id, closeSidebar = true) {
 	S.activeId = id; sess.unread = 0;
 	applyTheme(sess.theme, sess); renderTopbar(sess);
 	await renderMessages(sess);
+	hooks.composeChanged();   // drop a reply/edit that belongs to another chat
 	el('welcomePanel').style.display = 'none';
 	const cv = el('chatView'); cv.classList.remove('hidden'); cv.style.display = 'flex';
 	// Send read receipts for pending messages

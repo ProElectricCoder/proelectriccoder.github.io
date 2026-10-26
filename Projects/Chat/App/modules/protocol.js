@@ -10,6 +10,7 @@ import { receiveFile } from './file-transfer.js';
 import { peerName, safeSend } from './sessions.js';
 import { endCallInternal, handleCallLog, showIncomingDialog, closeIncomingDialog } from './call-1to1.js';
 import { _gcCreatePeer, gcRemoveTile, _gcCleanup } from './call-group.js';
+import { handleFeatureMsg, chatExtra } from './msg-features.js';
 
 // ── Engine binding ───────────────────────────────────────────────────────
 export function bindEngine(sess, engine) {
@@ -79,11 +80,12 @@ export async function handleMsg(sess, data, peerId) {
 			if (S.activeId === sess.id) renderTopbar(sess); break;
 		case 'chat': {
 			let txt = data.text, enc = !!data.encrypted;
+			const extra = chatExtra(sess, data); if (!extra) break;   // already have this message
 			if (enc) {
-				if (!Crypt.key) { addBubble(sess, '[🔒 Encrypted — set same password in Settings]', data.displayName || 'Peer', false, false); return; }
-				try { txt = await Crypt.decText(txt); } catch { addBubble(sess, '[⚠ Decryption failed]', data.displayName || 'Peer', false, false); return; }
+				if (!Crypt.key) { addBubble(sess, '[Encrypted — set the same password in Settings]', data.displayName || 'Peer', false, false, extra); return; }
+				try { txt = await Crypt.decText(txt); } catch { addBubble(sess, '[Decryption failed]', data.displayName || 'Peer', false, false, extra); return; }
 			}
-			const msgId = addBubble(sess, txt, data.displayName || peerName(sess, peerId), false, enc);
+			const msgId = addBubble(sess, txt, data.displayName || peerName(sess, peerId), false, enc, extra);
 			// Send delivered receipt
 			if (msgId && sess.connected) safeSend(sess, { type: 'msg-delivered', msgId });
 			break;
@@ -100,6 +102,8 @@ export async function handleMsg(sess, data, peerId) {
 			}
 			break;
 		}
+		case 'msg-react': case 'msg-edit': case 'msg-delete': case 'poll': case 'poll-vote': case 'poll-close':
+			await handleFeatureMsg(sess, data, peerId); break;
 		case 'typing': {
 			if (!sess.typingPeers) sess.typingPeers = new Set();
 			sess.typingPeers.add(data.displayName || peerName(sess, peerId));

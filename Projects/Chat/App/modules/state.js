@@ -1,3 +1,5 @@
+import { MY_PEER_ID } from './constants.js';
+
 // ── Global state ──────────────────────────────────────────────────────────
 export const S = {
 	sessions:      new Map(),
@@ -19,6 +21,7 @@ export const S = {
 	wakeLockObj:   null,
 	gcSessId:      null,   // active group-call session
 	_pendingInvite: null,
+	compose:       null,   // { mode:'reply'|'edit', sessId, id, sender, text } — what the input bar is doing
 };
 
 // ── Session factory ────────────────────────────────────────────────────────
@@ -73,3 +76,9 @@ export function makeSess(opts) {
 export function uid() {
 	return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
+
+// Stable author id for message ownership checks in groups: the readable Chat ID once signed in, else this page's peer id
+export function getAid() { return S.chatId || MY_PEER_ID; }
+
+// Message ids travel between peers, so only accept plain ones
+export function cleanId(x) { return typeof x === 'string' && /^[\w-]{6,80}$/.test(x) ? x : null; }
