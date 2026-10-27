@@ -68,6 +68,10 @@
 		{
 			"version": "1.7.1",
 			"note": "Weather card, engine icons, scrollable engine menu."
+		},
+		{
+			"version": "1.8.0",
+			"note": "Staged updates, shared gradient engine, default shortcuts, card-only weather."
 		}
 	],
 	"notify": null

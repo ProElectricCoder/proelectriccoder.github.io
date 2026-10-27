@@ -137,7 +137,7 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 	<div class="nav-left">
 		<img src="ProElectricCoder-logo-website-1.svg" alt="Logo" class="nav-logo" onerror="this.style.display='none'">
 		<span class="nav-title">ProElectricCoder New Tab</span>
-		<span class="nav-version" id="navVersion">v1.7.1</span>
+		<span class="nav-version" id="navVersion">v1.8.0</span>
 	</div>
 	<div class="nav-right">
 		<a class="nav-link" href="#features">Features</a>
@@ -277,7 +277,7 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 </section>
 
 <footer>
-	ProElectricCoder New Tab · <span id="footerVersion">v1.7.1</span> · Built with ElectronCSS
+	ProElectricCoder New Tab · <span id="footerVersion">v1.8.0</span> · Built with ElectronCSS
 </footer>
 
 <div id="updateBanner">
@@ -295,12 +295,8 @@ import { cubicGradient } from 'https://proelectriccoder.github.io/ElectronCSS/Cu
 document.body.style.background = cubicGradient({ direction: 'to bottom right', start: '#000000', end: '#000066', steps: 20, power: 3 });
 
 // ─── Extension files ───────────────────────────────────────────────────────
-// Updates.json is NOT in this list — it is created/updated separately to preserve local logs.
-const EXTENSION_FILES = [
-	'manifest.json', 'NewTab.html', 'NewTabJS.js', 'CubicGradient.js', 'Changelog.json',
-	'ProElectricCoder-logo-website-1.svg', 'ProElectricCoder-logo-website-2.svg',
-	'Icon16.png', 'Icon48.png', 'Icon128.png'
-];
+// The release's Changelog.json lists the files ("files") and shared files taken from elsewhere on the site ("sources").
+// Updates.json is NOT part of a release — it is created/updated separately to preserve local logs.
 // Included in ZIP only (not overwritten during updates)
 const ZIP_ONLY_FILES = ['Updates.json'];
 
@@ -367,34 +363,192 @@ function compareVersions(a, b) {
 	return 0;
 }
 
-const isSafeFileName = (n) => typeof n === 'string' && /^(?!\.+$)[\w.-]+$/.test(n) && n !== 'Updates.json';
+// ─── Staged updates ───────────────────────────────────────────────────────
+// An update never touches the installed files until the whole new version is safely on disk and checked:
+//   1. every file of the release is downloaded and saved together in ONE file, new-version.json
+//   2. that file is read back from the folder and validated (sizes, SHA-256 hashes, manifest, imports …)
+//   3. only then are the installed files replaced from it, with manifest.json last
+// If anything goes wrong before step 3, the installed extension is exactly as it was.
+const STAGE_FILE = 'new-version.json';
+const SOURCE_ORIGIN = 'https://proelectriccoder.github.io/';   // shared files (like CubicGradient.js) may only come from here
+const REQUIRED_FILES = ['manifest.json', 'NewTab.html', 'NewTabJS.js', 'Changelog.json'];
+const APPLY_LAST = ['NewTab.html', 'NewTabJS.js', 'manifest.json'];   // replaced in this order, after every other file
+const FALLBACK_FILES = ['manifest.json', 'NewTab.html', 'NewTabJS.js', 'Changelog.json',
+	'ProElectricCoder-logo-website-1.svg', 'ProElectricCoder-logo-website-2.svg', 'Icon16.png', 'Icon48.png', 'Icon128.png'];
+const FALLBACK_SOURCES = { 'CubicGradient.js': SOURCE_ORIGIN + 'ElectronCSS/CubicGradient.js' };
 
-// The server's Changelog.json lists the files in the current release ("files"); the built-in list is the fallback.
-async function resolveFileList() {
+const isSafeFileName = (n) => typeof n === 'string' && /^(?!\.+$)[\w.-]+$/.test(n) && n !== 'Updates.json' && n !== STAGE_FILE;
+
+async function sha256Hex(bytes) {
+	const d = await crypto.subtle.digest('SHA-256', bytes);
+	return Array.from(new Uint8Array(d), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+function bytesToBase64(bytes) {
+	let s = '';
+	for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+	return btoa(s);
+}
+function base64ToBytes(b64) {
+	const s = atob(b64), out = new Uint8Array(s.length);
+	for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+	return out;
+}
+const isTextFile = (n) => /\.(json|js|html|svg|css|txt|md)$/i.test(n);
+
+// The release's Changelog.json lists its files ("files") and any shared files it takes from elsewhere on the site ("sources")
+async function resolveReleaseFiles(baseUrl) {
 	try {
-		const res = await fetch(BASE_URL + 'Changelog.json?_=' + Date.now());
+		const res = await fetch(baseUrl + 'Changelog.json?_=' + Date.now(), { cache: 'no-cache' });
 		if (res.ok) {
 			const json = await res.json();
-			const list = Array.isArray(json.files) ? json.files.filter(isSafeFileName) : [];
-			if (list.length) return [...new Set([...list, 'manifest.json', 'Changelog.json'])];
+			const names = Array.isArray(json.files) ? json.files.filter(isSafeFileName) : [];
+			const sources = {};
+			for (const [n, u] of Object.entries(json.sources && typeof json.sources === 'object' ? json.sources : {})) {
+				if (isSafeFileName(n) && typeof u === 'string' && u.startsWith(SOURCE_ORIGIN)) sources[n] = u;
+			}
+			if (names.length) return { names: [...new Set([...names, 'manifest.json', 'Changelog.json'])].filter((n) => !sources[n]), sources };
 		}
-	} catch { /* use the built-in list */ }
-	return EXTENSION_FILES;
+	} catch { /* fall back to the built-in lists */ }
+	return { names: FALLBACK_FILES, sources: FALLBACK_SOURCES };
 }
 
-// manifest.json goes last so it never points at files that haven't been written yet
-const manifestLast = (files) => Object.entries(files).sort(([a], [b]) => (a === 'manifest.json') - (b === 'manifest.json'));
+// Downloads the whole release into memory: { name: Uint8Array }
+async function downloadRelease(baseUrl) {
+	const { names, sources } = await resolveReleaseFiles(baseUrl);
+	const jobs = [...names.map((n) => [n, baseUrl + n]), ...Object.entries(sources)];
+	const files = {};
+	await Promise.all(jobs.map(async ([name, url]) => {
+		const res = await fetch(url, { cache: 'no-cache' });
+		if (!res.ok) throw new Error(`Fetch failed: ${name} (${res.status})`);
+		files[name] = new Uint8Array(await res.arrayBuffer());
+	}));
+	return files;
+}
+
+async function packRelease(files, version) {
+	const pack = { format: 1, version, created: new Date().toISOString(), files: {} };
+	for (const [name, bytes] of Object.entries(files)) {
+		const entry = { size: bytes.length, sha256: await sha256Hex(bytes) };
+		if (isTextFile(name)) {   // readable text where it round-trips exactly, base64 otherwise
+			try {
+				const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+				if (new TextEncoder().encode(text).length === bytes.length) entry.text = text;
+			} catch { /* binary or not UTF-8 */ }
+		}
+		if (entry.text === undefined) entry.base64 = bytesToBase64(bytes);
+		pack.files[name] = entry;
+	}
+	return pack;
+}
+
+async function unpackRelease(pack) {
+	const files = {}, problems = [];
+	for (const [name, entry] of Object.entries(pack.files || {})) {
+		if (!isSafeFileName(name) || !entry || typeof entry !== 'object') { problems.push(`unexpected entry "${name}"`); continue; }
+		let bytes;
+		try { bytes = typeof entry.text === 'string' ? new TextEncoder().encode(entry.text) : base64ToBytes(String(entry.base64)); }
+		catch { problems.push(`${name} cannot be decoded`); continue; }
+		if (bytes.length !== entry.size) problems.push(`${name} has the wrong size`);
+		else if (await sha256Hex(bytes) !== entry.sha256) problems.push(`${name} does not match its checksum`);
+		files[name] = bytes;
+	}
+	return { files, problems };
+}
+
+// Looks at the new version as a whole: is everything there, and does it hang together?
+async function validateRelease(files, expectedVersion, localHas) {
+	const problems = [];
+	const text = (n) => new TextDecoder().decode(files[n]);
+	for (const n of REQUIRED_FILES) if (!files[n] || !files[n].length) problems.push(`${n} is missing or empty`);
+	if (problems.length) return problems;
+	const has = async (n) => !!files[n] || await localHas(n);
+
+	for (const [n, b] of Object.entries(files)) {
+		if (!b.length) problems.push(`${n} is empty`);
+		else if (/\.json$/i.test(n)) { try { JSON.parse(text(n)); } catch { problems.push(`${n} is not valid JSON`); } }
+		else if (/\.png$/i.test(n) && !(b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47)) problems.push(`${n} is not a PNG image`);
+		else if (/\.svg$/i.test(n) && !/<svg[\s>]/i.test(text(n))) problems.push(`${n} is not an SVG image`);
+	}
+	if (problems.length) return problems;
+
+	const manifest = JSON.parse(text('manifest.json'));
+	if (manifest.manifest_version !== 3) problems.push('manifest.json is not a Manifest V3 file');
+	if (expectedVersion && manifest.version !== expectedVersion) problems.push(`manifest.json says v${manifest.version}, expected v${expectedVersion}`);
+	const page = manifest.chrome_url_overrides?.newtab;
+	if (!page || !(await has(page))) problems.push('the new tab page named in manifest.json is missing');
+	const icons = [...Object.values(manifest.icons || {}), ...Object.values(manifest.action?.default_icon || {})];
+	for (const icon of icons) if (!(await has(icon))) problems.push(`manifest.json names ${icon}, which is missing`);
+
+	const log = JSON.parse(text('Changelog.json'));
+	if (expectedVersion && !(Array.isArray(log.releases) && log.releases.some((r) => r && r.version === expectedVersion))) problems.push(`Changelog.json has no entry for v${expectedVersion}`);
+	for (const n of Array.isArray(log.files) ? log.files.filter(isSafeFileName) : []) if (!(await has(n))) problems.push(`Changelog.json lists ${n}, which is missing`);
+
+	const html = text('NewTab.html');
+	if (!/<\/html>\s*$/i.test(html)) problems.push('NewTab.html looks cut off');
+	for (const m of html.matchAll(/\bsrc="([^"#?:]+\.js)"/gi)) if (!(await has(m[1]))) problems.push(`NewTab.html loads ${m[1]}, which is missing`);
+
+	const js = text('NewTabJS.js');
+	if (js.length < 1000 || !/[;}]\s*$/.test(js)) problems.push('NewTabJS.js looks cut off');
+	for (const m of js.matchAll(/(?:from|import\()\s*['"]\.\/([\w.-]+\.js)['"]/g)) if (!(await has(m[1]))) problems.push(`NewTabJS.js imports ${m[1]}, which is missing`);
+	return problems;
+}
+
+async function writeFileTo(dir, name, data) {
+	const fh = await dir.getFileHandle(name, { create: true });
+	const wr = await fh.createWritable();   // changes only land when close() succeeds
+	await wr.write(data);
+	await wr.close();
+}
+async function readBytesFrom(dir, name) { return new Uint8Array(await (await (await dir.getFileHandle(name)).getFile()).arrayBuffer()); }
+const folderHas = (dir) => async (n) => { try { await dir.getFileHandle(n); return true; } catch { return false; } };
+async function discardStage(dir) { try { await dir.removeEntry(STAGE_FILE); } catch { /* nothing staged */ } }
+
+// Reads new-version.json back from the folder and validates what is on disk, not what is in memory
+async function checkStaged(dir, expectedVersion) {
+	let pack;
+	try { pack = JSON.parse(new TextDecoder().decode(await readBytesFrom(dir, STAGE_FILE))); }
+	catch { return { problems: [`${STAGE_FILE} cannot be read`], files: {} }; }
+	if (!pack || pack.format !== 1 || typeof pack.files !== 'object' || pack.files === null) return { problems: [`${STAGE_FILE} is not a valid update file`], files: {} };
+	const { files, problems } = await unpackRelease(pack);
+	if (expectedVersion && pack.version !== expectedVersion) problems.push(`the saved update is v${pack.version}, expected v${expectedVersion}`);
+	if (!problems.length) problems.push(...await validateRelease(files, pack.version, folderHas(dir)));
+	return { problems, files, version: pack.version };
+}
+
+// Replaces the installed files; each is read back and compared before moving on
+async function applyRelease(dir, files, onStage = () => {}) {
+	const rank = (n) => APPLY_LAST.indexOf(n) + 1;
+	const names = Object.keys(files).sort((a, b) => rank(a) - rank(b));
+	for (const [i, name] of names.entries()) {
+		onStage(`Installing ${name} (${i + 1}/${names.length})…`);
+		await writeFileTo(dir, name, files[name]);
+		if (await sha256Hex(await readBytesFrom(dir, name)) !== await sha256Hex(files[name])) throw new Error(`${name} was not written correctly`);
+	}
+}
+
+// Stage → check → apply. setState(stage) lets the caller record progress: 'writing', 'applying', then null when done.
+async function installRelease(dir, files, version, { onStage = () => {}, setState = async () => {} } = {}) {
+	onStage('Saving the new version…');
+	await setState('writing');
+	try { await writeFileTo(dir, STAGE_FILE, JSON.stringify(await packRelease(files, version))); }
+	catch (e) { await discardStage(dir); await setState(null); throw new Error(`Could not save ${STAGE_FILE}: ${e.message}`); }
+	onStage('Checking the new version…');
+	const check = await checkStaged(dir, version);
+	if (check.problems.length) {
+		await discardStage(dir);
+		await setState(null);
+		throw new Error('The downloaded update did not pass its checks, so nothing was changed: ' + check.problems.join('; '));
+	}
+	await setState('applying');
+	await applyRelease(dir, check.files, onStage);
+	await discardStage(dir);
+	await setState(null);
+}
 
 async function fetchExtensionFiles() {
-	const results = {};
-	const fileList = await resolveFileList();
-	await Promise.all(fileList.map(async (name) => {
-		const res = await fetch(BASE_URL + name);
-		if (!res.ok) throw new Error(`Could not fetch ${name} from server (${res.status})`);
-		results[name] = await res.blob();
-	}));
-	return results;
+	return downloadRelease(BASE_URL);
 }
+const decodeText = (bytes) => new TextDecoder().decode(bytes);
 
 // ─── State ────────────────────────────────────────────────────────────────
 let globalDirHandle = null;
@@ -464,6 +618,21 @@ async function readFolderData() {
 			data = { autoUpdate: false, log: [], notify: null };
 			await writeUpdatesJson(globalDirHandle, data);
 		}
+		// A leftover new-version.json means an update was interrupted: finish it if it stopped part-way through, else clean it up
+		if (await folderHas(globalDirHandle)(STAGE_FILE)) {
+			const p = data.pending;
+			const check = await checkStaged(globalDirHandle, p?.to);
+			if (p && p.stage === 'applying' && !check.problems.length) {
+				await applyRelease(globalDirHandle, check.files);
+				data.log.push({ timestamp: new Date().toLocaleString(), from: p.from, to: p.to, note: 'Finished an interrupted update' });
+				const pendingFrom = data.notify && typeof data.notify === 'object' ? data.notify.from : '';
+				data.notify = { from: pendingFrom || p.from, to: p.to };
+			}
+			await discardStage(globalDirHandle);
+			data.pending = null;
+			await writeUpdatesJson(globalDirHandle, data);
+			localManifestVersion = JSON.parse(decodeText(await readBytesFrom(globalDirHandle, 'manifest.json'))).version;
+		}
 		autoUpdateOn = data.autoUpdate;
 		document.getElementById('autoUpdateToggle').checked = autoUpdateOn;
 		document.getElementById('autoUpdateToggle').disabled = false;
@@ -501,15 +670,8 @@ window.downloadToFolder = async function () {
 		setStatus('folderStatus', 'Fetching files from server…', 'loading');
 		const files = await fetchExtensionFiles();
 
-		setStatus('folderStatus', 'Writing files…', 'loading');
-		for (const [name, blob] of manifestLast(files)) {
-			const fh = await dirHandle.getFileHandle(name, { create: true });
-			const wr = await fh.createWritable();
-			await wr.write(blob);
-			await wr.close();
-		}
-
-		const manifest = JSON.parse(await files['manifest.json'].text());
+		const manifest = JSON.parse(decodeText(files['manifest.json']));
+		await installRelease(dirHandle, files, manifest.version, { onStage: (m) => setStatus('folderStatus', m, 'loading') });
 
 		// Create/merge Updates.json — preserve existing autoUpdate setting if re-downloading
 		const existingData = await readUpdatesJson(dirHandle);
@@ -544,13 +706,13 @@ window.downloadZip = async function () {
 		const files = await fetchExtensionFiles();
 		// Also fetch Updates.json for the ZIP
 		const updatesRes = await fetch(BASE_URL + 'Updates.json');
-		if (updatesRes.ok) files['Updates.json'] = await updatesRes.blob();
+		if (updatesRes.ok) files['Updates.json'] = new Uint8Array(await updatesRes.arrayBuffer());
 
-		const manifest = JSON.parse(await files['manifest.json'].text());
+		const manifest = JSON.parse(decodeText(files['manifest.json']));
 		const zip = new JSZip();
 		const folder = zip.folder('NewTab-extension');
-		for (const [name, blob] of Object.entries(files)) {
-			folder.file(name, blob);
+		for (const [name, bytes] of Object.entries(files)) {
+			folder.file(name, bytes);
 		}
 		const content = await zip.generateAsync({ type: 'blob' });
 		const url = URL.createObjectURL(content);
@@ -675,23 +837,17 @@ window.triggerUpdate = async function (autoTriggered = false) {
 	try {
 		const files = await fetchExtensionFiles();
 
-		setStatus('updateActionStatus', 'Writing files…', 'loading');
-		for (const [name, blob] of manifestLast(files)) {
-			try {
-				const fh = await globalDirHandle.getFileHandle(name, { create: true });
-				const wr = await fh.createWritable();
-				await wr.write(blob);
-				await wr.close();
-			} catch (writeErr) {
-				throw new Error(`Failed to write ${name}: ${writeErr.message}`);
-			}
-		}
+		const manifest = JSON.parse(decodeText(files['manifest.json']));
+		const data = (await readUpdatesJson(globalDirHandle)) || { autoUpdate: autoUpdateOn, log: [], notify: null };
+		await installRelease(globalDirHandle, files, manifest.version, {
+			onStage: (m) => setStatus('updateActionStatus', m, 'loading'),
+			// Progress is saved in Updates.json so an interrupted update can be finished later
+			setState: async (stage) => { data.pending = stage ? { from: fromVersion, to: manifest.version, stage } : null; await writeUpdatesJson(globalDirHandle, data); }
+		});
 
 		// Update Updates.json in place — append log, set notify, preserve autoUpdate.
 		// notify carries only the version range; the new tab's toast looks up what
 		// changed in Changelog.json (written to the folder above).
-		const manifest = JSON.parse(await files['manifest.json'].text());
-		const data = (await readUpdatesJson(globalDirHandle)) || { autoUpdate: autoUpdateOn, log: [], notify: null };
 		data.log.push({
 			timestamp: new Date().toLocaleString(),
 			from: fromVersion,
@@ -702,6 +858,7 @@ window.triggerUpdate = async function (autoTriggered = false) {
 		const pendingFrom = data.notify && typeof data.notify === 'object' ? data.notify.from : '';
 		data.notify = { from: pendingFrom || fromVersion, to: manifest.version };
 		data.autoUpdate = autoUpdateOn;
+		data.pending = null;
 		await writeUpdatesJson(globalDirHandle, data);
 
 		await readFolderData();

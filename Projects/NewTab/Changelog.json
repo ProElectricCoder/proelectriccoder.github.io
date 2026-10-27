@@ -3,7 +3,6 @@
 		"manifest.json",
 		"NewTab.html",
 		"NewTabJS.js",
-		"CubicGradient.js",
 		"Changelog.json",
 		"ProElectricCoder-logo-website-1.svg",
 		"ProElectricCoder-logo-website-2.svg",
@@ -11,7 +10,23 @@
 		"Icon48.png",
 		"Icon128.png"
 	],
+	"sources": {
+		"CubicGradient.js": "https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js"
+	},
 	"releases": [
+		{
+			"version": "1.8.0",
+			"date": "2026-10-27",
+			"summary": "Safer staged updates, one shared gradient engine, default shortcuts, and a tidier weather.",
+			"details": [
+				"Updates now save the whole new version in one file (new-version.json), check it, and only then replace the installed files. If anything fails the old version stays untouched, and an interrupted update is finished the next time the page opens.",
+				"The gradient engine is now the shared ElectronCSS/CubicGradient.js: the updater copies it in, and the NewTab folder no longer keeps its own copy.",
+				"New installs start with GitHub and ProElectricCoder shortcuts. They never trigger the DeepBlue IDE suggestion; only a GitHub shortcut you add yourself does.",
+				"The weather summary in the middle of the page is gone: weather lives only in the card next to the News button.",
+				"Search engine and news icons load straight from Google's favicon service, with rounded corners and no white box.",
+				"Settings now has a Feedback line with an email address for bug reports and suggestions."
+			]
+		},
 		{
 			"version": "1.7.1",
 			"date": "2026-10-26",

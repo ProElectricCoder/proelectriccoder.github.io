@@ -1,4 +1,13 @@
-import { cubicGradient } from './CubicGradient.js';
+// The gradient engine is the shared ElectronCSS/CubicGradient.js. An extension can only run code stored inside its own folder
+// (Chrome blocks code loaded from a website), so the updater copies the shared file in as CubicGradient.js.
+// Until that copy exists the background uses a plain two-colour gradient.
+let cubicGradient;
+let gradientEngineMissing = false;
+try { ({ cubicGradient } = await import('./CubicGradient.js')); }
+catch {
+	gradientEngineMissing = true;
+	cubicGradient = ({ direction = 'to bottom right', start = '#000000', end = '#000066' } = {}) => `linear-gradient(${direction}, ${start}, ${end})`;
+}
 
 // ─── Single source of truth for engine SVGs ───────────────────────────────
 const engineSvgs = {
@@ -22,7 +31,7 @@ const BUILTIN_ENGINES = [
 	{ id: 'maps',          name: 'Google Maps',    url: 'https://www.google.com/maps/search/%s',           prefix: 'm',   domain: 'maps.google.com', badge: ['MAP', '#34a853'] },
 	{ id: 'amazon',        name: 'Amazon',         url: 'https://www.amazon.com/s?k=%s',                   prefix: 'a',   badge: ['A',   '#ff9900'] }
 ];
-const SITE_ICON = 'https://proelectriccoder.pages.dev/api/site-icon?domain=';   // relay: your browser only talks to us
+const SITE_ICON = 'https://www.google.com/s2/favicons?sz=64&domain=';   // Google's favicon service, loaded directly
 const hostOf = (u) => { try { return new URL(u).hostname; } catch { return ''; } };
 const escSvg = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function badgeSvg(text, color) {
@@ -56,6 +65,14 @@ const engineById = (id) => allEngines().find((e) => e.id === id) || allEngines()
 
 let activeShortcutIndex = -1;
 let draggedIndex = null;
+
+// Shortcuts a fresh install starts with. "builtin" keeps them out of the suggestion cards: GitHub only counts
+// as a coding-site shortcut when the person adds it themselves.
+const DEFAULT_SHORTCUTS = [
+	{ name: 'GitHub', url: 'https://github.com', icon: 'https://www.google.com/s2/favicons?sz=64&domain=github.com', builtin: true },
+	{ name: 'ProElectricCoder', url: 'https://proelectriccoder.pages.dev', icon: 'https://proelectriccoder.pages.dev/Favicon.svg', builtin: true }
+];
+if (localStorage.getItem('shortcuts') === null) localStorage.setItem('shortcuts', JSON.stringify(DEFAULT_SHORTCUTS));
 
 // ─── Safe JSON parse for shortcuts ───────────────────────────────────────
 function safeParseShortcuts() {
@@ -623,27 +640,186 @@ function compareVersions(a, b) {
 // ─── Remote update config ─────────────────────────────────────────────────
 const REMOTE_BASE = 'https://proelectriccoder.github.io/Projects/NewTab/';
 
-// Updates.json is NOT in this list — it's managed separately to preserve local logs
-const UPDATABLE_FILES = [
-	'manifest.json', 'NewTab.html', 'NewTabJS.js', 'CubicGradient.js', 'Changelog.json',
-	'ProElectricCoder-logo-website-1.svg', 'ProElectricCoder-logo-website-2.svg',
-	'Icon16.png', 'Icon48.png', 'Icon128.png'
-];
+// ─── Staged updates ───────────────────────────────────────────────────────
+// An update never touches the installed files until the whole new version is safely on disk and checked:
+//   1. every file of the release is downloaded and saved together in ONE file, new-version.json
+//   2. that file is read back from the folder and validated (sizes, SHA-256 hashes, manifest, imports …)
+//   3. only then are the installed files replaced from it, with manifest.json last
+// If anything goes wrong before step 3, the installed extension is exactly as it was.
+const STAGE_FILE = 'new-version.json';
+const SOURCE_ORIGIN = 'https://proelectriccoder.github.io/';   // shared files (like CubicGradient.js) may only come from here
+const REQUIRED_FILES = ['manifest.json', 'NewTab.html', 'NewTabJS.js', 'Changelog.json'];
+const APPLY_LAST = ['NewTab.html', 'NewTabJS.js', 'manifest.json'];   // replaced in this order, after every other file
+const FALLBACK_FILES = ['manifest.json', 'NewTab.html', 'NewTabJS.js', 'Changelog.json',
+	'ProElectricCoder-logo-website-1.svg', 'ProElectricCoder-logo-website-2.svg', 'Icon16.png', 'Icon48.png', 'Icon128.png'];
+const FALLBACK_SOURCES = { 'CubicGradient.js': SOURCE_ORIGIN + 'ElectronCSS/CubicGradient.js' };
 
-const isSafeFileName = (n) => typeof n === 'string' && /^(?!\.+$)[\w.-]+$/.test(n) && n !== 'Updates.json';
+const isSafeFileName = (n) => typeof n === 'string' && /^(?!\.+$)[\w.-]+$/.test(n) && n !== 'Updates.json' && n !== STAGE_FILE;
 
-// The server's Changelog.json lists the files that make up the current release ("files"), so a release
-// can add new files without older copies of this script needing to know about them.
-async function resolveUpdateFiles() {
+async function sha256Hex(bytes) {
+	const d = await crypto.subtle.digest('SHA-256', bytes);
+	return Array.from(new Uint8Array(d), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+function bytesToBase64(bytes) {
+	let s = '';
+	for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+	return btoa(s);
+}
+function base64ToBytes(b64) {
+	const s = atob(b64), out = new Uint8Array(s.length);
+	for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+	return out;
+}
+const isTextFile = (n) => /\.(json|js|html|svg|css|txt|md)$/i.test(n);
+
+// The release's Changelog.json lists its files ("files") and any shared files it takes from elsewhere on the site ("sources")
+async function resolveReleaseFiles(baseUrl) {
 	try {
-		const res = await fetch(REMOTE_BASE + 'Changelog.json?_=' + Date.now());
+		const res = await fetch(baseUrl + 'Changelog.json?_=' + Date.now(), { cache: 'no-cache' });
 		if (res.ok) {
 			const json = await res.json();
-			const list = Array.isArray(json.files) ? json.files.filter(isSafeFileName) : [];
-			if (list.length) return [...new Set([...list, 'manifest.json', 'Changelog.json'])];
+			const names = Array.isArray(json.files) ? json.files.filter(isSafeFileName) : [];
+			const sources = {};
+			for (const [n, u] of Object.entries(json.sources && typeof json.sources === 'object' ? json.sources : {})) {
+				if (isSafeFileName(n) && typeof u === 'string' && u.startsWith(SOURCE_ORIGIN)) sources[n] = u;
+			}
+			if (names.length) return { names: [...new Set([...names, 'manifest.json', 'Changelog.json'])].filter((n) => !sources[n]), sources };
 		}
-	} catch { /* fall back to the built-in list */ }
-	return UPDATABLE_FILES;
+	} catch { /* fall back to the built-in lists */ }
+	return { names: FALLBACK_FILES, sources: FALLBACK_SOURCES };
+}
+
+// Downloads the whole release into memory: { name: Uint8Array }
+async function downloadRelease(baseUrl) {
+	const { names, sources } = await resolveReleaseFiles(baseUrl);
+	const jobs = [...names.map((n) => [n, baseUrl + n]), ...Object.entries(sources)];
+	const files = {};
+	await Promise.all(jobs.map(async ([name, url]) => {
+		const res = await fetch(url, { cache: 'no-cache' });
+		if (!res.ok) throw new Error(`Fetch failed: ${name} (${res.status})`);
+		files[name] = new Uint8Array(await res.arrayBuffer());
+	}));
+	return files;
+}
+
+async function packRelease(files, version) {
+	const pack = { format: 1, version, created: new Date().toISOString(), files: {} };
+	for (const [name, bytes] of Object.entries(files)) {
+		const entry = { size: bytes.length, sha256: await sha256Hex(bytes) };
+		if (isTextFile(name)) {   // readable text where it round-trips exactly, base64 otherwise
+			try {
+				const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+				if (new TextEncoder().encode(text).length === bytes.length) entry.text = text;
+			} catch { /* binary or not UTF-8 */ }
+		}
+		if (entry.text === undefined) entry.base64 = bytesToBase64(bytes);
+		pack.files[name] = entry;
+	}
+	return pack;
+}
+
+async function unpackRelease(pack) {
+	const files = {}, problems = [];
+	for (const [name, entry] of Object.entries(pack.files || {})) {
+		if (!isSafeFileName(name) || !entry || typeof entry !== 'object') { problems.push(`unexpected entry "${name}"`); continue; }
+		let bytes;
+		try { bytes = typeof entry.text === 'string' ? new TextEncoder().encode(entry.text) : base64ToBytes(String(entry.base64)); }
+		catch { problems.push(`${name} cannot be decoded`); continue; }
+		if (bytes.length !== entry.size) problems.push(`${name} has the wrong size`);
+		else if (await sha256Hex(bytes) !== entry.sha256) problems.push(`${name} does not match its checksum`);
+		files[name] = bytes;
+	}
+	return { files, problems };
+}
+
+// Looks at the new version as a whole: is everything there, and does it hang together?
+async function validateRelease(files, expectedVersion, localHas) {
+	const problems = [];
+	const text = (n) => new TextDecoder().decode(files[n]);
+	for (const n of REQUIRED_FILES) if (!files[n] || !files[n].length) problems.push(`${n} is missing or empty`);
+	if (problems.length) return problems;
+	const has = async (n) => !!files[n] || await localHas(n);
+
+	for (const [n, b] of Object.entries(files)) {
+		if (!b.length) problems.push(`${n} is empty`);
+		else if (/\.json$/i.test(n)) { try { JSON.parse(text(n)); } catch { problems.push(`${n} is not valid JSON`); } }
+		else if (/\.png$/i.test(n) && !(b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47)) problems.push(`${n} is not a PNG image`);
+		else if (/\.svg$/i.test(n) && !/<svg[\s>]/i.test(text(n))) problems.push(`${n} is not an SVG image`);
+	}
+	if (problems.length) return problems;
+
+	const manifest = JSON.parse(text('manifest.json'));
+	if (manifest.manifest_version !== 3) problems.push('manifest.json is not a Manifest V3 file');
+	if (expectedVersion && manifest.version !== expectedVersion) problems.push(`manifest.json says v${manifest.version}, expected v${expectedVersion}`);
+	const page = manifest.chrome_url_overrides?.newtab;
+	if (!page || !(await has(page))) problems.push('the new tab page named in manifest.json is missing');
+	const icons = [...Object.values(manifest.icons || {}), ...Object.values(manifest.action?.default_icon || {})];
+	for (const icon of icons) if (!(await has(icon))) problems.push(`manifest.json names ${icon}, which is missing`);
+
+	const log = JSON.parse(text('Changelog.json'));
+	if (expectedVersion && !(Array.isArray(log.releases) && log.releases.some((r) => r && r.version === expectedVersion))) problems.push(`Changelog.json has no entry for v${expectedVersion}`);
+	for (const n of Array.isArray(log.files) ? log.files.filter(isSafeFileName) : []) if (!(await has(n))) problems.push(`Changelog.json lists ${n}, which is missing`);
+
+	const html = text('NewTab.html');
+	if (!/<\/html>\s*$/i.test(html)) problems.push('NewTab.html looks cut off');
+	for (const m of html.matchAll(/\bsrc="([^"#?:]+\.js)"/gi)) if (!(await has(m[1]))) problems.push(`NewTab.html loads ${m[1]}, which is missing`);
+
+	const js = text('NewTabJS.js');
+	if (js.length < 1000 || !/[;}]\s*$/.test(js)) problems.push('NewTabJS.js looks cut off');
+	for (const m of js.matchAll(/(?:from|import\()\s*['"]\.\/([\w.-]+\.js)['"]/g)) if (!(await has(m[1]))) problems.push(`NewTabJS.js imports ${m[1]}, which is missing`);
+	return problems;
+}
+
+async function writeFileTo(dir, name, data) {
+	const fh = await dir.getFileHandle(name, { create: true });
+	const wr = await fh.createWritable();   // changes only land when close() succeeds
+	await wr.write(data);
+	await wr.close();
+}
+async function readBytesFrom(dir, name) { return new Uint8Array(await (await (await dir.getFileHandle(name)).getFile()).arrayBuffer()); }
+const folderHas = (dir) => async (n) => { try { await dir.getFileHandle(n); return true; } catch { return false; } };
+async function discardStage(dir) { try { await dir.removeEntry(STAGE_FILE); } catch { /* nothing staged */ } }
+
+// Reads new-version.json back from the folder and validates what is on disk, not what is in memory
+async function checkStaged(dir, expectedVersion) {
+	let pack;
+	try { pack = JSON.parse(new TextDecoder().decode(await readBytesFrom(dir, STAGE_FILE))); }
+	catch { return { problems: [`${STAGE_FILE} cannot be read`], files: {} }; }
+	if (!pack || pack.format !== 1 || typeof pack.files !== 'object' || pack.files === null) return { problems: [`${STAGE_FILE} is not a valid update file`], files: {} };
+	const { files, problems } = await unpackRelease(pack);
+	if (expectedVersion && pack.version !== expectedVersion) problems.push(`the saved update is v${pack.version}, expected v${expectedVersion}`);
+	if (!problems.length) problems.push(...await validateRelease(files, pack.version, folderHas(dir)));
+	return { problems, files, version: pack.version };
+}
+
+// Replaces the installed files; each is read back and compared before moving on
+async function applyRelease(dir, files, onStage = () => {}) {
+	const rank = (n) => APPLY_LAST.indexOf(n) + 1;
+	const names = Object.keys(files).sort((a, b) => rank(a) - rank(b));
+	for (const [i, name] of names.entries()) {
+		onStage(`Installing ${name} (${i + 1}/${names.length})…`);
+		await writeFileTo(dir, name, files[name]);
+		if (await sha256Hex(await readBytesFrom(dir, name)) !== await sha256Hex(files[name])) throw new Error(`${name} was not written correctly`);
+	}
+}
+
+// Stage → check → apply. setState(stage) lets the caller record progress: 'writing', 'applying', then null when done.
+async function installRelease(dir, files, version, { onStage = () => {}, setState = async () => {} } = {}) {
+	onStage('Saving the new version…');
+	await setState('writing');
+	try { await writeFileTo(dir, STAGE_FILE, JSON.stringify(await packRelease(files, version))); }
+	catch (e) { await discardStage(dir); await setState(null); throw new Error(`Could not save ${STAGE_FILE}: ${e.message}`); }
+	onStage('Checking the new version…');
+	const check = await checkStaged(dir, version);
+	if (check.problems.length) {
+		await discardStage(dir);
+		await setState(null);
+		throw new Error('The downloaded update did not pass its checks, so nothing was changed: ' + check.problems.join('; '));
+	}
+	await setState('applying');
+	await applyRelease(dir, check.files, onStage);
+	await discardStage(dir);
+	await setState(null);
 }
 
 // ─── Update toast + changelog ──────────────────────────────────────────────
@@ -871,6 +1047,12 @@ async function silentUpdateCheck() {
 			showUpdateNotification(pending).catch((e) => console.warn('[NewTab] Update toast failed:', e.message));
 		}
 
+		// An interrupted update from last time? Finish it (or clean it up) before anything else.
+		if (await resumeStagedUpdate(data)) return;
+
+		// The shared gradient engine is missing from this folder: fetch it once
+		if (gradientEngineMissing) await installGradientEngine();
+
 		// Step 2: Auto-update check
 		if (!data.autoUpdate) return;
 
@@ -894,39 +1076,55 @@ async function silentUpdateCheck() {
 }
 
 async function performSilentUpdate(fromVersion, toVersion, updatesData) {
-	// Fetch all updatable files from remote
-	const files = {};
-	const fileList = await resolveUpdateFiles();
-	await Promise.all(fileList.map(async (name) => {
-		const res = await fetch(REMOTE_BASE + name);
-		if (!res.ok) throw new Error(`Fetch failed: ${name} (${res.status})`);
-		files[name] = await res.blob();
-	}));
-
-	// Write each file to the linked folder — manifest.json last, so it never points at files that aren't there yet
-	for (const [name, blob] of Object.entries(files).sort(([a], [b]) => (a === 'manifest.json') - (b === 'manifest.json'))) {
-		const fh = await extDirHandle.getFileHandle(name, { create: true });
-		const wr = await fh.createWritable();
-		await wr.write(blob);
-		await wr.close();
-	}
-
-	// Update Updates.json: append log entry, set notify for next load, preserve autoUpdate.
-	// notify carries only the version range — the toast looks up what changed in Changelog.json.
-	updatesData.log.push({
-		timestamp: new Date().toLocaleString(),
-		from: fromVersion,
-		to: toVersion,
-		note: 'Auto-updated by NewTab'
+	const files = await downloadRelease(REMOTE_BASE);
+	await installRelease(extDirHandle, files, toVersion, {
+		// Progress is recorded in Updates.json so an interrupted update can be finished the next time the page opens
+		setState: async (stage) => { updatesData.pending = stage ? { from: fromVersion, to: toVersion, stage } : null; await writeUpdatesJson(updatesData); }
 	});
-	updatesData.notify = { from: fromVersion, to: toVersion };
-	// autoUpdate stays as-is
-	await writeUpdatesJson(updatesData);
+	await finishUpdate(updatesData, fromVersion, toVersion, 'Auto-updated by NewTab');
+}
 
-	// Reload the extension — new files are now on disk, chrome.runtime.reload applies them
-	if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.reload) {
-		chrome.runtime.reload();
+// Bookkeeping once the new files are in place: log it, queue the "what's new" toast, reload the extension
+async function finishUpdate(data, from, to, note) {
+	data.log.push({ timestamp: new Date().toLocaleString(), from, to, note });
+	// If an earlier update is still waiting to be announced, keep its starting version so the notes stack
+	const pendingFrom = data.notify && typeof data.notify === 'object' ? data.notify.from : '';
+	data.notify = { from: pendingFrom || from, to };
+	data.pending = null;
+	await writeUpdatesJson(data);
+	if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.reload) chrome.runtime.reload();
+}
+
+// A leftover new-version.json means an update was interrupted. If it stopped half-way through replacing files
+// and the saved copy still checks out, finish the job; otherwise throw it away (the installed files were never touched).
+async function resumeStagedUpdate(data) {
+	if (!(await folderHas(extDirHandle)(STAGE_FILE))) {
+		if (data.pending) { data.pending = null; await writeUpdatesJson(data); }
+		return false;
 	}
+	const p = data.pending;
+	const check = await checkStaged(extDirHandle, p?.to);
+	if (!p || p.stage !== 'applying' || check.problems.length) {
+		console.warn('[NewTab] Discarding an unfinished update:', check.problems.join('; ') || 'it had not started installing');
+		await discardStage(extDirHandle);
+		if (data.pending) { data.pending = null; await writeUpdatesJson(data); }
+		return false;
+	}
+	await applyRelease(extDirHandle, check.files);
+	await discardStage(extDirHandle);
+	await finishUpdate(data, p.from, p.to, 'Finished an interrupted update');
+	return true;
+}
+
+// Fresh copy of the shared gradient engine, for installs that were set up without it
+async function installGradientEngine() {
+	try {
+		const res = await fetch(FALLBACK_SOURCES['CubicGradient.js'], { cache: 'no-cache' });
+		const src = res.ok ? await res.text() : '';
+		if (!/export\s+function\s+cubicGradient\b/.test(src)) return;
+		await writeFileTo(extDirHandle, 'CubicGradient.js', src);
+		if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.reload) chrome.runtime.reload();
+	} catch (e) { console.warn('[NewTab] Could not install the gradient engine:', e.message); }
 }
 
 // ─── Settings sidebar: folder UI ─────────────────────────────────────────
@@ -1066,7 +1264,7 @@ function cleanNews(raw) {
 // A card is suggested when one of the user's shortcuts is on a site it lists (compared on this device only)
 const hostMatches = (host, rule) => host === rule || host.endsWith('.' + rule);
 function pickCards(cards) {
-	const shortcuts = safeParseShortcuts();
+	const shortcuts = safeParseShortcuts().filter((s) => !s.builtin);   // only shortcuts the person added themselves
 	const urls = shortcuts.map((s) => normalizeUrl(s.url));
 	const labels = shortcuts.map((s) => `${s.name || ''} ${s.url || ''}`.toLowerCase());   // names and URLs, for keyword matches
 	const hosts = urls.map((u) => { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch { return ''; } }).filter(Boolean);
@@ -1198,12 +1396,13 @@ const WORLD_SOURCES = [
 	{ id: 'france24',  name: 'France 24' }
 ];
 const WORLD_DEFAULT = ['bbc', 'cnn', 'aljazeera'];   // sources that start switched on
-const WORLD_LOGO = 'https://proelectriccoder.pages.dev/api/news-logo?source=';   // the relay fetches each site's icon, so the browser only talks to us
+const WORLD_DOMAINS = { bbc: 'bbc.com', cnn: 'cnn.com', aljazeera: 'aljazeera.com', arabnews: 'arabnews.com', guardian: 'theguardian.com', nyt: 'nytimes.com',
+	npr: 'npr.org', sky: 'news.sky.com', cbs: 'cbsnews.com', dw: 'dw.com', france24: 'france24.com' };
 function srcLogo(id) {
 	const img = el('img', 'src-logo');
 	img.alt = ''; img.width = 16; img.height = 16; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
 	img.onerror = () => img.remove();   // no icon available: just show the name
-	img.src = WORLD_LOGO + id;
+	img.src = 'https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(WORLD_DOMAINS[id] || '');
 	return img;
 }
 const WORLD_MAX_AGE_MS = 15 * 60 * 1000;
@@ -1349,7 +1548,7 @@ function syncWorldSettings() {
 }
 
 // ─── Show on page (visibility switches) ───────────────────────────────────
-const VIS_ITEMS = [['logo', 'Logo'], ['clock', 'Clock'], ['date', 'Date'], ['weatherInline', 'Weather on the page'], ['weatherBtn', 'Weather button'], ['search', 'Search bar'], ['shortcuts', 'Shortcuts'], ['newsBtn', 'News button']];
+const VIS_ITEMS = [['logo', 'Logo'], ['clock', 'Clock'], ['date', 'Date'], ['weatherBtn', 'Weather button'], ['search', 'Search bar'], ['shortcuts', 'Shortcuts'], ['newsBtn', 'News button']];
 const visState = () => { const v = lsGet('visibility', {}); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; };
 
 function applyVisibility() {
@@ -1406,6 +1605,7 @@ function setWeatherEnabled(on) {
 }
 
 let weatherLast = null;   // { data, city } for the card
+let weatherFailed = false;
 
 const hour12 = (iso) => { const h = parseInt(iso.slice(11, 13), 10); return (h % 12 || 12) + (h < 12 ? ' AM' : ' PM'); };
 
@@ -1423,7 +1623,7 @@ function renderWeatherCard() {
 	card.appendChild(close);
 	if (!weatherLast) {
 		card.appendChild(el('div', 'wc-title', 'Weather'));
-		card.appendChild(el('p', 'news-empty', weatherCity() ? 'Loading the forecast…' : 'Set your city in Settings → Weather to see the forecast.'));
+		card.appendChild(el('p', 'news-empty', weatherFailed ? 'The forecast is unavailable right now.' : weatherCity() ? 'Loading the forecast…' : 'Set your city in Settings → Weather to see the forecast.'));
 		return;
 	}
 	const { data, city } = weatherLast, c = data.current, d = data.daily, u = weatherUnit() === 'f' ? '°F' : '°C';
@@ -1470,24 +1670,8 @@ function renderWeatherCard() {
 
 function renderWeather(data, city) {
 	weatherLast = { data, city };
+	weatherFailed = false;
 	if (!document.getElementById('weatherCard').hidden) renderWeatherCard();
-	const box = document.getElementById('weather');
-	box.replaceChildren();
-	const deg = (n) => Math.round(n) + '°';
-	const [icon, words] = weatherLook(data.current.weather_code, data.current.is_day);
-	const now = el('div', 'weather-now');
-	const meta = el('div', 'weather-meta');
-	meta.append(el('div', null, city.name), el('div', null, `${words} · H ${deg(data.daily.temperature_2m_max[0])} L ${deg(data.daily.temperature_2m_min[0])}`));
-	now.append(el('span', 'weather-icon', icon), el('span', 'weather-temp', deg(data.current.temperature_2m)), meta);
-	const days = el('div', 'weather-days');
-	for (let i = 1; i < Math.min(4, data.daily.time.length); i++) {
-		const [ic] = weatherLook(data.daily.weather_code[i], 1);
-		const name = new Date(data.daily.time[i] + 'T12:00:00').toLocaleDateString('default', { weekday: 'short' });
-		const d = el('div', 'weather-day');
-		d.append(el('span', null, name), el('span', 'weather-icon', ic), el('span', null, `${deg(data.daily.temperature_2m_max[i])} / ${deg(data.daily.temperature_2m_min[i])}`));
-		days.appendChild(d);
-	}
-	box.append(now, days);
 }
 
 function validWeather(d) {
@@ -1497,23 +1681,16 @@ function validWeather(d) {
 }
 
 async function loadWeather(force) {
-	const box = document.getElementById('weather');
 	document.getElementById('weatherBtn').hidden = !weatherEnabled();
-	if (!weatherEnabled()) { box.hidden = true; weatherLast = null; return; }
-	box.hidden = false;
+	if (!weatherEnabled()) { weatherLast = null; return; }
 	const city = weatherCity();
-	if (!city) {
-		box.replaceChildren(); weatherLast = null;
-		const b = el('button', 'weather-set', 'Set your city for weather');
-		b.onclick = (e) => { e.stopPropagation(); document.getElementById('settingsSidebar').classList.add('open'); };
-		box.appendChild(b);
-		return;
-	}
+	if (!city) { weatherLast = null; if (!document.getElementById('weatherCard').hidden) renderWeatherCard(); return; }
 	const unit = weatherUnit();
 	const key = `v2,${city.lat},${city.lon},${unit}`;
 	const cache = lsGet('weatherCache', null);
-	if (cache?.key === key && validWeather(cache.data)) renderWeather(cache.data, city);
-	if (!force && cache?.key === key && Date.now() - cache.fetchedAt < WEATHER_TTL_MS) return;
+	const cached = cache?.key === key && validWeather(cache.data);
+	if (cached) renderWeather(cache.data, city);
+	if (!force && cached && Date.now() - cache.fetchedAt < WEATHER_TTL_MS) return;
 	try {
 		const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + city.lat + '&longitude=' + city.lon +
 			'&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,is_day' +
@@ -1526,7 +1703,7 @@ async function loadWeather(force) {
 		lsSet('weatherCache', { key, fetchedAt: Date.now(), data });
 		renderWeather(data, city);
 	} catch {
-		if (!(cache?.key === key && validWeather(cache.data))) { box.replaceChildren(el('div', 'weather-meta', 'Weather unavailable')); }
+		if (!cached) { weatherFailed = true; if (!document.getElementById('weatherCard').hidden) renderWeatherCard(); }
 	}
 }
 
