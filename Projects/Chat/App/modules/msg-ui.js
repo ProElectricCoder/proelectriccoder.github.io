@@ -5,6 +5,7 @@ import { el, escH, toast } from './utils.js';
 import { iconSvg } from './icons.js';
 import { getActiveSess } from './sessions.js';
 import { seenBy } from './receipts.js';
+import { voiceClick } from './voice.js';
 import {
 	REACTIONS, hooks, findMsg, setCompose, clearCompose, toggleReaction, deleteForEveryone, deleteForMe,
 	votePoll, closePoll, createPoll,
@@ -65,6 +66,7 @@ function jumpTo(id) {
 
 function onMessagesClick(e, fromMenuKey) {
 	closeMenu();
+	if (voiceClick(e)) return;
 	const sess = getActiveSess(); if (!sess) return;
 	const t = e.target, row = t.closest('.msg[data-msg-id]'); if (!row) return;
 	const m = findMsg(sess, row.dataset.msgId);

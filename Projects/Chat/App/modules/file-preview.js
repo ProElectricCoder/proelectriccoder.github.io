@@ -1,5 +1,5 @@
 import { escH, fmtSz } from './utils.js';
-import { getFileIcon } from './icons.js';
+import { getFileIcon, iconSvg } from './icons.js';
 
 export function previewType(mime, name) {
 	mime = mime || '';
@@ -26,7 +26,17 @@ export function extToLang(ext) {
 	})[ext] || 'plain';
 }
 
+function voiceCard(meta, url, sending, progress) {
+	const v = meta.voice, dur = Number(v.dur) || 0;
+	const peaks = Array.isArray(v.peaks) && v.peaks.length ? v.peaks : Array.from({ length: 32 }, (_, i) => 25 + ((i * 37) % 55));
+	const bars = peaks.map(p => `<i style="height:${Math.max(10, Math.min(100, Number(p) || 10))}%"></i>`).join('');
+	const t = `${Math.floor(dur / 60)}:${String(Math.round(dur) % 60).padStart(2, '0')}`;
+	const bar = sending ? `<div class="fp-bar"><div class="fp-bar-fill" style="width:${progress * 100}%"></div></div>` : '';
+	return `<div class="fp-card vn-card${sending ? ' fp-sending' : ''}"><div class="vn-row"><button type="button" class="vn-play" data-vn-play${url ? '' : ' disabled title="Voice message is no longer available"'}>${iconSvg('play', 1.1)}</button><div class="vn-wave" data-vn-seek>${bars}<span class="vn-prog"></span></div><span class="vn-time" data-dur="${dur}">${t}</span></div>${url ? `<audio preload="metadata" src="${escH(url)}" hidden></audio>` : ''}${bar}</div>`;
+}
+
 export function buildFileCard(meta, url, sending = false, progress = 0, batchFiles = []) {
+	if (meta.voice && (meta.mime || '').startsWith('audio/')) return voiceCard(meta, url, sending, progress);   // (a .webm name alone would read as video)
 	const pt = previewType(meta.mime, meta.name), fi = getFileIcon(meta.mime);
 	const batchAttr = escH(JSON.stringify(batchFiles));
 	let preview = '';

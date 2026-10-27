@@ -48,7 +48,8 @@ export const DB = {
 		if (toSave.file) {
 			toSave.file = { ...toSave.file };
 			delete toSave.file.blobUrl;
-			if (toSave.file.dataUrl && (toSave.file.size > 512 * 1024 || !toSave.file.mime?.startsWith('image/')))
+			const keepVoice = toSave.file.voice && toSave.file.size <= 1.5 * 1024 * 1024;   // small voice notes stay playable after a reload
+			if (toSave.file.dataUrl && !keepVoice && (toSave.file.size > 512 * 1024 || !toSave.file.mime?.startsWith('image/')))
 				delete toSave.file.dataUrl;
 		}
 		this.onChange?.(m.sessionId);
