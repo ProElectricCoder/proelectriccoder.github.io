@@ -73,13 +73,14 @@ export const App = {
 	async directConnect() {
 		const ans = el('ncAnswerInput')?.value.trim(); if (!ans) { toast('Paste the answer SDP first'); return; }
 		const eng = NC.pendingEngine; if (!eng) { toast('Generate an offer first'); return; }
-		try { await eng.setAnswer(ans); this.closeNewChat(); toast('Connecting…'); } catch (e) { toast('Error: ' + e.message); }
+		// the dialog stays open until the connection is up (protocol.js closes it), so a failed attempt can be retried
+		try { await eng.setAnswer(ans); toast('Connecting…'); } catch (e) { toast('Error: ' + e.message); }
 	},
 	async directGenAnswer() {
 		const offer = el('ncRemoteOffer')?.value.trim(); if (!offer) { toast('Paste the remote offer first'); return; }
 		const name = el('ncCalleeName')?.value.trim() || 'Direct Chat';
 		const eng = new DirectEngine(), sess = makeSess({ name, type: 'direct' });
-		S.sessions.set(sess.id, sess); bindEngine(sess, eng);
+		S.sessions.set(sess.id, sess); NC.pendingSessId = sess.id; bindEngine(sess, eng);   // the dialog closes itself once connected
 		try {
 			const answer = await eng.createAnswerFor(offer);
 			el('ncAnswerSDP').value = answer; el('ncAnswerOutGroup')?.classList.remove('hidden');

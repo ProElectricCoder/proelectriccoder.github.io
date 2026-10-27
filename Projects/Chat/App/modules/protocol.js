@@ -7,10 +7,21 @@ import { isAlias } from './chat-id.js';
 import { addBubble, addSysMsg, renderChatList, renderTopbar, setStatus, enableCallBtns, connText } from './chat-render.js';
 import { sendDelivered, markActiveRead, onReceipt } from './receipts.js';
 import { receiveFile } from './file-transfer.js';
-import { peerName, safeSend } from './sessions.js';
+import { peerName, safeSend, selectSess } from './sessions.js';
+import { NC } from './panels-ui.js';
 import { endCallInternal, handleCallLog, showIncomingDialog, closeIncomingDialog } from './call-1to1.js';
 import { _gcCreatePeer, gcRemoveTile, _gcCleanup } from './call-group.js';
 import { handleFeatureMsg, chatExtra } from './msg-features.js';
+
+// A chat started from the New Chat dialog (manual offer/answer) is done once the peer is connected:
+// close the dialog and open the chat, for the caller and for the one answering
+function finishPendingNewChat(sess) {
+	if (NC.pendingSessId !== sess.id) return;
+	el('newChatModal')?.classList.remove('open');
+	NC.pendingEngine = null; NC.pendingSessId = null;
+	selectSess(sess.id).catch(() => {});
+	toast('Connected');
+}
 
 // ── Engine binding ───────────────────────────────────────────────────────
 export function bindEngine(sess, engine) {
@@ -19,6 +30,7 @@ export function bindEngine(sess, engine) {
 		sess.connected = true; sess.peers.set(peerId, { name: 'Peer', avatar: '', myPeerId: '' });
 		if (S.activeId === sess.id) { setStatus('connected', connText(sess)); enableCallBtns(true); }
 		addSysMsg(sess, 'Connected ✓');
+		finishPendingNewChat(sess);
 		safeSend(sess, { type: 'handshake', displayName: S.displayName, avatarUrl: S.avatarUrl, myPeerId: MY_PEER_ID, isGroup: sess.isGroup, groupName: sess.groupName || '' });
 		if (sess.isGroup && sess.isHost) {
 			const members = [...sess.peers.entries()].map(([pid, p]) => ({ pid, name: p.name }));
