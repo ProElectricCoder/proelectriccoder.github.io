@@ -125,6 +125,7 @@ mark.srch.cur{background:rgba(255,160,0,.75);color:#000}
 .lib-url{display:block;font-size:.72rem;color:var(--tp);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lib-sub{font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--faint);margin-top:2px}
 .lib-act{flex-shrink:0;text-decoration:none}
+.tb-ttl{align-items:center;gap:3px;margin-left:7px;font-family:'JetBrains Mono',monospace;font-size:.58rem;font-weight:500;color:var(--tp);border:1px solid rgba(0,255,255,.25);border-radius:9px;padding:1px 6px;vertical-align:middle}
 .msg-bubble{cursor:pointer}
 .msg-quote{border-left:3px solid var(--tp);background:rgba(0,0,0,.22);border-radius:6px;padding:4px 8px;margin-bottom:5px;cursor:pointer;max-width:100%}
 .mq-name{font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--tp);font-weight:600}

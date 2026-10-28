@@ -44,7 +44,8 @@ export function makeSess(opts) {
 		peerAvatar:    opts.peerAvatar    || null,
 		bg:            opts.bg            || null,
 		myRole:        opts.myRole        || 'member',
-			muted:         !!opts.muted,   // no notifications for this chat
+		ttl:           TTL_VALID.has(opts.ttl) ? opts.ttl : 0,   // disappearing-messages timer in seconds, 0 = off
+		muted:         !!opts.muted,   // no notifications for this chat
 		groupIcon:     opts.groupIcon     || null,
 		groupOwner:    opts.groupOwner    || null,
 		groupManagers: opts.groupManagers || [],
@@ -82,6 +83,10 @@ export function uid() {
 
 // Stable author id for message ownership checks in groups: the readable Chat ID once signed in, else this page's peer id
 export function getAid() { return S.chatId || MY_PEER_ID; }
+
+// Disappearing messages: allowed timers (seconds) and when a message sent now will expire
+export const TTL_VALID = new Set([0, 300, 3600, 86400, 604800]);
+export const expAt = (ts, ttl) => (ttl > 0 && TTL_VALID.has(ttl) ? ts + ttl * 1000 : undefined);
 
 // Message ids travel between peers, so only accept plain ones
 export function cleanId(x) { return typeof x === 'string' && /^[\w-]{6,80}$/.test(x) ? x : null; }

@@ -16,6 +16,7 @@ import { toggleSearch, searchStep } from './msg-search.js';
 import { setNotify, toggleMute } from './notify.js';
 import { startVoice, finishVoice } from './voice.js';
 import { openLibrary, pinBannerClick } from './library.js';
+import { setTtl } from './ttl.js';
 import { subscribeGroupMeta, writeGroupMeta } from './group-meta.js';
 import {
 	openNewChat, ncSwitchTab, ncDirectSub, NC,
@@ -245,6 +246,7 @@ export const App = {
 		}
 	},
 	openPoll() { openPollDialog(); },
+	setTtl(v) { setTtl(getActiveSess(), Number(v)); },
 	openLibrary(tab) { this.closeChatInfo?.(); openLibrary(tab); },
 	pinBannerClick() { pinBannerClick(); },
 	startVoice() { startVoice(); },

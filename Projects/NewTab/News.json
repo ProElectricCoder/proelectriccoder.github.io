@@ -1,6 +1,14 @@
 {
-	"updated": "2026-10-26",
+	"updated": "2026-10-28",
 	"posts": [
+		{
+			"id": "chat-voice-pins-disappearing",
+			"date": "2026-10-28",
+			"project": "ChatRooms",
+			"title": "Voice messages, pins, stars and disappearing messages",
+			"summary": "Record and send voice messages with a waveform. Pin messages for everyone, star them for yourself, and browse pinned, starred, media, files and links from one library. Chats can now delete messages automatically after 5 minutes, 1 hour, 24 hours or 7 days.",
+			"url": "https://proelectriccoder.pages.dev/Projects/Chat/"
+		},
 		{
 			"id": "chat-search-receipts-notifications",
 			"date": "2026-10-26",

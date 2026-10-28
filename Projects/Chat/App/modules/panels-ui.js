@@ -5,6 +5,7 @@ import { THEMES } from './constants.js';
 import { el, escH } from './utils.js';
 import { getActiveSess } from './sessions.js';
 import { computeGrad, makeDirGrid } from './theme.js';
+import { ttlSelectHtml } from './ttl.js';
 
 // Google Drive backup section of Settings
 export function refreshDriveUI() {
@@ -108,6 +109,7 @@ export function openThemePicker() {
 
 export function openChatInfo() {
 	const sess = getActiveSess(); if (!sess) return;
+	const tt = el('ciTtl'); if (tt) tt.innerHTML = ttlSelectHtml(sess);
 	const canEdit = sess.myRole === 'owner' || sess.myRole === 'manager';
 	const roleLabel = sess.myRole === 'owner' ? 'Owner' : sess.myRole === 'manager' ? 'Manager' : 'Member';
 	const d = el('ciDetails');

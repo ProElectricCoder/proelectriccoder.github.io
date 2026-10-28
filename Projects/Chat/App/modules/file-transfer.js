@@ -1,5 +1,5 @@
 import { CHUNK_SIZE } from './constants.js';
-import { S, uid, getAid, cleanId } from './state.js';
+import { S, uid, getAid, cleanId, expAt, TTL_VALID } from './state.js';
 import { DB } from './db.js';
 import { el, escH, fmtTime, toast, sleep, bufB64, b64Buf } from './utils.js';
 import { gzip, gunzip } from './compress.js';
@@ -23,7 +23,7 @@ export async function sendFile(file, sess, batchId, extra = {}) {
 		let buf = await file.arrayBuffer(); buf = await gzip(buf);
 		if (isEnc) buf = await Crypt.encBuf(buf);
 		const b64 = bufB64(buf), nChunks = Math.ceil(b64.length / CHUNK_SIZE);
-		safeSend(sess, { type: 'file-meta', id: xferId, name: file.name, origSize: file.size, compressedSize: buf.byteLength, mime: file.type || 'application/octet-stream', chunks: nChunks, encrypted: isEnc, compressed: true, batchId: batchId || null, displayName: S.displayName, aid: getAid(), voice: meta.voice || null });
+		safeSend(sess, { type: 'file-meta', id: xferId, name: file.name, origSize: file.size, compressedSize: buf.byteLength, mime: file.type || 'application/octet-stream', chunks: nChunks, encrypted: isEnc, compressed: true, batchId: batchId || null, displayName: S.displayName, aid: getAid(), voice: meta.voice || null, ttl: sess.ttl || 0 });
 		for (let i = 0; i < nChunks; i++) {
 			safeSend(sess, { type: 'file-chunk', id: xferId, index: i, data: b64.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE) });
 			if (i % 4 === 0) { await sleep(0); updateXferProgress(msgId, (i + 1) / nChunks); }
@@ -51,7 +51,7 @@ export async function receiveFile(sess, id, peerId) {
 	}
 	const blob = new Blob([buf], { type: meta.mime });
 	const url = URL.createObjectURL(blob);
-	addFileBubble(sess, { name: meta.name, size: meta.origSize || meta.size, mime: meta.mime, voice: cleanVoice(meta.voice) }, url, false, meta.encrypted, meta.batchId || null, peerId, { id: cleanId(meta.id), aid: typeof meta.aid === 'string' ? meta.aid.slice(0, 80) : '' });
+	addFileBubble(sess, { name: meta.name, size: meta.origSize || meta.size, mime: meta.mime, voice: cleanVoice(meta.voice) }, url, false, meta.encrypted, meta.batchId || null, peerId, { id: cleanId(meta.id), aid: typeof meta.aid === 'string' ? meta.aid.slice(0, 80) : '', ttl: TTL_VALID.has(meta.ttl) ? meta.ttl : sess.ttl });
 }
 
 // Voice-note details come from the network: keep only a duration and a short list of 0-100 levels
@@ -92,7 +92,7 @@ function finalizeFileBubble(msgId, meta, url, enc, sess, batchId) {
 		const bub = d.querySelector('.msg-bubble');
 		if (bub) { bub.innerHTML = buildFileCard(meta, url, false, 0, getBatchSiblings(sess, batchId, msgId)); loadLazy(bub); }
 	}
-	const m = { id: msgId, sessionId: sess.id, type: 'file', content: meta.name, sender: S.displayName, mine: true, timestamp: Date.now(), enc, aid: getAid(), file: { name: meta.name, size: meta.size, mime: meta.mime, blobUrl: url, batchId: batchId || null, ...(meta.voice ? { voice: meta.voice } : {}) } };
+	const m = { id: msgId, sessionId: sess.id, type: 'file', content: meta.name, sender: S.displayName, mine: true, timestamp: Date.now(), exp: expAt(Date.now(), sess.ttl), enc, aid: getAid(), file: { name: meta.name, size: meta.size, mime: meta.mime, blobUrl: url, batchId: batchId || null, ...(meta.voice ? { voice: meta.voice } : {}) } };
 	sess.messages.push(m); sess.lastMessage = '📎 ' + meta.name; sess.lastActivity = m.timestamp;
 	DB.saveMessage(m); DB.updateSession(sess.id, { lastMessage: sess.lastMessage, lastActivity: sess.lastActivity });
 	persistVoice(m);
@@ -104,7 +104,7 @@ function removeFileBubble(msgId) { document.querySelector(`[data-msg-id="${msgId
 function addFileBubble(sess, meta, url, mine, enc, batchId, peerId, extra = {}) {
 	const sender = mine ? S.displayName : peerName(sess, peerId || 'remote');
 	if (extra.id && sess.messages.some(x => x.id === extra.id)) return;
-	const m = { id: extra.id || 'file_' + Date.now() + '_' + uid(), sessionId: sess.id, type: 'file', content: meta.name, sender, mine, timestamp: Date.now(), enc, aid: extra.aid || undefined, file: { name: meta.name, size: meta.size, mime: meta.mime, blobUrl: url, batchId: batchId || null, ...(meta.voice ? { voice: meta.voice } : {}) } };
+	const m = { id: extra.id || 'file_' + Date.now() + '_' + uid(), sessionId: sess.id, type: 'file', content: meta.name, sender, mine, timestamp: Date.now(), exp: expAt(Date.now(), mine ? sess.ttl : extra.ttl), enc, aid: extra.aid || undefined, file: { name: meta.name, size: meta.size, mime: meta.mime, blobUrl: url, batchId: batchId || null, ...(meta.voice ? { voice: meta.voice } : {}) } };
 	sess.messages.push(m); sess.lastMessage = '📎 ' + meta.name; sess.lastActivity = m.timestamp;
 	DB.saveMessage(m); DB.updateSession(sess.id, { lastMessage: sess.lastMessage, lastActivity: sess.lastActivity });
 	persistVoice(m);

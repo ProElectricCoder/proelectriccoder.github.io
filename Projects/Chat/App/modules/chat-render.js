@@ -1,4 +1,4 @@
-import { S, uid } from './state.js';
+import { S, uid, expAt } from './state.js';
 import { THEMES } from './constants.js';
 import { el, escH, relTime, fmtTime } from './utils.js';
 import { DB } from './db.js';
@@ -10,6 +10,7 @@ import { attachLinkPreview } from './link-preview.js';
 import { notifyMessage, updateTitle, updateMuteBtn } from './notify.js';
 import { renderFeatureItem, bubbleHtml, decorate, decorateLast } from './msg-features.js';
 import { renderPinBanner } from './library.js';
+import { dropExpired, updateTtlBadge } from './ttl.js';
 
 export function renderChatList() {
 	const container = el('chatList'); if (!container) return;
@@ -65,7 +66,7 @@ export function renderTopbar(sess) {
 	dotEl.className = 'status-dot ' + (sess.connected ? 'connected' : '');
 	txtEl.textContent = sess.connected ? connText(sess) : 'Disconnected';
 	enableCallBtns(sess.connected);
-	updateMuteBtn(sess);
+	updateMuteBtn(sess); updateTtlBadge(sess);
 }
 
 // "2 peers connected · TURN relay" — the suffix tells the user when direct P2P was not possible
@@ -89,6 +90,7 @@ export async function renderMessages(sess) {
 	const container = el('messages'); if (!container) return;
 	container.innerHTML = '';
 	if (!sess.messages.length) sess.messages = await DB.getMessages(sess.id);
+	dropExpired(sess);
 	for (const m of sess.messages) renderMsgItem(container, m);
 	container.scrollTop = container.scrollHeight;
 	renderPinBanner(sess);
@@ -115,9 +117,10 @@ export function renderMsgItem(container, m) {
 
 // addBubble returns msgId for delivered receipt
 // extra: { id, aid, reply } — the shared message id, author id and quoted message
-export function addBubble(sess, text, sender, mine, enc = false, extra = {}) {
+export function addBubble(sess, text, sender, mine, enc = false, extra = {}) {   // extra.ttl: disappearing-message timer the sender used
 	const m = { id: extra.id || 'msg_' + Date.now() + '_' + uid(), sessionId: sess.id, type: 'text', content: text, sender, mine, timestamp: Date.now(), enc, ticks: mine ? 1 : 0 };
 	if (extra.aid) m.aid = extra.aid;
+	{ const e = expAt(m.timestamp, extra.ttl ?? sess.ttl); if (e) m.exp = e; }
 	if (extra.reply) m.reply = extra.reply;
 	sess.messages.push(m); sess.lastMessage = text.slice(0, 60); sess.lastActivity = m.timestamp;
 	DB.saveMessage(m); DB.updateSession(sess.id, { lastMessage: sess.lastMessage, lastActivity: sess.lastActivity });

@@ -12,6 +12,7 @@ import { NC } from './panels-ui.js';
 import { endCallInternal, handleCallLog, showIncomingDialog, closeIncomingDialog } from './call-1to1.js';
 import { _gcCreatePeer, gcRemoveTile, _gcCleanup } from './call-group.js';
 import { handleFeatureMsg, chatExtra } from './msg-features.js';
+import { onTtl } from './ttl.js';
 
 // A chat started from the New Chat dialog (manual offer/answer) is done once the peer is connected:
 // close the dialog and open the chat, for the caller and for the one answering
@@ -110,6 +111,7 @@ export async function handleMsg(sess, data, peerId) {
 			onReceipt(sess, data, peerId, 'read');
 			break;
 		}
+		case 'chat-ttl': onTtl(sess, data, peerId); break;
 		case 'msg-react': case 'msg-pin': case 'msg-edit': case 'msg-delete': case 'poll': case 'poll-vote': case 'poll-close':
 			await handleFeatureMsg(sess, data, peerId); break;
 		case 'typing': {

@@ -21,7 +21,7 @@ const ls = {
 };
 
 const SESSION_FIELDS = ['id', 'name', 'type', 'isGroup', 'theme', 'createdAt', 'lastActivity', 'lastMessage', 'roomId', 'wsUrl',
-	'groupName', 'peerName', 'peerAvatar', 'bg', 'myRole', 'groupIcon', 'groupOwner', 'groupManagers', 'membersData', 'muted'];
+	'groupName', 'peerName', 'peerAvatar', 'bg', 'myRole', 'groupIcon', 'groupOwner', 'groupManagers', 'membersData', 'muted', 'ttl'];
 
 let refreshing = null;
 
@@ -72,7 +72,7 @@ const safeName = s => String(s || 'Chat').replace(/[\\/:*?"<>|]+/g, ' ').trim().
 async function buildPayload(sid) {
 	const sess = S.sessions.get(sid); if (!sess) return null;
 	const session = {}; for (const f of SESSION_FIELDS) session[f] = sess[f] ?? null;
-	const messages = (await DB.getMessages(sid)).map(m => {
+	const messages = (await DB.getMessages(sid)).filter(m => !(m.exp && m.exp <= Date.now())).map(m => {   // expired messages never go to Drive
 		const c = { ...m };
 		if (c.file) { c.file = { ...c.file }; delete c.file.dataUrl; delete c.file.blobUrl; } // file contents are not backed up
 		if (c.meta) { const { offer, answer, ice, ...keep } = c.meta; c.meta = keep; }       // never store SDP
@@ -199,7 +199,7 @@ export const DriveSync = {
 					if (!sess) { sess = makeSess(d.session); S.sessions.set(sid, sess); await DB.saveSession(sess); chats++; }
 					const have = new Set((await DB.getMessages(sid)).map(m => m.id));
 					for (const m of d.messages || []) {
-						if (!m?.id || have.has(m.id)) continue;
+						if (!m?.id || have.has(m.id) || (m.exp && m.exp <= Date.now())) continue;   // and are not restored from it
 						const msg = { ...m, sessionId: sid }; await DB.saveMessage(msg); added++;
 						if (sess.messages.length) sess.messages.push(msg);
 					}

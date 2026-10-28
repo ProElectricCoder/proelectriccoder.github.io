@@ -38,7 +38,7 @@ export const DB = {
 			peerName: s.peerName || null, peerAvatar: s.peerAvatar || null, bg: s.bg || null,
 			myRole: s.myRole || 'member', groupIcon: s.groupIcon || null,
 			groupOwner: s.groupOwner || null, groupManagers: s.groupManagers || [],
-			membersData: s.membersData || {}, muted: !!s.muted,
+			membersData: s.membersData || {}, muted: !!s.muted, ttl: s.ttl || 0,
 		}));
 	},
 
@@ -60,6 +60,18 @@ export const DB = {
 		const db = await this._open();
 		this.onChange?.(m.sessionId);
 		return this._p(db.transaction('messages', 'readwrite').objectStore('messages').delete(m.id));
+	},
+
+	// Deletes every stored message whose disappearing-message time is up (also for chats that are not open)
+	async purgeExpired(now = Date.now()) {
+		const db = await this._open(), sids = new Set();
+		await new Promise((res, rej) => {
+			const r = db.transaction('messages', 'readwrite').objectStore('messages').openCursor();
+			r.onsuccess = e => { const c = e.target.result; if (!c) return res(); if (c.value.exp && c.value.exp <= now) { sids.add(c.value.sessionId); c.delete(); } c.continue(); };
+			r.onerror = () => rej(r.error);
+		});
+		for (const sid of sids) this.onChange?.(sid);
+		return sids.size;
 	},
 
 	async getSessions() {

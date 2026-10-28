@@ -8,7 +8,7 @@
 // `aid` is the sender's stable author id (Chat ID once signed in). Peers may react and vote on anything,
 // but can only edit, delete or close what they authored: in 1:1 chats that is every message that is not mine,
 // in groups the message's stored aid has to match.
-import { S, uid, getAid, cleanId } from './state.js';
+import { S, uid, getAid, cleanId, expAt, TTL_VALID } from './state.js';
 import { DB } from './db.js';
 import { Crypt } from './crypto.js';
 import { el, escH, toast, fmtTime } from './utils.js';
@@ -94,10 +94,10 @@ export function renderFeatureItem(container, m) {
 // Little pin / star marks next to the time
 function flags(d, m) {
 	d.querySelector('.msg-meta .msg-flags')?.remove();
-	if (m.deleted || (!m.pinned && !m.starred)) return;
+	if (m.deleted || (!m.pinned && !m.starred && !m.exp)) return;
 	const meta = d.querySelector('.msg-meta'); if (!meta) return;
 	const f = document.createElement('span'); f.className = 'msg-flags';
-	f.innerHTML = (m.pinned ? `<span title="Pinned by ${escH(m.pinned.by)}">${iconSvg('bookmark', .85)}</span>` : '') + (m.starred ? `<span title="Starred">${iconSvg('star', .85)}</span>` : '');
+	f.innerHTML = (m.exp ? `<span title="Disappears ${escH(new Date(m.exp).toLocaleString('default', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }))}">${iconSvg('clock', .85)}</span>` : '') + (m.pinned ? `<span title="Pinned by ${escH(m.pinned.by)}">${iconSvg('bookmark', .85)}</span>` : '') + (m.starred ? `<span title="Starred">${iconSvg('star', .85)}</span>` : '');
 	meta.appendChild(f);
 }
 
@@ -172,14 +172,14 @@ export async function sendComposed(sess, text) {
 	let payload = text, enc = false;
 	if (S.encEnabled && Crypt.key) { payload = await Crypt.encText(text); enc = true; }
 	const id = newId(), aid = getAid();
-	const wire = { type: 'chat', id, aid, text: payload, encrypted: enc, displayName: S.displayName };
+	const wire = { type: 'chat', id, aid, text: payload, encrypted: enc, displayName: S.displayName, ttl: sess.ttl || 0 };
 	let reply;
 	if (c?.mode === 'reply') {
 		reply = { id: c.id, sender: c.sender, text: c.text };
 		wire.reply = { id: c.id, sender: c.sender, text: enc ? '' : c.text };   // encrypted chats don't leak the quoted text
 	}
 	safeSend(sess, wire);
-	addBubble(sess, text, S.displayName, true, enc, { id, aid, reply });
+	addBubble(sess, text, S.displayName, true, enc, { id, aid, reply, ttl: sess.ttl || 0 });
 	if (c) clearCompose();
 	return true;
 }
@@ -276,10 +276,11 @@ export async function createPoll(sess, { q, options, multi }) {
 	if (!q || options.length < 2) return false;
 	if (!sess.connected) { toast('Not connected'); return false; }
 	const id = newId(), aid = getAid(), enc = !!(S.encEnabled && Crypt.key);
-	const wire = { type: 'poll', id, aid, multi: !!multi, displayName: S.displayName };
+	const wire = { type: 'poll', id, aid, multi: !!multi, displayName: S.displayName, ttl: sess.ttl || 0 };
 	if (enc) { wire.enc = true; wire.data = await Crypt.encText(JSON.stringify({ q, o: options })); } else { wire.q = q; wire.o = options; }
 	safeSend(sess, wire);
-	pushMsg(sess, { id, sessionId: sess.id, type: 'poll', content: 'Poll: ' + q, sender: S.displayName, mine: true, timestamp: Date.now(), enc, aid, poll: { q, options, multi: !!multi, closed: false }, votes: {} }, 'Poll: ' + q);
+	const ts = Date.now();
+	pushMsg(sess, { id, sessionId: sess.id, type: 'poll', content: 'Poll: ' + q, sender: S.displayName, mine: true, timestamp: ts, exp: expAt(ts, sess.ttl), enc, aid, poll: { q, options, multi: !!multi, closed: false }, votes: {} }, 'Poll: ' + q);
 	return true;
 }
 
@@ -312,6 +313,7 @@ export function chatExtra(sess, data) {
 	const extra = {}, id = cleanId(data.id);
 	if (id) { if (findMsg(sess, id)) return null; extra.id = id; }
 	if (data.aid) extra.aid = str(data.aid, 80);
+	if (TTL_VALID.has(data.ttl)) extra.ttl = data.ttl;
 	const r = data.reply;
 	if (r && typeof r === 'object' && cleanId(r.id)) extra.reply = { id: r.id, sender: str(r.sender, 40), text: str(r.text, 140) };
 	return extra;
@@ -329,7 +331,8 @@ async function onPoll(sess, data) {
 	}
 	q = str(q, 200).trim(); opts = (Array.isArray(opts) ? opts : []).slice(0, 10).map(o => str(o, 80).trim()).filter(Boolean);
 	if (!q || opts.length < 2) return;
-	pushMsg(sess, { id, sessionId: sess.id, type: 'poll', content: 'Poll: ' + q, sender, mine: false, timestamp: Date.now(), enc: !!data.enc, aid: str(data.aid, 80), poll: { q, options: opts, multi: !!data.multi, closed: false }, votes: {} }, 'Poll: ' + q);
+	const ts = Date.now(), ttl = TTL_VALID.has(data.ttl) ? data.ttl : sess.ttl;
+	pushMsg(sess, { id, sessionId: sess.id, type: 'poll', content: 'Poll: ' + q, sender, mine: false, timestamp: ts, exp: expAt(ts, ttl), enc: !!data.enc, aid: str(data.aid, 80), poll: { q, options: opts, multi: !!data.multi, closed: false }, votes: {} }, 'Poll: ' + q);
 }
 
 export async function handleFeatureMsg(sess, data, peerId) {
