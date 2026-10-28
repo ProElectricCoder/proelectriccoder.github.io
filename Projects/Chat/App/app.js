@@ -1,5 +1,5 @@
 /**
- * app.js — P2P Chat v3.6.0 (entry point)
+ * app.js — P2P Chat v4.0.0 (entry point)
  * Implementation lives in ./modules/*.js — this file only wires startup order:
  * Firebase must be initialized before any module that touches firebase.auth()/firestore() runs.
  */

@@ -3,13 +3,13 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>P2P Chat Engine — ProElectricCoder</title>
+	<title>P2P Chat — ProElectricCoder</title>
 	<link rel="icon" href="/Favicon.svg">
 
-	<meta name="description" content="WebRTC + Firebase peer-to-peer chat engine documentation by ProElectricCoder.">
+	<meta name="description" content="P2P Chat v4.0.0: a WebRTC chat app and the reusable engine behind it. Firebase, Cloudflare or no-backend signaling, TURN fallback, groups, polls, voice messages and disappearing messages.">
 	<meta name="author" content="ProElectricCoder">
-	<meta property="og:title" content="P2P Chat Engine — ProElectricCoder">
-	<meta property="og:description" content="Real-time peer-to-peer communication engine using WebRTC data channels and Firebase signaling.">
+	<meta property="og:title" content="P2P Chat — ProElectricCoder">
+	<meta property="og:description" content="A peer-to-peer chat app and engine built on WebRTC data channels, with Firebase, Cloudflare or no-backend signaling.">
 	<meta property="og:type" content="website">
 
 	<link rel="preconnect" href="https://fonts.googleapis.com">
@@ -164,23 +164,6 @@
 		}
 		.sec-body + .sec-body { margin-top: -12px; }
 
-		/* ── Architecture diagram ── */
-		.arch-diagram {
-			background: var(--code-bg);
-			border: 1px solid var(--border);
-			border-radius: 12px;
-			padding: 28px 24px;
-			font-family: 'JetBrains Mono', monospace;
-			font-size: 0.78rem;
-			color: var(--dim);
-			line-height: 1.9;
-			overflow-x: auto;
-			margin: 24px 0;
-		}
-		.arch-diagram .hl { color: var(--cyan); }
-		.arch-diagram .g  { color: var(--green); }
-		.arch-diagram .y  { color: var(--yellow); }
-		.arch-diagram .b  { color: var(--blue); }
 
 		/* ── Code blocks ── */
 		pre {
@@ -256,7 +239,7 @@
 			color: var(--dim);
 			line-height: 1.65;
 		}
-		.note-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+		.note-icon { width: 20px; height: 20px; flex-shrink: 0; margin-top: 2px; color: var(--cyan); }
 
 		/* ── Inline code ── */
 		:not(pre) > code {
@@ -294,6 +277,74 @@
 		}
 		.toc a:hover { color: var(--cyan); }
 
+		/* ── Hero extras ── */
+		.hero-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+		.ver {
+			display: inline-flex; align-items: center; gap: 8px;
+			font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; font-weight: 500;
+			color: var(--text); border: 1px solid var(--border-hi); border-radius: 999px; padding: 5px 13px;
+			background: var(--card);
+		}
+		.ver span { color: var(--faint); letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.62rem; }
+		.ver.inline { margin-left: 10px; vertical-align: middle; font-size: 0.7rem; }
+
+		/* ── Sub-headings ── */
+		.sub { font-family: 'Syne', sans-serif; font-size: 1rem; margin: 32px 0 12px; color: var(--cyan); }
+		.sub.dim { font-size: 0.95rem; margin: 24px 0 12px; color: var(--dim); }
+		.sub:first-of-type { margin-top: 24px; }
+
+		/* ── Diagrams (inline SVG, scale with the page and scroll on small screens) ── */
+		.fig-wrap {
+			background: var(--code-bg); border: 1px solid var(--border); border-radius: 12px;
+			padding: 20px 16px 14px; margin: 24px 0; overflow-x: auto;
+		}
+		.fig-wrap figcaption {
+			font-family: 'JetBrains Mono', monospace; font-size: 0.68rem;
+			margin-top: 12px; line-height: 1.6; min-width: 0; color: rgba(232,237,248,0.5);
+		}
+		.fig-wrap figcaption code { font-size: 0.95em; }
+		.fig { display: block; width: 100%; min-width: 600px; height: auto; font-family: 'JetBrains Mono', monospace; }
+		.fig .ln { stroke: var(--dim); stroke-width: 1.4; fill: none; }
+		.fig .ln.host { stroke: var(--cyan); } .fig .ln.guest { stroke: var(--blue); } .fig .ln.srv { stroke: var(--yellow); }
+		.fig .ah { fill: var(--dim); fill: context-stroke; }
+		.fig .life { stroke: rgba(232,237,248,0.16); stroke-dasharray: 3 5; }
+		.fig .lb { font-size: 11px; fill: var(--dim); }
+		.fig .lb.host { fill: var(--cyan); } .fig .lb.guest { fill: #7d9bff; } .fig .lb.srv { fill: var(--yellow); }
+		.fig .act, .fig .box { fill: #04141c; stroke-width: 1.3; }
+		.fig .act.host, .fig .box.c { stroke: var(--cyan); }
+		.fig .act.guest, .fig .box.b { stroke: var(--blue); }
+		.fig .act.srv, .fig .box.y { stroke: var(--yellow); }
+		.fig .box.g { stroke: var(--green); }
+		.fig .at, .fig .bt { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13.5px; fill: var(--text); }
+		.fig .at.host, .fig .bt.c { fill: var(--cyan); } .fig .at.guest, .fig .bt.b { fill: #7d9bff; }
+		.fig .at.srv, .fig .bt.y { fill: var(--yellow); } .fig .bt.g { fill: var(--green); }
+		.fig .as, .fig .bs { font-size: 10.5px; fill: var(--dim); }
+		.fig .nt { fill: rgba(255,221,85,0.06); stroke: rgba(255,221,85,0.35); stroke-dasharray: 4 3; }
+		.fig .nl { font-size: 11px; fill: var(--yellow); }
+		.fig .ch { stroke: var(--green); stroke-width: 2; }
+		.fig .ch-glow { stroke: var(--green); stroke-width: 9; opacity: 0.14; }
+		.fig .cl { font-size: 11px; fill: var(--green); }
+		.fig .chip rect { fill: rgba(0,255,255,0.07); stroke: rgba(0,255,255,0.28); stroke-width: 1; }
+		.fig .chip.g rect { fill: rgba(0,255,153,0.07); stroke: rgba(0,255,153,0.3); }
+		.fig .chip text { font-size: 10.5px; fill: var(--text); }
+
+		/* ── Text tree (Firestore schema) ── */
+		pre.tree code { font-size: 0.78rem; line-height: 1.85; color: var(--dim); display: block; }
+		pre.tree .hl { color: var(--cyan); } pre.tree .g { color: var(--green); } pre.tree .y { color: var(--yellow); }
+
+		/* ── Feature grid ── */
+		.feat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 22px 0 8px; }
+		.feat { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+		.feat h4 { font-family: 'Syne', sans-serif; font-size: 0.92rem; margin-bottom: 6px; color: var(--cyan); }
+		.feat p { font-size: 0.8rem; color: var(--dim); line-height: 1.6; }
+		.note a, .sec-body a { color: var(--cyan); }
+
+		@media (max-width: 600px) {
+			.page { padding: 84px 16px 80px; }
+			.hero { padding: 36px 0 40px; }
+			.api-table { display: block; overflow-x: auto; }
+		}
+
 		::-webkit-scrollbar { width: 5px; height: 5px; }
 		::-webkit-scrollbar-track { background: transparent; }
 		::-webkit-scrollbar-thumb { background: rgba(0,255,255,0.15); border-radius: 4px; }
@@ -307,19 +358,23 @@
 
 	<!-- ══ HERO ══════════════════════════════════════════════════ -->
 	<div class="hero">
-		<div class="hero-eyebrow">Projects / Chat / engine.js</div>
-		<h1 class="hero-title">P2P Chat Engine</h1>
+		<div class="hero-eyebrow">Projects / Chat</div>
+		<h1 class="hero-title">P2P Chat</h1>
 		<p class="hero-sub">
-			A reusable real-time communication module built on WebRTC data channels
-			with Firebase Firestore for signaling. Supports text, JSON, and binary
-			data transfer — plus a zero-backend direct mode for fully offline use.
+			A peer-to-peer chat app and the reusable engine under it. Messages, files,
+			voice notes and calls travel over WebRTC data channels. Signaling can use
+			Firebase, a Cloudflare Durable Object, or nothing at all.
 		</p>
-		<a href="/Projects/Chat/App/" class="launch-btn">
-			<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"/>
-			</svg>
-			Launch Chat App
-		</a>
+		<div class="hero-row">
+			<a href="/Projects/Chat/App/" class="launch-btn">
+				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"/>
+				</svg>
+				Launch Chat App
+			</a>
+			<span class="ver"><span>App</span> v4.0.0</span>
+			<span class="ver"><span>engine.js</span> v1.4.0</span>
+		</div>
 	</div>
 
 	<!-- ══ TOC ════════════════════════════════════════════════ -->
@@ -327,12 +382,16 @@
 		<div class="toc-title">Contents</div>
 		<ol>
 			<li><a href="#architecture">Architecture Overview</a></li>
-			<li><a href="#firebase-engine">ChatEngine — Firebase Signaling Mode</a></li>
+			<li><a href="#firebase-engine">ChatEngine — Firebase Signaling</a></li>
+			<li><a href="#cf-engine">CloudflareWSEngine — Durable Object Signaling</a></li>
 			<li><a href="#direct-engine">DirectEngine — No-Backend Direct Mode</a></li>
+			<li><a href="#connection">Connection Quality — STUN, TURN and Route Detection</a></li>
+			<li><a href="#groups">Group Chats — Host Relay</a></li>
 			<li><a href="#api">Full API Reference</a></li>
 			<li><a href="#usage">Usage Examples</a></li>
 			<li><a href="#data-types">Data Types</a></li>
 			<li><a href="#firestore">Firestore Schema</a></li>
+			<li><a href="#app">The Chat App</a></li>
 		</ol>
 	</div>
 
@@ -342,56 +401,50 @@
 		<h2 class="sec-title">Architecture</h2>
 		<p class="sec-body">
 			The engine splits communication into two layers: <strong>signaling</strong>
-			(coordination via Firebase Firestore) and <strong>data transfer</strong>
-			(via WebRTC RTCDataChannel). Once the peer connection is established,
-			Firebase is no longer involved — all messages travel directly between
-			browsers.
+			(finding the other peer and swapping connection details) and <strong>data transfer</strong>
+			(an <code>RTCDataChannel</code>). Once the channel is open the signaling service is no
+			longer involved. Every message travels directly between browsers, or through a TURN
+			relay when a direct path is impossible.
 		</p>
 		<p class="sec-body">
-			A second class, <code>DirectEngine</code>, eliminates Firebase entirely.
-			It produces raw SDP strings you can share by any means (copy/paste, QR,
-			email) and establishes a direct channel with no server infrastructure.
+			The three engines share one interface, so the app can swap them without changing how it
+			sends or receives. They differ only in how the first handshake happens.
 		</p>
 
-		<div class="arch-diagram">
-			<span class="hl">Firebase Mode (ChatEngine)</span>
-			<br>
-			<br>
-			&nbsp; Peer A (host)                    Peer B (guest)
-			<br>
-			&nbsp; &nbsp;│                                   │
-			&nbsp; &nbsp;│──── createRoom(id) ──────────────▶│
-			&nbsp; &nbsp;│     [writes offer to Firestore]    │
-			&nbsp; &nbsp;│                                   │
-			&nbsp; &nbsp;│◀─── joinRoom(id) ─────────────────│
-			&nbsp; &nbsp;│     [reads offer, writes answer]   │
-			&nbsp; &nbsp;│                                   │
-			&nbsp; &nbsp;│════════ RTCDataChannel ════════════│
-			&nbsp; &nbsp;│         (direct P2P)               │
-			<br>
-			<br>
-			&nbsp; &nbsp;<span class="g">Firestore used only for offer/answer/ICE exchange.</span>
-			&nbsp; &nbsp;<span class="y">All subsequent data flows peer-to-peer via WebRTC.</span>
-			<br>
-			<br>
-			<span class="hl">Direct Mode (DirectEngine)</span>
-			<br>
-			<br>
-			&nbsp; Caller                           Callee
-			&nbsp; &nbsp;│                                   │
-			&nbsp; &nbsp;│─── createOffer() ─────────────────│
-			&nbsp; &nbsp;│    [shows SDP string]              │
-			&nbsp; &nbsp;│                                   │
-			&nbsp; &nbsp;│◀── createAnswerFor(offer) ─────────│
-			&nbsp; &nbsp;│    [shows SDP answer string]        │
-			&nbsp; &nbsp;│                                   │
-			&nbsp; &nbsp;│── setAnswer(answer) ───────────────│
-			&nbsp; &nbsp;│                                   │
-			&nbsp; &nbsp;│════════ RTCDataChannel ════════════│
-			<br>
-			<br>
-			&nbsp; &nbsp;<span class="b">No server required. SDP shared via any channel.</span>
-		</div>
+		<figure class="fig-wrap">
+			<svg class="fig" viewBox="0 0 760 330" role="img" aria-label="Layers: Chat App on top of engine.js, which uses signaling and WebRTC" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="ly-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" class="ah"/></marker></defs>
+<rect class="box c" x="20" y="14" width="720" height="82" rx="12"/>
+<text class="bt c" x="40" y="40">Chat App</text><text class="bs" x="40" y="58">App/modules/*.js · messages, polls, reactions, files, calls, groups</text>
+<g class="chip"><rect x="40" y="68" width="118" height="20" rx="10"/><text x="99" y="82" text-anchor="middle">protocol.js</text></g>
+<g class="chip"><rect x="166" y="68" width="118" height="20" rx="10"/><text x="225" y="82" text-anchor="middle">msg-features.js</text></g>
+<g class="chip"><rect x="292" y="68" width="118" height="20" rx="10"/><text x="351" y="82" text-anchor="middle">file-transfer.js</text></g>
+<g class="chip"><rect x="418" y="68" width="118" height="20" rx="10"/><text x="477" y="82" text-anchor="middle">call-1to1.js</text></g>
+<g class="chip"><rect x="544" y="68" width="118" height="20" rx="10"/><text x="603" y="82" text-anchor="middle">drive-sync.js</text></g>
+<line class="ln" x1="380" y1="98" x2="380" y2="126" marker-end="url(#ly-ah)"/>
+<text class="lb" x="392" y="117">send(obj) · onMessage(cb)</text>
+<rect class="box g" x="20" y="130" width="720" height="82" rx="12"/>
+<text class="bt g" x="40" y="156">engine.js v1.4.0</text><text class="bs" x="40" y="174">One interface, three ways to find the other peer</text>
+<g class="chip g"><rect x="40" y="184" width="150" height="20" rx="10"/><text x="115" y="198" text-anchor="middle">ChatEngine</text></g>
+<g class="chip g"><rect x="198" y="184" width="170" height="20" rx="10"/><text x="283" y="198" text-anchor="middle">CloudflareWSEngine</text></g>
+<g class="chip g"><rect x="376" y="184" width="150" height="20" rx="10"/><text x="451" y="198" text-anchor="middle">DirectEngine</text></g>
+<g class="chip g"><rect x="534" y="184" width="150" height="20" rx="10"/><text x="609" y="198" text-anchor="middle">BaseEngine</text></g>
+<line class="ln" x1="150" y1="214" x2="150" y2="244" marker-end="url(#ly-ah)"/><line class="ln" x1="380" y1="214" x2="380" y2="244" marker-end="url(#ly-ah)"/><line class="ln" x1="610" y1="214" x2="610" y2="244" marker-end="url(#ly-ah)"/>
+<rect class="box y" x="20" y="248" width="224" height="66" rx="12"/><text class="bt y" x="36" y="274">Firestore</text><text class="bs" x="36" y="292">signals/ offer · answer · ICE</text>
+<rect class="box y" x="268" y="248" width="224" height="66" rx="12"/><text class="bt y" x="284" y="274">Durable Object</text><text class="bs" x="284" y="292">WebSocket signal relay</text>
+<rect class="box b" x="516" y="248" width="224" height="66" rx="12"/><text class="bt b" x="532" y="274">WebRTC</text><text class="bs" x="532" y="292">RTCPeerConnection · DataChannel</text>
+</svg>
+			<figcaption>Fig. 1 — The app talks to an engine through <code>send</code> and <code>onMessage</code>. The engine handles signaling and WebRTC.</figcaption>
+		</figure>
+
+		<table class="api-table">
+			<thead><tr><th>Engine</th><th>Signaling</th><th>Needs</th><th>Use it for</th></tr></thead>
+			<tbody>
+				<tr><td class="method">ChatEngine</td><td>Firestore documents</td><td>Firebase project</td><td>Rooms and inboxes where peers join at different times</td></tr>
+				<tr><td class="method">CloudflareWSEngine</td><td>WebSocket to a Durable Object</td><td>Firebase ID token</td><td>Live signaling with no Firestore round trips; used for the app’s Cloudflare rooms and groups</td></tr>
+				<tr><td class="method">DirectEngine</td><td>You copy and paste SDP</td><td>Nothing</td><td>Offline or serverless use</td></tr>
+			</tbody>
+		</table>
 	</div>
 
 	<!-- ══ FIREBASE ENGINE ═══════════════════════════════════ -->
@@ -399,14 +452,49 @@
 		<div class="sec-label">02 / Firebase Mode</div>
 		<h2 class="sec-title">ChatEngine</h2>
 		<p class="sec-body">
-			<code>ChatEngine</code> uses Firebase Firestore as a rendezvous server.
-			It handles WebRTC offer/answer negotiation and ICE candidate exchange
-			automatically. Once connected, Firebase listeners are preserved only for
-			detecting new joiners (basic mesh support).
+			<code>ChatEngine</code> uses Firebase Firestore as a rendezvous server. The host listens
+			to <code>signals</code> for new offers, and each guest writes one document under its own
+			id. ICE candidates are trickled into that document as they appear, including slow TURN
+			relay candidates.
 		</p>
 
+		<figure class="fig-wrap">
+			<svg class="fig" viewBox="0 0 760 470" role="img" aria-label="Firebase signaling: guest writes an offer to Firestore, host answers, then data flows peer to peer" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="fb-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" class="ah"/></marker></defs>
+<line class="life" x1="110" y1="56" x2="110" y2="464"/>
+<rect class="act guest" x="32" y="8" width="156" height="46" rx="9"/>
+<text class="at guest" x="110" y="28" text-anchor="middle">Guest</text>
+<text class="as" x="110" y="44" text-anchor="middle">joinRoom(id)</text>
+<line class="life" x1="380" y1="56" x2="380" y2="464"/>
+<rect class="act srv" x="302" y="8" width="156" height="46" rx="9"/>
+<text class="at srv" x="380" y="28" text-anchor="middle">Firestore</text>
+<text class="as" x="380" y="44" text-anchor="middle">chatRooms/{id}/signals</text>
+<line class="life" x1="650" y1="56" x2="650" y2="464"/>
+<rect class="act host" x="572" y="8" width="156" height="46" rx="9"/>
+<text class="at host" x="650" y="28" text-anchor="middle">Host</text>
+<text class="as" x="650" y="44" text-anchor="middle">createRoom(id)</text>
+<line class="ln host" x1="646" y1="98" x2="384" y2="98" marker-end="url(#fb-ah)"/>
+<text class="lb host" x="515.0" y="90" text-anchor="middle">createRoom: watch signals</text>
+<line class="ln guest" x1="114" y1="142" x2="376" y2="142" marker-end="url(#fb-ah)"/>
+<text class="lb guest" x="245.0" y="134" text-anchor="middle">signals/{guestId} = offer</text>
+<line class="ln srv" x1="384" y1="186" x2="646" y2="186" marker-end="url(#fb-ah)"/>
+<text class="lb srv" x="515.0" y="178" text-anchor="middle">snapshot: new offer</text>
+<line class="ln host" x1="646" y1="230" x2="384" y2="230" marker-end="url(#fb-ah)"/>
+<text class="lb host" x="515.0" y="222" text-anchor="middle">answer + hostCandidates</text>
+<line class="ln srv" x1="376" y1="274" x2="114" y2="274" marker-end="url(#fb-ah)"/>
+<text class="lb srv" x="245.0" y="266" text-anchor="middle">snapshot: answer</text>
+<line class="ln guest" x1="114" y1="318" x2="376" y2="318" marker-end="url(#fb-ah)"/>
+<text class="lb guest" x="245.0" y="310" text-anchor="middle">guestCandidates (trickled)</text>
+<line class="ch-glow" x1="110" y1="373" x2="650" y2="373"/><line class="ch" x1="110" y1="373" x2="650" y2="373"/><line class="ch" x1="110" y1="379" x2="650" y2="379"/>
+<text class="cl" x="380.0" y="364" text-anchor="middle">RTCDataChannel · peer to peer</text>
+<rect class="nt" x="102" y="405" width="556" height="26" rx="6"/>
+<text class="nl" x="380.0" y="422" text-anchor="middle">Firestore is idle from here on</text>
+</svg>
+			<figcaption>Fig. 2 — Firebase signaling. Only the offer, answer and candidates pass through Firestore.</figcaption>
+		</figure>
+
 		<div class="note">
-			<span class="note-icon">ℹ️</span>
+			<svg class="note-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/></svg>
 			<span>
 				<strong>Prerequisites:</strong> The host page must call
 				<code>firebase.initializeApp(config)</code> and pass
@@ -436,16 +524,125 @@
 <span class="t-var">engine</span>.<span class="t-fn">send</span>({ <span class="t-var">type</span>: <span class="t-str">'chat'</span>, <span class="t-var">text</span>: <span class="t-str">'Hello!'</span> });</code></pre>
 	</div>
 
+	<!-- ══ CLOUDFLARE ENGINE ═════════════════════════════════ -->
+	<div class="sec" id="cf-engine">
+		<div class="sec-label">03 / Cloudflare Mode</div>
+		<h2 class="sec-title">CloudflareWSEngine</h2>
+		<p class="sec-body">
+			<code>CloudflareWSEngine</code> swaps Firestore for a WebSocket to a Cloudflare Durable Object.
+			Signals arrive instantly instead of through snapshot listeners. It always connects to
+			<code>CF_WS_URL</code> (<code>wss://proelectriccoder.pages.dev/api/ChatRooms</code>); a URL passed to the
+			constructor is ignored. Each room request carries a Firebase ID token, which the server checks.
+		</p>
+
+		<figure class="fig-wrap">
+			<svg class="fig" viewBox="0 0 760 514" role="img" aria-label="Cloudflare signaling: both sides connect a WebSocket to a Durable Object that forwards signals" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="cf-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" class="ah"/></marker></defs>
+<line class="life" x1="110" y1="56" x2="110" y2="508"/>
+<rect class="act guest" x="32" y="8" width="156" height="46" rx="9"/>
+<text class="at guest" x="110" y="28" text-anchor="middle">Guest</text>
+<text class="as" x="110" y="44" text-anchor="middle">joinRoom(id, token)</text>
+<line class="life" x1="380" y1="56" x2="380" y2="508"/>
+<rect class="act srv" x="302" y="8" width="156" height="46" rx="9"/>
+<text class="at srv" x="380" y="28" text-anchor="middle">Durable Object</text>
+<text class="as" x="380" y="44" text-anchor="middle">ChatRooms/{id}</text>
+<line class="life" x1="650" y1="56" x2="650" y2="508"/>
+<rect class="act host" x="572" y="8" width="156" height="46" rx="9"/>
+<text class="at host" x="650" y="28" text-anchor="middle">Host</text>
+<text class="as" x="650" y="44" text-anchor="middle">createRoom(id, token)</text>
+<line class="ln host" x1="646" y1="98" x2="384" y2="98" marker-end="url(#cf-ah)"/>
+<text class="lb host" x="515.0" y="90" text-anchor="middle">WebSocket + Firebase ID token</text>
+<line class="ln guest" x1="114" y1="142" x2="376" y2="142" marker-end="url(#cf-ah)"/>
+<text class="lb guest" x="245.0" y="134" text-anchor="middle">WebSocket + Firebase ID token</text>
+<line class="ln guest" x1="114" y1="186" x2="376" y2="186" marker-end="url(#cf-ah)"/>
+<text class="lb guest" x="245.0" y="178" text-anchor="middle">offer {from: guestId}</text>
+<line class="ln srv" x1="384" y1="230" x2="646" y2="230" marker-end="url(#cf-ah)"/>
+<text class="lb srv" x="515.0" y="222" text-anchor="middle">offer {from: guestId}</text>
+<line class="ln host" x1="646" y1="274" x2="384" y2="274" marker-end="url(#cf-ah)"/>
+<text class="lb host" x="515.0" y="266" text-anchor="middle">answer {to: guestId}</text>
+<line class="ln srv" x1="376" y1="318" x2="114" y2="318" marker-end="url(#cf-ah)"/>
+<text class="lb srv" x="245.0" y="310" text-anchor="middle">answer {to: guestId}</text>
+<line class="ln guest" x1="114" y1="362" x2="376" y2="362" marker-end="url(#cf-ah)"/>
+<text class="lb guest" x="245.0" y="354" text-anchor="middle">ICE candidates (both ways)</text>
+<line class="ch-glow" x1="110" y1="417" x2="650" y2="417"/><line class="ch" x1="110" y1="417" x2="650" y2="417"/><line class="ch" x1="110" y1="423" x2="650" y2="423"/>
+<text class="cl" x="380.0" y="408" text-anchor="middle">RTCDataChannel · peer to peer</text>
+<rect class="nt" x="102" y="449" width="556" height="26" rx="6"/>
+<text class="nl" x="380.0" y="466" text-anchor="middle">The socket is only needed until this opens</text>
+</svg>
+			<figcaption>Fig. 3 — Cloudflare signaling. The Durable Object forwards signals and routes answers by <code>to</code>.</figcaption>
+		</figure>
+
+		<p class="sec-body">
+			Signals sent before the socket opens wait in an outbox, and the socket reconnects with backoff.
+			The host keeps its socket open for new guests. A guest only needs it until its channel is open.
+			Pass <code>token</code> as an async function and the engine fetches a fresh token on every reconnect.
+		</p>
+
+		<pre><code><span class="t-kw">import</span> <span class="t-var">{ CloudflareWSEngine }</span> <span class="t-kw">from</span> <span class="t-str">'/Projects/Chat/engine.js'</span>;
+
+<span class="t-kw">const</span> <span class="t-var">engine</span> = <span class="t-kw">new</span> <span class="t-cls">CloudflareWSEngine</span>();
+<span class="t-kw">const</span> <span class="t-fn">token</span> = () => firebase.<span class="t-fn">auth</span>().<span class="t-var">currentUser</span>.<span class="t-fn">getIdToken</span>();   <span class="t-cmt">// string or async function</span>
+
+<span class="t-var">engine</span>.<span class="t-fn">onMessage</span>((<span class="t-var">data</span>, <span class="t-var">peerId</span>) => console.<span class="t-fn">log</span>(<span class="t-var">peerId</span>, <span class="t-var">data</span>));
+<span class="t-var">engine</span>.<span class="t-fn">onRoute</span>(({ <span class="t-var">peerId</span>, <span class="t-var">relayed</span> }) => console.<span class="t-fn">log</span>(<span class="t-var">relayed</span> ? <span class="t-str">'TURN relay'</span> : <span class="t-str">'direct P2P'</span>));
+
+<span class="t-kw">await</span> <span class="t-var">engine</span>.<span class="t-fn">createRoom</span>(<span class="t-str">'my-room-123'</span>, <span class="t-fn">token</span>);   <span class="t-cmt">// host</span>
+<span class="t-kw">await</span> <span class="t-var">engine</span>.<span class="t-fn">joinRoom</span>(<span class="t-str">'my-room-123'</span>, <span class="t-fn">token</span>);     <span class="t-cmt">// guest</span></code></pre>
+	</div>
+
 	<!-- ══ DIRECT ENGINE ══════════════════════════════════════ -->
 	<div class="sec" id="direct-engine">
-		<div class="sec-label">03 / Direct Mode</div>
+		<div class="sec-label">04 / Direct Mode</div>
 		<h2 class="sec-title">DirectEngine</h2>
 		<p class="sec-body">
 			<code>DirectEngine</code> generates SDP strings that you exchange with
-			the remote peer through any channel — paste them in a chat, email them,
-			display them as QR codes. No server, no sign-in, no dependency other
-			than a modern browser.
+			the remote peer through any channel: paste them in a chat, email them,
+			show them as QR codes. No server, no sign-in, no dependency other
+			than a modern browser. It is a single-peer engine, so there is no
+			<code>createRoom</code> and the peer id passed to callbacks is always <code>'remote'</code>.
 		</p>
+
+		<figure class="fig-wrap">
+			<svg class="fig" viewBox="0 0 760 424" role="img" aria-label="Direct mode: caller and callee swap SDP strings by any channel, then connect" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="dr-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" class="ah"/></marker></defs>
+<line class="life" x1="110" y1="56" x2="110" y2="418"/>
+<rect class="act host" x="32" y="8" width="156" height="46" rx="9"/>
+<text class="at host" x="110" y="28" text-anchor="middle">Caller</text>
+<text class="as" x="110" y="44" text-anchor="middle">DirectEngine</text>
+<line class="life" x1="380" y1="56" x2="380" y2="418"/>
+<rect class="act srv" x="302" y="8" width="156" height="46" rx="9"/>
+<text class="at srv" x="380" y="28" text-anchor="middle">You</text>
+<text class="as" x="380" y="44" text-anchor="middle">paste · QR · email</text>
+<line class="life" x1="650" y1="56" x2="650" y2="418"/>
+<rect class="act guest" x="572" y="8" width="156" height="46" rx="9"/>
+<text class="at guest" x="650" y="28" text-anchor="middle">Callee</text>
+<text class="as" x="650" y="44" text-anchor="middle">DirectEngine</text>
+<line class="ln host" x1="114" y1="98" x2="376" y2="98" marker-end="url(#dr-ah)"/>
+<text class="lb host" x="245.0" y="90" text-anchor="middle">createOffer() → offer SDP</text>
+<line class="ln srv" x1="384" y1="142" x2="646" y2="142" marker-end="url(#dr-ah)"/>
+<text class="lb srv" x="515.0" y="134" text-anchor="middle">share the offer string</text>
+<line class="ln guest" x1="646" y1="186" x2="384" y2="186" marker-end="url(#dr-ah)"/>
+<text class="lb guest" x="515.0" y="178" text-anchor="middle">createAnswerFor(offer) → answer</text>
+<line class="ln srv" x1="376" y1="230" x2="114" y2="230" marker-end="url(#dr-ah)"/>
+<text class="lb srv" x="245.0" y="222" text-anchor="middle">share the answer string</text>
+<rect class="nt" x="10.0" y="257" width="200.0" height="26" rx="6"/>
+<text class="nl" x="110.0" y="274" text-anchor="middle">setAnswer(answer)</text>
+<line class="ch-glow" x1="110" y1="327" x2="650" y2="327"/><line class="ch" x1="110" y1="327" x2="650" y2="327"/><line class="ch" x1="110" y1="333" x2="650" y2="333"/>
+<text class="cl" x="380.0" y="318" text-anchor="middle">RTCDataChannel · peer to peer</text>
+<rect class="nt" x="102" y="359" width="556" height="26" rx="6"/>
+<text class="nl" x="380.0" y="376" text-anchor="middle">No server involved at any point</text>
+</svg>
+			<figcaption>Fig. 4 — Direct mode. You carry the two SDP strings; nothing else is needed.</figcaption>
+		</figure>
+
+		<div class="note">
+			<svg class="note-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/></svg>
+			<span>
+				<strong>Slow to build, on purpose:</strong> the SDP has to contain every ICE candidate, so
+				<code>createOffer()</code> and <code>createAnswerFor()</code> wait up to 6 seconds for gathering to finish.
+				That includes TURN relay candidates.
+			</span>
+		</div>
 
 		<pre><code><span class="t-kw">import</span> <span class="t-var">{ DirectEngine }</span> <span class="t-kw">from</span> <span class="t-str">'/Projects/Chat/engine.js'</span>;
 
@@ -468,118 +665,242 @@
 <span class="t-cmt">// Display answerSDP to user — they share it back to caller</span></code></pre>
 	</div>
 
+	<!-- ══ CONNECTION QUALITY ════════════════════════════════ -->
+	<div class="sec" id="connection">
+		<div class="sec-label">05 / Connectivity</div>
+		<h2 class="sec-title">STUN, TURN and Route Detection</h2>
+		<p class="sec-body">
+			Every engine builds its <code>RTCPeerConnection</code> from <code>getIceConfig()</code>: public STUN
+			servers to find each peer’s address, plus a free public TURN relay (Open Relay Project) that only carries
+			traffic when no direct path exists. After connecting, <code>monitorPC</code> inspects the selected
+			candidate pair and calls <code>onRoute</code>, so the app can show <em>direct P2P</em> or <em>TURN relay</em>
+			in the status line.
+		</p>
+
+		<figure class="fig-wrap">
+			<svg class="fig" viewBox="0 0 760 232" role="img" aria-label="Connection route: try direct, fall back to TURN relay, report the route with onRoute" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="ic-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" class="ah"/></marker></defs>
+<rect class="box c" x="10" y="84" width="150" height="64" rx="12"/><text class="bt c" x="85" y="112" text-anchor="middle">ICE gathering</text><text class="bs" x="85" y="131" text-anchor="middle">host · srflx · relay</text>
+<line class="ln" x1="162" y1="108" x2="236" y2="62" marker-end="url(#ic-ah)"/><line class="ln" x1="162" y1="124" x2="236" y2="170" marker-end="url(#ic-ah)"/>
+<rect class="box g" x="240" y="26" width="230" height="72" rx="12"/><text class="bt g" x="355" y="54" text-anchor="middle">Direct path works</text><text class="bs" x="355" y="73" text-anchor="middle">STUN-discovered address</text><text class="bs" x="355" y="87" text-anchor="middle">lowest latency, no third party</text>
+<rect class="box y" x="240" y="134" width="230" height="72" rx="12"/><text class="bt y" x="355" y="162" text-anchor="middle">No direct path</text><text class="bs" x="355" y="181" text-anchor="middle">strict NAT or firewall</text><text class="bs" x="355" y="195" text-anchor="middle">TURN relay carries the traffic</text>
+<line class="ln" x1="472" y1="62" x2="526" y2="104" marker-end="url(#ic-ah)"/><line class="ln" x1="472" y1="170" x2="526" y2="128" marker-end="url(#ic-ah)"/>
+<rect class="box b" x="530" y="76" width="220" height="80" rx="12"/><text class="bt b" x="640" y="104" text-anchor="middle">monitorPC → onRoute</text><text class="bs" x="640" y="123" text-anchor="middle">relayed: false → direct P2P</text><text class="bs" x="640" y="137" text-anchor="middle">relayed: true → TURN relay</text>
+</svg>
+			<figcaption>Fig. 5 — The route is decided by ICE, then reported with <code>onRoute</code>.</figcaption>
+		</figure>
+
+		<p class="sec-body">
+			A brief “disconnected” state is normal when a network changes, so a peer is dropped only after
+			8 seconds of it (<code>graceMs</code>), or at once on <code>failed</code> or <code>closed</code>. A ping every
+			5 seconds also removes a peer whose channel has been silent for 10 seconds.
+		</p>
+
+		<pre><code><span class="t-cmt">// Add your own TURN server without touching the code (checked before the built-in list)</span>
+localStorage.<span class="t-fn">setItem</span>(<span class="t-str">'pec_ice_servers'</span>, JSON.<span class="t-fn">stringify</span>([
+  { <span class="t-var">urls</span>: <span class="t-str">'turn:turn.example.com:3478'</span>, <span class="t-var">username</span>: <span class="t-str">'user'</span>, <span class="t-var">credential</span>: <span class="t-str">'secret'</span> }
+]));
+
+<span class="t-cmt">// Route info, for any engine</span>
+<span class="t-var">engine</span>.<span class="t-fn">onRoute</span>(({ <span class="t-var">peerId</span>, <span class="t-var">relayed</span>, <span class="t-var">local</span>, <span class="t-var">remote</span> }) => {
+  <span class="t-cmt">// local / remote are candidate types: 'host' | 'srflx' | 'prflx' | 'relay'</span>
+});</code></pre>
+
+		<div class="note">
+			<svg class="note-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/></svg>
+			<span>
+				<strong>Shared TURN:</strong> the built-in Open Relay credentials are public and rate-limited. Use your own
+				TURN account for anything that matters.
+			</span>
+		</div>
+	</div>
+
+	<!-- ══ GROUPS ═════════════════════════════════════════════ -->
+	<div class="sec" id="groups">
+		<div class="sec-label">06 / Groups</div>
+		<h2 class="sec-title">Group Chats — Host Relay</h2>
+		<p class="sec-body">
+			Groups use a star topology. Members connect only to the host. When the host’s engine is created
+			with <code>{ relay: true }</code> it forwards each incoming frame to every other peer before handing it to
+			its own <code>onMessage</code>. Receivers filter on the message’s own <code>to</code> field, which is how
+			one frame can be addressed to a single member.
+		</p>
+
+		<figure class="fig-wrap">
+			<svg class="fig" viewBox="0 0 760 300" role="img" aria-label="Group chat star topology: members connect to the host, which forwards messages to everyone else" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="st-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" class="ah"/></marker></defs>
+<line class="ch" x1="380" y1="150" x2="140" y2="60"/><line class="ch" x1="380" y1="150" x2="140" y2="240"/><line class="ch" x1="380" y1="150" x2="620" y2="60"/><line class="ch" x1="380" y1="150" x2="620" y2="240"/>
+<g><rect class="act host" x="262" y="112" width="236" height="76" rx="12"/><text class="at host" x="380" y="143" text-anchor="middle">Host</text><text class="as" x="380" y="162" text-anchor="middle">new ChatEngine({ relay: true })</text><text class="as" x="380" y="176" text-anchor="middle">forwards raw frames</text></g>
+<g><rect class="act guest" x="40" y="34" width="200" height="52" rx="10"/><text class="at guest" x="140" y="56" text-anchor="middle">Member A</text><text class="as" x="140" y="74" text-anchor="middle">sends one frame</text></g>
+<g><rect class="act guest" x="40" y="214" width="200" height="52" rx="10"/><text class="at guest" x="140" y="236" text-anchor="middle">Member B</text><text class="as" x="140" y="254" text-anchor="middle">filters on its own “to”</text></g>
+<g><rect class="act guest" x="520" y="34" width="200" height="52" rx="10"/><text class="at guest" x="620" y="56" text-anchor="middle">Member C</text><text class="as" x="620" y="74" text-anchor="middle">filters on its own “to”</text></g>
+<g><rect class="act guest" x="520" y="214" width="200" height="52" rx="10"/><text class="at guest" x="620" y="236" text-anchor="middle">Member D</text><text class="as" x="620" y="254" text-anchor="middle">filters on its own “to”</text></g>
+</svg>
+			<figcaption>Fig. 6 — Member A sends once. The host forwards the frame to B, C and D.</figcaption>
+		</figure>
+
+		<p class="sec-body">
+			The relay copies raw frames and never looks inside them, so any new message type works in groups
+			with no host changes. It also means the host can read plain-text messages unless the chat is encrypted.
+		</p>
+
+		<pre><code><span class="t-kw">const</span> <span class="t-var">host</span> = <span class="t-kw">new</span> <span class="t-cls">CloudflareWSEngine</span>({ <span class="t-var">relay</span>: <span class="t-kw">true</span> });   <span class="t-cmt">// also accepted by ChatEngine</span></code></pre>
+	</div>
+
 	<!-- ══ API REFERENCE ═════════════════════════════════════ -->
 	<div class="sec" id="api">
-		<div class="sec-label">04 / Reference</div>
+		<div class="sec-label">07 / Reference</div>
 		<h2 class="sec-title">API Reference</h2>
 
-		<h3 style="font-family:'Syne',sans-serif; font-size:1rem; margin: 24px 0 12px; color: var(--cyan);">ChatEngine</h3>
+		<h3 class="sub">Shared — ChatEngine and CloudflareWSEngine</h3>
 		<table class="api-table">
-			<thead>
-				<tr>
-					<th>Method</th>
-					<th>Returns</th>
-					<th>Description</th>
-				</tr>
-			</thead>
+			<thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
 			<tbody>
 				<tr>
-					<td class="method">init(db)</td>
-					<td class="returns">void</td>
-					<td>Inject <code>firebase.firestore()</code> instance. Required before room methods.</td>
-				</tr>
-				<tr>
-					<td class="method">createRoom(roomId)</td>
-					<td class="returns">Promise&lt;string&gt;</td>
-					<td>Create a room as host. Writes offer to Firestore and listens for guests joining.</td>
-				</tr>
-				<tr>
-					<td class="method">joinRoom(roomId)</td>
-					<td class="returns">Promise&lt;void&gt;</td>
-					<td>Join an existing room as guest. Reads host offer, writes answer.</td>
+					<td class="method">new Engine({ relay })</td>
+					<td class="returns">engine</td>
+					<td><code>relay: true</code> makes this side forward every frame to its other peers (group host).</td>
 				</tr>
 				<tr>
 					<td class="method">send(data)</td>
 					<td class="returns">void</td>
-					<td>Broadcast data to all open peer channels. Accepts string, object (JSON-serialised), ArrayBuffer, or Blob.</td>
+					<td>Broadcast to all open peer channels. Accepts string, object (JSON-serialised), ArrayBuffer or Blob.</td>
 				</tr>
 				<tr>
 					<td class="method">onMessage(cb)</td>
 					<td class="returns">void</td>
-					<td>Register handler: <code>cb(data, peerId)</code>. Called for every incoming message.</td>
+					<td><code>cb(data, peerId)</code>. Called for every incoming message.</td>
 				</tr>
 				<tr>
 					<td class="method">onPeerConnected(cb)</td>
 					<td class="returns">void</td>
-					<td>Register handler: <code>cb(peerId)</code>. Called when a data channel opens.</td>
+					<td><code>cb(peerId)</code>. Called when a data channel opens.</td>
 				</tr>
 				<tr>
 					<td class="method">onPeerDisconnected(cb)</td>
 					<td class="returns">void</td>
-					<td>Register handler: <code>cb(peerId)</code>. Called when a peer disconnects.</td>
+					<td><code>cb(peerId)</code>. Called when a peer is lost.</td>
+				</tr>
+				<tr>
+					<td class="method">onRoute(cb)</td>
+					<td class="returns">void</td>
+					<td><code>cb({ peerId, relayed, local, remote })</code>. Direct or TURN, once connected.</td>
+				</tr>
+				<tr>
+					<td class="method">onTrack(cb)</td>
+					<td class="returns">void</td>
+					<td><code>cb(stream, peerId)</code>. A remote audio or video stream arrived.</td>
+				</tr>
+				<tr>
+					<td class="method">addLocalStream(peerId, stream)</td>
+					<td class="returns">void</td>
+					<td>Add a local media stream to one peer’s connection.</td>
 				</tr>
 				<tr>
 					<td class="method">disconnect()</td>
 					<td class="returns">void</td>
-					<td>Close all peer connections and Firestore listeners. Safe to call multiple times.</td>
+					<td>Close all peer connections and signaling. Safe to call more than once.</td>
 				</tr>
 			</tbody>
 		</table>
 
-		<h3 style="font-family:'Syne',sans-serif; font-size:1rem; margin: 32px 0 12px; color: var(--cyan);">DirectEngine</h3>
+		<h3 class="sub">ChatEngine only</h3>
 		<table class="api-table">
-			<thead>
+			<thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
+			<tbody>
 				<tr>
-					<th>Method</th>
-					<th>Returns</th>
-					<th>Description</th>
+					<td class="method">init(db)</td>
+					<td class="returns">void</td>
+					<td>Inject a <code>firebase.firestore()</code> instance. Required before room methods; throws without one.</td>
 				</tr>
-			</thead>
+				<tr>
+					<td class="method">createRoom(roomId)</td>
+					<td class="returns">Promise&lt;string&gt;</td>
+					<td>Host: create the room document and answer every guest offer that appears under <code>signals</code>.</td>
+				</tr>
+				<tr>
+					<td class="method">joinRoom(roomId)</td>
+					<td class="returns">Promise&lt;void&gt;</td>
+					<td>Guest: write an offer, apply the host’s answer and candidates, trickle your own.</td>
+				</tr>
+			</tbody>
+		</table>
+
+		<h3 class="sub">CloudflareWSEngine only</h3>
+		<table class="api-table">
+			<thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
+			<tbody>
+				<tr>
+					<td class="method">init()</td>
+					<td class="returns">void</td>
+					<td>No-op, so both signaling engines can be set up the same way.</td>
+				</tr>
+				<tr>
+					<td class="method">createRoom(roomId, token)</td>
+					<td class="returns">Promise&lt;string&gt;</td>
+					<td>Host: open the signaling socket and answer guests. <code>token</code> is a Firebase ID token or an async function returning one.</td>
+				</tr>
+				<tr>
+					<td class="method">joinRoom(roomId, token)</td>
+					<td class="returns">Promise&lt;void&gt;</td>
+					<td>Guest: send an offer through the socket and connect. Resends it if the socket reopens.</td>
+				</tr>
+				<tr>
+					<td class="method">isHost</td>
+					<td class="returns">boolean</td>
+					<td>True after <code>createRoom</code>.</td>
+				</tr>
+			</tbody>
+		</table>
+
+		<h3 class="sub">DirectEngine</h3>
+		<table class="api-table">
+			<thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
 			<tbody>
 				<tr>
 					<td class="method">createOffer()</td>
 					<td class="returns">Promise&lt;string&gt;</td>
-					<td>Generate SDP offer string (JSON). Share this with the remote peer out-of-band.</td>
-				</tr>
-				<tr>
-					<td class="method">setAnswer(sdp)</td>
-					<td class="returns">Promise&lt;void&gt;</td>
-					<td>Apply the SDP answer string received from the remote peer. Completes handshake.</td>
+					<td>Generate the SDP offer string (JSON). Share it with the remote peer out-of-band.</td>
 				</tr>
 				<tr>
 					<td class="method">createAnswerFor(offer)</td>
 					<td class="returns">Promise&lt;string&gt;</td>
-					<td>Callee-side: consume offer SDP and return answer SDP string to share back.</td>
+					<td>Callee: consume an offer string and return the answer string to send back.</td>
 				</tr>
 				<tr>
-					<td class="method">getLocalCandidates()</td>
-					<td class="returns">string[]</td>
-					<td>Return accumulated ICE candidates as JSON strings (optional, for trickle ICE).</td>
-				</tr>
-				<tr>
-					<td class="method">addRemoteCandidate(c)</td>
-					<td class="returns">void</td>
-					<td>Add a remote ICE candidate JSON string (optional, for trickle ICE).</td>
+					<td class="method">setAnswer(answer)</td>
+					<td class="returns">Promise&lt;void&gt;</td>
+					<td>Caller: apply the answer string. Completes the handshake.</td>
 				</tr>
 				<tr>
 					<td class="method">send(data)</td>
 					<td class="returns">void</td>
-					<td>Send data over the data channel. Same type support as ChatEngine.</td>
+					<td>Send over the data channel. Warns and does nothing if it is not open.</td>
 				</tr>
 				<tr>
 					<td class="method">onMessage(cb)</td>
 					<td class="returns">void</td>
-					<td>Register message handler: <code>cb(data, 'remote')</code>.</td>
+					<td><code>cb(data, 'remote')</code></td>
 				</tr>
 				<tr>
 					<td class="method">onPeerConnected(cb)</td>
 					<td class="returns">void</td>
-					<td>Register connection handler: <code>cb('remote')</code>.</td>
+					<td><code>cb('remote')</code></td>
 				</tr>
 				<tr>
 					<td class="method">onPeerDisconnected(cb)</td>
 					<td class="returns">void</td>
-					<td>Register disconnection handler: <code>cb('remote')</code>.</td>
+					<td><code>cb('remote')</code></td>
+				</tr>
+				<tr>
+					<td class="method">onRoute(cb) · onTrack(cb)</td>
+					<td class="returns">void</td>
+					<td>Same as the shared engines, with the peer id always <code>'remote'</code>.</td>
+				</tr>
+				<tr>
+					<td class="method">addLocalStream(stream)</td>
+					<td class="returns">void</td>
+					<td>Add a local media stream. There is only one peer, so no id.</td>
 				</tr>
 				<tr>
 					<td class="method">disconnect()</td>
@@ -588,14 +909,25 @@
 				</tr>
 			</tbody>
 		</table>
+
+		<h3 class="sub">Module exports</h3>
+		<table class="api-table">
+			<thead><tr><th>Export</th><th>Returns</th><th>Description</th></tr></thead>
+			<tbody>
+				<tr><td class="method">CF_WS_URL</td><td class="returns">string</td><td>The relay URL <code>CloudflareWSEngine</code> always uses.</td></tr>
+				<tr><td class="method">getIceConfig()</td><td class="returns">RTCConfiguration</td><td>STUN and TURN servers, with any <code>pec_ice_servers</code> entries first.</td></tr>
+				<tr><td class="method">detectRoute(pc)</td><td class="returns">Promise&lt;object | null&gt;</td><td><code>{ relayed, local, remote }</code> for the selected candidate pair, or <code>null</code> if unknown.</td></tr>
+				<tr><td class="method">monitorPC(pc, opts)</td><td class="returns">void</td><td>Watch a connection: <code>opts.onRoute(info)</code>, <code>opts.onDead()</code>, <code>opts.graceMs</code> (default 8000).</td></tr>
+			</tbody>
+		</table>
 	</div>
 
 	<!-- ══ USAGE ══════════════════════════════════════════════ -->
 	<div class="sec" id="usage">
-		<div class="sec-label">05 / Examples</div>
+		<div class="sec-label">08 / Examples</div>
 		<h2 class="sec-title">Usage Examples</h2>
 
-		<h3 style="font-family:'Syne',sans-serif; font-size:0.95rem; margin: 0 0 12px; color: var(--dim);">Collaborative code editing</h3>
+		<h3 class="sub dim">Collaborative code editing</h3>
 		<pre><code><span class="t-var">engine</span>.<span class="t-fn">onMessage</span>((<span class="t-var">msg</span>) => {
   <span class="t-kw">if</span> (<span class="t-var">msg</span>.<span class="t-var">type</span> === <span class="t-str">'edit'</span>) {
     <span class="t-var">editor</span>.<span class="t-fn">applyDelta</span>(<span class="t-var">msg</span>.<span class="t-var">delta</span>);
@@ -606,7 +938,7 @@
   <span class="t-var">engine</span>.<span class="t-fn">send</span>({ <span class="t-var">type</span>: <span class="t-str">'edit'</span>, <span class="t-var">delta</span> });
 });</code></pre>
 
-		<h3 style="font-family:'Syne',sans-serif; font-size:0.95rem; margin: 24px 0 12px; color: var(--dim);">Sending binary data (file transfer)</h3>
+		<h3 class="sub dim">Sending binary data (file transfer)</h3>
 		<pre><code><span class="t-cmt">// Sender</span>
 <span class="t-kw">const</span> <span class="t-var">buffer</span> = <span class="t-kw">await</span> <span class="t-var">file</span>.<span class="t-fn">arrayBuffer</span>();
 <span class="t-var">engine</span>.<span class="t-fn">send</span>(<span class="t-var">buffer</span>);  <span class="t-cmt">// ArrayBuffer sent as binary frame</span>
@@ -615,28 +947,30 @@
 <span class="t-var">engine</span>.<span class="t-fn">onMessage</span>(<span class="t-var">data</span> => {
   <span class="t-kw">if</span> (<span class="t-var">data</span> <span class="t-kw">instanceof</span> ArrayBuffer) {
     <span class="t-kw">const</span> <span class="t-var">blob</span> = <span class="t-kw">new</span> <span class="t-cls">Blob</span>([<span class="t-var">data</span>]);
-    <span class="t-var">saveBlob</span>(<span class="t-var">blob</span>);
+    <span class="t-fn">saveBlob</span>(<span class="t-var">blob</span>);
   }
 });</code></pre>
+		<p class="sec-body">
+			The Chat App itself sends files as a <code>file-meta</code> message, then <code>file-chunk</code> messages,
+			then <code>file-done</code>.
+		</p>
 	</div>
 
 	<!-- ══ DATA TYPES ════════════════════════════════════════ -->
 	<div class="sec" id="data-types">
-		<div class="sec-label">06 / Data</div>
+		<div class="sec-label">09 / Data</div>
 		<h2 class="sec-title">Data Types</h2>
 		<p class="sec-body">
 			The engine transparently serialises and deserialises data so you can
 			work with native JS types.
 		</p>
 		<table class="api-table">
-			<thead>
-				<tr><th>Sent as</th><th>Received as</th><th>Notes</th></tr>
-			</thead>
+			<thead><tr><th>Sent as</th><th>Received as</th><th>Notes</th></tr></thead>
 			<tbody>
 				<tr>
 					<td class="method">string</td>
 					<td class="returns">string</td>
-					<td>Passed through as-is. Attempted JSON parse on receive (falls back to string).</td>
+					<td>Passed through as-is. A JSON parse is attempted on receive and falls back to the string.</td>
 				</tr>
 				<tr>
 					<td class="method">object / array</td>
@@ -646,17 +980,17 @@
 				<tr>
 					<td class="method">ArrayBuffer</td>
 					<td class="returns">ArrayBuffer</td>
-					<td>Sent as binary WebRTC frame. No JSON serialisation.</td>
+					<td>Sent as a binary WebRTC frame. No JSON serialisation.</td>
 				</tr>
 				<tr>
 					<td class="method">Blob</td>
 					<td class="returns">ArrayBuffer</td>
-					<td>Channel <code>binaryType</code> is <code>'arraybuffer'</code>; Blob is sent natively.</td>
+					<td>Sent natively. The channel’s <code>binaryType</code> is <code>'arraybuffer'</code>, so it arrives as an ArrayBuffer.</td>
 				</tr>
 				<tr>
 					<td class="method">number / boolean</td>
-					<td class="returns">string</td>
-					<td>Converted via <code>String()</code>. Wrap in an object if you need the type preserved.</td>
+					<td class="returns">number / boolean</td>
+					<td>Converted with <code>String()</code>, then parsed back. A string such as <code>"42"</code> also comes back as a number, so wrap values in an object when the type matters.</td>
 				</tr>
 			</tbody>
 		</table>
@@ -664,31 +998,87 @@
 
 	<!-- ══ FIRESTORE SCHEMA ══════════════════════════════════ -->
 	<div class="sec" id="firestore">
-		<div class="sec-label">07 / Firestore</div>
+		<div class="sec-label">10 / Firestore</div>
 		<h2 class="sec-title">Firestore Schema</h2>
 		<p class="sec-body">
-			Only used for signaling. Once connected, Firestore is idle.
+			<code>chatRooms</code> is used only for signaling. Once connected, it is idle. The Chat App adds a second
+			collection, <code>chatIds</code>, that maps a readable Chat ID to an account.
 		</p>
-		<div class="arch-diagram">
-<span class="hl">chatRooms/</span> <span class="t-cmt">(collection)</span>
-&nbsp; └─ <span class="g">{roomId}/</span> <span class="t-cmt">(document)</span>
-&nbsp;     ├─ <span class="t-var">createdAt</span>: Timestamp
-&nbsp;     ├─ <span class="t-var">host</span>: true
-&nbsp;     └─ <span class="g">signals/</span> <span class="t-cmt">(subcollection)</span>
-&nbsp;         └─ <span class="y">{guestId}/</span> <span class="t-cmt">(document per guest)</span>
-&nbsp;             ├─ <span class="t-var">type</span>: <span class="t-str">"offer"</span>
-&nbsp;             ├─ <span class="t-var">sdp</span>: <span class="t-str">"&lt;offer SDP string&gt;"</span>
-&nbsp;             ├─ <span class="t-var">answer</span>: <span class="t-str">"&lt;answer SDP string&gt;"</span> <span class="t-cmt">(written by host)</span>
-&nbsp;             ├─ <span class="t-var">guestCandidates</span>: ICECandidate[] <span class="t-cmt">(written by guest)</span>
-&nbsp;             └─ <span class="t-var">hostCandidates</span>: ICECandidate[]  <span class="t-cmt">(written by host)</span>
-		</div>
+<pre class="tree"><code><span class="hl">chatRooms/</span> <span class="t-cmt">(collection)</span>
+└─ <span class="g">{roomId}/</span> <span class="t-cmt">(document)</span>
+   ├─ <span class="t-var">createdAt</span>: Timestamp
+   ├─ <span class="t-var">host</span>: true
+   └─ <span class="g">signals/</span> <span class="t-cmt">(subcollection)</span>
+      └─ <span class="y">{guestId}/</span> <span class="t-cmt">(one document per guest)</span>
+         ├─ <span class="t-var">type</span>: <span class="t-str">"offer"</span>
+         ├─ <span class="t-var">sdp</span>: <span class="t-str">"&lt;offer SDP string&gt;"</span>
+         ├─ <span class="t-var">createdAt</span>: Timestamp
+         ├─ <span class="t-var">guestCandidates</span>: ICECandidate[]   <span class="t-cmt">(written by guest, grows as ICE trickles)</span>
+         ├─ <span class="t-var">answer</span>: <span class="t-str">"&lt;answer SDP string&gt;"</span>        <span class="t-cmt">(written by host)</span>
+         └─ <span class="t-var">hostCandidates</span>: ICECandidate[]    <span class="t-cmt">(written by host)</span>
+
+<span class="hl">chatIds/</span> <span class="t-cmt">(collection, Chat App only)</span>
+└─ <span class="g">{chatId}/</span> <span class="t-cmt">lower-cased, e.g. google-you@gmail.com</span>
+   ├─ <span class="t-var">uid</span>: <span class="t-str">"&lt;Firebase UID&gt;"</span>
+   ├─ <span class="t-var">provider</span>: <span class="t-str">"google.com" | "github.com" | "password"</span>
+   └─ <span class="t-var">claimedAt</span>: Timestamp</code></pre>
 
 		<div class="note">
-			<span class="note-icon">🔒</span>
+			<svg class="note-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></svg>
 			<span>
-				In production, add Firestore security rules to restrict who can
-				read and write room signals. At minimum, require authenticated users
-				or rate-limit writes per IP.
+				In production, add Firestore security rules to restrict who can read and write room signals.
+				The rules for <code>chatIds</code> are in
+				<a href="/Projects/Chat/FIRESTORE_RULES.md">FIRESTORE_RULES.md</a>.
+			</span>
+		</div>
+	</div>
+
+	<!-- ══ THE APP ═════════════════════════════════════════════ -->
+	<div class="sec" id="app">
+		<div class="sec-label">11 / Chat App</div>
+		<h2 class="sec-title">The Chat App <span class="ver inline"><span>version</span> 4.0.0</span></h2>
+		<p class="sec-body">
+			The app lives in <code>/Projects/Chat/App/</code>: plain ES modules, no bundler. It uses the engines above
+			and adds everything a chat needs on top.
+		</p>
+
+		<div class="feat-grid">
+			<div class="feat"><h4>Chats</h4><p>1:1 over Direct, Firebase or Cloudflare, and groups with a host relay. Readable Chat IDs: <code>google-…</code>, <code>github-…</code>, <code>email-…</code>.</p></div>
+			<div class="feat"><h4>Messages</h4><p>Replies, reactions, edit and delete for everyone, and polls where votes can be changed and are visible.</p></div>
+			<div class="feat"><h4>Find things</h4><p>In-chat search with highlights, pinned messages, personal stars, and a library of media, files and links.</p></div>
+			<div class="feat"><h4>Voice and files</h4><p>Voice messages with a waveform, chunked file transfer with previews, and link previews through an Open Graph function.</p></div>
+			<div class="feat"><h4>Calls</h4><p>1:1 voice, video and screen sharing, plus group calls. Call signaling travels over the chat’s own channel.</p></div>
+			<div class="feat"><h4>Awareness</h4><p>Delivered and read ticks, “Seen by” in groups, typing indicators, browser notifications, per-chat mute.</p></div>
+			<div class="feat"><h4>Privacy</h4><p>Optional password-based AES-GCM encryption of message content, and disappearing messages: 5 minutes to 7 days, removed on every device.</p></div>
+			<div class="feat"><h4>Backup</h4><p>Optional Google Drive backup and restore of chats, with expired messages never included.</p></div>
+		</div>
+
+		<h3 class="sub">Message protocol</h3>
+		<p class="sec-body">
+			Everything the app sends is one JSON object with a <code>type</code>. The host relay forwards unknown types
+			untouched, so new ones work in groups automatically.
+		</p>
+		<table class="api-table">
+			<thead><tr><th>type</th><th>Purpose</th></tr></thead>
+			<tbody>
+				<tr><td class="method">chat</td><td>A text message. Carries a shared <code>id</code>, the author id <code>aid</code>, an optional <code>reply</code> and the chat’s <code>ttl</code>.</td></tr>
+				<tr><td class="method">msg-delivered · msg-read</td><td>Receipts for a message id.</td></tr>
+				<tr><td class="method">msg-react · msg-pin · msg-edit · msg-delete</td><td>Changes to an existing message. Only its author may edit or delete.</td></tr>
+				<tr><td class="method">poll · poll-vote · poll-close</td><td>Create, vote on (and change a vote on) and close a poll.</td></tr>
+				<tr><td class="method">chat-ttl</td><td>Set the disappearing-message timer: 0, 300, 3600, 86400 or 604800 seconds.</td></tr>
+				<tr><td class="method">file-meta · file-chunk · file-done</td><td>A file or voice message, sent in pieces.</td></tr>
+				<tr><td class="method">typing · typing-stop</td><td>Typing indicator.</td></tr>
+				<tr><td class="method">call-log</td><td>Call card, with the call’s SDP and ICE in its meta.</td></tr>
+				<tr><td class="method">gc-*</td><td>Group call invite, accept, offer, answer, ICE and end.</td></tr>
+				<tr><td class="method">handshake · group-members · display-name</td><td>Names, avatars and the member list.</td></tr>
+			</tbody>
+		</table>
+
+		<div class="note">
+			<svg class="note-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/></svg>
+			<span>
+				<strong>Limits worth knowing:</strong> edits, deletes and timers only reach peers who are online. In groups the
+				author id is asserted by the sender’s client. Disappearing messages cannot stop screenshots.
 			</span>
 		</div>
 	</div>

@@ -277,7 +277,7 @@ mark.srch.cur{background:rgba(255,160,0,.75);color:#000}
 		</div>
 		<div class="panel-section"><div class="panel-section-lbl">Sign In (for Firebase rooms)</div><div id="spAuthArea"></div></div>
 		<div class="panel-section"><div class="panel-section-lbl">About</div>
-			<div style="font-size:.78rem;color:rgba(232,237,248,.4);line-height:1.7">P2P Chat v3.6.0 · ProElectricCoder<br>WebRTC + Firebase signaling</div>
+			<div style="font-size:.78rem;color:rgba(232,237,248,.4);line-height:1.7">P2P Chat v4.0.0 · ProElectricCoder<br>WebRTC · Firebase, Cloudflare or direct signaling</div>
 		</div>
 	</div></div>`;
 	sp.addEventListener('click', e => { if (e.target === sp) App.closeSettings(); });
