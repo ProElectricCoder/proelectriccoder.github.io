@@ -76,6 +76,10 @@
 		{
 			"version": "1.9.0",
 			"note": "Added the optional add-ons system with a Prayer Times add-on. News images fit the card width."
+		},
+		{
+			"version": "1.9.1",
+			"note": "Weather and Prayer Times buttons appear only when in use; next-prayer highlight padding fixed."
 		}
 	],
 	"notify": null

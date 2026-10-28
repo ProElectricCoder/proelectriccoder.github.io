@@ -479,7 +479,7 @@ html[data-theme="light"] .news-topics { border-bottom-color: rgba(0,0,0,0.1); }
 .addon-settings { display: flex; flex-direction: column; gap: 8px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.1); }
 .addon-settings:empty { display: none; }
 .pt-list { margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; }
-.pt-row { padding: 5px 8px; border-radius: 8px; }
+.wc-day.pt-row { padding: 6px 10px; margin: 0 -10px; border-radius: 8px; }   /* highlight reaches past the text so it never feels cramped */
 .pt-current { background: rgba(80,140,255,0.22); font-weight: 600; }
 .pt-until { margin-top: 8px; }
 .pt-next { font-size: 1.8rem; white-space: nowrap; }
@@ -545,7 +545,7 @@ html[data-theme="light"] .weather-card .news-card-close { color: rgba(0,0,0,0.6)
 
 /* ─── Show on page ────────────────────────────────────────────────────── */
 html.hide-logo #logoSlot, html.hide-clock #clock, html.hide-date #date, html.hide-search #searchForm,
-html.hide-shortcuts #shortcutsGrid, html.hide-newsBtn #newsBtn, html.hide-weatherBtn #weatherBtn { display: none !important; }
+html.hide-shortcuts #shortcutsGrid, html.hide-newsBtn #newsBtn { display: none !important; }
 .vis-box { display: flex; flex-direction: column; gap: 10px; }
 
 /* ─── Weather ─────────────────────────────────────────────────────────── */

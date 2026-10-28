@@ -15,6 +15,15 @@
 	},
 	"releases": [
 		{
+			"version": "1.9.1",
+			"date": "2026-10-28",
+			"summary": "Weather and Prayer Times buttons appear only when in use.",
+			"details": [
+				"The \"Show on page\" switches for the Weather and Prayer Times buttons are gone: the Weather button shows when Weather is on, and the Prayer Times button shows when that add-on is installed.",
+				"The highlighted next prayer now has room on both sides, so its text no longer touches the edge."
+			]
+		},
+		{
 			"version": "1.9.0",
 			"date": "2026-10-27",
 			"summary": "Add-ons, starting with Prayer Times, and news pictures that fit the card.",

@@ -1548,13 +1548,12 @@ function syncWorldSettings() {
 }
 
 // ─── Show on page (visibility switches) ───────────────────────────────────
-const VIS_ITEMS = [['logo', 'Logo'], ['clock', 'Clock'], ['date', 'Date'], ['weatherBtn', 'Weather button'], ['search', 'Search bar'], ['shortcuts', 'Shortcuts'], ['newsBtn', 'News button']];
+const VIS_ITEMS = [['logo', 'Logo'], ['clock', 'Clock'], ['date', 'Date'], ['search', 'Search bar'], ['shortcuts', 'Shortcuts'], ['newsBtn', 'News button']];
 const visState = () => { const v = lsGet('visibility', {}); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; };
 
 function applyVisibility() {
 	const v = visState();
 	for (const [key] of VIS_ITEMS) document.documentElement.classList.toggle('hide-' + key, v[key] === false);
-	for (const [key, a] of addonVis) a.el.style.display = v[key] === false ? 'none' : '';
 }
 
 function buildVisibilityBox() {
@@ -1817,7 +1816,6 @@ loadPictureSource();
 // ─── Add-ons (optional extras, downloaded into the addons/ folder only when the person installs them) ──
 const ADDONS_URL = REMOTE_BASE + 'addons/';
 const ADDON_STAGE = 'new-addon.json';
-const addonVis = new Map();          // visibility key -> { label, el }
 const addonPanels = new Set();
 const addonSettingsEls = new Map();  // id -> element the add-on fills with its own settings
 const addonErrors = new Map();
@@ -1863,9 +1861,6 @@ function makeAddonApi(id, settingsEl) {
 			svg.appendChild(path); b.appendChild(svg);
 			b.onclick = (e) => { e.stopPropagation(); onClick(); };
 			document.querySelector('.top-left-btns').appendChild(b);
-			addonVis.set(key, { label, el: b });
-			if (!VIS_ITEMS.some(([k]) => k === key)) VIS_ITEMS.push([key, label]);
-			applyVisibility(); buildVisibilityBox();
 			return b;
 		}
 	};
