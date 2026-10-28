@@ -1,0 +1,12 @@
+{
+	"format": 1,
+	"addons": [
+		{
+			"id": "prayer",
+			"name": "Prayer Times",
+			"version": "1.0.0",
+			"description": "Daily prayer times, the next prayer with a countdown, and the Hijri date, in a card next to the weather button.",
+			"file": "Prayer.js"
+		}
+	]
+}

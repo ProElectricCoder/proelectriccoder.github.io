@@ -1554,6 +1554,7 @@ const visState = () => { const v = lsGet('visibility', {}); return v && typeof v
 function applyVisibility() {
 	const v = visState();
 	for (const [key] of VIS_ITEMS) document.documentElement.classList.toggle('hide-' + key, v[key] === false);
+	for (const [key, a] of addonVis) a.el.style.display = v[key] === false ? 'none' : '';
 }
 
 function buildVisibilityBox() {
@@ -1610,11 +1611,12 @@ let weatherFailed = false;
 const hour12 = (iso) => { const h = parseInt(iso.slice(11, 13), 10); return (h % 12 || 12) + (h < 12 ? ' AM' : ' PM'); };
 
 function openWeatherCard() {
+	closeAddonPanels();
 	renderWeatherCard();
 	document.getElementById('weatherCard').hidden = false;
 	loadWeather(false);   // refresh in the background if the cached data is old
 }
-function closeWeatherCard() { document.getElementById('weatherCard').hidden = true; }
+function closeWeatherCard() { document.getElementById('weatherCard').hidden = true; if (typeof closeAddonPanels === 'function') closeAddonPanels(); }
 
 function renderWeatherCard() {
 	const card = document.getElementById('weatherCard');
@@ -1812,6 +1814,182 @@ setInterval(updateClock, 1000);
 applyTheme();   // sets the theme, then loads the matching background
 syncBackgroundMode();
 loadPictureSource();
+// ─── Add-ons (optional extras, downloaded into the addons/ folder only when the person installs them) ──
+const ADDONS_URL = REMOTE_BASE + 'addons/';
+const ADDON_STAGE = 'new-addon.json';
+const addonVis = new Map();          // visibility key -> { label, el }
+const addonPanels = new Set();
+const addonSettingsEls = new Map();  // id -> element the add-on fills with its own settings
+const addonErrors = new Map();
+const addonLive = new Map();
+let addonCatalog = null;
+let addonBusy = false;
+
+const isAddonId = (n) => typeof n === 'string' && /^[a-z][a-z0-9-]{0,30}$/.test(n);
+const isAddonFile = (n) => typeof n === 'string' && /^[A-Za-z][\w-]{0,40}\.js$/.test(n);
+const addonsInstalled = () => { const v = lsGet('addonsInstalled', {}); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; };
+const addonsStatus = (text) => { document.getElementById('addonsStatus').replaceChildren(document.createTextNode(text || '')); };
+
+function closeAddonPanels(except) { for (const p of addonPanels) if (p !== except) p.close(); }
+
+// What an add-on is allowed to use: small helpers, never the page's internals
+function makeAddonApi(id, settingsEl) {
+	const ns = 'addon.' + id + '.';
+	return {
+		el, weatherCity,
+		storage: { get: (k, f) => lsGet(ns + k, f), set: (k, v) => lsSet(ns + k, v) },
+		settings: settingsEl,
+		createPanel(panelId) {
+			const card = document.createElement('div');
+			card.className = 'weather-card'; card.id = 'addonPanel_' + String(panelId).replace(/\W/g, ''); card.hidden = true;
+			card.onclick = (e) => e.stopPropagation();
+			document.body.appendChild(card);
+			const p = {
+				card, onOpen: null,
+				open() { closeWeatherCard(); closeAddonPanels(p); card.hidden = false; if (p.onOpen) p.onOpen(); },
+				close() { card.hidden = true; },
+				toggle() { if (card.hidden) p.open(); else p.close(); }
+			};
+			addonPanels.add(p);
+			return p;
+		},
+		addButton({ key, label, title, icon, onClick }) {
+			const b = el('div', 'news-btn');
+			b.title = title; b.setAttribute('role', 'button'); b.setAttribute('aria-label', title);
+			const NS = 'http://www.w3.org/2000/svg';
+			const svg = document.createElementNS(NS, 'svg'), path = document.createElementNS(NS, 'path');
+			svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('fill', 'none'); svg.setAttribute('stroke', 'currentColor'); svg.setAttribute('stroke-width', '1.5');
+			path.setAttribute('stroke-linecap', 'round'); path.setAttribute('stroke-linejoin', 'round'); path.setAttribute('d', icon);
+			svg.appendChild(path); b.appendChild(svg);
+			b.onclick = (e) => { e.stopPropagation(); onClick(); };
+			document.querySelector('.top-left-btns').appendChild(b);
+			addonVis.set(key, { label, el: b });
+			if (!VIS_ITEMS.some(([k]) => k === key)) VIS_ITEMS.push([key, label]);
+			applyVisibility(); buildVisibilityBox();
+			return b;
+		}
+	};
+}
+
+function validateAddon(text, id) {
+	if (text.length < 200) return 'the file is too short';
+	if (!/export\s+default\b/.test(text)) return 'it is not an add-on module';
+	if (!new RegExp(`\\bid:\\s*['"]${id}['"]`).test(text)) return 'it does not belong to this add-on';
+	if (!/[;}]\s*$/.test(text)) return 'the file looks cut off';
+	return '';
+}
+
+// Same idea as the main updater: download → save as one file → read back and check → only then save the add-on file
+async function installAddon(entry) {
+	if (addonBusy) return;
+	if (!extDirHandle) { addonsStatus('Link your extension folder first (see Auto-Updates below).'); return; }
+	addonBusy = true; renderAddons();
+	let dir = null;
+	try {
+		if (await extDirHandle.queryPermission({ mode: 'readwrite' }) !== 'granted') throw new Error('The folder needs to be reconnected (see Auto-Updates below).');
+		addonsStatus(`Downloading ${entry.name}…`);
+		const res = await fetch(ADDONS_URL + entry.file + '?_=' + Date.now(), { cache: 'no-cache' });
+		if (!res.ok) throw new Error(`download failed (${res.status})`);
+		const bytes = new Uint8Array(await res.arrayBuffer());
+		dir = await extDirHandle.getDirectoryHandle('addons', { create: true });
+		addonsStatus('Saving…');
+		await writeFileTo(dir, ADDON_STAGE, JSON.stringify(await packRelease({ [entry.file]: bytes }, entry.version)));
+		addonsStatus('Checking…');
+		const { files, problems } = await unpackRelease(JSON.parse(new TextDecoder().decode(await readBytesFrom(dir, ADDON_STAGE))));
+		if (!files[entry.file]) problems.push('the file is missing');
+		if (!problems.length) { const why = validateAddon(new TextDecoder().decode(files[entry.file]), entry.id); if (why) problems.push(why); }
+		if (problems.length) throw new Error('it did not pass its checks (' + problems.join('; ') + '), so nothing was installed');
+		await writeFileTo(dir, entry.file, files[entry.file]);
+		if (await sha256Hex(await readBytesFrom(dir, entry.file)) !== await sha256Hex(files[entry.file])) throw new Error('the file was not saved correctly');
+		try { await dir.removeEntry(ADDON_STAGE); } catch { /* already gone */ }
+		lsSet('addonsInstalled', { ...addonsInstalled(), [entry.id]: { name: entry.name, version: entry.version, file: entry.file } });
+		addonsStatus(`${entry.name} installed. Reloading…`);
+		setTimeout(() => { if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.reload) chrome.runtime.reload(); else location.reload(); }, 600);
+	} catch (e) {
+		if (dir) { try { await dir.removeEntry(ADDON_STAGE); } catch { /* nothing staged */ } }
+		const box = document.getElementById('addonsStatus');
+		box.replaceChildren(document.createTextNode(`Could not install ${entry.name}: ${e.message}`));
+		if (e && (e.name === 'SecurityError' || /security|abort/i.test(String(e.message)))) {
+			const a = el('a', 'contact-link', 'Download the file');
+			a.href = ADDONS_URL + entry.file; a.target = '_blank'; a.rel = 'noopener noreferrer';
+			box.append(document.createTextNode(' Chrome blocked saving it. '), a, document.createTextNode(' and put it in the addons folder inside the extension folder yourself.'));
+		}
+		addonBusy = false; renderAddons();
+	}
+}
+
+async function removeAddon(id) {
+	const meta = addonsInstalled()[id];
+	if (!meta || addonBusy) return;
+	try {
+		if (extDirHandle && await extDirHandle.queryPermission({ mode: 'readwrite' }) === 'granted') {
+			const dir = await extDirHandle.getDirectoryHandle('addons');
+			try { await dir.removeEntry(meta.file); } catch { /* file already gone */ }
+		}
+	} catch { /* no addons folder */ }
+	const next = addonsInstalled(); delete next[id]; lsSet('addonsInstalled', next);
+	addonsStatus('Removed. Reloading…');
+	setTimeout(() => { if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.reload) chrome.runtime.reload(); else location.reload(); }, 400);
+}
+
+function renderAddons() {
+	const box = document.getElementById('addonsBox');
+	const installed = addonsInstalled();
+	const entries = new Map();
+	for (const [id, m] of Object.entries(installed)) if (isAddonId(id) && isAddonFile(m?.file)) entries.set(id, { id, name: String(m.name || id), version: String(m.version || ''), file: m.file, description: '' });
+	for (const c of addonCatalog || []) entries.set(c.id, { ...c });
+	if (!entries.size) { box.replaceChildren(el('span', 'setting-hint', addonCatalog ? 'No add-ons available yet.' : 'Open this panel with an internet connection to see the available add-ons.')); return; }
+	box.replaceChildren(...[...entries.values()].map((entry) => {
+		const have = installed[entry.id];
+		const item = el('div', 'addon-item');
+		item.append(el('div', 'addon-name', entry.name + (have?.version ? ' · v' + have.version : entry.version ? ' · v' + entry.version : '')));
+		if (entry.description) item.append(el('div', 'addon-desc', entry.description));
+		if (addonErrors.has(entry.id)) item.append(el('div', 'addon-desc', 'Could not start: ' + addonErrors.get(entry.id)));
+		const actions = el('div', 'addon-actions');
+		if (!have) {
+			const b = el('button', 'btn-link', 'Install'); b.disabled = addonBusy; b.onclick = () => installAddon(entry); actions.append(b);
+		} else {
+			if (addonCatalog && entry.version && compareVersions(entry.version, have.version || '0') > 0) {
+				const u = el('button', 'btn-link', 'Update to v' + entry.version); u.disabled = addonBusy; u.onclick = () => installAddon(entry); actions.append(u);
+			}
+			const r = el('button', 'btn-link', 'Remove'); r.disabled = addonBusy; r.onclick = () => removeAddon(entry.id); actions.append(r);
+		}
+		item.append(actions);
+		if (have && addonSettingsEls.has(entry.id)) item.append(addonSettingsEls.get(entry.id));
+		return item;
+	}));
+}
+
+async function loadAddonCatalog() {
+	try {
+		const res = await fetch(ADDONS_URL + 'addons.json?_=' + Date.now(), { cache: 'no-cache' });
+		if (!res.ok) throw new Error('catalog ' + res.status);
+		const json = await res.json();
+		addonCatalog = (Array.isArray(json.addons) ? json.addons : []).filter((a) => a && isAddonId(a.id) && isAddonFile(a.file) && typeof a.name === 'string' && typeof a.version === 'string')
+			.map((a) => ({ id: a.id, name: a.name.slice(0, 40), version: a.version, file: a.file, description: typeof a.description === 'string' ? a.description.slice(0, 300) : '' }));
+		addonsStatus('');
+	} catch { addonCatalog = null; addonsStatus('Could not load the list of add-ons.'); }
+	renderAddons();
+}
+
+// Starts the add-ons that are installed. A broken add-on never stops the page.
+async function initAddons() {
+	for (const [id, meta] of Object.entries(addonsInstalled())) {
+		if (!isAddonId(id) || !isAddonFile(meta?.file)) continue;
+		const box = el('div', 'addon-settings');
+		addonSettingsEls.set(id, box);
+		try {
+			const mod = await import('./addons/' + meta.file);
+			if (!mod.default || mod.default.id !== id || typeof mod.default.init !== 'function') throw new Error('not a valid add-on');
+			addonLive.set(id, mod.default.init(makeAddonApi(id, box)) || {});
+		} catch (e) {
+			addonErrors.set(id, /Failed to fetch|Cannot find|Unable to resolve|error loading/i.test(String(e.message)) ? 'its file is missing from the addons folder' : String(e.message).slice(0, 120));
+			console.warn('[NewTab] add-on failed:', id, e);
+		}
+	}
+	renderAddons();
+}
+
 loadLogo();
 setEngine(localStorage.getItem('preferredEngine') || 'google');
 renderEngineSettings();
@@ -1823,6 +2001,8 @@ setInterval(() => loadWeather(false), WEATHER_TTL_MS);
 renderShortcuts();
 loadNews();
 loadWorld();
+renderAddons();
+initAddons();
 
 // On load: silently connect to stored folder, check for notifications and auto-updates.
 // Uses only queryPermission — no user gesture needed for extension pages in Chrome.
@@ -1838,6 +2018,7 @@ getHandle().then(async (handle) => {
 document.getElementById('settingsBtn').onclick = () => {
 	document.getElementById('settingsSidebar').classList.add('open');
 	checkFolderAccess();
+	if (!addonCatalog) loadAddonCatalog();
 };
 document.getElementById('closeSidebarBtn').onclick = () => document.getElementById('settingsSidebar').classList.remove('open');
 
