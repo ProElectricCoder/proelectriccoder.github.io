@@ -109,7 +109,7 @@ export function openThemePicker() {
 export function openChatInfo() {
 	const sess = getActiveSess(); if (!sess) return;
 	const canEdit = sess.myRole === 'owner' || sess.myRole === 'manager';
-	const roleLabel = sess.myRole === 'owner' ? '👑 Owner' : sess.myRole === 'manager' ? '⭐ Manager' : '👤 Member';
+	const roleLabel = sess.myRole === 'owner' ? 'Owner' : sess.myRole === 'manager' ? 'Manager' : 'Member';
 	const d = el('ciDetails');
 	if (d) {
 		d.innerHTML = `
@@ -133,7 +133,7 @@ export function openChatInfo() {
 			<div><span style="color:var(--faint)">Status:</span> ${sess.connected ? '<span style="color:var(--ta)">Connected</span>' : 'Disconnected'}</div>
 		</div>
 		${sess.roomId ? `<div class="row" style="margin-top:10px;gap:7px">
-			<button class="btn btn-s" style="flex:1" onclick="App.copyInviteLink()">🔗 Copy Invite Link</button>
+			<button class="btn btn-s" style="flex:1" onclick="App.copyInviteLink()">${iconSvg('link', 1)} Copy Invite Link</button>
 			${S.user && !sess.isGroup ? `<button class="btn btn-s" style="flex:1" onclick="App.copyUserId()">${iconSvg('idcard', 1)} My ID</button>` : ''}
 		</div>` : ''}`;
 	}

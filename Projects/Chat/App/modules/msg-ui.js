@@ -8,7 +8,7 @@ import { seenBy } from './receipts.js';
 import { voiceClick } from './voice.js';
 import {
 	REACTIONS, hooks, findMsg, setCompose, clearCompose, toggleReaction, deleteForEveryone, deleteForMe,
-	votePoll, closePoll, createPoll,
+	votePoll, closePoll, createPoll, togglePin, toggleStar,
 } from './msg-features.js';
 
 let menuEl = null, menuScrollTop = 0;
@@ -24,7 +24,11 @@ function openMenu(msgEl, m, sess) {
 	const canReact = !m.deleted && (m.type === 'text' || m.type === 'file' || m.type === 'poll');
 	let h = '';
 	if (canReact) h += `<div class="mm-reacts">${REACTIONS.map(([k, label]) => `<button type="button" class="mm-react${m.reactions?.[k]?.me !== undefined ? ' me' : ''}" data-mm-react="${k}" title="${label}">${iconSvg(k, 1.15)}</button>`).join('')}</div>`;
-	if (!m.deleted && (m.type === 'text' || m.type === 'file' || m.type === 'poll')) h += item('reply', 'reply', 'Reply');
+	if (!m.deleted && (m.type === 'text' || m.type === 'file' || m.type === 'poll')) {
+		h += item('reply', 'reply', 'Reply');
+		h += item('pin', 'bookmark', m.pinned ? 'Unpin from chat' : 'Pin to chat');
+		h += item('star', 'star', m.starred ? 'Remove star' : 'Star (only you)');
+	}
 	if (!m.deleted && m.type === 'text') h += item('copy', 'copy', 'Copy text');
 	if (m.mine && !m.deleted && m.type === 'text') h += item('edit', 'pencil', 'Edit');
 	if (m.mine && !m.deleted && m.type === 'text' && sess.isGroup) h += item('seen', 'eye', 'Seen by');
@@ -46,6 +50,8 @@ function openMenu(msgEl, m, sess) {
 		else if (act === 'deleteall') { if (confirm('Delete this message for everyone in the chat?')) deleteForEveryone(sess, m); }
 		else if (act === 'closepoll') closePoll(sess, m);
 		else if (act === 'seen') openSeenDialog(m);
+		else if (act === 'pin') togglePin(sess, m);
+		else if (act === 'star') toggleStar(sess, m);
 	});
 
 	// Place it next to the bubble, on the same side, inside the viewport
@@ -57,7 +63,7 @@ function openMenu(msgEl, m, sess) {
 	menuEl.style.left = left + 'px'; menuEl.style.top = Math.max(8, top) + 'px';
 }
 
-function jumpTo(id) {
+export function jumpTo(id) {
 	const t = document.querySelector(`#messages [data-msg-id="${String(id).replace(/"/g, '')}"]`);
 	if (!t) { toast('Original message is not in this chat'); return; }
 	t.scrollIntoView({ block: 'center', behavior: 'smooth' });

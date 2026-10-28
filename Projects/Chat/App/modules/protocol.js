@@ -110,7 +110,7 @@ export async function handleMsg(sess, data, peerId) {
 			onReceipt(sess, data, peerId, 'read');
 			break;
 		}
-		case 'msg-react': case 'msg-edit': case 'msg-delete': case 'poll': case 'poll-vote': case 'poll-close':
+		case 'msg-react': case 'msg-pin': case 'msg-edit': case 'msg-delete': case 'poll': case 'poll-vote': case 'poll-close':
 			await handleFeatureMsg(sess, data, peerId); break;
 		case 'typing': {
 			if (!sess.typingPeers) sess.typingPeers = new Set();

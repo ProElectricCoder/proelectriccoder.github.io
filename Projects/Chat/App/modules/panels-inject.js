@@ -100,6 +100,31 @@ mark.srch.cur{background:rgba(255,160,0,.75);color:#000}
 .vn-wave i{flex:1;width:auto;opacity:.45}
 .vn-prog{position:absolute;left:0;top:0;bottom:0;width:0;background:rgba(0,255,255,.14);border-right:2px solid var(--tp);pointer-events:none;border-radius:3px}
 .vn-time{font-family:'JetBrains Mono',monospace;font-size:.66rem;color:var(--dim);min-width:32px;text-align:right}
+
+.msg-flags{display:inline-flex;gap:3px;margin-left:5px;color:var(--tp);vertical-align:middle}
+.pin-banner{display:flex;align-items:center;gap:10px;padding:7px 12px;background:rgba(0,0,0,.4);border-bottom:1px solid var(--tb);border-left:3px solid var(--tp);cursor:pointer;flex-shrink:0}
+.pb-ico{color:var(--tp);display:flex}
+.pb-body{flex:1;min-width:0}
+.pb-title{font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--tp)}
+.pb-text{font-size:.76rem;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pb-all{padding:4px 9px;font-size:.62rem}
+.lib-box{max-width:480px}
+.lib-tabs{display:flex;gap:4px;padding:8px 12px;overflow-x:auto;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0}
+.lib-tab{background:none;border:1px solid transparent;border-radius:14px;color:var(--dim);font-family:'JetBrains Mono',monospace;font-size:.68rem;padding:4px 11px;cursor:pointer;white-space:nowrap}
+.lib-tab span{opacity:.6}
+.lib-tab.on{border-color:var(--tp);color:var(--tp);background:rgba(0,255,255,.07)}
+.lib-body{flex:1;overflow-y:auto;padding:10px 14px 18px;min-height:200px}
+.lib-empty{padding:34px 10px;text-align:center;font-size:.76rem;color:var(--faint)}
+.lib-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.lib-tile{display:flex;flex-direction:column;gap:3px;min-width:0}
+.lib-tile img,.lib-tile video,.lib-ph{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;background:rgba(255,255,255,.05);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--faint)}
+.lib-cap{font-size:.56rem;color:var(--faint);font-family:'JetBrains Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.lib-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.lib-main{flex:1;min-width:0;cursor:pointer}
+.lib-title{font-size:.82rem;word-break:break-word}
+.lib-url{display:block;font-size:.72rem;color:var(--tp);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lib-sub{font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--faint);margin-top:2px}
+.lib-act{flex-shrink:0;text-decoration:none}
 .msg-bubble{cursor:pointer}
 .msg-quote{border-left:3px solid var(--tp);background:rgba(0,0,0,.22);border-radius:6px;padding:4px 8px;margin-bottom:5px;cursor:pointer;max-width:100%}
 .mq-name{font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--tp);font-weight:600}
@@ -369,6 +394,7 @@ mark.srch.cur{background:rgba(255,160,0,.75);color:#000}
 	<div class="panel-body">
 		<div class="panel-section" id="ciDetails"></div>
 		<div class="panel-section" id="ciBgConf"></div>
+		<div class="panel-section"><div class="panel-section-lbl">Chat Tools</div><div class="col" style="gap:10px"><button class="btn btn-s btn-full" onclick="App.openLibrary()">Pinned, starred &amp; shared</button><div id="ciTtl"></div></div></div>
 		<div class="panel-section"><div class="panel-section-lbl">Theme Presets</div><div class="theme-swatches" id="ciThemeSwatches"></div></div>
 		<div class="panel-section"><div class="panel-section-lbl">Members</div><div id="ciMembers"></div></div>
 		<div class="panel-section col" style="gap:8px">

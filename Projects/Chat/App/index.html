@@ -314,6 +314,7 @@
 				</div>
 			</div>
 			<div class="search-bar" id="searchBar" style="display:none"><input class="f-in" id="searchInput" placeholder="Search in this chat…" autocomplete="off"><span class="search-count" id="searchCount"></span><button class="icon-btn" id="searchPrev" title="Previous match (Shift+Enter)" onclick="App.searchStep(-1)"></button><button class="icon-btn" id="searchNext" title="Next match (Enter)" onclick="App.searchStep(1)"></button><button class="icon-btn" id="searchClose" title="Close search" onclick="App.toggleSearch()"></button></div>
+			<div class="pin-banner" id="pinBanner" style="display:none" onclick="App.pinBannerClick()"><span class="pb-ico" id="pbIco"></span><div class="pb-body"><div class="pb-title" id="pbTitle"></div><div class="pb-text" id="pbText"></div></div><button type="button" class="btn btn-s pb-all" onclick="event.stopPropagation();App.openLibrary('pinned')">All</button></div>
 			<div class="messages" id="messages" ondragover="event.preventDefault()" ondrop="App.handleDrop(event)"></div>
 			<div class="input-bar">
 				<div class="fq-wrap" id="fqWrap"></div>

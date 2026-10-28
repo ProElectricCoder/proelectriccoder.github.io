@@ -9,6 +9,7 @@ import { iconSvg } from './icons.js';
 import { attachLinkPreview } from './link-preview.js';
 import { notifyMessage, updateTitle, updateMuteBtn } from './notify.js';
 import { renderFeatureItem, bubbleHtml, decorate, decorateLast } from './msg-features.js';
+import { renderPinBanner } from './library.js';
 
 export function renderChatList() {
 	const container = el('chatList'); if (!container) return;
@@ -90,6 +91,7 @@ export async function renderMessages(sess) {
 	if (!sess.messages.length) sess.messages = await DB.getMessages(sess.id);
 	for (const m of sess.messages) renderMsgItem(container, m);
 	container.scrollTop = container.scrollHeight;
+	renderPinBanner(sess);
 }
 
 export function renderMsgItem(container, m) {

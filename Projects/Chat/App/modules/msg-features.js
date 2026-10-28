@@ -17,6 +17,7 @@ import { formatText } from './text-format.js';
 import { safeSend } from './sessions.js';
 import { renderMsgItem, renderChatList, addBubble } from './chat-render.js';
 import { notifyMessage } from './notify.js';
+import { renderPinBanner } from './library.js';
 
 export const REACTIONS = [['like', 'Like'], ['heart', 'Love'], ['smile', 'Haha'], ['bolt', 'Wow'], ['frown', 'Sad'], ['check', 'Agree']];
 const REACT_KEYS = new Set(REACTIONS.map(r => r[0]));
@@ -90,7 +91,18 @@ export function renderFeatureItem(container, m) {
 }
 
 // Reaction chips under a bubble
+// Little pin / star marks next to the time
+function flags(d, m) {
+	d.querySelector('.msg-meta .msg-flags')?.remove();
+	if (m.deleted || (!m.pinned && !m.starred)) return;
+	const meta = d.querySelector('.msg-meta'); if (!meta) return;
+	const f = document.createElement('span'); f.className = 'msg-flags';
+	f.innerHTML = (m.pinned ? `<span title="Pinned by ${escH(m.pinned.by)}">${iconSvg('bookmark', .85)}</span>` : '') + (m.starred ? `<span title="Starred">${iconSvg('star', .85)}</span>` : '');
+	meta.appendChild(f);
+}
+
 export function decorate(d, m) {
+	flags(d, m);
 	d.querySelector(':scope > .msg-reacts')?.remove();
 	const r = m.reactions; if (!r || m.deleted) return;
 	const keys = REACTIONS.map(x => x[0]).filter(k => r[k] && Object.keys(r[k]).length);
@@ -193,7 +205,7 @@ function tombstone(sess, m) {
 	const keep = new Set(['id', 'sessionId', 'type', 'sender', 'mine', 'timestamp', 'enc', 'aid', 'ticks']);
 	for (const k of Object.keys(m)) if (!keep.has(k)) delete m[k];
 	m.deleted = Date.now(); m.content = '';
-	persist(m); rerender(sess, m); touchLast(sess, m);
+	persist(m); rerender(sess, m); touchLast(sess, m); renderPinBanner(sess);
 }
 
 export function deleteForEveryone(sess, m) {
@@ -207,11 +219,36 @@ export function deleteForMe(sess, m) {
 	const i = sess.messages.indexOf(m); if (i >= 0) sess.messages.splice(i, 1);
 	if (m.file?.blobUrl) { try { URL.revokeObjectURL(m.file.blobUrl); } catch {} }
 	DB.deleteMessage(m);
-	document.querySelector(sel(m.id))?.remove();
+	document.querySelector(sel(m.id))?.remove(); renderPinBanner(sess);
 	if (S.compose?.id === m.id) clearCompose();
 	const last = [...sess.messages].reverse().find(x => x.type !== 'system');
 	sess.lastMessage = last ? str(previewText(last), 60) : null; DB.updateSession(sess.id, { lastMessage: sess.lastMessage });
 	renderChatList();
+}
+
+// ── Pins (shared with the chat) and stars (private) ─────────────────────────────────────────────
+function setPin(sess, m, on, by) {
+	if (on) m.pinned = { by: str(by, 40), at: Date.now() }; else delete m.pinned;
+	persist(m);
+	const d = document.querySelector(sel(m.id)); if (d) decorate(d, m);
+	renderPinBanner(sess);
+}
+
+export function togglePin(sess, m) {
+	if (m.deleted) return;
+	if (!sess.connected) { toast('Not connected'); return; }
+	const on = !m.pinned;
+	setPin(sess, m, on, S.displayName);
+	safeSend(sess, { type: 'msg-pin', id: m.id, on, aid: getAid(), name: S.displayName });
+	toast(on ? 'Pinned to the chat' : 'Unpinned');
+}
+
+export function toggleStar(sess, m) {
+	if (m.deleted) return;
+	if (m.starred) delete m.starred; else m.starred = true;
+	persist(m);
+	const d = document.querySelector(sel(m.id)); if (d) decorate(d, m);
+	toast(m.starred ? 'Starred (only you can see this)' : 'Star removed');
 }
 
 // ── Reactions ───────────────────────────────────────────────────────────────────────────────────
@@ -305,6 +342,11 @@ export async function handleFeatureMsg(sess, data, peerId) {
 			const who = whoKey(sess, data); if (!who || !REACT_KEYS.has(data.key) || m.deleted) return;
 			setReaction(m, data.key, who, name, !!data.on); persist(m);
 			const d = document.querySelector(sel(m.id)); if (d) decorate(d, m);
+			break;
+		}
+		case 'msg-pin': {
+			if (m.deleted) return;
+			setPin(sess, m, !!data.on, name);
 			break;
 		}
 		case 'msg-edit': {
