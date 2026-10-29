@@ -243,8 +243,12 @@ mark.srch.cur{background:rgba(255,160,0,.75);color:#000}
 				<label class="toggle"><input type="checkbox" id="spWakeToggle" onchange="App.handleWakeToggle()"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
 			</div>
 			<div class="sp-row" style="margin-top:12px">
-				<div class="col" style="gap:2px"><span class="sp-label">Notifications</span><span style="font-size:.65rem;color:var(--faint)">Alert me about new messages while this tab is in the background (not for muted chats)</span></div>
+				<div class="col" style="gap:2px"><span class="sp-label">Notifications</span><span style="font-size:.65rem;color:var(--faint)">System alert for new messages while this tab is in the background (not for muted chats)</span><span id="spNotifyHint" style="font-size:.62rem;color:#ffaa55;display:none"></span></div>
 				<label class="toggle"><input type="checkbox" id="spNotifyToggle" onchange="App.handleNotifyToggle()"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+			</div>
+			<div class="sp-row" style="margin-top:12px">
+				<div class="col" style="gap:2px"><span class="sp-label">Message sound</span><span style="font-size:.65rem;color:var(--faint)">Play a sound for new messages in other chats or when this tab is in the background</span></div>
+				<label class="toggle"><input type="checkbox" id="spSoundToggle" onchange="App.handleSoundToggle()"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
 			</div>
 			<div class="sp-row" style="margin-top:12px">
 				<div class="col" style="gap:2px"><span class="sp-label">Read receipts</span><span style="font-size:.65rem;color:var(--faint)">Let people see when I have read their messages</span></div>

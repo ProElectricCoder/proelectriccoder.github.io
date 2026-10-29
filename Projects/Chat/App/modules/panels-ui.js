@@ -33,6 +33,12 @@ export function openSettings() {
 	const wt = el('spWakeToggle'); if (wt) wt.checked = S.wakeLockEnabled;
 	const lt = el('spLinkToggle'); if (lt) lt.checked = S.linkPreviews;
 	const nt = el('spNotifyToggle'); if (nt) nt.checked = S.notify && typeof Notification !== 'undefined' && Notification.permission === 'granted';
+	const st = el('spSoundToggle'); if (st) st.checked = S.sound;
+	const hint = el('spNotifyHint'); if (hint) {
+		const denied = typeof Notification !== 'undefined' && Notification.permission === 'denied', none = typeof Notification === 'undefined';
+		hint.style.display = denied || none ? 'block' : 'none';
+		hint.textContent = none ? 'This browser does not support notifications' : denied ? 'Blocked by the browser: allow notifications for this site in the address bar or site settings, then turn this on' : '';
+	}
 	const rt = el('spReceiptToggle'); if (rt) rt.checked = S.readReceipts;
 	const aw = el('spAvatarWrap');
 	if (aw) {

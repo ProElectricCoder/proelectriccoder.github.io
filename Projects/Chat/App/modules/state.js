@@ -6,6 +6,7 @@ export const S = {
 	activeId:      null,
 	user:          null,
 	notify:        localStorage.getItem('pec_notify') === 'true',                  // browser notifications (Settings)
+	sound:         localStorage.getItem('pec_sound') !== 'false',                  // play a sound for new messages (Settings)
 	readReceipts:  localStorage.getItem('pec_read_receipts') !== 'false',   // tell senders when I read their messages (Settings)
 	linkPreviews:  localStorage.getItem('pec_link_previews') !== 'false',   // Open Graph link previews (Settings)
 	chatId:        null,   // readable Chat ID (google-… / github-… / email-…), null until resolved

@@ -13,7 +13,7 @@ import { bindEngine } from './protocol.js';
 import { sendComposed, clearCompose } from './msg-features.js';
 import { openPollDialog } from './msg-ui.js';
 import { toggleSearch, searchStep } from './msg-search.js';
-import { setNotify, toggleMute } from './notify.js';
+import { setNotify, toggleMute, testNotify, setSound } from './notify.js';
 import { startVoice, finishVoice } from './voice.js';
 import { openLibrary, pinBannerClick } from './library.js';
 import { setTtl } from './ttl.js';
@@ -255,7 +255,8 @@ export const App = {
 	toggleSearch() { toggleSearch(); },
 	searchStep(d) { searchStep(d); },
 	toggleMute() { toggleMute(); },
-	async handleNotifyToggle() { const cb = el('spNotifyToggle'); const on = await setNotify(!!cb?.checked); if (cb) cb.checked = on; if (on) toast('Notifications on'); },
+	async handleNotifyToggle() { const cb = el('spNotifyToggle'); const on = await setNotify(!!cb?.checked); if (cb) cb.checked = on; if (on) { toast('Notifications on'); testNotify(); } },
+	handleSoundToggle() { setSound(!!el('spSoundToggle')?.checked); toast(S.sound ? 'Message sound on' : 'Message sound off'); },
 	handleReceiptToggle() { S.readReceipts = !!el('spReceiptToggle')?.checked; localStorage.setItem('pec_read_receipts', String(S.readReceipts)); toast(S.readReceipts ? 'Read receipts on' : 'Read receipts off'); },
 	cancelCompose() { clearCompose(); },
 	// Typing indicator
