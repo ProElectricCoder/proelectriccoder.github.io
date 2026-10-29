@@ -84,6 +84,7 @@ Bump `version` whenever you change the file, so installed copies show an **Updat
 | `api.createPanel(id, { width })` | Creates a card (like the Weather card). Returns `{ card, open(), close(), toggle(), onOpen }`. Only one card is open at a time. |
 | `api.addButton({ title, icon, onClick })` | Adds a button next to News. `icon` is the `d` of one 24×24 stroke SVG path. Returns the element. |
 | `api.addStyle(css)` | Adds CSS. Prefix your class names (for example `.hello-…`) and also style `html[data-theme="light"]`. |
+| `api.setBackgroundImage(url)` / `api.clearBackgroundImage()` / `api.backgroundImageUrl()` | Uses an https picture as the page background, goes back to the gradient, or tells you the current picture address. |
 | `api.applyAppearance({ theme, top, bottom, direction, power, steps })` | Sets the theme and gradient. `null` restores defaults. |
 | `api.weatherCity()` | The city chosen for Weather (`{ name, label, lat, lon }`) or `null`. |
 

@@ -15,6 +15,17 @@
 	},
 	"releases": [
 		{
+			"version": "1.11.0",
+			"date": "2026-10-29",
+			"summary": "Three more add-ons: Exam Master, GitHub Activity and Wallpapers.",
+			"details": [
+				"Exam Master: choose exam board (Cambridge, OxfordAQA, Edexcel, AQA, OCR), level, subject, year, session and paper step by step, then open a search for that exact paper. Cambridge papers get their exact reference, like 0580/12/M/J/23.",
+				"GitHub Activity: a public profile's recent activity and repositories. Only the username is sent to GitHub.",
+				"Wallpapers: a fresh background from NASA APOD, Wikipedia's picture of the day, the Art Institute of Chicago, Picsum or Unsplash (with your own free key), changed daily or on every tab, with the picture credit shown.",
+				"Add-ons can now set the background picture."
+			]
+		},
+		{
 			"version": "1.10.0",
 			"date": "2026-10-29",
 			"summary": "Ampere: four new add-ons, developer tags on news, and add-on data in backups.",

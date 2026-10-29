@@ -1877,6 +1877,22 @@ function makeAddonApi(id, settingsEl) {
 			}
 			applyTheme(); syncBackgroundMode();
 		},
+		// Uses a web picture as the page background (https only), like the "web address" box under Background
+		async setBackgroundImage(url) {
+			const safe = safeHttpsUrl(url);
+			if (!safe) return false;
+			localStorage.setItem('bgImageUrl', safe); localStorage.removeItem('bgPreset'); localStorage.setItem('bgMode', 'picture');
+			try { await bgDbSet(null); } catch { /* nothing stored */ }
+			syncBackgroundMode(); await loadPictureSource();
+			return true;
+		},
+		// The web address currently used as the background picture, or '' when there is none
+		backgroundImageUrl() { return safeHttpsUrl(localStorage.getItem('bgImageUrl')) || ''; },
+		// Back to the gradient background
+		async clearBackgroundImage() {
+			localStorage.removeItem('bgImageUrl'); localStorage.setItem('bgMode', 'gradient');
+			syncBackgroundMode(); await loadPictureSource();
+		},
 		createPanel(panelId, opts = {}) {
 			const card = document.createElement('div');
 			if (Number.isFinite(opts.width)) card.style.width = Math.min(Math.max(opts.width, 280), 720) + 'px';

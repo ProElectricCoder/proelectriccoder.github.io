@@ -30,6 +30,9 @@ Open **Settings → Add-ons**. Pressing **Install** downloads the add-on into an
 | Planner | Daily, weekly and monthly planner with repeating items |
 | Break Reminder | Eye-rest and stretch reminders |
 | Extra Themes | Eighteen colour presets |
+| Exam Master | Step-by-step picker (Cambridge, OxfordAQA, Edexcel, AQA, OCR) that opens a search for the exact exam paper |
+| GitHub Activity | A public GitHub profile's recent activity and repositories |
+| Wallpapers | Daily background from NASA APOD, Wikipedia, Art Institute of Chicago, Picsum or Unsplash |
 
 Add-ons run with the same permissions as the extension itself, so only install add-ons you trust. Every add-on in this repository is reviewed by hand before it is accepted.
 

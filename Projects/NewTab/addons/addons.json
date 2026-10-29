@@ -35,6 +35,27 @@
 			"version": "1.0.0",
 			"description": "Eighteen ready-made colour presets, light and dark, applied in one click.",
 			"file": "Themes.js"
+		},
+		{
+			"id": "exammaster",
+			"name": "Exam Master",
+			"version": "1.0.0",
+			"description": "Pick board, level, subject, year, session and paper step by step, then open a search for that exact paper. Cambridge, OxfordAQA, Edexcel, AQA and OCR.",
+			"file": "ExamMaster.js"
+		},
+		{
+			"id": "github-activity",
+			"name": "GitHub Activity",
+			"version": "1.0.0",
+			"description": "A public GitHub profile's recent activity and repositories. Sends only the username to GitHub.",
+			"file": "GitHubActivity.js"
+		},
+		{
+			"id": "wallpapers",
+			"name": "Wallpapers",
+			"version": "1.0.0",
+			"description": "A new background picture from NASA APOD, Wikipedia, the Art Institute of Chicago, Picsum or Unsplash, changed daily or on every tab.",
+			"file": "Wallpapers.js"
 		}
 	]
 }
