@@ -1246,15 +1246,31 @@ function safeHttpsUrl(u) {
 }
 const clip = (v, n) => String(v ?? '').slice(0, n);
 
+// A contributor's GitHub username (a plain name, or { github: "name" }); shown as a tag with their profile picture
+const GITHUB_USER = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/;
+function cleanAuthor(a) {
+	const name = typeof a === 'string' ? a : a && typeof a === 'object' ? a.github : '';
+	return typeof name === 'string' && GITHUB_USER.test(name) ? name : '';
+}
+function devTag(user) {
+	if (!user) return null;
+	const a = el('a', 'news-dev');
+	a.href = 'https://github.com/' + encodeURIComponent(user); a.target = '_blank'; a.rel = 'noopener noreferrer'; a.title = 'GitHub profile of ' + user;
+	const img = el('img', 'news-dev-pic'); img.alt = ''; img.width = 16; img.height = 16; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
+	img.onerror = () => img.remove();
+	img.src = 'https://github.com/' + encodeURIComponent(user) + '.png?size=32';
+	a.append(img, document.createTextNode('@' + user));
+	return a;
+}
 function cleanNews(raw) {
 	const posts = (Array.isArray(raw?.posts) ? raw.posts : []).slice(0, 30).map((p) => ({
 		id: clip(p?.id, 80), date: clip(p?.date, 10), project: clip(p?.project, 40),
-		title: clip(p?.title, 120), summary: clip(p?.summary, 300), url: safeHttpsUrl(p?.url), image: safeHttpsUrl(p?.image)
+		title: clip(p?.title, 120), summary: clip(p?.summary, 300), url: safeHttpsUrl(p?.url), image: safeHttpsUrl(p?.image), author: cleanAuthor(p?.author)
 	})).filter((p) => p.id && p.title)
 		.sort((a, b) => b.date.localeCompare(a.date));   // newest first
 	const cards = (Array.isArray(raw?.cards) ? raw.cards : []).slice(0, 10).map((c) => ({
 		id: clip(c?.id, 80), project: clip(c?.project, 40), title: clip(c?.title, 80), text: clip(c?.text, 240),
-		cta: clip(c?.cta, 40) || 'Open', url: safeHttpsUrl(c?.url), image: safeHttpsUrl(c?.image),
+		cta: clip(c?.cta, 40) || 'Open', url: safeHttpsUrl(c?.url), image: safeHttpsUrl(c?.image), author: cleanAuthor(c?.author),
 		hosts: (Array.isArray(c?.hosts) ? c.hosts : []).slice(0, 60).map((h) => clip(h, 100).toLowerCase()).filter(Boolean),
 		keywords: (Array.isArray(c?.keywords) ? c.keywords : []).slice(0, 60).map((k) => clip(k, 40).toLowerCase()).filter(Boolean)
 	})).filter((c) => c.id && c.title && c.url && (c.hosts.length || c.keywords.length));
@@ -1304,6 +1320,7 @@ function renderNewsPanel() {
 		const meta = el('div', 'news-meta');
 		if (p.project) meta.appendChild(el('span', 'news-tag', p.project));
 		if (p.date) meta.appendChild(el('span', '', p.date));
+		const dev = devTag(p.author); if (dev) meta.appendChild(dev);
 		item.append(meta, el('h3', 'news-title', p.title));
 		if (p.summary) item.appendChild(el('p', 'news-summary', p.summary));
 		if (p.url) {
@@ -1339,6 +1356,7 @@ function refreshNewsCard() {
 	const cta = el('a', 'news-card-cta', card.cta);
 	cta.href = card.url; cta.target = '_blank'; cta.rel = 'noopener noreferrer';
 	newsEls.card.replaceChildren(...[newsImage(card.image, 'news-card-img')].filter(Boolean), close, el('div', 'news-card-label', card.project ? `Suggested · ${card.project}` : 'Suggested'),
+		...[devTag(card.author)].filter(Boolean),
 		el('h3', null, card.title), el('p', null, card.text), cta);
 }
 
@@ -1739,6 +1757,8 @@ const BACKUP_KEYS = ['shortcuts', 'preferredEngine', 'customEngines', 'theme', '
 	'weatherEnabled', 'weatherCity', 'weatherUnit'];
 const BACKUP_APP = 'ProElectricCoder NewTab';
 const BACKUP_MAX_VALUE = 500000;
+const ADDON_KEY = /^addon\.[a-z][a-z0-9-]{0,30}\.[\w.-]{1,40}$/;   // data saved by add-ons (notes, to-dos, settings …)
+const addonDataKeys = () => Object.keys(localStorage).filter((k) => ADDON_KEY.test(k));
 
 function blobToDataUrl(blob) {
 	return new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = () => reject(r.error); r.readAsDataURL(blob); });
@@ -1747,7 +1767,7 @@ function blobToDataUrl(blob) {
 async function exportSettings() {
 	const status = document.getElementById('backupStatus');
 	const settings = {};
-	for (const k of BACKUP_KEYS) { const v = localStorage.getItem(k); if (v !== null) settings[k] = v; }
+	for (const k of [...BACKUP_KEYS, ...addonDataKeys()]) { const v = localStorage.getItem(k); if (v !== null && v.length <= BACKUP_MAX_VALUE) settings[k] = v; }
 	let backgroundImage = null;
 	try { const blob = await bgDbGet(); if (blob) backgroundImage = await blobToDataUrl(blob); } catch { /* no picture */ }
 	const version = typeof chrome !== 'undefined' && chrome.runtime?.getManifest ? chrome.runtime.getManifest().version : null;
@@ -1774,6 +1794,7 @@ function checkBackupValue(key, value) {
 	if (key === 'theme' && !['dark', 'light', 'system'].includes(value)) return 'theme is not valid';
 	if (key === 'bgImageUrl' && value && !safeHttpsUrl(value)) return 'picture address is not valid';
 	if (['visibility', 'weatherCity', 'worldSources', 'newsDismissed'].includes(key) && asJson() === undefined) return `${key} is not valid`;
+	if (ADDON_KEY.test(key) && asJson() === undefined) return `${key} is not valid`;
 	return null;
 }
 
@@ -1785,7 +1806,7 @@ async function importSettings(file) {
 		try { data = JSON.parse(await file.text()); } catch { throw new Error('That is not a backup file'); }
 		if (!data || data.app !== BACKUP_APP || data.format !== 1 || typeof data.settings !== 'object' || data.settings === null) throw new Error('That is not a NewTab backup');
 		const incoming = {};
-		for (const k of BACKUP_KEYS) {
+		for (const k of [...BACKUP_KEYS, ...Object.keys(data.settings).filter((k) => ADDON_KEY.test(k))]) {
 			if (!Object.hasOwn(data.settings, k)) continue;
 			const problem = checkBackupValue(k, data.settings[k]);
 			if (problem) throw new Error('Backup rejected: ' + problem);
@@ -1797,7 +1818,7 @@ async function importSettings(file) {
 			image = await (await fetch(data.backgroundImage)).blob();
 		}
 		if (!confirm(`Replace your current shortcuts and settings with this backup (${Object.keys(incoming).length} settings${image ? ', with picture' : ''})?`)) { status.textContent = 'Import cancelled'; return; }
-		for (const k of BACKUP_KEYS) localStorage.removeItem(k);
+		for (const k of [...BACKUP_KEYS, ...addonDataKeys()]) localStorage.removeItem(k);
 		for (const [k, v] of Object.entries(incoming)) localStorage.setItem(k, v);
 		await bgDbSet(image);
 		status.textContent = 'Imported. Reloading…';
@@ -1837,8 +1858,28 @@ function makeAddonApi(id, settingsEl) {
 		el, weatherCity,
 		storage: { get: (k, f) => lsGet(ns + k, f), set: (k, v) => lsSet(ns + k, v) },
 		settings: settingsEl,
-		createPanel(panelId) {
+		addStyle(css) {
+			const st = document.createElement('style'); st.dataset.addon = id; st.textContent = String(css);
+			document.head.appendChild(st);
+			return st;
+		},
+		// Sets the page theme and gradient the way the Appearance settings would. Pass null to go back to the defaults.
+		applyAppearance(a) {
+			if (!a) { localStorage.setItem('theme', 'dark'); resetBackground(); localStorage.setItem('bgMode', 'gradient'); applyTheme(); syncBackgroundMode(); return; }
+			const hex = (v) => /^#[0-9a-f]{6}$/i.test(v) ? v : null;
+			if (a.theme === 'dark' || a.theme === 'light') localStorage.setItem('theme', a.theme);
+			localStorage.setItem('bgMode', 'gradient');
+			const t = hex(a.top), b = hex(a.bottom);
+			if (t && b) {
+				localStorage.setItem('bgCustom', '1'); localStorage.setItem('bgTop', t); localStorage.setItem('bgBottom', b);
+				localStorage.setItem('bgDirection', String(a.direction || 'to bottom right'));
+				localStorage.setItem('bgPower', String(a.power ?? 3)); localStorage.setItem('bgSteps', String(a.steps ?? 20));
+			}
+			applyTheme(); syncBackgroundMode();
+		},
+		createPanel(panelId, opts = {}) {
 			const card = document.createElement('div');
+			if (Number.isFinite(opts.width)) card.style.width = Math.min(Math.max(opts.width, 280), 720) + 'px';
 			card.className = 'weather-card'; card.id = 'addonPanel_' + String(panelId).replace(/\W/g, ''); card.hidden = true;
 			card.onclick = (e) => e.stopPropagation();
 			document.body.appendChild(card);

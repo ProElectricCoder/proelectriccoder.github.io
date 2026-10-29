@@ -80,6 +80,10 @@
 		{
 			"version": "1.9.1",
 			"note": "Weather and Prayer Times buttons appear only when in use; next-prayer highlight padding fixed."
+		},
+		{
+			"version": "1.10.0",
+			"note": "Renamed to Ampere. Four new add-ons, developer tags on news, add-on data in backups."
 		}
 	],
 	"notify": null

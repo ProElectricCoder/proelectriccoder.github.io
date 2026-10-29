@@ -7,6 +7,34 @@
 			"version": "1.0.0",
 			"description": "Daily prayer times, the next prayer with a countdown, and the Hijri date, in a card next to the weather button.",
 			"file": "Prayer.js"
+		},
+		{
+			"id": "productivity",
+			"name": "Notes, To-do & Focus",
+			"version": "1.0.0",
+			"description": "Sticky notes you can pin to the page, a to-do list, and a focus timer with short and long breaks.",
+			"file": "Productivity.js"
+		},
+		{
+			"id": "planner",
+			"name": "Planner",
+			"version": "1.0.0",
+			"description": "A daily, weekly and monthly planner with times and repeating items.",
+			"file": "Planner.js"
+		},
+		{
+			"id": "breaks",
+			"name": "Break Reminder",
+			"version": "1.0.0",
+			"description": "Gentle reminders to rest your eyes, stretch and drink water, with presets like 20-20-20.",
+			"file": "Breaks.js"
+		},
+		{
+			"id": "themes",
+			"name": "Extra Themes",
+			"version": "1.0.0",
+			"description": "Eighteen ready-made colour presets, light and dark, applied in one click.",
+			"file": "Themes.js"
 		}
 	]
 }

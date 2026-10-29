@@ -1,0 +1,25 @@
+name: Ampere contribution check
+
+# Runs on pull requests that touch Ampere add-ons or news. It never has access to secrets, and it only reads the pull request.
+on:
+  pull_request:
+    paths:
+      - 'Projects/NewTab/addons/**'
+      - 'Projects/NewTab/News.json'
+      - '.github/scripts/check-ampere.js'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check add-ons, news and the safety checklist
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node .github/scripts/check-ampere.js

@@ -15,6 +15,18 @@
 	},
 	"releases": [
 		{
+			"version": "1.10.0",
+			"date": "2026-10-29",
+			"summary": "Ampere: four new add-ons, developer tags on news, and add-on data in backups.",
+			"details": [
+				"The extension is now called Ampere.",
+				"New add-ons (Settings → Add-ons): Notes, To-do & Focus (pin sticky notes to the page), Planner (day, week and month), Break Reminder, and Extra Themes with eighteen colour presets.",
+				"News posts can show their developer as a tag with their GitHub username and profile picture.",
+				"Settings → Backup now includes notes, plans and other add-on data.",
+				"Community add-ons and news can be contributed on GitHub: see CONTRIBUTING.md."
+			]
+		},
+		{
 			"version": "1.9.1",
 			"date": "2026-10-28",
 			"summary": "Weather and Prayer Times buttons appear only when in use.",

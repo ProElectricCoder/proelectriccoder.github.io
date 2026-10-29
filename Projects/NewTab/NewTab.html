@@ -3,7 +3,7 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>New Tab</title>
+	<title>Ampere</title>
 	<link rel="icon" id="tabIcon" type="image/svg+xml" href="ProElectricCoder-logo-website-1.svg">
 	<style>
 body {
@@ -462,6 +462,13 @@ html[data-theme="light"] .preset-swatch.selected { border-color: #000; box-shado
 
 .src-logo { width: 16px; height: 16px; border-radius: 3px; object-fit: contain; vertical-align: -3px; margin-right: 6px; }
 .news-tag { display: inline-flex; align-items: center; }
+.news-meta { flex-wrap: wrap; }
+.news-dev { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px 1px 2px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.22); color: rgba(255,255,255,0.75); text-decoration: none; }
+.news-dev:hover { border-color: rgba(255,255,255,0.5); color: #fff; }
+.news-dev-pic { width: 16px; height: 16px; border-radius: 50%; object-fit: cover; background: rgba(255,255,255,0.15); }
+.news-card .news-dev { margin-top: 6px; font-family: monospace; font-size: 0.7rem; }
+html[data-theme="light"] .news-dev { border-color: rgba(0,0,0,0.25); color: rgba(0,0,0,0.7); }
+html[data-theme="light"] .news-dev:hover { border-color: rgba(0,0,0,0.5); color: #000; }
 .news-tag .src-logo { margin-right: 5px; vertical-align: 0; }
 .src-name { display: inline-flex; align-items: center; }
 .news-topics { margin-top: -6px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); }
@@ -862,7 +869,7 @@ html[data-theme="light"] .news-card-close { background: rgba(255,255,255,0.8); c
 		<span class="settings-section-title" style="margin-top:15px">Backup</span>
 
 		<div class="setting-item">
-			<span class="setting-hint">One file with your shortcuts, settings, search engines and chosen picture. Importing replaces what is here now.</span>
+			<span class="setting-hint">One file with your shortcuts, settings, search engines, add-on data and chosen picture. Importing replaces what is here now.</span>
 			<button class="btn-link" id="exportBtn">Export settings</button>
 			<label class="btn-link" style="text-align:center">Import settings…<input type="file" id="importFile" accept="application/json,.json" hidden></label>
 			<span class="setting-hint" id="backupStatus"></span>

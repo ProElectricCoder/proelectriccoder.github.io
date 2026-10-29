@@ -7,7 +7,8 @@
 			"project": "ChatRooms",
 			"title": "Voice messages, pins, stars and disappearing messages",
 			"summary": "Record and send voice messages with a waveform. Pin messages for everyone, star them for yourself, and browse pinned, starred, media, files and links from one library. Chats can now delete messages automatically after 5 minutes, 1 hour, 24 hours or 7 days.",
-			"url": "https://proelectriccoder.pages.dev/Projects/Chat/"
+			"url": "https://proelectriccoder.pages.dev/Projects/Chat/",
+			"author": "ProElectricCoder"
 		},
 		{
 			"id": "chat-search-receipts-notifications",
@@ -15,7 +16,8 @@
 			"project": "ChatRooms",
 			"title": "Chat search, group read receipts and notifications",
 			"summary": "Search inside a chat with highlighted matches. In groups you can see who has read your message (Seen by), and read receipts can be turned off. Optional browser notifications, per-chat mute and an unread count in the tab title.",
-			"url": "https://proelectriccoder.pages.dev/Projects/Chat/"
+			"url": "https://proelectriccoder.pages.dev/Projects/Chat/",
+			"author": "ProElectricCoder"
 		},
 		{
 			"id": "chat-polls-reactions-replies",
@@ -23,7 +25,8 @@
 			"project": "ChatRooms",
 			"title": "Polls, reactions, replies and edit/delete in chat",
 			"summary": "Tap a message for reactions, reply, copy, edit and delete (for me or for everyone). Create polls with visible, changeable votes from the chart button. Delivered ticks now reach the sender too.",
-			"url": "https://proelectriccoder.pages.dev/Projects/Chat/"
+			"url": "https://proelectriccoder.pages.dev/Projects/Chat/",
+			"author": "ProElectricCoder"
 		},
 		{
 			"id": "chat-link-previews",
@@ -32,7 +35,8 @@
 			"title": "Link previews in chat",
 			"summary": "Links in chat are now clickable and show a preview card with title, description and image. Previews are fetched by a Cloudflare function (Open Graph), can be turned off in Settings, and are skipped for encrypted messages.",
 			"url": "https://proelectriccoder.pages.dev/Projects/Chat/",
-			"image": "https://www.sohosystems.co.za/gfx/covers/opengraph.png"
+			"image": "https://www.sohosystems.co.za/gfx/covers/opengraph.png",
+			"author": "ProElectricCoder"
 		},
 		{
 			"id": "chat-github-username",
@@ -40,7 +44,8 @@
 			"project": "ChatRooms",
 			"title": "GitHub sign-in picks up your GitHub username",
 			"summary": "After signing in with GitHub, the chat now reads your username from the GitHub API.",
-			"url": "https://proelectriccoder.pages.dev/Projects/Chat/"
+			"url": "https://proelectriccoder.pages.dev/Projects/Chat/",
+			"author": "ProElectricCoder"
 		},
 		{
 			"id": "chat-email-signin",
@@ -48,7 +53,8 @@
 			"project": "ChatRooms",
 			"title": "Email sign-in and readable Chat IDs",
 			"summary": "You can now sign in with an email and password (with verification), and Chat IDs are easier to read.",
-			"url": "https://proelectriccoder.pages.dev/Projects/Chat/"
+			"url": "https://proelectriccoder.pages.dev/Projects/Chat/",
+			"author": "ProElectricCoder"
 		},
 		{
 			"id": "chat-drive-backup",
@@ -57,7 +63,8 @@
 			"title": "Back up your chats to Google Drive",
 			"summary": "Chats can now be backed up to your Google Drive.",
 			"url": "https://proelectriccoder.pages.dev/Projects/Chat/",
-			"image": "https://www.freelogovectors.net/wp-content/uploads/2026/05/google-drive-logo-freelogovectors.net_.png"
+			"image": "https://www.freelogovectors.net/wp-content/uploads/2026/05/google-drive-logo-freelogovectors.net_.png",
+			"author": "ProElectricCoder"
 		},
 		{
 			"id": "chat-turn-fallback",
@@ -65,7 +72,8 @@
 			"project": "ChatRooms",
 			"title": "TURN fallback for calls",
 			"summary": "Calls now have a TURN relay fallback, plus clearer routing notices and call signaling through the call log.",
-			"url": "https://proelectriccoder.pages.dev/Projects/Chat/"
+			"url": "https://proelectriccoder.pages.dev/Projects/Chat/",
+			"author": "ProElectricCoder"
 		}
 	],
 	"cards": [
