@@ -15,6 +15,14 @@
 	},
 	"releases": [
 		{
+			"version": "1.11.1",
+			"date": "2026-10-29",
+			"summary": "The new tab page title is \"New Tab\" again.",
+			"details": [
+				"The browser tab title is back to \"New Tab\". The extension itself is still named Ampere."
+			]
+		},
+		{
 			"version": "1.11.0",
 			"date": "2026-10-29",
 			"summary": "Three more add-ons: Exam Master, GitHub Activity and Wallpapers.",

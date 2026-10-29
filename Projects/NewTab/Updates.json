@@ -88,6 +88,10 @@
 		{
 			"version": "1.11.0",
 			"note": "Added Exam Master, GitHub Activity and Wallpapers add-ons."
+		},
+		{
+			"version": "1.11.1",
+			"note": "New tab page title restored to New Tab."
 		}
 	],
 	"notify": null
