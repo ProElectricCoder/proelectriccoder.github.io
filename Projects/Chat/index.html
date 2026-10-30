@@ -220,6 +220,7 @@
 			color: var(--cyan);
 			white-space: nowrap;
 		}
+		.api-table .sym { color: var(--text); font-size: 0.83rem; }
 		.api-table .returns {
 			font-family: 'JetBrains Mono', monospace;
 			font-size: 0.75rem;
@@ -363,7 +364,8 @@
 		<p class="hero-sub">
 			A peer-to-peer chat app and the reusable engine under it. Messages, files,
 			voice notes and calls travel over WebRTC data channels. Signaling can use
-			Firebase, a Cloudflare Durable Object, or nothing at all.
+			Firebase, a Cloudflare Durable Object, or nothing at all. Use the engine
+			through a two-call <code>Peer</code> API, or drop down to the engines for full control.
 		</p>
 		<div class="hero-row">
 			<a href="/Projects/Chat/App/" class="launch-btn">
@@ -373,7 +375,7 @@
 				Launch Chat App
 			</a>
 			<span class="ver"><span>App</span> v4.0.0</span>
-			<span class="ver"><span>engine.js</span> v1.4.0</span>
+			<span class="ver"><span>engine.js</span> v1.5.0</span>
 		</div>
 	</div>
 
@@ -382,6 +384,7 @@
 		<div class="toc-title">Contents</div>
 		<ol>
 			<li><a href="#architecture">Architecture Overview</a></li>
+			<li><a href="#quickstart">Quick Start — the Peer API</a></li>
 			<li><a href="#firebase-engine">ChatEngine — Firebase Signaling</a></li>
 			<li><a href="#cf-engine">CloudflareWSEngine — Durable Object Signaling</a></li>
 			<li><a href="#direct-engine">DirectEngine — No-Backend Direct Mode</a></li>
@@ -391,6 +394,9 @@
 			<li><a href="#usage">Usage Examples</a></li>
 			<li><a href="#data-types">Data Types</a></li>
 			<li><a href="#firestore">Firestore Schema</a></li>
+			<li><a href="#production">Production Checklist</a></li>
+			<li><a href="#troubleshooting">Troubleshooting — Known Failure Modes</a></li>
+			<li><a href="#reference-apps">Reference Apps</a></li>
 			<li><a href="#app">The Chat App</a></li>
 		</ol>
 	</div>
@@ -410,31 +416,44 @@
 			The three engines share one interface, so the app can swap them without changing how it
 			sends or receives. They differ only in how the first handshake happens.
 		</p>
+		<p class="sec-body">
+			On top of them sits <code>Peer</code>, a PeerJS-style layer: one call to host a room, one call to join,
+			one <code>Connection</code> object per remote peer, standard events, automatic reconnect. It is the
+			<strong>simple tier</strong>. The engines are the <strong>advanced tier</strong>: you drive signaling,
+			relay and media yourself. Both live in <code>engine.js</code> and the advanced tier is fully
+			backward compatible, so existing apps keep working unchanged.
+		</p>
 
 		<figure class="fig-wrap">
-			<svg class="fig" viewBox="0 0 760 330" role="img" aria-label="Layers: Chat App on top of engine.js, which uses signaling and WebRTC" xmlns="http://www.w3.org/2000/svg">
+			<svg class="fig" viewBox="0 0 760 392" role="img" aria-label="Layers: Chat App on top of engine.js, which has a simple Peer tier and an advanced engine tier, on top of signaling and WebRTC" xmlns="http://www.w3.org/2000/svg">
 <defs><marker id="ly-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" class="ah"/></marker></defs>
 <rect class="box c" x="20" y="14" width="720" height="82" rx="12"/>
-<text class="bt c" x="40" y="40">Chat App</text><text class="bs" x="40" y="58">App/modules/*.js · messages, polls, reactions, files, calls, groups</text>
+<text class="bt c" x="40" y="40">Your app</text><text class="bs" x="40" y="58">Chat App, DeepBlue IDE collab, a card game: anything that needs a live link between browsers</text>
 <g class="chip"><rect x="40" y="68" width="118" height="20" rx="10"/><text x="99" y="82" text-anchor="middle">protocol.js</text></g>
 <g class="chip"><rect x="166" y="68" width="118" height="20" rx="10"/><text x="225" y="82" text-anchor="middle">msg-features.js</text></g>
 <g class="chip"><rect x="292" y="68" width="118" height="20" rx="10"/><text x="351" y="82" text-anchor="middle">file-transfer.js</text></g>
 <g class="chip"><rect x="418" y="68" width="118" height="20" rx="10"/><text x="477" y="82" text-anchor="middle">call-1to1.js</text></g>
 <g class="chip"><rect x="544" y="68" width="118" height="20" rx="10"/><text x="603" y="82" text-anchor="middle">drive-sync.js</text></g>
 <line class="ln" x1="380" y1="98" x2="380" y2="126" marker-end="url(#ly-ah)"/>
-<text class="lb" x="392" y="117">send(obj) · onMessage(cb)</text>
-<rect class="box g" x="20" y="130" width="720" height="82" rx="12"/>
-<text class="bt g" x="40" y="156">engine.js v1.4.0</text><text class="bs" x="40" y="174">One interface, three ways to find the other peer</text>
-<g class="chip g"><rect x="40" y="184" width="150" height="20" rx="10"/><text x="115" y="198" text-anchor="middle">ChatEngine</text></g>
-<g class="chip g"><rect x="198" y="184" width="170" height="20" rx="10"/><text x="283" y="198" text-anchor="middle">CloudflareWSEngine</text></g>
-<g class="chip g"><rect x="376" y="184" width="150" height="20" rx="10"/><text x="451" y="198" text-anchor="middle">DirectEngine</text></g>
-<g class="chip g"><rect x="534" y="184" width="150" height="20" rx="10"/><text x="609" y="198" text-anchor="middle">BaseEngine</text></g>
-<line class="ln" x1="150" y1="214" x2="150" y2="244" marker-end="url(#ly-ah)"/><line class="ln" x1="380" y1="214" x2="380" y2="244" marker-end="url(#ly-ah)"/><line class="ln" x1="610" y1="214" x2="610" y2="244" marker-end="url(#ly-ah)"/>
-<rect class="box y" x="20" y="248" width="224" height="66" rx="12"/><text class="bt y" x="36" y="274">Firestore</text><text class="bs" x="36" y="292">signals/ offer · answer · ICE</text>
-<rect class="box y" x="268" y="248" width="224" height="66" rx="12"/><text class="bt y" x="284" y="274">Durable Object</text><text class="bs" x="284" y="292">WebSocket signal relay</text>
-<rect class="box b" x="516" y="248" width="224" height="66" rx="12"/><text class="bt b" x="532" y="274">WebRTC</text><text class="bs" x="532" y="292">RTCPeerConnection · DataChannel</text>
+<text class="lb" x="392" y="117">send · on('message')   or   send · onMessage(cb)</text>
+<rect class="box g" x="20" y="130" width="720" height="150" rx="12"/>
+<text class="bt g" x="40" y="156">engine.js v1.5.0</text><text class="bs" x="40" y="174">Two tiers in one file: start simple, drop down when you need control</text>
+<text class="lb host" x="40" y="204">SIMPLE</text>
+<g class="chip"><rect x="120" y="190" width="110" height="20" rx="10"/><text x="175" y="204" text-anchor="middle">Peer</text></g>
+<g class="chip"><rect x="238" y="190" width="130" height="20" rx="10"/><text x="303" y="204" text-anchor="middle">Connection</text></g>
+<text class="bs" x="384" y="204">host() · join() · auto-reconnect · events</text>
+<text class="cl" x="40" y="242">ADVANCED</text>
+<g class="chip g"><rect x="120" y="228" width="140" height="20" rx="10"/><text x="190" y="242" text-anchor="middle">ChatEngine</text></g>
+<g class="chip g"><rect x="268" y="228" width="170" height="20" rx="10"/><text x="353" y="242" text-anchor="middle">CloudflareWSEngine</text></g>
+<g class="chip g"><rect x="446" y="228" width="140" height="20" rx="10"/><text x="516" y="242" text-anchor="middle">DirectEngine</text></g>
+<g class="chip g"><rect x="594" y="228" width="130" height="20" rx="10"/><text x="659" y="242" text-anchor="middle">BaseEngine</text></g>
+<text class="bs" x="40" y="266">Peer is built on the engines below it, so everything it does you can also do by hand.</text>
+<line class="ln" x1="150" y1="282" x2="150" y2="312" marker-end="url(#ly-ah)"/><line class="ln" x1="380" y1="282" x2="380" y2="312" marker-end="url(#ly-ah)"/><line class="ln" x1="610" y1="282" x2="610" y2="312" marker-end="url(#ly-ah)"/>
+<rect class="box y" x="20" y="316" width="224" height="66" rx="12"/><text class="bt y" x="36" y="342">Firestore</text><text class="bs" x="36" y="360">signals/ offer · answer · ICE</text>
+<rect class="box y" x="268" y="316" width="224" height="66" rx="12"/><text class="bt y" x="284" y="342">Durable Object</text><text class="bs" x="284" y="360">WebSocket signal relay</text>
+<rect class="box b" x="516" y="316" width="224" height="66" rx="12"/><text class="bt b" x="532" y="342">WebRTC</text><text class="bs" x="532" y="360">RTCPeerConnection · DataChannel</text>
 </svg>
-			<figcaption>Fig. 1 — The app talks to an engine through <code>send</code> and <code>onMessage</code>. The engine handles signaling and WebRTC.</figcaption>
+			<figcaption>Fig. 1 — One file, two tiers. Most code only needs <code>Peer</code>. The engines underneath are public and unchanged.</figcaption>
 		</figure>
 
 		<table class="api-table">
@@ -445,11 +464,194 @@
 				<tr><td class="method">DirectEngine</td><td>You copy and paste SDP</td><td>Nothing</td><td>Offline or serverless use</td></tr>
 			</tbody>
 		</table>
+
+		<h3 class="sub">Which tier?</h3>
+		<table class="api-table">
+			<thead><tr><th></th><th>Simple: <code>Peer</code></th><th>Advanced: engines</th></tr></thead>
+			<tbody>
+				<tr><td class="method">Set up a room</td><td><code>Peer.host(room, opts)</code> / <code>Peer.join(room, opts)</code></td><td><code>new Engine()</code>, <code>init</code>, callbacks, <code>createRoom</code> / <code>joinRoom</code></td></tr>
+				<tr><td class="method">Who is on the other end</td><td><code>conn.peer</code> (a stable id you choose) and <code>conn.metadata</code></td><td>A throwaway engine id per link</td></tr>
+				<tr><td class="method">Reconnect</td><td>Automatic, with backoff and a retry budget</td><td>You rebuild the engine and rejoin</td></tr>
+				<tr><td class="method">Timeouts and errors</td><td>Typed errors: <code>auth</code>, <code>signaling</code>, <code>timeout</code>, <code>connection-lost</code></td><td><code>onError</code> and <code>onSignaling</code> hooks; no join timeout</td></tr>
+				<tr><td class="method">Debugging</td><td><code>debug: true</code> and <code>peer.getTrace()</code></td><td>Console logs</td></tr>
+				<tr><td class="method">Group relay, media tracks, Direct mode</td><td>Not covered. Reach the engine with <code>peer.engine</code></td><td>Full control</td></tr>
+				<tr><td class="method">Topology</td><td>Star: guests talk to the host, the host talks to all guests</td><td>Star, with optional <code>relay: true</code> host</td></tr>
+			</tbody>
+		</table>
+	</div>
+
+	<!-- ══ QUICK START ═══════════════════════════════════════ -->
+	<div class="sec" id="quickstart">
+		<div class="sec-label">02 / Simple API</div>
+		<h2 class="sec-title">Quick Start: the Peer API</h2>
+		<p class="sec-body">
+			<code>Peer</code> wraps an engine. Host a room or join one, and you get <code>Connection</code> objects
+			that work like small event emitters. It signals through Cloudflare by default (you pass a Firebase ID token)
+			or through Firebase (you pass a Firestore handle).
+		</p>
+<pre><code><span class="t-kw">import</span> { <span class="t-cls">Peer</span> } <span class="t-kw">from</span> <span class="t-str">'/Projects/Chat/engine.js'</span>;
+
+<span class="t-kw">const</span> <span class="t-var">token</span> = () =&gt; <span class="t-var">firebase</span>.<span class="t-fn">auth</span>().<span class="t-var">currentUser</span>.<span class="t-fn">getIdToken</span>();   <span class="t-cmt">// a string, or an async function</span>
+
+<span class="t-cmt">// Host: resolves once signaling is open and guests can join</span>
+<span class="t-kw">const</span> <span class="t-var">host</span> = <span class="t-kw">await</span> <span class="t-cls">Peer</span>.<span class="t-fn">host</span>(<span class="t-str">'my-room-123'</span>, { <span class="t-var">token</span>, <span class="t-var">id</span>: <span class="t-str">'alice'</span> });
+<span class="t-var">host</span>.<span class="t-fn">on</span>(<span class="t-str">'connection'</span>, <span class="t-var">conn</span> =&gt; {
+  <span class="t-var">console</span>.<span class="t-fn">log</span>(<span class="t-var">conn</span>.<span class="t-var">peer</span>, <span class="t-str">'joined'</span>, <span class="t-var">conn</span>.<span class="t-var">metadata</span>);
+  <span class="t-var">conn</span>.<span class="t-fn">on</span>(<span class="t-str">'data'</span>, <span class="t-var">msg</span> =&gt; <span class="t-var">console</span>.<span class="t-fn">log</span>(<span class="t-var">conn</span>.<span class="t-var">peer</span>, <span class="t-var">msg</span>));
+  <span class="t-var">conn</span>.<span class="t-fn">on</span>(<span class="t-str">'close'</span>, ({ <span class="t-var">reason</span> }) =&gt; <span class="t-var">console</span>.<span class="t-fn">log</span>(<span class="t-var">conn</span>.<span class="t-var">peer</span>, <span class="t-str">'left:'</span>, <span class="t-var">reason</span>));
+});
+<span class="t-var">host</span>.<span class="t-fn">send</span>({ <span class="t-var">type</span>: <span class="t-str">'announcement'</span>, <span class="t-var">text</span>: <span class="t-str">'Welcome'</span> });          <span class="t-cmt">// to every guest</span>
+
+<span class="t-cmt">// Guest, in another browser: resolves once the host answered and the channel is open</span>
+<span class="t-kw">const</span> <span class="t-var">guest</span> = <span class="t-kw">await</span> <span class="t-cls">Peer</span>.<span class="t-fn">join</span>(<span class="t-str">'my-room-123'</span>, { <span class="t-var">token</span>, <span class="t-var">id</span>: <span class="t-str">'bob'</span>, <span class="t-var">metadata</span>: { <span class="t-var">name</span>: <span class="t-str">'Bob'</span> } });
+<span class="t-var">guest</span>.<span class="t-fn">on</span>(<span class="t-str">'message'</span>, ({ <span class="t-kw">from</span>, <span class="t-var">data</span> }) =&gt; <span class="t-var">console</span>.<span class="t-fn">log</span>(<span class="t-kw">from</span>, <span class="t-var">data</span>));
+<span class="t-var">guest</span>.<span class="t-fn">send</span>({ <span class="t-var">type</span>: <span class="t-str">'chat'</span>, <span class="t-var">text</span>: <span class="t-str">'Hello!'</span> });                  <span class="t-cmt">// to the host</span></code></pre>
+		<figure class="fig-wrap">
+			<svg class="fig" viewBox="0 0 760 372" role="img" aria-label="Peer lifecycle: host and join, offer and answer, ICE, channel open, connected with heartbeat, then either a lost link that reconnects or a clean exit" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="lc-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" class="ah"/></marker></defs>
+<rect class="box c" x="20" y="16" width="128" height="72" rx="12"/><text class="bt c" x="84" y="46" text-anchor="middle">host(room)</text><text class="bs" x="84" y="66" text-anchor="middle">signaling opens</text>
+<rect class="box b" x="168" y="16" width="128" height="72" rx="12"/><text class="bt b" x="232" y="46" text-anchor="middle">join(room)</text><text class="bs" x="232" y="66" text-anchor="middle">guest makes an offer</text>
+<rect class="box y" x="316" y="16" width="128" height="72" rx="12"/><text class="bt y" x="380" y="46" text-anchor="middle">Offer + answer</text><text class="bs" x="380" y="66" text-anchor="middle">via signaling</text>
+<rect class="box y" x="464" y="16" width="128" height="72" rx="12"/><text class="bt y" x="528" y="46" text-anchor="middle">ICE candidates</text><text class="bs" x="528" y="66" text-anchor="middle">direct or TURN</text>
+<rect class="box g" x="612" y="16" width="128" height="72" rx="12"/><text class="bt g" x="676" y="46" text-anchor="middle">Channel opens</text><text class="bs" x="676" y="66" text-anchor="middle">hello swaps ids</text>
+<line class="ln" x1="150" y1="52" x2="166" y2="52" marker-end="url(#lc-ah)"/><line class="ln" x1="298" y1="52" x2="314" y2="52" marker-end="url(#lc-ah)"/><line class="ln" x1="446" y1="52" x2="462" y2="52" marker-end="url(#lc-ah)"/><line class="ln" x1="594" y1="52" x2="610" y2="52" marker-end="url(#lc-ah)"/>
+<line class="ln" x1="676" y1="90" x2="676" y2="126" marker-end="url(#lc-ah)"/>
+<text class="lb" x="688" y="113">open event</text>
+<rect class="box g" x="20" y="130" width="720" height="92" rx="12"/>
+<text class="bt g" x="40" y="156">Connected</text><text class="bs" x="40" y="174">Frames go straight between browsers. The signaling socket is no longer needed.</text>
+<g class="chip g"><rect x="40" y="186" width="150" height="20" rx="10"/><text x="115" y="200" text-anchor="middle">send · on('data')</text></g>
+<g class="chip g"><rect x="198" y="186" width="130" height="20" rx="10"/><text x="263" y="200" text-anchor="middle">ping every 5 s</text></g>
+<g class="chip g"><rect x="336" y="186" width="190" height="20" rx="10"/><text x="431" y="200" text-anchor="middle">10 s of silence = lost</text></g>
+<g class="chip g"><rect x="534" y="186" width="170" height="20" rx="10"/><text x="619" y="200" text-anchor="middle">route-change event</text></g>
+<line class="ln srv" x1="190" y1="224" x2="190" y2="262" marker-end="url(#lc-ah)"/>
+<text class="lb srv" x="202" y="248">link lost</text>
+<line class="ln host" x1="570" y1="224" x2="570" y2="262" marker-end="url(#lc-ah)"/>
+<text class="lb host" x="582" y="248">leave on purpose</text>
+<rect class="box y" x="20" y="266" width="340" height="92" rx="12"/>
+<text class="bt y" x="36" y="290">Reconnecting</text>
+<text class="bs" x="36" y="308">network drop, sleeping tab, host restart</text>
+<text class="bs" x="36" y="324">guest retries: 1s, 2s, 4s ... up to 15s, 5 times</text>
+<text class="bs" x="36" y="340">then it is back at join(). Host sees peer-left.</text>
+<rect class="box c" x="400" y="266" width="340" height="92" rx="12"/>
+<text class="bt c" x="416" y="290">Clean exit</text>
+<text class="bs" x="416" y="308">disconnect() or conn.close()</text>
+<text class="bs" x="416" y="324">a bye frame goes first, so the other side</text>
+<text class="bs" x="416" y="340">does not retry (close reason: host-closed)</text>
+</svg>
+			<figcaption>Fig. 2 — The life of a Peer link, from <code>host()</code> and <code>join()</code> to a clean exit or a reconnect.</figcaption>
+		</figure>
+
+		<h3 class="sub">Options</h3>
+		<table class="api-table">
+			<thead><tr><th>Option</th><th>Default</th><th>Description</th></tr></thead>
+			<tbody>
+				<tr><td class="method">signaling</td><td class="returns">'cloudflare'</td><td><code>'cloudflare'</code> needs <code>token</code>. <code>'firebase'</code> needs <code>db</code>.</td></tr>
+				<tr><td class="method">token</td><td class="returns">none</td><td>A Firebase ID token, or an async function returning one. A function is called again on every signaling reconnect, so the token never goes stale.</td></tr>
+				<tr><td class="method">db</td><td class="returns">none</td><td><code>firebase.firestore()</code>, when <code>signaling</code> is <code>'firebase'</code>.</td></tr>
+				<tr><td class="method">id</td><td class="returns">random</td><td>Your Peer id. The other side sees it as <code>conn.peer</code>. Pick something stable, such as a Chat ID.</td></tr>
+				<tr><td class="method">metadata</td><td class="returns">null</td><td>Any JSON value. The other side receives it as <code>conn.metadata</code>.</td></tr>
+				<tr><td class="method">reconnect</td><td class="returns">{ retries: 5, baseMs: 1000, maxMs: 15000 }</td><td>Guests rejoin automatically and hosts re-open a lost signaling socket. <code>false</code> turns it off.</td></tr>
+				<tr><td class="method">connectTimeoutMs</td><td class="returns">20000</td><td>How long a guest waits for the host to answer, and how long a host waits for signaling to open.</td></tr>
+				<tr><td class="method">heartbeatMs · timeoutMs · graceMs</td><td class="returns">5000 · 10000 · 8000</td><td>Ping interval, silence before a peer is dropped, and the time a <em>disconnected</em> link gets to recover.</td></tr>
+				<tr><td class="method">debug</td><td class="returns">false</td><td><code>true</code> logs to <code>console.debug</code>. A function receives each <code>{ t, msg }</code> entry. <code>peer.getTrace()</code> always holds the last 200.</td></tr>
+				<tr><td class="method">createEngine</td><td class="returns">none</td><td><code>(engineOptions) =&gt; engine</code>. Plug in your own signaling. The object must implement the shared engine interface.</td></tr>
+			</tbody>
+		</table>
+
+		<h3 class="sub">Peer events</h3>
+		<table class="api-table">
+			<thead><tr><th>Event</th><th>Payload</th><th>When</th></tr></thead>
+			<tbody>
+				<tr><td class="method">open</td><td><code>id</code></td><td>Host: signaling is open. Guest: connected to the host. Fires once.</td></tr>
+				<tr><td class="method">connection</td><td><code>conn</code></td><td>Host: a guest connected and the two sides have swapped ids.</td></tr>
+				<tr><td class="method">message</td><td><code>{ from, data, connection }</code></td><td>Any incoming data, from any connection.</td></tr>
+				<tr><td class="method">peer-left</td><td><code>conn</code></td><td>Host: a guest left or was lost.</td></tr>
+				<tr><td class="method">route-change</td><td><code>{ peer, connection, relayed, local, remote }</code></td><td>The route is known (direct or TURN relay) or has changed.</td></tr>
+				<tr><td class="method">reconnecting</td><td><code>{ attempt, delayMs, reason }</code></td><td>Guest: the link was lost or a connect failed, so it retries after <code>delayMs</code>. <code>reason</code> is <code>'connection-lost'</code>, <code>'timeout'</code> or <code>'signaling'</code>.</td></tr>
+				<tr><td class="method">reconnected</td><td>none</td><td>Guest: the link is back. Host: signaling is back.</td></tr>
+				<tr><td class="method">disconnected</td><td>none</td><td>Host: lost the signaling server. Connected guests stay connected, but nobody new can join until <code>reconnected</code>.</td></tr>
+				<tr><td class="method">signaling</td><td><code>(state, info)</code></td><td>The signaling socket: <code>'connecting'</code>, <code>'open'</code>, <code>'reconnecting'</code>, <code>'failed'</code> or <code>'closed'</code>.</td></tr>
+				<tr><td class="method">track</td><td><code>{ stream, from, connection }</code></td><td>A remote media stream arrived. Media has to be added through <code>peer.engine</code>.</td></tr>
+				<tr><td class="method">error</td><td><code>Error</code> with <code>.type</code></td><td>See the error types below.</td></tr>
+				<tr><td class="method">close</td><td><code>{ reason }</code></td><td>The Peer is finished: <code>'local'</code>, <code>'host-closed'</code>, <code>'lost'</code> or <code>'error'</code>.</td></tr>
+			</tbody>
+		</table>
+
+		<h3 class="sub">Connection</h3>
+		<p class="sec-body">
+			A host gets one <code>Connection</code> per guest. A guest has one, to the host, at <code>peer.connection</code>.
+		</p>
+		<table class="api-table">
+			<thead><tr><th>Member</th><th>Returns</th><th>Description</th></tr></thead>
+			<tbody>
+				<tr><td class="method">conn.peer</td><td class="returns">string</td><td>The remote Peer id (their <code>id</code> option). Falls back to <code>"host"</code> or the engine id if the remote is not a Peer.</td></tr>
+				<tr><td class="method">conn.metadata</td><td class="returns">any</td><td>What the remote passed as <code>metadata</code>.</td></tr>
+				<tr><td class="method">conn.open</td><td class="returns">boolean</td><td>True while you can send.</td></tr>
+				<tr><td class="method">conn.relayed</td><td class="returns">boolean | null</td><td><code>true</code> when a TURN relay carries the link, <code>false</code> when it is direct, <code>null</code> until known.</td></tr>
+				<tr><td class="method">conn.send(data)</td><td class="returns">boolean</td><td>True if the frame was handed to the channel. Before <code>open</code>, and while a guest reconnects, it is queued (up to 100) and sent when the link opens.</td></tr>
+				<tr><td class="method">conn.close()</td><td class="returns">void</td><td>Host: kick this guest. Guest: the same as <code>peer.disconnect()</code>.</td></tr>
+				<tr><td class="method">conn.channel · conn.pc</td><td class="returns">object | null</td><td>Escape hatches to the <code>RTCDataChannel</code> and <code>RTCPeerConnection</code>.</td></tr>
+				<tr><td class="method">events</td><td class="returns"></td><td><code>'open'</code> (again after a reconnect), <code>'data'</code>, <code>'close'</code>, <code>'route'</code>, <code>'reconnecting'</code>.</td></tr>
+			</tbody>
+		</table>
+
+		<h3 class="sub">Reconnect policy</h3>
+		<p class="sec-body">
+			<strong>Guests.</strong> When the channel dies, the connect times out or signaling fails, the Peer waits
+			<code>baseMs &times; 2<sup>attempt&minus;1</sup></code> (capped at <code>maxMs</code>) and joins again with a fresh
+			engine and a fresh token. The <code>Connection</code> object stays the same, so your handlers stay attached: it emits
+			<code>reconnecting</code>, then <code>open</code> again. After <code>retries</code> failed attempts, <code>join()</code>
+			rejects (if it never connected) or the Peer closes with reason <code>'lost'</code>.
+		</p>
+		<p class="sec-body">
+			<strong>Hosts.</strong> A lost signaling socket is re-opened the same way, and guests that are already connected are
+			unaffected. A guest that reconnects reaches the host as a <em>new</em> <code>Connection</code> (a new
+			<code>connection</code> event, and <code>peer-left</code> for the old one) with the same <code>conn.peer</code>.
+		</p>
+		<div class="note">
+			<svg class="note-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/></svg>
+			<span>
+				<strong>Clean exits do not retry.</strong> <code>disconnect()</code> and <code>conn.close()</code> send a goodbye frame first, so the other side closes with a reason instead of reconnecting. Frames whose <code>__peer</code> field is a string are the Peer layer's own hello and goodbye frames; avoid that field name in your data.
+			</span>
+		</div>
+
+		<h3 class="sub">Error types</h3>
+		<table class="api-table">
+			<thead><tr><th><code>error.type</code></th><th>Meaning</th></tr></thead>
+			<tbody>
+				<tr><td class="method">auth</td><td>No token, or the token function threw. A missing token is thrown by <code>host()</code> and <code>join()</code> before anything connects.</td></tr>
+				<tr><td class="method">signaling</td><td>The signaling server is unreachable, or a Firestore stream broke.</td></tr>
+				<tr><td class="method">timeout</td><td>The host did not answer within <code>connectTimeoutMs</code>, or signaling did not open in time.</td></tr>
+				<tr><td class="method">connection-lost</td><td>A guest lost the host and used up its retries.</td></tr>
+				<tr><td class="method">unavailable</td><td>No WebRTC in this browser, no room name, or a Peer that was already used. A Peer is single-use: make a new one.</td></tr>
+			</tbody>
+		</table>
+
+		<h3 class="sub">Debugging, and your own signaling</h3>
+<pre><code><span class="t-kw">const</span> <span class="t-var">peer</span> = <span class="t-kw">await</span> <span class="t-cls">Peer</span>.<span class="t-fn">join</span>(<span class="t-str">'my-room-123'</span>, { <span class="t-var">token</span>, <span class="t-var">debug</span>: <span class="t-kw">true</span> });   <span class="t-cmt">// also logs to console.debug</span>
+<span class="t-var">console</span>.<span class="t-fn">table</span>(<span class="t-var">peer</span>.<span class="t-fn">getTrace</span>());                                         <span class="t-cmt">// last 200 entries: [{ t, msg }, ...]</span>
+<span class="t-var">peer</span>.<span class="t-fn">on</span>(<span class="t-str">'route-change'</span>, ({ <span class="t-var">peer</span>: <span class="t-var">id</span>, <span class="t-var">relayed</span> }) =&gt; <span class="t-var">console</span>.<span class="t-fn">log</span>(<span class="t-var">id</span>, <span class="t-var">relayed</span> ? <span class="t-str">'TURN relay'</span> : <span class="t-str">'direct'</span>));
+
+<span class="t-cmt">// Bring your own signaling: return anything that implements the shared engine interface</span>
+<span class="t-kw">const</span> <span class="t-var">custom</span> = <span class="t-kw">new</span> <span class="t-fn">Peer</span>({ <span class="t-var">createEngine</span>: <span class="t-var">opts</span> =&gt; <span class="t-kw">new</span> <span class="t-fn">MyEngine</span>(<span class="t-var">opts</span>) });</code></pre>
+		<p class="sec-body">
+			The interface is <code>createRoom</code>, <code>joinRoom</code>, <code>send</code>, <code>sendTo</code>,
+			<code>closePeer</code>, <code>disconnect</code>, the <code>on&hellip;</code> callbacks (<code>onMessage</code>,
+			<code>onPeerConnected</code>, <code>onPeerDisconnected</code>, <code>onRoute</code>, <code>onTrack</code>,
+			<code>onError</code>) and a <code>peers</code> map. <code>onSignaling</code> and
+			<code>reconnectSignaling</code> are optional.
+		</p>
+		<div class="note">
+			<svg class="note-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/></svg>
+			<span>
+				<strong>What the simple tier leaves out on purpose:</strong> guests only talk to the host (use <code>new ChatEngine({ relay: true })</code> for a transparent group relay), and media is not negotiated for you (the engines negotiate once, at connect time). Reach the engine with <code>peer.engine</code> when you need either.
+			</span>
+		</div>
 	</div>
 
 	<!-- ══ FIREBASE ENGINE ═══════════════════════════════════ -->
 	<div class="sec" id="firebase-engine">
-		<div class="sec-label">02 / Firebase Mode</div>
+		<div class="sec-label">03 / Firebase Mode</div>
 		<h2 class="sec-title">ChatEngine</h2>
 		<p class="sec-body">
 			<code>ChatEngine</code> uses Firebase Firestore as a rendezvous server. The host listens
@@ -490,7 +692,7 @@
 <rect class="nt" x="102" y="405" width="556" height="26" rx="6"/>
 <text class="nl" x="380.0" y="422" text-anchor="middle">Firestore is idle from here on</text>
 </svg>
-			<figcaption>Fig. 2 — Firebase signaling. Only the offer, answer and candidates pass through Firestore.</figcaption>
+			<figcaption>Fig. 3 — Firebase signaling. Only the offer, answer and candidates pass through Firestore.</figcaption>
 		</figure>
 
 		<div class="note">
@@ -526,7 +728,7 @@
 
 	<!-- ══ CLOUDFLARE ENGINE ═════════════════════════════════ -->
 	<div class="sec" id="cf-engine">
-		<div class="sec-label">03 / Cloudflare Mode</div>
+		<div class="sec-label">04 / Cloudflare Mode</div>
 		<h2 class="sec-title">CloudflareWSEngine</h2>
 		<p class="sec-body">
 			<code>CloudflareWSEngine</code> swaps Firestore for a WebSocket to a Cloudflare Durable Object.
@@ -569,7 +771,7 @@
 <rect class="nt" x="102" y="449" width="556" height="26" rx="6"/>
 <text class="nl" x="380.0" y="466" text-anchor="middle">The socket is only needed until this opens</text>
 </svg>
-			<figcaption>Fig. 3 — Cloudflare signaling. The Durable Object forwards signals and routes answers by <code>to</code>.</figcaption>
+			<figcaption>Fig. 4 — Cloudflare signaling. The Durable Object forwards signals and routes answers by <code>to</code>.</figcaption>
 		</figure>
 
 		<p class="sec-body">
@@ -588,11 +790,20 @@
 
 <span class="t-kw">await</span> <span class="t-var">engine</span>.<span class="t-fn">createRoom</span>(<span class="t-str">'my-room-123'</span>, <span class="t-fn">token</span>);   <span class="t-cmt">// host</span>
 <span class="t-kw">await</span> <span class="t-var">engine</span>.<span class="t-fn">joinRoom</span>(<span class="t-str">'my-room-123'</span>, <span class="t-fn">token</span>);     <span class="t-cmt">// guest</span></code></pre>
-	</div>
+
+		<p class="sec-body">
+			Two hooks show what the socket is doing. <code>onSignaling</code> reports its state, and
+			<code>onError</code> reports problems the engine used to only log. After <code>'failed'</code>
+			(the built-in six backoff tries are used up), <code>reconnectSignaling()</code> starts over with a fresh budget.
+			<code>Peer</code> does all of this for you.
+		</p>
+<pre><code><span class="t-var">engine</span>.<span class="t-fn">onSignaling</span>((<span class="t-var">state</span>, <span class="t-var">info</span>) =&gt; <span class="t-var">console</span>.<span class="t-fn">log</span>(<span class="t-str">'signaling'</span>, <span class="t-var">state</span>, <span class="t-var">info</span>));   <span class="t-cmt">// connecting | open | reconnecting | failed | closed</span>
+<span class="t-var">engine</span>.<span class="t-fn">onError</span>(({ <span class="t-var">code</span>, <span class="t-var">error</span> }) =&gt; <span class="t-var">console</span>.<span class="t-fn">warn</span>(<span class="t-var">code</span>, <span class="t-var">error</span>));                <span class="t-cmt">// offer | signaling-stream | token | websocket | signal</span>
+<span class="t-kw">if</span> (!<span class="t-var">engine</span>.<span class="t-fn">reconnectSignaling</span>()) <span class="t-var">console</span>.<span class="t-fn">log</span>(<span class="t-str">'no room to reconnect to'</span>);</code></pre>	</div>
 
 	<!-- ══ DIRECT ENGINE ══════════════════════════════════════ -->
 	<div class="sec" id="direct-engine">
-		<div class="sec-label">04 / Direct Mode</div>
+		<div class="sec-label">05 / Direct Mode</div>
 		<h2 class="sec-title">DirectEngine</h2>
 		<p class="sec-body">
 			<code>DirectEngine</code> generates SDP strings that you exchange with
@@ -632,7 +843,7 @@
 <rect class="nt" x="102" y="359" width="556" height="26" rx="6"/>
 <text class="nl" x="380.0" y="376" text-anchor="middle">No server involved at any point</text>
 </svg>
-			<figcaption>Fig. 4 — Direct mode. You carry the two SDP strings; nothing else is needed.</figcaption>
+			<figcaption>Fig. 5 — Direct mode. You carry the two SDP strings; nothing else is needed.</figcaption>
 		</figure>
 
 		<div class="note">
@@ -667,7 +878,7 @@
 
 	<!-- ══ CONNECTION QUALITY ════════════════════════════════ -->
 	<div class="sec" id="connection">
-		<div class="sec-label">05 / Connectivity</div>
+		<div class="sec-label">06 / Connectivity</div>
 		<h2 class="sec-title">STUN, TURN and Route Detection</h2>
 		<p class="sec-body">
 			Every engine builds its <code>RTCPeerConnection</code> from <code>getIceConfig()</code>: public STUN
@@ -687,13 +898,15 @@
 <line class="ln" x1="472" y1="62" x2="526" y2="104" marker-end="url(#ic-ah)"/><line class="ln" x1="472" y1="170" x2="526" y2="128" marker-end="url(#ic-ah)"/>
 <rect class="box b" x="530" y="76" width="220" height="80" rx="12"/><text class="bt b" x="640" y="104" text-anchor="middle">monitorPC → onRoute</text><text class="bs" x="640" y="123" text-anchor="middle">relayed: false → direct P2P</text><text class="bs" x="640" y="137" text-anchor="middle">relayed: true → TURN relay</text>
 </svg>
-			<figcaption>Fig. 5 — The route is decided by ICE, then reported with <code>onRoute</code>.</figcaption>
+			<figcaption>Fig. 6 — The route is decided by ICE, then reported with <code>onRoute</code>.</figcaption>
 		</figure>
 
 		<p class="sec-body">
 			A brief “disconnected” state is normal when a network changes, so a peer is dropped only after
 			8 seconds of it (<code>graceMs</code>), or at once on <code>failed</code> or <code>closed</code>. A ping every
-			5 seconds also removes a peer whose channel has been silent for 10 seconds.
+			5 seconds also removes a peer whose channel has been silent for 10 seconds. Any incoming frame counts as
+			proof of life, not only a pong, so a busy peer in a throttled background tab is not dropped. All three
+			timings are options: <code>heartbeatMs</code>, <code>timeoutMs</code> and <code>graceMs</code>.
 		</p>
 
 		<pre><code><span class="t-cmt">// Add your own TURN server without touching the code (checked before the built-in list)</span>
@@ -717,7 +930,7 @@ localStorage.<span class="t-fn">setItem</span>(<span class="t-str">'pec_ice_serv
 
 	<!-- ══ GROUPS ═════════════════════════════════════════════ -->
 	<div class="sec" id="groups">
-		<div class="sec-label">06 / Groups</div>
+		<div class="sec-label">07 / Groups</div>
 		<h2 class="sec-title">Group Chats — Host Relay</h2>
 		<p class="sec-body">
 			Groups use a star topology. Members connect only to the host. When the host’s engine is created
@@ -736,7 +949,7 @@ localStorage.<span class="t-fn">setItem</span>(<span class="t-str">'pec_ice_serv
 <g><rect class="act guest" x="520" y="34" width="200" height="52" rx="10"/><text class="at guest" x="620" y="56" text-anchor="middle">Member C</text><text class="as" x="620" y="74" text-anchor="middle">filters on its own “to”</text></g>
 <g><rect class="act guest" x="520" y="214" width="200" height="52" rx="10"/><text class="at guest" x="620" y="236" text-anchor="middle">Member D</text><text class="as" x="620" y="254" text-anchor="middle">filters on its own “to”</text></g>
 </svg>
-			<figcaption>Fig. 6 — Member A sends once. The host forwards the frame to B, C and D.</figcaption>
+			<figcaption>Fig. 7 — Member A sends once. The host forwards the frame to B, C and D.</figcaption>
 		</figure>
 
 		<p class="sec-body">
@@ -749,22 +962,66 @@ localStorage.<span class="t-fn">setItem</span>(<span class="t-str">'pec_ice_serv
 
 	<!-- ══ API REFERENCE ═════════════════════════════════════ -->
 	<div class="sec" id="api">
-		<div class="sec-label">07 / Reference</div>
+		<div class="sec-label">08 / Reference</div>
 		<h2 class="sec-title">API Reference</h2>
+
+				<h3 class="sub">Simple tier: Peer</h3>
+		<table class="api-table">
+			<thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
+			<tbody>
+				<tr><td class="method">Peer.host(room, opts)</td><td class="returns">Promise&lt;Peer&gt;</td><td>Create a Peer and host <code>room</code>. Resolves once signaling is open.</td></tr>
+				<tr><td class="method">Peer.join(room, opts)</td><td class="returns">Promise&lt;Peer&gt;</td><td>Create a Peer and join <code>room</code>. Resolves once connected to the host. Rejects with an <code>Error</code> carrying <code>.type</code>.</td></tr>
+				<tr><td class="method">Peer.makeId()</td><td class="returns">string</td><td>A random 16-character hex id.</td></tr>
+				<tr><td class="method">new Peer(opts)</td><td class="returns">Peer</td><td>Same options as above, when you want to attach handlers before <code>host()</code> or <code>join()</code>. A Peer can be used once.</td></tr>
+				<tr><td class="method">peer.host(room) · peer.join(room)</td><td class="returns">Promise&lt;Peer&gt;</td><td>The instance forms of the static helpers.</td></tr>
+				<tr><td class="method">peer.send(data)</td><td class="returns">number</td><td>Host: to every guest. Guest: to the host. Returns how many peers it was handed to.</td></tr>
+				<tr><td class="method">peer.sendTo(peerId, data)</td><td class="returns">boolean</td><td>Send to one connection, found by its Peer id.</td></tr>
+				<tr><td class="method">peer.getConnection(peerId)</td><td class="returns">Connection | null</td><td>Find a connection by the remote Peer id.</td></tr>
+				<tr><td class="method">peer.disconnect()</td><td class="returns">void</td><td>Leave and tell the other side first. Safe to call more than once. <code>destroy()</code> is an alias.</td></tr>
+				<tr><td class="method">peer.getTrace()</td><td class="returns">object[]</td><td>The last 200 debug entries, <code>{ t, msg }</code>.</td></tr>
+				<tr><td class="method">peer.id · room · role · open</td><td class="returns">properties</td><td><code>role</code> is <code>'host'</code> or <code>'guest'</code>. <code>open</code> is true once the Peer has connected and until it closes.</td></tr>
+				<tr><td class="method">peer.connections · connection · engine</td><td class="returns">properties</td><td>Open connections, the guest's link to the host, and the underlying engine.</td></tr>
+			</tbody>
+		</table>
 
 		<h3 class="sub">Shared — ChatEngine and CloudflareWSEngine</h3>
 		<table class="api-table">
 			<thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
 			<tbody>
 				<tr>
-					<td class="method">new Engine({ relay })</td>
+					<td class="method">new Engine({ relay, heartbeatMs, timeoutMs, graceMs })</td>
 					<td class="returns">engine</td>
-					<td><code>relay: true</code> makes this side forward every frame to its other peers (group host).</td>
+					<td><code>relay: true</code> makes this side forward every frame to its other peers (group host). The other options tune liveness (defaults 5000, 10000, 8000 ms).</td>
 				</tr>
 				<tr>
 					<td class="method">send(data)</td>
+					<td class="returns">number</td>
+					<td>Broadcast to all open peer channels. Accepts string, object (JSON-serialised), ArrayBuffer or Blob. Returns how many channels it was written to.</td>
+				</tr>
+				<tr>
+					<td class="method">sendTo(peerId, data)</td>
+					<td class="returns">boolean</td>
+					<td>Send to exactly one peer. <code>false</code> if that peer has no open channel.</td>
+				</tr>
+				<tr>
+					<td class="method">hasOpenChannel()</td>
+					<td class="returns">boolean</td>
+					<td>True if at least one peer channel is open.</td>
+				</tr>
+				<tr>
+					<td class="method">openPeerIds()</td>
+					<td class="returns">string[]</td>
+					<td>Ids of the peers whose channel is open.</td>
+				</tr>
+				<tr>
+					<td class="method">closePeer(peerId)</td>
 					<td class="returns">void</td>
-					<td>Broadcast to all open peer channels. Accepts string, object (JSON-serialised), ArrayBuffer or Blob.</td>
+					<td>Drop one peer. Fires <code>onPeerDisconnected</code>.</td>
+				</tr>
+				<tr>
+					<td class="method">onError(cb)</td>
+					<td class="returns">void</td>
+					<td><code>cb({ code, error })</code>. Non-fatal problems that used to be only logged: <code>offer</code>, <code>signaling-stream</code>, <code>token</code>, <code>websocket</code>, <code>signal</code>.</td>
 				</tr>
 				<tr>
 					<td class="method">onMessage(cb)</td>
@@ -850,6 +1107,16 @@ localStorage.<span class="t-fn">setItem</span>(<span class="t-str">'pec_ice_serv
 					<td class="returns">boolean</td>
 					<td>True after <code>createRoom</code>.</td>
 				</tr>
+				<tr>
+					<td class="method">onSignaling(cb)</td>
+					<td class="returns">void</td>
+					<td><code>cb(state, info)</code> for the signaling socket: <code>connecting</code>, <code>open</code>, <code>reconnecting</code> (<code>{ attempt, delayMs }</code>), <code>failed</code> (<code>{ attempts }</code>), <code>closed</code>.</td>
+				</tr>
+				<tr>
+					<td class="method">reconnectSignaling()</td>
+					<td class="returns">boolean</td>
+					<td>Open the socket again with a fresh retry budget, for example after <code>failed</code>. <code>false</code> when there is no room.</td>
+				</tr>
 			</tbody>
 		</table>
 
@@ -873,9 +1140,14 @@ localStorage.<span class="t-fn">setItem</span>(<span class="t-str">'pec_ice_serv
 					<td>Caller: apply the answer string. Completes the handshake.</td>
 				</tr>
 				<tr>
+					<td class="method">new DirectEngine({ heartbeatMs, timeoutMs, graceMs })</td>
+					<td class="returns">engine</td>
+					<td>Same liveness options as the other engines.</td>
+				</tr>
+				<tr>
 					<td class="method">send(data)</td>
-					<td class="returns">void</td>
-					<td>Send over the data channel. Warns and does nothing if it is not open.</td>
+					<td class="returns">boolean</td>
+					<td>Send over the data channel. Warns and returns <code>false</code> if it is not open.</td>
 				</tr>
 				<tr>
 					<td class="method">onMessage(cb)</td>
@@ -893,9 +1165,14 @@ localStorage.<span class="t-fn">setItem</span>(<span class="t-str">'pec_ice_serv
 					<td><code>cb('remote')</code></td>
 				</tr>
 				<tr>
-					<td class="method">onRoute(cb) · onTrack(cb)</td>
+					<td class="method">onRoute(cb) · onTrack(cb) · onError(cb)</td>
 					<td class="returns">void</td>
 					<td>Same as the shared engines, with the peer id always <code>'remote'</code>.</td>
+				</tr>
+				<tr>
+					<td class="method">sendTo(id, data) · hasOpenChannel() · openPeerIds() · closePeer()</td>
+					<td class="returns">&mdash;</td>
+					<td>Parity with the other engines, so code can swap engines. There is only one peer, so the id is ignored.</td>
 				</tr>
 				<tr>
 					<td class="method">addLocalStream(stream)</td>
@@ -917,14 +1194,16 @@ localStorage.<span class="t-fn">setItem</span>(<span class="t-str">'pec_ice_serv
 				<tr><td class="method">CF_WS_URL</td><td class="returns">string</td><td>The relay URL <code>CloudflareWSEngine</code> always uses.</td></tr>
 				<tr><td class="method">getIceConfig()</td><td class="returns">RTCConfiguration</td><td>STUN and TURN servers, with any <code>pec_ice_servers</code> entries first.</td></tr>
 				<tr><td class="method">detectRoute(pc)</td><td class="returns">Promise&lt;object | null&gt;</td><td><code>{ relayed, local, remote }</code> for the selected candidate pair, or <code>null</code> if unknown.</td></tr>
-				<tr><td class="method">monitorPC(pc, opts)</td><td class="returns">void</td><td>Watch a connection: <code>opts.onRoute(info)</code>, <code>opts.onDead()</code>, <code>opts.graceMs</code> (default 8000).</td></tr>
+				<tr><td class="method">Peer · Connection</td><td class="returns">classes</td><td>The simple tier. See Quick Start.</td></tr>
+					<tr><td class="method">ENGINE_VERSION</td><td class="returns">string</td><td>The engine.js version, for example <code>'1.5.0'</code>.</td></tr>
+					<tr><td class="method">monitorPC(pc, opts)</td><td class="returns">void</td><td>Watch a connection: <code>opts.onRoute(info)</code>, <code>opts.onDead()</code>, <code>opts.graceMs</code> (default 8000).</td></tr>
 			</tbody>
 		</table>
 	</div>
 
 	<!-- ══ USAGE ══════════════════════════════════════════════ -->
 	<div class="sec" id="usage">
-		<div class="sec-label">08 / Examples</div>
+		<div class="sec-label">09 / Examples</div>
 		<h2 class="sec-title">Usage Examples</h2>
 
 		<h3 class="sub dim">Collaborative code editing</h3>
@@ -958,7 +1237,7 @@ localStorage.<span class="t-fn">setItem</span>(<span class="t-str">'pec_ice_serv
 
 	<!-- ══ DATA TYPES ════════════════════════════════════════ -->
 	<div class="sec" id="data-types">
-		<div class="sec-label">09 / Data</div>
+		<div class="sec-label">10 / Data</div>
 		<h2 class="sec-title">Data Types</h2>
 		<p class="sec-body">
 			The engine transparently serialises and deserialises data so you can
@@ -983,6 +1262,11 @@ localStorage.<span class="t-fn">setItem</span>(<span class="t-str">'pec_ice_serv
 					<td>Sent as a binary WebRTC frame. No JSON serialisation.</td>
 				</tr>
 				<tr>
+					<td class="method">Uint8Array / other typed arrays</td>
+					<td class="returns">object (broken)</td>
+					<td>Not binary-safe: they are JSON-serialised like any object. Send <code>u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength)</code> instead.</td>
+				</tr>
+				<tr>
 					<td class="method">Blob</td>
 					<td class="returns">ArrayBuffer</td>
 					<td>Sent natively. The channel’s <code>binaryType</code> is <code>'arraybuffer'</code>, so it arrives as an ArrayBuffer.</td>
@@ -998,7 +1282,7 @@ localStorage.<span class="t-fn">setItem</span>(<span class="t-str">'pec_ice_serv
 
 	<!-- ══ FIRESTORE SCHEMA ══════════════════════════════════ -->
 	<div class="sec" id="firestore">
-		<div class="sec-label">10 / Firestore</div>
+		<div class="sec-label">11 / Firestore</div>
 		<h2 class="sec-title">Firestore Schema</h2>
 		<p class="sec-body">
 			<code>chatRooms</code> is used only for signaling. Once connected, it is idle. The Chat App adds a second
@@ -1033,9 +1317,101 @@ localStorage.<span class="t-fn">setItem</span>(<span class="t-str">'pec_ice_serv
 		</div>
 	</div>
 
+	<!-- ══ PRODUCTION ════════════════════════════════════════ -->
+	<div class="sec" id="production">
+		<div class="sec-label">12 / Production</div>
+		<h2 class="sec-title">Production Checklist</h2>
+		<p class="sec-body">
+			The demo path works on a laptop. These are the things that decide whether it keeps working for other people.
+		</p>
+		<table class="api-table">
+			<thead><tr><th>Area</th><th>What to do</th></tr></thead>
+			<tbody>
+				<tr><td class="method">Firestore rules</td><td>Firebase signaling needs rules for <code>chatRooms</code>. The repo only documents the <code>chatIds</code> rules, so the room rules live in your Firebase console. If you are starting fresh, the snippet below is the minimum: it only requires sign-in.</td></tr>
+				<tr><td class="method">Auth</td><td>Pass <code>token</code> as an async function so reconnects get a fresh one. The Cloudflare relay verifies the Firebase ID token and answers 403 to password accounts whose email is not verified.</td></tr>
+				<tr><td class="method">Room names</td><td>Neither signaling path decides who may join a room beyond requiring sign-in. Use unguessable room names (<code>Peer.makeId()</code> works) and check membership in your own message protocol.</td></tr>
+				<tr><td class="method">TURN</td><td>The built-in Open Relay credentials are public and rate-limited. Add your own through <code>pec_ice_servers</code>; <code>Peer</code> picks it up automatically. Watch <code>route-change</code> to see how many links end up relayed.</td></tr>
+				<tr><td class="method">Browser support</td><td>Needs <code>RTCPeerConnection</code>, <code>RTCDataChannel</code> and ES modules. The code uses optional chaining, so the floor is roughly Chrome and Edge 80, Firefox 72 and Safari 13.1. Check <code>Peer</code> errors of type <code>unavailable</code>.</td></tr>
+				<tr><td class="method">Message size</td><td>Keep a single send under about 256 KiB and chunk anything bigger, as the Chat App does with <code>file-meta</code>, <code>file-chunk</code> and <code>file-done</code>. Older browsers are only safe at 16 KiB. Typed arrays must be sent as an <code>ArrayBuffer</code>.</td></tr>
+				<tr><td class="method">Graceful exit</td><td>Call <code>peer.disconnect()</code>, for example on <code>pagehide</code>. The other side then closes with a reason. Without it, a host waits for 10 seconds of silence and a guest goes through its reconnect attempts.</td></tr>
+				<tr><td class="method">Sleepy tabs</td><td>Browsers throttle timers in background tabs. Since 1.5.0 any incoming frame counts as proof of life, but for apps where tabs sleep for long periods raise <code>timeoutMs</code>.</td></tr>
+				<tr><td class="method">Stale rooms</td><td>Firebase mode never deletes <code>chatRooms</code> or <code>signals</code> documents. Both carry <code>createdAt</code>, so add a Firestore TTL policy on it, or sweep them from a scheduled function. Cloudflare rooms leave nothing in Firestore.</td></tr>
+				<tr><td class="method">Observability</td><td>Subscribe to <code>error</code>, <code>reconnecting</code> and <code>route-change</code>, and attach <code>peer.getTrace()</code> to bug reports.</td></tr>
+			</tbody>
+		</table>
+
+		<p class="sec-body">A minimal rules block for Firebase signaling (tighten it for your own data model):</p>
+<pre><code>match /chatRooms/{roomId} {
+  allow read, write: if request.auth != null;
+  match /signals/{guestId} {
+    allow read, write: if request.auth != null;
+  }
+}</code></pre>	</div>
+
+	<!-- ══ TROUBLESHOOTING ═══════════════════════════════════ -->
+	<div class="sec" id="troubleshooting">
+		<div class="sec-label">13 / Troubleshooting</div>
+		<h2 class="sec-title">Known Failure Modes</h2>
+		<p class="sec-body">
+			Symptoms first. Each row names the cause the code can actually produce, and the quickest way to confirm it.
+		</p>
+		<table class="api-table">
+			<thead><tr><th>Symptom</th><th>Likely cause</th><th>What to do</th></tr></thead>
+			<tbody>
+				<tr><td class="sym"><code>join()</code> rejects with <code>timeout</code>, or an engine guest waits forever</td><td>No host is listening in that room, the room names differ, or the host's signaling is down.</td><td>Check that the host got <code>open</code>, compare room names, and watch <code>signaling</code> events. The engines have no join timeout, so add your own if you use them directly.</td></tr>
+				<tr><td class="sym">Stuck on connecting, on some networks only</td><td>ICE cannot find a path, and the TURN relay is unreachable or rate-limited.</td><td>Watch <code>route-change</code>. Add your own TURN server through <code>pec_ice_servers</code>.</td></tr>
+				<tr><td class="sym"><code>conn.relayed</code> is true when you expected direct</td><td>A strict NAT or firewall. A TURN server carries the traffic.</td><td>Normal on some corporate and mobile networks. Latency is higher, and the shared relay can run out of capacity.</td></tr>
+				<tr><td class="sym">Console shows <code>[Engine] no open channels</code></td><td><code>send()</code> was called before any channel opened.</td><td>Wait for <code>open</code> or <code>onPeerConnected</code>. <code>conn.send()</code> queues instead.</td></tr>
+				<tr><td class="sym">A peer is dropped after about 10 seconds in a background tab</td><td>The tab's timers are throttled, so its pings stop.</td><td>Fixed for most cases in 1.5.0 (any frame counts). Raise <code>timeoutMs</code> for tabs that sleep.</td></tr>
+				<tr><td class="sym">Binary data arrives as an object of numbered keys</td><td>A <code>Uint8Array</code> or <code>DataView</code> was sent. Only <code>ArrayBuffer</code> and <code>Blob</code> are binary-safe.</td><td>Send the underlying <code>ArrayBuffer</code>. DeepBlue IDE's collab code does this.</td></tr>
+				<tr><td class="sym">The string <code>"42"</code> comes back as a number</td><td>String payloads are JSON-parsed on receive.</td><td>Wrap values in an object: <code>{ v: "42" }</code>.</td></tr>
+				<tr><td class="sym">Messages with a <code>__peer</code> field never arrive</td><td>That field marks the Peer layer's hello and goodbye frames, which are filtered out.</td><td>Rename the field.</td></tr>
+				<tr><td class="sym"><code>error</code> of type <code>signaling</code> mentioning <code>signaling-stream</code></td><td>A Firestore listener broke: the rules deny access, or the client went offline.</td><td>Check the rules and that the user is signed in.</td></tr>
+				<tr><td class="sym">Signaling keeps reconnecting, then <code>failed</code></td><td>The Cloudflare relay refused the socket: an invalid or expired token, or an unverified password account. It answers 403, which browsers do not expose to JavaScript.</td><td>Pass <code>token</code> as an async function, and require email verification at sign-up.</td></tr>
+				<tr><td class="sym">A host that lost signaling cannot be joined</td><td>Its socket is down. Guests already connected are unaffected, but new ones cannot find it.</td><td>Handle <code>disconnected</code> and <code>reconnected</code>. A host that exhausts its retries emits an <code>error</code>.</td></tr>
+				<tr><td class="sym">A non-Peer host logs unknown <code>{ __peer: "hello" }</code> frames</td><td>A <code>Peer</code> guest introduced itself to a plain engine host.</td><td>Ignore frames whose <code>__peer</code> is a string. After 2 seconds the guest opens anyway, under the id <code>"host"</code>.</td></tr>
+			</tbody>
+		</table>
+	</div>
+
+	<!-- ══ REFERENCE APPS ════════════════════════════════════ -->
+	<div class="sec" id="reference-apps">
+		<div class="sec-label">14 / Reference Apps</div>
+		<h2 class="sec-title">Reference Apps</h2>
+		<p class="sec-body">
+			Three apps in this repository run on the same <code>engine.js</code>. They use the advanced tier on purpose:
+			they predate <code>Peer</code> and rely on relay or raw channels. Read them as worked examples of the engines.
+		</p>
+
+		<div class="feat-grid">
+			<div class="feat"><h4><a href="/Projects/Chat/App/">Chat App</a></h4><p>The widest tour: all three engines, 1:1 chats and groups with a <code>relay: true</code> host, a message protocol on top, and call signaling carried over the chat&rsquo;s own channel.</p></div>
+			<div class="feat"><h4><a href="/Projects/IDE/">DeepBlue IDE collab</a></h4><p>A <code>CloudflareWSEngine</code> whose host relays, so guests see each other&rsquo;s edits. Yjs updates travel as <code>ArrayBuffer</code> frames, and both sides announce on every connect so a rejoining peer catches up.</p></div>
+			<div class="feat"><h4><a href="/Projects/Games/Cards/">Cards game</a></h4><p>A host that is the authority and does not relay. It deals each player a private hand with <code>engine.sendTo()</code>, so one player&rsquo;s cards never travel to another.</p></div>
+		</div>
+
+		<h3 class="sub">Moving an app from the engines to Peer</h3>
+		<p class="sec-body">
+			For a new app with one host and several guests that need ids, reconnect and typed errors (lobbies, shared cursors,
+			small games), start with <code>Peer</code>. The mapping from the engine calls is direct:
+		</p>
+		<table class="api-table">
+			<thead><tr><th>Engine call</th><th>Peer equivalent</th></tr></thead>
+			<tbody>
+				<tr><td class="method"><code>engine.createRoom(room, token)</code></td><td><code>Peer.host(room, { token })</code></td></tr>
+				<tr><td class="method"><code>engine.joinRoom(room, token)</code></td><td><code>Peer.join(room, { token })</code></td></tr>
+				<tr><td class="method"><code>engine.onMessage((data, peerId) =&gt; &hellip;)</code></td><td><code>peer.on('message', ({ from, data }) =&gt; &hellip;)</code></td></tr>
+				<tr><td class="method"><code>engine.onPeerConnected(id =&gt; &hellip;)</code></td><td><code>peer.on('connection', conn =&gt; &hellip;)</code> on the host, <code>await Peer.join()</code> on a guest</td></tr>
+				<tr><td class="method"><code>engine.onPeerDisconnected(id =&gt; &hellip;)</code></td><td><code>peer.on('peer-left', conn =&gt; &hellip;)</code> on the host, <code>conn.on('close')</code> anywhere</td></tr>
+				<tr><td class="method"><code>engine.onRoute(info =&gt; &hellip;)</code></td><td><code>peer.on('route-change', info =&gt; &hellip;)</code></td></tr>
+				<tr><td class="method"><code>engine.send(data)</code> · <code>engine.sendTo(id, data)</code></td><td><code>peer.send(data)</code> · <code>peer.sendTo(peerId, data)</code></td></tr>
+				<tr><td class="method"><code>engine.disconnect()</code></td><td><code>peer.disconnect()</code></td></tr>
+			</tbody>
+		</table>
+	</div>
+
 	<!-- ══ THE APP ═════════════════════════════════════════════ -->
 	<div class="sec" id="app">
-		<div class="sec-label">11 / Chat App</div>
+		<div class="sec-label">15 / Chat App</div>
 		<h2 class="sec-title">The Chat App <span class="ver inline"><span>version</span> 4.0.0</span></h2>
 		<p class="sec-body">
 			The app lives in <code>/Projects/Chat/App/</code>: plain ES modules, no bundler. It uses the engines above

@@ -218,6 +218,8 @@ class CollabSession {
   }
 
   _hasOpenChannel() {
+    // engine.js v1.5.0+ has hasOpenChannel(); the fallback keeps an older cached engine.js working
+    if (typeof this.engine.hasOpenChannel === 'function') return this.engine.hasOpenChannel();
     for (const { channel } of this.engine.peers.values()) {
       if (channel?.readyState === 'open') return true;
     }
