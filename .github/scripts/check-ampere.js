@@ -133,9 +133,19 @@ function checkPullRequest(body) {
 	else if (open.length) err(`${open.length} of ${boxes.length} safety boxes are not ticked. Read each one, then tick it.`);
 }
 
-checkAddons();
-checkNews();
-if (process.env.PR_BODY !== undefined) checkPullRequest(process.env.PR_BODY);
+// In a pull request, only check what the pull request touches (Ampere add-ons and news)
+let relevant = true;
+if (process.env.BASE_SHA && process.env.HEAD_SHA) {
+	try {
+		const changed = execFileSync('git', ['diff', '--name-only', process.env.BASE_SHA + '...' + process.env.HEAD_SHA], { encoding: 'utf8' }).split('\n');
+		relevant = changed.some((f) => /^Projects\/NewTab\/(addons\/|News\.json$)|^\.github\/scripts\/check-ampere\.js$/.test(f));
+	} catch { relevant = true; }
+}
+if (relevant) {
+	checkAddons();
+	checkNews();
+	if (process.env.PR_BODY !== undefined) checkPullRequest(process.env.PR_BODY);
+} else note('This pull request does not touch Ampere add-ons or news, so there is nothing to check.');
 
 const out = [];
 out.push(errors.length ? `## ❌ ${errors.length} problem${errors.length > 1 ? 's' : ''} to fix` : '## ✅ Automatic checks passed');

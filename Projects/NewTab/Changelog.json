@@ -15,6 +15,14 @@
 	},
 	"releases": [
 		{
+			"version": "1.11.2",
+			"date": "2026-10-29",
+			"summary": "A wider settings sidebar.",
+			"details": [
+				"The settings sidebar is wider (420 px, never more than 92% of the window), so options and add-on settings fit more easily."
+			]
+		},
+		{
 			"version": "1.11.1",
 			"date": "2026-10-29",
 			"summary": "The new tab page title is \"New Tab\" again.",

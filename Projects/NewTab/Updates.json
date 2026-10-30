@@ -92,6 +92,10 @@
 		{
 			"version": "1.11.1",
 			"note": "New tab page title restored to New Tab."
+		},
+		{
+			"version": "1.11.2",
+			"note": "Wider settings sidebar."
 		}
 	],
 	"notify": null
