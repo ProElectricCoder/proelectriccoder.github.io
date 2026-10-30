@@ -51,12 +51,12 @@ export function broadcast(msg) {
 	engine.send(msg);
 }
 
-// Sends privately to exactly one connected guest. CloudflareWSEngine only
-// exposes a broadcast send(), but per-peer RTCDataChannels are public on
-// the instance (engine.peers), so this reaches in for a targeted send —
-// used only for dealing each player their own private hand.
+// Sends privately to exactly one connected guest — used only for dealing each
+// player their own private hand. engine.js v1.5.0+ has sendTo(); the fallback
+// reaches into the per-peer RTCDataChannels so an older cached engine.js still works.
 export function sendTo(gid, msg) {
 	if (!engine || !gid) return;
+	if (typeof engine.sendTo === 'function') { engine.sendTo(gid, msg); return; }
 	const peer = engine.peers.get(gid);
 	if (peer?.channel?.readyState === 'open') {
 		try { peer.channel.send(JSON.stringify(msg)); } catch {}
