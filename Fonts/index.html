@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fonts - ProElectricCoder</title>
+<meta name="description" content="Fonts made by ProElectricCoder. Try Electrolyte, a monospace font, live: type your own text, see a sample web page, and download it.">
+<link rel="icon" href="/Favicon.svg">
+<script src="/header.js" defer></script>
+
+<style>
+/* ── The fonts. Add a new font: copy one @font-face, add it to the FONTS list at the bottom of the page. ── */
+@font-face {
+	font-family: 'Electrolyte';
+	src: url('Electrolyte.otf') format('opentype');
+	font-weight: normal;
+	font-style: normal;
+	font-display: swap;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+	--cyan: #00ffff;
+	--blue: #3d6eff;
+	--bg: #000011;
+	--border: rgba(0, 255, 255, 0.14);
+	--card: rgba(0, 255, 255, 0.04);
+	--text: #e8edf8;
+	--dim: rgba(232, 237, 248, 0.6);
+	--font: 'Electrolyte', monospace;   /* every demo below uses this variable */
+}
+html { scroll-behavior: smooth; background: var(--bg); }
+body {
+	background: radial-gradient(1200px 600px at 50% -10%, #001a3d 0%, transparent 60%);
+	color: var(--text);
+	font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+	line-height: 1.6;
+	min-height: 100vh;
+	padding-top: 56px;   /* room for the fixed site header */
+}
+.wrap { max-width: 980px; margin: 0 auto; padding: 0 20px 80px; }
+a { color: var(--cyan); }
+h2 { font-size: 1.1rem; font-weight: 600; margin: 44px 0 14px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dim); }
+.mono { font-family: var(--font); }
+
+/* hero */
+.hero { padding: 56px 0 8px; text-align: center; }
+.hero h1 { font-family: var(--font); font-size: clamp(2.6rem, 9vw, 5.5rem); font-weight: normal; line-height: 1.05; color: var(--cyan); text-shadow: 0 0 30px rgba(0,255,255,0.35); word-break: break-word; }
+.hero p { margin: 14px auto 0; max-width: 560px; color: var(--dim); }
+.hero-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 22px; }
+.btn { display: inline-block; padding: 10px 18px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); font: inherit; font-size: 0.9rem; text-decoration: none; cursor: pointer; transition: background 0.2s, border-color 0.2s; }
+.btn:hover { background: rgba(0,255,255,0.1); border-color: rgba(0,255,255,0.4); }
+.btn.primary { background: rgba(0,255,255,0.16); border-color: rgba(0,255,255,0.5); color: #fff; }
+.meta { margin-top: 14px; font-size: 0.78rem; color: var(--dim); }
+
+/* panel */
+.panel { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px; }
+
+/* tester */
+.controls { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; margin-bottom: 14px; font-size: 0.82rem; color: var(--dim); }
+.controls label { display: flex; align-items: center; gap: 8px; }
+.controls input[type=range] { width: 150px; accent-color: var(--cyan); }
+.controls input[type=color] { width: 34px; height: 26px; border: 1px solid var(--border); border-radius: 6px; background: none; padding: 0; cursor: pointer; }
+.controls output { min-width: 3ch; font-family: var(--font); color: var(--text); }
+.tester { width: 100%; min-height: 150px; resize: vertical; padding: 16px; border-radius: 12px; border: 1px solid var(--border); background: rgba(0,0,17,0.6); color: var(--cyan); font-family: var(--font); font-size: 40px; line-height: 1.25; outline: none; }
+.tester:focus { border-color: rgba(0,255,255,0.5); }
+
+/* glyph grid */
+.glyphs { display: grid; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: 6px; }
+.glyph { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 10px; background: rgba(0,0,17,0.5); color: var(--cyan); font-family: var(--font); font-size: 1.6rem; cursor: pointer; transition: background 0.15s, transform 0.15s; user-select: none; position: relative; }
+.glyph:hover, .glyph:focus-visible { background: rgba(0,255,255,0.16); transform: scale(1.08); outline: none; z-index: 1; }
+.glyph small { position: absolute; bottom: 2px; font-family: system-ui, sans-serif; font-size: 0.55rem; color: var(--dim); }
+#glyphInfo { margin-top: 10px; min-height: 1.6em; font-size: 0.82rem; color: var(--dim); }
+
+/* sample web page */
+.browser { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: #060b1d; }
+.browser-bar { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: rgba(255,255,255,0.05); border-bottom: 1px solid var(--border); }
+.dots { display: flex; gap: 6px; } .dots i { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.22); }
+.url { flex: 1; padding: 3px 10px; border-radius: 6px; background: rgba(0,0,0,0.35); font-family: var(--font); font-size: 0.78rem; color: var(--dim); }
+.page { padding: 28px clamp(16px, 4vw, 40px) 34px; font-family: var(--font); }
+.page nav { display: flex; gap: 18px; flex-wrap: wrap; font-size: 0.85rem; color: var(--dim); border-bottom: 1px dashed var(--border); padding-bottom: 12px; margin-bottom: 26px; }
+.page nav b { color: var(--cyan); font-weight: normal; margin-right: auto; }
+.page h3 { font-size: clamp(1.6rem, 4.4vw, 2.5rem); font-weight: normal; color: #fff; line-height: 1.15; }
+.page h3 span { color: var(--cyan); }
+.page p { margin-top: 12px; max-width: 60ch; color: rgba(232,237,248,0.78); font-size: 0.95rem; }
+.clockbox { display: inline-block; margin-top: 22px; padding: 16px 26px; border-radius: 14px; border: 1px solid rgba(0,255,255,0.3); background: rgba(0,255,255,0.05); text-align: center; }
+.clockbox .time { font-size: clamp(2.2rem, 8vw, 4rem); color: var(--cyan); line-height: 1; letter-spacing: 0.02em; text-shadow: 0 0 22px rgba(0,255,255,0.35); }
+.clockbox .date { margin-top: 6px; font-size: 0.85rem; color: var(--dim); }
+.page pre { margin-top: 22px; padding: 14px 16px; border-radius: 10px; background: rgba(0,0,0,0.45); border: 1px solid var(--border); overflow-x: auto; font-family: var(--font); font-size: 0.85rem; line-height: 1.5; color: #b9f6ff; }
+.page pre .c { color: rgba(232,237,248,0.4); } .page pre .k { color: #7ea2ff; } .page pre .s { color: #8dffb0; }
+.table { margin-top: 22px; width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.table th, .table td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); } .table th { color: var(--cyan); font-weight: normal; } .table td:last-child { text-align: right; }
+.page .btn { margin-top: 22px; font-family: var(--font); }
+
+/* monospace proof */
+.ruler { font-family: var(--font); font-size: clamp(0.9rem, 2.6vw, 1.5rem); line-height: 1.3; overflow-x: auto; white-space: pre; padding: 14px 16px; border-radius: 12px; background: rgba(0,0,17,0.6); border: 1px solid var(--border); }
+.ruler span { color: var(--cyan); }
+
+/* use it */
+.code { position: relative; padding: 16px; border-radius: 12px; background: rgba(0,0,0,0.5); border: 1px solid var(--border); overflow-x: auto; font: 0.82rem/1.6 ui-monospace, Menlo, Consolas, monospace; color: #cfe; white-space: pre; }
+.copy { position: absolute; top: 8px; right: 8px; padding: 4px 10px; font-size: 0.75rem; border-radius: 7px; }
+.note { margin-top: 10px; font-size: 0.82rem; color: var(--dim); }
+
+footer { text-align: center; padding: 30px 20px; font-size: 0.8rem; color: rgba(232,237,248,0.35); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<div id="header"></div>
+
+<main class="wrap">
+	<section class="hero">
+		<h1 id="heroName">Electrolyte</h1>
+		<p>A monospace font by ProElectricCoder, made for clocks, code and anything that should line up.</p>
+		<div class="hero-actions">
+			<a class="btn primary" href="Electrolyte.otf" download>Download Electrolyte.otf</a>
+			<a class="btn" href="#tester">Try it</a>
+			<a class="btn" href="#use">Use it on a website</a>
+		</div>
+		<p class="meta" id="fontMeta">OpenType · monospace</p>
+	</section>
+
+	<h2 id="tester">Try it</h2>
+	<div class="panel">
+		<div class="controls">
+			<label>Size <input type="range" id="size" min="12" max="160" value="40"><output id="sizeOut">40</output>px</label>
+			<label>Letter spacing <input type="range" id="spacing" min="-0.1" max="0.5" step="0.01" value="0"><output id="spacingOut">0</output>em</label>
+			<label>Text <input type="color" id="fg" value="#00ffff"></label>
+			<label>Background <input type="color" id="bg" value="#000011"></label>
+			<button class="btn" id="resetTester" type="button">Reset</button>
+		</div>
+		<textarea class="tester" id="testerText" spellcheck="false" aria-label="Type here to try the font">The quick brown fox jumps over the lazy dog 0123456789</textarea>
+	</div>
+
+	<h2>Characters</h2>
+	<div class="panel">
+		<div class="glyphs" id="glyphs" role="list"></div>
+		<div id="glyphInfo">Click a character to see its code and copy it.</div>
+	</div>
+
+	<h2>On a web page</h2>
+	<div class="browser">
+		<div class="browser-bar"><span class="dots"><i></i><i></i><i></i></span><span class="url">https://example.com/dashboard</span></div>
+		<div class="page">
+			<nav><b>ELECTRO/LAB</b><span>Home</span><span>Docs</span><span>Pricing</span><span>Contact</span></nav>
+			<h3>Build things that <span>line up</span>.</h3>
+			<p>Every character takes exactly the same width, so tables, code and clocks stay tidy, and numbers never jump around when they change.</p>
+			<div class="clockbox"><div class="time" id="demoTime">00:00:00</div><div class="date" id="demoDate"></div></div>
+			<pre><span class="c">// a few lines of code</span>
+<span class="k">const</span> clock = document.<span class="k">querySelector</span>(<span class="s">'#clock'</span>);
+<span class="k">setInterval</span>(() =&gt; {
+  clock.textContent = <span class="k">new</span> Date().toLocaleTimeString();
+}, <span class="s">1000</span>);</pre>
+			<table class="table">
+				<tr><th>Item</th><th>Qty</th><th>Price</th></tr>
+				<tr><td>Capacitor</td><td>0012</td><td>$003.50</td></tr>
+				<tr><td>Resistor</td><td>0140</td><td>$000.05</td></tr>
+				<tr><td>Microcontroller</td><td>0003</td><td>$012.90</td></tr>
+			</table>
+			<a class="btn" href="#tester">Call to action →</a>
+		</div>
+	</div>
+
+	<h2>Monospace check</h2>
+	<div class="ruler" aria-label="Every character is the same width">iiiiiiiiiiiiiiiiiiiiiiii
+WWWWWWWWWWWWWWWWWWWWWWWW
+<span>0123456789</span> <span>ABCDEFGHIJ</span> <span>klmnopqrst</span>
+.:,;!|l1I.:,;!|l1I.:,;!|</div>
+	<p class="note">Each line above is the same width: the narrow “i” and the wide “W” take the same space.</p>
+
+	<h2 id="use">Use it on your website</h2>
+	<div class="code" id="cssSnippet"><button class="btn copy" id="copyCss" type="button">Copy</button></div>
+	<p class="note">Download the file, put it next to your page, and use the CSS above. Keep a fallback like <code>monospace</code> in case the file hasn't loaded yet.</p>
+</main>
+
+<footer>Fonts · ProElectricCoder · More fonts coming.</footer>
+
+<script>
+// ── Font list: add an entry here when a new font is added to this folder ──
+const FONTS = [{ name: 'Electrolyte', file: 'Electrolyte.otf', format: 'opentype' }];
+const font = FONTS[0];
+
+// Characters: printable ASCII (the font has 95 glyphs)
+const grid = document.getElementById('glyphs'), info = document.getElementById('glyphInfo');
+for (let c = 33; c <= 126; c++) {
+	const ch = String.fromCharCode(c);
+	const b = document.createElement('button');
+	b.type = 'button'; b.className = 'glyph'; b.setAttribute('role', 'listitem'); b.setAttribute('aria-label', 'Character ' + ch + ', code ' + c);
+	b.append(document.createTextNode(ch));
+	const small = document.createElement('small'); small.textContent = String(c); b.append(small);
+	b.onclick = async () => {
+		let copied = '';
+		try { await navigator.clipboard.writeText(ch); copied = ' · copied'; } catch { /* clipboard may be blocked */ }
+		info.textContent = `“${ch}”  ·  decimal ${c}  ·  U+${c.toString(16).toUpperCase().padStart(4, '0')}  ·  HTML &#${c};${copied}`;
+	};
+	grid.appendChild(b);
+}
+
+// Tester
+const $ = (id) => document.getElementById(id);
+const t = { text: $('testerText'), size: $('size'), spacing: $('spacing'), fg: $('fg'), bg: $('bg') };
+function applyTester() {
+	t.text.style.fontSize = t.size.value + 'px';
+	t.text.style.letterSpacing = t.spacing.value + 'em';
+	t.text.style.color = t.fg.value;
+	t.text.style.background = t.bg.value;
+	$('sizeOut').textContent = t.size.value; $('spacingOut').textContent = (+t.spacing.value).toFixed(2).replace(/\.?0+$/, '') || '0';
+}
+for (const k of ['size', 'spacing', 'fg', 'bg']) t[k].addEventListener('input', applyTester);
+$('resetTester').onclick = () => { t.size.value = 40; t.spacing.value = 0; t.fg.value = '#00ffff'; t.bg.value = '#000011'; t.text.value = 'The quick brown fox jumps over the lazy dog 0123456789'; t.text.style.background = ''; applyTester(); };
+applyTester();
+
+// Live clock in the sample page
+function tick() {
+	const d = new Date();
+	$('demoTime').textContent = d.toLocaleTimeString('en-GB');
+	$('demoDate').textContent = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+tick(); setInterval(tick, 1000);
+
+// CSS to copy
+const css = `@font-face {
+  font-family: '${font.name}';
+  src: url('${font.file}') format('${font.format}');
+  font-display: swap;
+}
+
+.clock {
+  font-family: '${font.name}', monospace;
+}`;
+const box = $('cssSnippet');
+box.insertBefore(document.createTextNode(css), $('copyCss'));
+$('copyCss').onclick = async (e) => {
+	try { await navigator.clipboard.writeText(css); e.target.textContent = 'Copied'; } catch { e.target.textContent = 'Select and copy'; }
+	setTimeout(() => { e.target.textContent = 'Copy'; }, 1600);
+};
+
+// File size, once it is known
+fetch(font.file, { method: 'HEAD' }).then((r) => { const n = +r.headers.get('content-length'); if (n) $('fontMeta').textContent = `OpenType · monospace · ${(n / 1024).toFixed(1)} KB · 95 characters`; }).catch(() => {});
+</script>
+</body>
+</html>
