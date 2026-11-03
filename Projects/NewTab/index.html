@@ -137,7 +137,7 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 	<div class="nav-left">
 		<img src="ProElectricCoder-logo-website-1.svg" alt="Logo" class="nav-logo" onerror="this.style.display='none'">
 		<span class="nav-title">Ampere</span>
-		<span class="nav-version" id="navVersion">v1.11.5</span>
+		<span class="nav-version" id="navVersion">v1.11.6</span>
 	</div>
 	<div class="nav-right">
 		<a class="nav-link" href="#features">Features</a>
@@ -277,7 +277,7 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 </section>
 
 <footer>
-	Ampere · <span id="footerVersion">v1.11.5</span> · Built with ElectronCSS
+	Ampere · <span id="footerVersion">v1.11.6</span> · Built with ElectronCSS
 </footer>
 
 <div id="updateBanner">
@@ -290,7 +290,7 @@ footer { position: relative; z-index: 1; text-align: center; padding: 48px 24px;
 </div>
 
 <script type="module">
-import { cubicGradient } from 'https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js';
+import { cubicGradient } from 'https://proelectriccoder.pages.dev/ElectronCSS/CubicGradient.js';
 
 document.body.style.background = cubicGradient({ direction: 'to bottom right', start: '#000000', end: '#000066', steps: 20, power: 3 });
 
@@ -370,7 +370,7 @@ function compareVersions(a, b) {
 //   3. only then are the installed files replaced from it, with manifest.json last
 // If anything goes wrong before step 3, the installed extension is exactly as it was.
 const STAGE_FILE = 'new-version.json';
-const SOURCE_ORIGIN = 'https://proelectriccoder.github.io/';   // shared files (like CubicGradient.js) may only come from here
+const SOURCE_ORIGIN = 'https://proelectriccoder.pages.dev/';   // shared files (like CubicGradient.js) may only come from here
 const REQUIRED_FILES = ['manifest.json', 'NewTab.html', 'NewTabJS.js', 'Changelog.json'];
 const APPLY_LAST = ['NewTab.html', 'NewTabJS.js', 'manifest.json'];   // replaced in this order, after every other file
 const FALLBACK_FILES = ['manifest.json', 'NewTab.html', 'NewTabJS.js', 'Changelog.json',

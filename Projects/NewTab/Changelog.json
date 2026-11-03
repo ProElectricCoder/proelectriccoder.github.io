@@ -11,9 +11,17 @@
 		"Icon128.png"
 	],
 	"sources": {
-		"CubicGradient.js": "https://proelectriccoder.github.io/ElectronCSS/CubicGradient.js"
+		"CubicGradient.js": "https://proelectriccoder.pages.dev/ElectronCSS/CubicGradient.js"
 	},
 	"releases": [
+		{
+			"version": "1.11.6",
+			"date": "2026-11-03",
+			"summary": "Everything is now served from Cloudflare Pages.",
+			"details": [
+				"Updates, add-ons and the shared CubicGradient.js file are now downloaded from proelectriccoder.pages.dev instead of GitHub Pages."
+			]
+		},
 		{
 			"version": "1.11.5",
 			"date": "2026-11-03",

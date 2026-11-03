@@ -662,7 +662,7 @@ function compareVersions(a, b) {
 }
 
 // ─── Remote update config ─────────────────────────────────────────────────
-const REMOTE_BASE = 'https://proelectriccoder.github.io/Projects/NewTab/';
+const REMOTE_BASE = 'https://proelectriccoder.pages.dev/Projects/NewTab/';
 
 // ─── Staged updates ───────────────────────────────────────────────────────
 // An update never touches the installed files until the whole new version is safely on disk and checked:
@@ -671,7 +671,7 @@ const REMOTE_BASE = 'https://proelectriccoder.github.io/Projects/NewTab/';
 //   3. only then are the installed files replaced from it, with manifest.json last
 // If anything goes wrong before step 3, the installed extension is exactly as it was.
 const STAGE_FILE = 'new-version.json';
-const SOURCE_ORIGIN = 'https://proelectriccoder.github.io/';   // shared files (like CubicGradient.js) may only come from here
+const SOURCE_ORIGIN = 'https://proelectriccoder.pages.dev/';   // shared files (like CubicGradient.js) may only come from here
 const REQUIRED_FILES = ['manifest.json', 'NewTab.html', 'NewTabJS.js', 'Changelog.json'];
 const APPLY_LAST = ['NewTab.html', 'NewTabJS.js', 'manifest.json'];   // replaced in this order, after every other file
 const FALLBACK_FILES = ['manifest.json', 'NewTab.html', 'NewTabJS.js', 'Changelog.json',

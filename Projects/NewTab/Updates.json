@@ -108,6 +108,10 @@
 		{
 			"version": "1.11.5",
 			"note": "Developer news is fetched from Cloudflare Pages instead of GitHub Pages."
+		},
+		{
+			"version": "1.11.6",
+			"note": "Updates, add-ons and shared files are served from Cloudflare Pages."
 		}
 	],
 	"notify": null

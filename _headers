@@ -1,5 +1,8 @@
 # Cloudflare Pages response headers
-# The Ampere extension reads its developer news from this file on another origin, so it needs CORS.
-/Projects/NewTab/News.json
+# The Ampere extension downloads its news, updates and add-ons from here on another origin, so these need CORS.
+# no-cache keeps new posts and releases from being served stale.
+/Projects/NewTab/*
   Access-Control-Allow-Origin: *
   Cache-Control: public, max-age=0, must-revalidate
+/ElectronCSS/CubicGradient.js
+  Access-Control-Allow-Origin: *
