@@ -2,10 +2,16 @@
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
+	<!-- Never tell other websites which page a picture is used on. Some picture hosts (NASA APOD wallpapers) swap in a logo when the picture is requested with a referrer. -->
+	<meta name="referrer" content="no-referrer">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>New Tab</title>
 	<link rel="icon" id="tabIcon" type="image/svg+xml" href="ProElectricCoder-logo-website-1.svg">
 	<style>
+#bgLayer { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+#bgLayer[hidden] { display: none; }
+#bgLayer img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+#bgLayer .bg-veil { position: absolute; inset: 0; }
 body {
 	background: #000000;
 	height: 100vh;

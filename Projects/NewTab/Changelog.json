@@ -15,6 +15,15 @@
 	},
 	"releases": [
 		{
+			"version": "1.11.4",
+			"date": "2026-11-03",
+			"summary": "Developer news refreshes within minutes, and a NASA wallpaper fix.",
+			"details": [
+				"Developer news is now checked every 2 minutes while a tab is open, when you return to the tab, and when you open the News panel. Before, it was checked at most once an hour, and only when a new tab opened. The open panel only redraws when something actually changed.",
+				"Background pictures from web addresses (including the Wallpapers add-on) are now shown without sending a referrer. Chrome sent one for CSS backgrounds, which can make some picture hosts show a logo instead of the picture, as seen with NASA wallpapers."
+			]
+		},
+		{
 			"version": "1.11.3",
 			"date": "2026-11-03",
 			"summary": "News pictures can choose their background.",

@@ -100,6 +100,10 @@
 		{
 			"version": "1.11.3",
 			"note": "News pictures can choose their background (img_bg)."
+		},
+		{
+			"version": "1.11.4",
+			"note": "News refreshes every 2 minutes; background pictures are requested without a referrer (NASA wallpaper fix)."
 		}
 	],
 	"notify": null

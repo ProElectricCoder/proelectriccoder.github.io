@@ -205,19 +205,43 @@ const bgMode = () => localStorage.getItem('bgMode') === 'picture' ? 'picture' : 
 
 // Paints either the gradient or the picture (with a dimming layer so text stays readable)
 function paintBackground() {
+	const layer = bgLayer();
 	if (bgMode() === 'picture' && (bgImageSrc || bgPreset())) {
 		const dim = (parseInt(localStorage.getItem('bgDim') ?? '35', 10) || 0) / 100;
 		const tint = currentTheme() === 'light' ? '255,255,255' : '0,0,0';
 		const veil = `linear-gradient(rgba(${tint},${dim}), rgba(${tint},${dim}))`;
 		if (bgImageSrc) {
-			const src = bgImageSrc.replace(/["\\\n]/g, encodeURIComponent);
-			document.body.style.background = `${veil}, url("${src}") center / cover no-repeat fixed`;
+			// A real <img> (not a CSS background): it is requested without a referrer, like the other pictures here.
+			// Chrome ignores the no-referrer setting for CSS pictures, and some hosts show a logo instead of the picture when a referrer is sent.
+			document.body.style.background = currentTheme() === 'light' ? '#fff' : '#000';
+			if (layer.img.getAttribute('src') !== bgImageSrc) {
+				layer.img.onerror = () => { layer.img.removeAttribute('src'); layer.root.hidden = true; document.body.style.background = currentGradient; };
+				layer.img.src = bgImageSrc;
+			}
+			layer.veil.style.background = veil;
+			layer.root.hidden = false;
 		} else {
+			layer.root.hidden = true;
 			document.body.style.background = `${veil}, ${bgPreset().css}`;
 		}
 	} else {
+		layer.root.hidden = true;
 		document.body.style.background = currentGradient;
 	}
+}
+
+// Two fixed layers behind the page: the picture and a dimming veil over it
+let bgLayerEls = null;
+function bgLayer() {
+	if (bgLayerEls) return bgLayerEls;
+	const root = document.createElement('div');
+	root.id = 'bgLayer'; root.hidden = true; root.setAttribute('aria-hidden', 'true');
+	const img = document.createElement('img');
+	img.alt = ''; img.referrerPolicy = 'no-referrer'; img.decoding = 'async';
+	const veil = document.createElement('div'); veil.className = 'bg-veil';
+	root.append(img, veil);
+	document.body.prepend(root);
+	return (bgLayerEls = { root, img, veil });
 }
 
 // Picture storage: a chosen file lives in IndexedDB (too big for localStorage); a web address is kept as text
@@ -1220,7 +1244,8 @@ async function toggleAutoUpdate() {
 // Everything shown comes from News.json on the site, so it can change without an extension update.
 // It is fetched while the page runs and never written to disk (it is not in the updater's file list).
 const NEWS_URL = REMOTE_BASE + 'News.json';
-const NEWS_MAX_AGE_MS = 60 * 60 * 1000;   // look for fresh news at most once an hour
+const NEWS_CHECK_EVERY_MS = 2 * 60 * 1000;   // look for fresh news every 2 minutes while the page is open (a small conditional request)
+const NEWS_MAX_AGE_MS = 90 * 1000;           // cached news younger than this is used as it is (kept below the check interval)
 let newsData = { posts: [], cards: [] };
 
 const newsEls = {
@@ -1346,6 +1371,7 @@ function updateNewsDot() {
 }
 
 function openNews() {
+	loadNews();   // also look for newer posts when the panel is opened
 	renderNewsPanel();
 	renderWorld();
 	newsEls.panel.classList.add('open');
@@ -1399,8 +1425,9 @@ async function loadNews() {
 		const res = await fetch(NEWS_URL, { cache: 'no-cache' });
 		if (!res.ok) return;
 		const data = await res.json();
+		const changed = JSON.stringify(data) !== JSON.stringify(cache?.data);
 		lsSet('newsCache', { fetchedAt: Date.now(), data });
-		if (newsEnabled()) applyNews(cleanNews(data));
+		if (changed && newsEnabled()) applyNews(cleanNews(data));   // an unchanged file leaves the open panel alone (keeps your scroll position)
 	} catch { /* offline: keep showing the cached news */ }
 }
 
@@ -2060,6 +2087,8 @@ loadWeather(false);
 setInterval(() => loadWeather(false), WEATHER_TTL_MS);
 renderShortcuts();
 loadNews();
+setInterval(() => { if (!document.hidden) loadNews(); }, NEWS_CHECK_EVERY_MS);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) loadNews(); });
 loadWorld();
 renderAddons();
 initAddons();
