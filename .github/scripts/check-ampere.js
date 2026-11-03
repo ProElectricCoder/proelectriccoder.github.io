@@ -109,6 +109,8 @@ function checkNews() {
 		text(p.title, 120, 'title', where, true); text(p.summary, 300, 'summary', where, false); text(p.project, 40, 'project', where, false);
 		if (p.url !== undefined && !https(p.url)) err(`${where}: "url" must be an https address`);
 		if (p.image !== undefined && !https(p.image)) err(`${where}: "image" must be an https address`);
+		const bg = p.img_bg ?? p['img-bg'];
+		if (bg !== undefined && !['black', 'white', 'default_dark', 'default_light'].includes(String(bg).toLowerCase().replace(/[\s-]+/g, '_'))) err(`${where}: "img_bg" must be black, white, default_dark or default_light`);
 		const author = typeof p.author === 'string' ? p.author : p.author && p.author.github;
 		if (!author) warn(`${where}: add "author": "<your GitHub username>" so you get a tag`);
 		else if (!user.test(author)) err(`${where}: "author" is not a valid GitHub username`);

@@ -415,6 +415,11 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); }
 .news-meta { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; font-family: monospace; font-size: 0.7rem; color: rgba(255,255,255,0.45); }
 .news-tag { padding: 1px 8px; border-radius: 20px; border: 1px solid rgba(100,180,255,0.4); color: #8cc8ff; }
 .news-img, .news-card-img { display: block; width: 100%; height: auto; max-height: 220px; object-fit: cover; object-position: center top; border-radius: 8px; background: rgba(255,255,255,0.05); }   /* full width, natural height, cropped only past the limit */
+/* background behind transparent pictures: img_bg in News.json */
+.news-img[data-bg="black"], .news-card-img[data-bg="black"] { background: #000; }
+.news-img[data-bg="white"], .news-card-img[data-bg="white"] { background: #fff; }
+.news-img[data-bg="default_dark"], .news-card-img[data-bg="default_dark"] { background: rgba(255,255,255,0.05); }
+.news-img[data-bg="default_light"], .news-card-img[data-bg="default_light"] { background: rgba(0,0,0,0.06); }
 .news-img { margin-bottom: 10px; }
 .news-card-img { margin-bottom: 12px; }
 .news-card { padding-top: 14px; }

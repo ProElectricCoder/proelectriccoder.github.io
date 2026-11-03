@@ -96,6 +96,10 @@
 		{
 			"version": "1.11.2",
 			"note": "Wider settings sidebar."
+		},
+		{
+			"version": "1.11.3",
+			"note": "News pictures can choose their background (img_bg)."
 		}
 	],
 	"notify": null

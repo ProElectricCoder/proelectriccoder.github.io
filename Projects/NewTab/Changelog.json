@@ -15,6 +15,14 @@
 	},
 	"releases": [
 		{
+			"version": "1.11.3",
+			"date": "2026-11-03",
+			"summary": "News pictures can choose their background.",
+			"details": [
+				"News posts and suggestion cards can set the colour behind their picture (black, white, or the default dark or light tint), which matters for pictures with transparent areas."
+			]
+		},
+		{
 			"version": "1.11.2",
 			"date": "2026-10-29",
 			"summary": "A wider settings sidebar.",

@@ -1265,12 +1265,12 @@ function devTag(user) {
 function cleanNews(raw) {
 	const posts = (Array.isArray(raw?.posts) ? raw.posts : []).slice(0, 30).map((p) => ({
 		id: clip(p?.id, 80), date: clip(p?.date, 10), project: clip(p?.project, 40),
-		title: clip(p?.title, 120), summary: clip(p?.summary, 300), url: safeHttpsUrl(p?.url), image: safeHttpsUrl(p?.image), author: cleanAuthor(p?.author)
+		title: clip(p?.title, 120), summary: clip(p?.summary, 300), url: safeHttpsUrl(p?.url), image: safeHttpsUrl(p?.image), imgBg: cleanImgBg(p), author: cleanAuthor(p?.author)
 	})).filter((p) => p.id && p.title)
 		.sort((a, b) => b.date.localeCompare(a.date));   // newest first
 	const cards = (Array.isArray(raw?.cards) ? raw.cards : []).slice(0, 10).map((c) => ({
 		id: clip(c?.id, 80), project: clip(c?.project, 40), title: clip(c?.title, 80), text: clip(c?.text, 240),
-		cta: clip(c?.cta, 40) || 'Open', url: safeHttpsUrl(c?.url), image: safeHttpsUrl(c?.image), author: cleanAuthor(c?.author),
+		cta: clip(c?.cta, 40) || 'Open', url: safeHttpsUrl(c?.url), image: safeHttpsUrl(c?.image), imgBg: cleanImgBg(c), author: cleanAuthor(c?.author),
 		hosts: (Array.isArray(c?.hosts) ? c.hosts : []).slice(0, 60).map((h) => clip(h, 100).toLowerCase()).filter(Boolean),
 		keywords: (Array.isArray(c?.keywords) ? c.keywords : []).slice(0, 60).map((k) => clip(k, 40).toLowerCase()).filter(Boolean)
 	})).filter((c) => c.id && c.title && c.url && (c.hosts.length || c.keywords.length));
@@ -1299,10 +1299,18 @@ function el(tag, className, text) {
 	return e;
 }
 
+// Optional picture background (shows behind transparent pictures): "img_bg" or "img-bg" in News.json
+const IMG_BGS = ['black', 'white', 'default_dark', 'default_light'];
+function cleanImgBg(p) {
+	const v = String(p?.img_bg ?? p?.['img-bg'] ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+	return IMG_BGS.includes(v) ? v : '';
+}
+
 // Optional picture: skipped when missing, and removed again if it fails to load
-function newsImage(url, className) {
+function newsImage(url, className, bg) {
 	if (!url) return null;
 	const img = el('img', className);
+	if (bg) img.dataset.bg = bg;
 	img.alt = ''; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
 	img.onerror = () => img.remove();
 	img.src = url;
@@ -1315,7 +1323,7 @@ function renderNewsPanel() {
 	if (!newsData.posts.length) { newsEls.list.appendChild(el('p', 'news-empty', 'Nothing new right now.')); return; }
 	for (const p of newsData.posts) {
 		const item = el('article', 'news-item');
-		const pic = newsImage(p.image, 'news-img');
+		const pic = newsImage(p.image, 'news-img', p.imgBg);
 		if (pic) item.appendChild(pic);
 		const meta = el('div', 'news-meta');
 		if (p.project) meta.appendChild(el('span', 'news-tag', p.project));
@@ -1355,7 +1363,7 @@ function refreshNewsCard() {
 	close.onclick = () => { lsSet('newsDismissed', [...lsGet('newsDismissed', []), card.id]); refreshNewsCard(); };
 	const cta = el('a', 'news-card-cta', card.cta);
 	cta.href = card.url; cta.target = '_blank'; cta.rel = 'noopener noreferrer';
-	newsEls.card.replaceChildren(...[newsImage(card.image, 'news-card-img')].filter(Boolean), close, el('div', 'news-card-label', card.project ? `Suggested · ${card.project}` : 'Suggested'),
+	newsEls.card.replaceChildren(...[newsImage(card.image, 'news-card-img', card.imgBg)].filter(Boolean), close, el('div', 'news-card-label', card.project ? `Suggested · ${card.project}` : 'Suggested'),
 		...[devTag(card.author)].filter(Boolean),
 		el('h3', null, card.title), el('p', null, card.text), cta);
 }

@@ -36,6 +36,7 @@ News lives in [`News.json`](News.json) and appears in the News panel. Add an obj
 
 - `id` is unique; `date` is `YYYY-MM-DD`; `title` ≤ 120 characters; `summary` ≤ 300; `project` ≤ 40.
 - `url` and `image` (optional) must be **https**. Images should be around 1200×630.
+- `img_bg` (optional) sets the colour behind a picture with transparent areas: `"black"`, `"white"`, `"default_dark"` (a faint light tint) or `"default_light"` (a faint dark tint). `"img-bg"` also works. Leave it out for the normal look.
 - `author` is your **GitHub username**. Your name and profile picture appear as a small tag on your post.
 - Plain text only: no HTML, no markdown, no emoji spam.
 - News must be honest and useful to Ampere users: no advertising, affiliate links, clickbait, or anything misleading. Posts are about Ampere, its add-ons, or developer projects it makes sense to mention.
