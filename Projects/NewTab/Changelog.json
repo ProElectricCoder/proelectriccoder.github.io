@@ -15,6 +15,14 @@
 	},
 	"releases": [
 		{
+			"version": "1.11.5",
+			"date": "2026-11-03",
+			"summary": "Developer news now comes from Cloudflare Pages.",
+			"details": [
+				"Developer news is fetched directly from proelectriccoder.pages.dev instead of GitHub Pages, so new posts show up as soon as the site deploys."
+			]
+		},
+		{
 			"version": "1.11.4",
 			"date": "2026-11-03",
 			"summary": "Developer news refreshes within minutes, and a NASA wallpaper fix.",

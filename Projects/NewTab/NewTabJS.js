@@ -1243,7 +1243,7 @@ async function toggleAutoUpdate() {
 // ─── News: latest updates from my other projects + suggestion cards ───────
 // Everything shown comes from News.json on the site, so it can change without an extension update.
 // It is fetched while the page runs and never written to disk (it is not in the updater's file list).
-const NEWS_URL = REMOTE_BASE + 'News.json';
+const NEWS_URL = 'https://proelectriccoder.pages.dev/Projects/NewTab/News.json';   // served by Cloudflare Pages (not GitHub Pages); CORS comes from /_headers
 const NEWS_CHECK_EVERY_MS = 2 * 60 * 1000;   // look for fresh news every 2 minutes while the page is open (a small conditional request)
 const NEWS_MAX_AGE_MS = 90 * 1000;           // cached news younger than this is used as it is (kept below the check interval)
 let newsData = { posts: [], cards: [] };
