@@ -1,6 +1,16 @@
 {
-	"updated": "2026-10-28",
+	"updated": "2026-11-03",
 	"posts": [
+		{
+			"id": "font-electrolyte",
+			"date": "2026-11-03",
+			"project": "Fonts",
+			"title": "Electrolyte: a new monospace font",
+			"summary": "A monospace font for clocks, code and anything that lines up. Try it live with your own text, see how a web page looks with it, and download it.",
+			"url": "https://proelectriccoder.pages.dev/Fonts/",
+			"image": "https://proelectriccoder.pages.dev/Fonts/Preview.jpg",
+			"author": "ProElectricCoder"
+		},
 		{
 			"id": "chat-voice-pins-disappearing",
 			"date": "2026-10-28",
