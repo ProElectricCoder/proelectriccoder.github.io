@@ -104,6 +104,10 @@
 		{
 			"version": "1.11.4",
 			"note": "News refreshes every 2 minutes; background pictures are requested without a referrer (NASA wallpaper fix)."
+		},
+		{
+			"version": "1.11.5",
+			"note": "Developer news is fetched from Cloudflare Pages instead of GitHub Pages."
 		}
 	],
 	"notify": null
